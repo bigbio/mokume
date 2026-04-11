@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+  <!-- Mokume Logo — Layered metals: steel, copper, gold, bronze -->
+  <g transform="translate(60, 0)">
+    <path d="M-40 52 Q-28 38 -20 26 Q-12 12 0 2 Q12 12 20 26 Q28 38 40 52" stroke="#2c3e50" stroke-width="2" fill="none" opacity="0.4" stroke-linecap="round"/>
+    <path d="M-32 52 Q-22 38 -16 26 Q-8 14 0 8 Q8 14 16 26 Q22 38 32 52" stroke="#B87333" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round"/>
+    <path d="M-24 52 Q-16 40 -10 30 Q-4 20 0 14 Q4 20 10 30 Q16 40 24 52" stroke="#DAA520" stroke-width="2.5" fill="none" opacity="0.8" stroke-linecap="round"/>
+    <path d="M-16 52 Q-10 42 -6 34 Q-2 26 0 22 Q2 26 6 34 Q10 42 16 52" stroke="#C0392B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="60" y="72" text-anchor="middle" fill="#1a1a1a" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-weight="700" font-size="18" letter-spacing="0.08em">mokume</text>
+</svg>

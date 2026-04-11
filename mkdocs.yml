@@ -8,22 +8,22 @@ repo_url: https://github.com/bigbio/mokume
 
 theme:
   name: material
+  custom_dir: docs/overrides
+  font: false
   palette:
     - scheme: default
-      primary: indigo
+      primary: blue
       accent: indigo
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
+      primary: blue
       accent: indigo
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.path
@@ -36,7 +36,6 @@ theme:
     - search.highlight
     - search.share
     - toc.follow
-    - toc.integrate
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
@@ -99,31 +98,34 @@ plugins:
         - en
 
 nav:
-  - Home:
+  - Getting Started:
       - Home: index.md
       - Installation: installation.md
       - Quick Start: quickstart.md
-  - Concepts:
+      - Community: community.md
+  - Library:
       - concepts/index.md
       - Quantification Methods: concepts/quantification.md
       - Normalization: concepts/normalization.md
       - Batch Correction: concepts/batch-correction.md
       - IRS Normalization: concepts/irs.md
-      - Preprocessing Filters: concepts/preprocessing.md
-  - User Guide:
+      - Preprocessing: concepts/preprocessing.md
+  - CLI:
       - user-guide/index.md
-      - "features2proteins: Unified Pipeline": user-guide/features2proteins.md
-      - "features2peptides: Peptide Normalization": user-guide/features2peptides.md
-      - "peptides2protein: Protein Quantification": user-guide/peptides2protein.md
-      - "batch-correct: Batch Correction": user-guide/batch-correct.md
-      - Visualization & Reports: user-guide/visualization.md
-  - Reference:
+      - features2proteins: user-guide/features2proteins.md
+      - features2peptides: user-guide/features2peptides.md
+      - peptides2protein: user-guide/peptides2protein.md
+      - batch-correct: user-guide/batch-correct.md
+      - Visualization: user-guide/visualization.md
+  - API Reference:
       - reference/index.md
-      - CLI Reference: reference/cli.md
+      - CLI Options: reference/cli.md
       - Python API: reference/python-api.md
       - Configuration: reference/configuration.md
       - Computed Values: reference/computed-values.md
-  - Community: community.md
+
+extra_css:
+  - https://quantms.org/css/quantms-theme.css
 
 extra:
   social:

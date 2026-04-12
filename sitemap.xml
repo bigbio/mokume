@@ -2,86 +2,86 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://mokume.quantms.org/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/community/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/installation/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/quickstart/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/concepts/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/concepts/batch-correction/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/concepts/irs/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/concepts/normalization/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/concepts/preprocessing/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/concepts/quantification/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/reference/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/reference/cli/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/reference/computed-values/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/reference/configuration/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/reference/python-api/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/user-guide/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/user-guide/batch-correct/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/user-guide/features2peptides/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/user-guide/features2proteins/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/user-guide/peptides2protein/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
     <url>
          <loc>https://mokume.quantms.org/user-guide/visualization/</loc>
-         <lastmod>2026-03-16</lastmod>
+         <lastmod>2026-04-12</lastmod>
     </url>
 </urlset>

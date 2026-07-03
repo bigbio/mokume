@@ -32,7 +32,7 @@ classifiers = [
     "Development Status :: 4 - Beta"
 ]
 dependencies = [
-    "numpy<2.1.0",
+    "numpy<2.3.0",
     "click",
     "pandas",
     "pyarrow>=16.1.0",

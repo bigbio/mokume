@@ -1,7 +1,7 @@
 # Core dependencies (aligned with pyproject.toml)
 scikit-learn
 pyopenms
-numpy<2.1.0
+numpy<2.3.0
 click
 pandas
 matplotlib

@@ -96,7 +96,7 @@ jobs:
           pip install --no-index --find-links dist mokume-rs
           python -c "import mokume._mokume as m; print('mokume', m.version()); assert m.version()"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.os }}-${{ matrix.target }}
           path: rust/dist/*.whl
@@ -112,7 +112,7 @@ jobs:
           working-directory: rust
           command: sdist
           args: --out dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sdist
           path: rust/dist/*.tar.gz

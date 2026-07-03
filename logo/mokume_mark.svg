@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-  <!-- Mokume Mark — Layered metals: steel, copper, gold, bronze -->
-  <path d="M2 48 Q10 36 16 26 Q22 14 26 4 Q30 14 36 26 Q42 36 50 48" stroke="#2c3e50" stroke-width="2" fill="none" opacity="0.4" stroke-linecap="round"/>
-  <path d="M8 48 Q14 36 20 26 Q24 16 26 10 Q28 16 32 26 Q38 36 44 48" stroke="#B87333" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round"/>
-  <path d="M14 48 Q18 38 22 30 Q24 22 26 16 Q28 22 30 30 Q34 38 38 48" stroke="#DAA520" stroke-width="2.5" fill="none" opacity="0.8" stroke-linecap="round"/>
-  <path d="M20 48 Q22 40 24 34 Q25 28 26 24 Q27 28 28 34 Q30 40 32 48" stroke="#C0392B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-</svg>

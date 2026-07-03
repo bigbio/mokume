@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A comprehensive proteomics quantification library supporting iBAQ, TopN, MaxLFQ, DirectLFQ, and more">
+        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
       
       
         <meta name="author" content="BigBio Team">
@@ -112,9 +112,15 @@
     
     
       
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
     
     
-      <link rel="stylesheet" href="https://quantms.org/css/quantms-theme.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -132,7 +138,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -155,7 +161,7 @@
 
   
 
-<header class="md-header md-header--shadow" data-md-component="header">
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../.." title="mokume" class="md-header__button md-logo" aria-label="mokume" data-md-component="logo">
       
@@ -190,7 +196,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -200,7 +206,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -277,13 +283,153 @@
     
   </nav>
   
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  User Guide (CLI)
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../periphery/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Python Periphery
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../community/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Community
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
 </header>
     
     <div class="md-container" data-md-component="container">
       
       
-        
-          
         
       
       <main class="md-main" data-md-component="main">
@@ -297,8 +443,12 @@
                     
 
 
+  
 
-<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
     <a href="../.." title="mokume" class="md-nav__button md-logo" aria-label="mokume" data-md-component="logo">
       
@@ -342,16 +492,18 @@
       
         
       
-    
-    
-    
-      
-        
         
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -368,7 +520,7 @@
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Home
   
 
     
@@ -379,7 +531,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -390,7 +542,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Getting Started
+    Home
   
 
           </label>
@@ -461,14 +613,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../community/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Community
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli-vs-wheel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI vs Wheel
   
 
     
@@ -512,16 +692,20 @@
       
         
       
-    
-    
-    
-      
         
+      
         
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -538,7 +722,7 @@
   <span class="md-ellipsis">
     
   
-    Library
+    Concepts
   
 
     
@@ -549,7 +733,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -560,7 +744,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Library
+    Concepts
   
 
           </label>
@@ -611,6 +795,62 @@
     
   
     Normalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/differential-expression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differential Expression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/imputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imputation
   
 
     
@@ -694,7 +934,7 @@
   <span class="md-ellipsis">
     
   
-    Preprocessing
+    Preprocessing Filters
   
 
     
@@ -738,13 +978,14 @@
       
         
       
-        
-      
     
     
     
       
         
+        
+      
+      
         
       
     
@@ -764,7 +1005,7 @@
   <span class="md-ellipsis">
     
   
-    CLI
+    User Guide (CLI)
   
 
     
@@ -786,7 +1027,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    CLI
+    User Guide (CLI)
   
 
           </label>
@@ -883,6 +1124,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#memory-performance-for-large-studies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory &amp; Performance for Large Studies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#normalization-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -959,6 +1211,17 @@
     <span class="md-ellipsis">
       
         Differential Expression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#imputation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Imputation
       
     </span>
   </a>
@@ -1077,7 +1340,117 @@
   <span class="md-ellipsis">
     
   
-    batch-correct
+    correct-batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../periphery/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python Periphery
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python Periphery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../periphery/tissuemap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tissue Proteome Atlas
   
 
     
@@ -1098,14 +1471,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../visualization/" class="md-nav__link">
+      <a href="../../periphery/visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization
+    Visualization & Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../periphery/analysis-fallbacks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis Fallbacks
   
 
     
@@ -1151,18 +1552,18 @@
     
     
       
-        
+      
         
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1173,7 +1574,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Reference
   
 
     
@@ -1184,18 +1585,18 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
-    API Reference
+    Reference
   
 
           </label>
@@ -1217,7 +1618,35 @@
   <span class="md-ellipsis">
     
   
-    CLI Options
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/python-api-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API (package)
   
 
     
@@ -1245,35 +1674,7 @@
   <span class="md-ellipsis">
     
   
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/configuration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuration
+    Python API (wheel)
   
 
     
@@ -1322,176 +1723,39 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../community/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
                 </div>
               </div>
             
-            
-              
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Usage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quantification-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quantification Methods
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#normalization-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Normalization Options
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Normalization Options">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#run-level-normalization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run-Level Normalization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sample-level-normalization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sample-Level Normalization
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#irs-normalization-multi-plex-tmt" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        IRS Normalization (Multi-Plex TMT)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ratio-quantification-tmt-ps-protocol" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ratio Quantification (TMT PS Protocol)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#batch-correction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Batch Correction
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#differential-expression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Differential Expression
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#plots-and-reports" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plots and Reports
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#exporting-intermediate-data" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Exporting Intermediate Data
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#full-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Full Example
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-                  </div>
-                </div>
-              </div>
             
           
           
@@ -1513,9 +1777,10 @@
 
 
 <h1 id="features2proteins-unified-pipeline">features2proteins: Unified Pipeline<a class="headerlink" href="#features2proteins-unified-pipeline" title="Anchor link to this section">&para;</a></h1>
-<p>The <code>features2proteins</code> command is the recommended way to go from raw feature data to protein quantification. It handles loading, filtering, normalization, quantification, batch correction, IRS, differential expression, and visualization in a single step.</p>
+<p>The <code>features2proteins</code> command is the recommended way to go from raw feature data to protein quantification. It handles loading, filtering, normalization, quantification, batch correction, IRS, imputation, and differential expression in a single step. The compute is single-sourced in the Rust kernel; plotting and interactive reports are a separate wheel periphery step (see <a href="#plots-and-reports">Plots and Reports</a>).</p>
+<p><img alt="The features2proteins pipeline stages: source data, quantify, normalize, impute, batch-correct, differential expression" src="../../assets/pipeline.svg" width="100%" /></p>
 <h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Anchor link to this section">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python</label><label for="__tabbed_1_3">Python (functional)</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label><label for="__tabbed_1_3">Python (explicit argv)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
@@ -1526,28 +1791,27 @@
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantificationPipeline</span><span class="p">,</span> <span class="n">PipelineConfig</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.config</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">InputConfig</span><span class="p">,</span> <span class="n">QuantificationConfig</span><span class="p">,</span> <span class="n">NormalizationConfig</span><span class="p">,</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">)</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span><span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span> <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">),</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">),</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">)</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">QuantificationPipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">proteins</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<p>The wheel wrapper maps keyword arguments to CLI flags (<code>key=value</code> → <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> → <code>--key</code>) and runs the same kernel in-process:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">features_to_proteins</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">proteins</span> <span class="o">=</span> <span class="n">features_to_proteins</span><span class="p">(</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">&quot;features2proteins&quot;</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;--parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">&quot;--sdrf&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">&quot;--quant-method&quot;</span><span class="p">,</span> <span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">])</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -1573,7 +1837,7 @@
 <td>DirectLFQ</td>
 <td><code>--quant-method directlfq</code></td>
 <td style="text-align: center;">No</td>
-<td>Hierarchical alignment (requires extra)</td>
+<td>Hierarchical alignment (native Rust)</td>
 </tr>
 <tr>
 <td>iBAQ</td>
@@ -1605,8 +1869,33 @@
 <td style="text-align: center;">No</td>
 <td>Log2 sample/reference (TMT)</td>
 </tr>
+<tr>
+<td>TMT Abundance</td>
+<td><code>--quant-method abd</code></td>
+<td style="text-align: center;">No</td>
+<td>Median of log2 peptide intensities (TMT)</td>
+</tr>
+<tr>
+<td>TMT Reporter Intensity</td>
+<td><code>--quant-method intensity</code></td>
+<td style="text-align: center;">No</td>
+<td>Sum of raw reporter intensities (TMT)</td>
+</tr>
+<tr>
+<td>Spectral Count</td>
+<td><code>--quant-method spectral_count</code></td>
+<td style="text-align: center;">No</td>
+<td>Count of distinct peptides per (protein, sample)</td>
+</tr>
 </tbody>
 </table>
+<p>In practice:</p>
+<ul>
+<li>Use <code>maxlfq</code> as the default starting point for standard LFQ workflows.</li>
+<li>Use <code>directlfq</code> when you explicitly want the DirectLFQ package to handle normalization and quantification together.</li>
+<li>Use <code>ibaq</code> when you need absolute-style quantification and have a FASTA file. The pipeline path delegates to the same piBAQ (paralog-aware iBAQ) algorithm as the <code>peptides2protein</code> CLI -- see <a href="../../concepts/quantification/#ibaq-pibaq-paralog-aware">Quantification Methods → iBAQ</a> for the family discovery and fallback semantics; the wide-format pipeline output retains per-protein <code>Ibaq</code> values but does not surface the <code>FamilyId</code> / <code>EvidenceLevel</code> metadata columns.</li>
+<li>Use <code>ratio</code> for TMT PS-style reference-based analysis.</li>
+</ul>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># iBAQ (requires FASTA)</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
@@ -1617,51 +1906,97 @@
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span>--quant-method<span class="w"> </span>topn<span class="w"> </span>--topn<span class="w"> </span><span class="m">5</span>
 </span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># DirectLFQ (pip install mokume[directlfq])</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># DirectLFQ (native Rust, no extra dependency)</span>
 </span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span>--directlfq-cores<span class="w"> </span><span class="m">4</span>
 </span></code></pre></div>
+<h2 id="memory-performance-for-large-studies">Memory &amp; Performance for Large Studies<a class="headerlink" href="#memory-performance-for-large-studies" title="Anchor link to this section">&para;</a></h2>
+<p>When the input parquet has thousands of samples (~5000+), the long-form
+features must be pivoted into a wide DirectLFQ matrix. mokume streams the
+DuckDB result set through Arrow into polars and pivots there, which keeps the
+load step's wall time down (cf. PXD030304: ~32 min on 163M long rows pivoted
+into 147,374 × 5,798) and avoids the OOM that pandas pivots used to trigger.</p>
+<p>The DuckDB engine itself can be size-capped via <code>--duckdb-memory</code> /
+<code>--duckdb-threads</code>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--duckdb-memory<span class="w"> </span>40GB<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--duckdb-threads<span class="w"> </span><span class="m">16</span>
+</span></code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title"><code>--duckdb-memory</code> is <em>not</em> a hard process cap</p>
+<p>The flag only sizes DuckDB's internal buffer pool. PyArrow, polars, and
+pandas allocate independently, so peak Python process RSS can grow to
+<strong>2-3x</strong> the DuckDB cap on wide pivots. For production environments
+that need a strict ceiling, layer one of these on top of mokume:</p>
+<ul>
+<li><strong>systemd / cgroup</strong>: <code>systemd-run --scope -p MemoryMax=80G -- mokume features2proteins ...</code></li>
+<li><strong>SLURM</strong>: <code>sbatch --mem=80G ...</code></li>
+<li><strong>Docker / k8s</strong>: <code>resources.limits.memory: 80Gi</code></li>
+</ul>
+<p>The <code>directlfq-cores</code> worker count is automatically reduced when
+<code>--duckdb-memory</code> is set, so each forked worker has room for its
+COW-amplified copy of the wide matrix.</p>
+</div>
 <h2 id="normalization-options">Normalization Options<a class="headerlink" href="#normalization-options" title="Anchor link to this section">&para;</a></h2>
 <h3 id="run-level-normalization">Run-Level Normalization<a class="headerlink" href="#run-level-normalization" title="Anchor link to this section">&para;</a></h3>
 <p>Adjusts for intensity differences between MS runs within each sample.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w">  </span><span class="c1"># median, mean, iqr, max, max_min, none</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w">  </span><span class="c1"># median, mean, max, global, max_min, iqr, none</span>
 </span></code></pre></div>
 <h3 id="sample-level-normalization">Sample-Level Normalization<a class="headerlink" href="#sample-level-normalization" title="Anchor link to this section">&para;</a></h3>
 <p>Adjusts for systematic differences across samples.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Global median (default)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Hierarchical (DirectLFQ-style)</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="c1"># With specific normalization proteins</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span>--normalization-proteins<span class="w"> </span>housekeeping.txt
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Global median (default)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Hierarchical (DirectLFQ-style)</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># With specific normalization proteins</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span>--normalization-proteins<span class="w"> </span>housekeeping.txt
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Quantile / MedianCenter / MeanCenter / RLR / LOESS (dataset-level)</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>quantile
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>loess
 </span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Dataset-level normalizers</p>
+<p><code>quantile</code>, <code>mediancenter</code>, <code>meancenter</code>, <code>rlr</code>, and <code>loess</code> are
+dataset-level normalizers applied after peptide aggregation, all native in the
+Rust kernel.</p>
+</div>
+<ul>
+<li><code>globalMedian</code> is the default and a good general-purpose starting point.</li>
+<li><code>hierarchical</code> is useful when you want DirectLFQ-style normalization with a non-DirectLFQ quantification method.</li>
+</ul>
 <h2 id="irs-normalization-multi-plex-tmt">IRS Normalization (Multi-Plex TMT)<a class="headerlink" href="#irs-normalization-multi-plex-tmt" title="Anchor link to this section">&para;</a></h2>
 <p>For TMT experiments with shared reference channels across plexes:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Auto-detect references from SDRF</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Explicit reference samples</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-samples<span class="w"> </span><span class="s2">&quot;p1_11,p2_11&quot;</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="c1"># Custom regex for reference detection</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-regex<span class="w"> </span><span class="s2">&quot;pool|bridge|control&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Auto-detect references from SDRF</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Explicit reference samples</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-samples<span class="w"> </span><span class="s2">&quot;p1_11,p2_11&quot;</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Custom regex for reference detection</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-regex<span class="w"> </span><span class="s2">&quot;pool|bridge|control&quot;</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1711,53 +2046,86 @@
 </table>
 <h2 id="ratio-quantification-tmt-ps-protocol">Ratio Quantification (TMT PS Protocol)<a class="headerlink" href="#ratio-quantification-tmt-ps-protocol" title="Anchor link to this section">&para;</a></h2>
 <p>For multi-plex TMT with per-plex reference division:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>ratio<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>--coverage-threshold<span class="w"> </span><span class="m">0</span>.65<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span>--ratio-fraction-merge<span class="w"> </span>mean
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>ratio<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span>--coverage-threshold<span class="w"> </span><span class="m">0</span>.65<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span>--ratio-fraction-merge<span class="w"> </span>mean
 </span></code></pre></div>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
 <p>Ratio quantification handles cross-plex normalization inherently via per-plex reference division. The <code>--irs</code> flag is ignored in ratio mode.</p>
 </div>
 <h2 id="batch-correction">Batch Correction<a class="headerlink" href="#batch-correction" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span>--batch-correction<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span>--batch-covariates<span class="w"> </span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span>
-</span></code></pre></div>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Python</label></div>
+<p>ComBat runs as a native Rust kernel (oracle-verified vs inmoose), so no extra dependency is needed.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">CLI</label><label for="__tabbed_2_2">Python (wheel)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">BatchCorrectionConfig</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span><span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">),</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">),</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">batch</span><span class="o">=</span><span class="n">BatchCorrectionConfig</span><span class="p">(</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>        <span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;sample_prefix&quot;</span><span class="p">,</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>        <span class="n">covariates</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;characteristics[sex]&quot;</span><span class="p">,</span> <span class="s2">&quot;characteristics[organism part]&quot;</span><span class="p">],</span>
-</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="p">),</span>
-</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="p">)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>--batch-correction<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span>--batch-covariates<span class="w"> </span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">batch_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="n">batch_method</span><span class="o">=</span><span class="s2">&quot;sample_prefix&quot;</span><span class="p">,</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="n">batch_covariates</span><span class="o">=</span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span><span class="p">,</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 </div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title"><code>--batch-method run</code> is not available in this flow</p>
+<p>Only <code>sample_prefix</code> and <code>column</code> (with <code>--batch-column</code>) detection are
+supported in the protein-matrix flow. <code>--batch-method run</code> has no run-level
+mapping here and errors at runtime; PCA + HDBSCAN outlier removal is not
+ported.</p>
 </div>
 <h2 id="differential-expression">Differential Expression<a class="headerlink" href="#differential-expression" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span>--de<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH-HL,NASH-Control&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span>--de-method<span class="w"> </span>ttest<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
+<p>Contrasts must be explicitly specified via <code>--de-contrasts</code> (inline) or <code>--de-contrasts-file</code> (TSV). Both can be combined.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Inline contrasts</label><label for="__tabbed_3_2">Contrasts file</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span>--de<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH vs HL,NASH vs Control&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span>--de-method<span class="w"> </span>limrots<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span>--de<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span>--de-contrasts-file<span class="w"> </span>contrasts.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span>--de-method<span class="w"> </span>deqms<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
+</span></code></pre></div>
+<p>Where <code>contrasts.tsv</code> is a two-column TSV:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>group1    group2
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>NASH      HL
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>NASH      Control
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>HL        Control
+</span></code></pre></div>
+</div>
+</div>
+</div>
 <table>
 <thead>
 <tr>
@@ -1774,13 +2142,28 @@
 </tr>
 <tr>
 <td><code>--de-contrasts</code></td>
-<td>all pairs</td>
-<td>Comma-separated contrasts (e.g., "A-B")</td>
+<td>—</td>
+<td>Comma-separated contrasts (e.g., <code>"A vs B,A vs C"</code>)</td>
+</tr>
+<tr>
+<td><code>--de-contrasts-file</code></td>
+<td>—</td>
+<td>TSV file with columns <code>group1</code>, <code>group2</code></td>
 </tr>
 <tr>
 <td><code>--de-method</code></td>
-<td><code>ttest</code></td>
-<td>Method: ttest or limma</td>
+<td><code>auto</code></td>
+<td>Method: auto, limrots, limma, deqms, proda, rots, ensemble</td>
+</tr>
+<tr>
+<td><code>--de-ensemble-methods</code></td>
+<td><code>limrots,deqms,proda</code></td>
+<td>Comma-separated DE methods used when <code>--de-method=ensemble</code></td>
+</tr>
+<tr>
+<td><code>--de-ensemble-min-k</code></td>
+<td>2</td>
+<td>Minimum ensemble members that must agree on direction</td>
 </tr>
 <tr>
 <td><code>--de-log2fc</code></td>
@@ -1793,46 +2176,166 @@
 <td>Maximum FDR threshold</td>
 </tr>
 <tr>
+<td><code>--de-fdr-method</code></td>
+<td><code>bh</code></td>
+<td>FDR correction: bh or ihw</td>
+</tr>
+<tr>
 <td><code>--de-output</code></td>
-<td>auto</td>
-<td>Output file for DE results</td>
+<td>—</td>
+<td>DE results file; with multiple contrasts each is written as <code>&lt;stem&gt;_&lt;A-B&gt;.&lt;ext&gt;</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="plots-and-reports">Plots and Reports<a class="headerlink" href="#plots-and-reports" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH-HL&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span>--plot-dir<span class="w"> </span>plots/<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span>--plot-volcano<span class="w"> </span>--plot-heatmap<span class="w"> </span>--plot-pca<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span>--highlight-genes<span class="w"> </span><span class="s2">&quot;COL10A1,FN1,ALB&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span>--interactive-report<span class="w"> </span>--report-output<span class="w"> </span>qc_report.html
+<div class="admonition warning">
+<p class="admonition-title">Contrasts are required</p>
+<p>If <code>--de</code> is enabled but no contrasts are provided
+(neither <code>--de-contrasts</code> nor <code>--de-contrasts-file</code>),
+the pipeline raises an error listing available conditions.
+Use <code>" vs "</code> as the delimiter to support hyphenated
+condition names.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p><code>--de-method auto</code> chooses <code>deqms</code> for <code>directlfq</code>
+quantification and <code>limrots</code> for all others. All methods
+run in the native Rust kernel — no R or rpy2 required.
+See <a href="../../concepts/differential-expression/">Differential Expression
+concepts</a> for a
+detailed comparison of methods.</p>
+</div>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Top-k consensus across multiple methods</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH vs HL&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span>--de-method<span class="w"> </span>ensemble<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span>--de-ensemble-methods<span class="w"> </span><span class="s2">&quot;limrots,deqms,proda&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span>--de-ensemble-min-k<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span>--de-output<span class="w"> </span>ensemble_de.csv
 </span></code></pre></div>
+<h2 id="imputation">Imputation<a class="headerlink" href="#imputation" title="Anchor link to this section">&para;</a></h2>
+<p>Proteomics data is sparse. The pipeline can fill missing values on the
+protein matrix after coverage filtering and before batch correction.
+Imputation runs in log2 space so that censored-aware methods (MinProb,
+MinDet, QRILC) behave correctly.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># MinProb low-tail draw (Perseus style)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>minprob<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-shift<span class="w"> </span><span class="m">1</span>.6<span class="w"> </span>--impute-scale<span class="w"> </span><span class="m">0</span>.3
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1"># KNN imputation</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>knn<span class="w"> </span>--impute-n-neighbors<span class="w"> </span><span class="m">5</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Imputation Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--impute</code></td>
+<td>off</td>
+<td>Enable imputation on the protein matrix</td>
+</tr>
+<tr>
+<td><code>--impute-method</code></td>
+<td><code>none</code></td>
+<td>none, knn, minprob, mindet, qrilc, missforest, seqknn, impseq, gms, bpca, impseqrob</td>
+</tr>
+<tr>
+<td><code>--impute-quantile</code></td>
+<td>0.01</td>
+<td>Quantile for MinProb/MinDet/QRILC low-tail draw</td>
+</tr>
+<tr>
+<td><code>--impute-shift</code></td>
+<td>1.6</td>
+<td>MinProb shift in standard deviations</td>
+</tr>
+<tr>
+<td><code>--impute-scale</code></td>
+<td>0.3</td>
+<td>MinProb scale factor for sigma</td>
+</tr>
+<tr>
+<td><code>--impute-n-neighbors</code></td>
+<td>5</td>
+<td>Neighbours for KNN/SeqKNN</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title"><code>missforest</code> is wheel-only</p>
+<p>Every imputation method above runs in the Rust kernel except <code>missforest</code>,
+which wraps scikit-learn's <code>IterativeImputer</code>, whose tree-building internals
+are not reproducible cross-language. Passing
+<code>--impute-method missforest</code> errors with a pointer to the
+pure-Python fallback. Run it on the protein matrix instead (<code>analysis</code> extra):</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;missforest&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;imputed.csv&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<h2 id="plots-and-reports">Plots and Reports<a class="headerlink" href="#plots-and-reports" title="Anchor link to this section">&para;</a></h2>
+<p>Plotting and the interactive HTML report are <strong>not</strong> part of the <code>features2proteins</code>
+CLI — there are no <code>--plot-*</code> / <code>--interactive-report</code> flags. The kernel writes the
+protein matrix and, with <code>--de-output</code>, one DE result CSV per contrast; the Python
+periphery then reads those CSVs and renders the figures. Install the <code>plotting</code>
+and/or <code>reports</code> extra:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c1"># DE plots (volcano / heatmap / PCA) — explicit argv: the per-contrast</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># --contrast KEY A B CSV flag repeats, which keyword arguments cannot express.</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="n">mokume</span><span class="o">.</span><span class="n">de_plots</span><span class="p">([</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    <span class="s2">&quot;--plot-dir&quot;</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">,</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="s2">&quot;--volcano&quot;</span><span class="p">,</span> <span class="s2">&quot;--heatmap&quot;</span><span class="p">,</span> <span class="s2">&quot;--pca&quot;</span><span class="p">,</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="s2">&quot;--contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH-HL&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH&quot;</span><span class="p">,</span> <span class="s2">&quot;HL&quot;</span><span class="p">,</span> <span class="s2">&quot;de_results.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="p">])</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="c1"># Interactive HTML report from the same kernel CSVs (reports extra).</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="n">mokume</span><span class="o">.</span><span class="n">interactive_report</span><span class="p">([</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>    <span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>    <span class="s2">&quot;--sdrf&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>    <span class="s2">&quot;--report-output&quot;</span><span class="p">,</span> <span class="s2">&quot;qc_report.html&quot;</span><span class="p">,</span>
+</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>    <span class="s2">&quot;--contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH-HL&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH&quot;</span><span class="p">,</span> <span class="s2">&quot;HL&quot;</span><span class="p">,</span> <span class="s2">&quot;de_results.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-17-18"><a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a><span class="p">])</span>
+</span></code></pre></div>
+<p>The figures read the kernel's output tables, so the cells in the plots match the
+cells in the kernel matrix.</p>
 <h2 id="exporting-intermediate-data">Exporting Intermediate Data<a class="headerlink" href="#exporting-intermediate-data" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Export normalized peptides and ions</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span>--export-peptides<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span>--export-ions<span class="w"> </span>ions.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Export normalized peptides and ions</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span>--export-peptides<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span>--export-ions<span class="w"> </span>ions.csv
 </span></code></pre></div>
 <h2 id="full-example">Full Example<a class="headerlink" href="#full-example" title="Anchor link to this section">&para;</a></h2>
-<p>A complete TMT multi-plex analysis:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span>--min-unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">    </span>--remove-contaminants<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="w">    </span>--batch-correction<span class="w"> </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH-HL&quot;</span><span class="w"> </span>--de-method<span class="w"> </span>ttest<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">    </span>--plot-dir<span class="w"> </span>plots/<span class="w"> </span>--plot-volcano<span class="w"> </span>--plot-pca<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">    </span>--interactive-report<span class="w"> </span>--report-output<span class="w"> </span>qc_report.html
+<p>A complete TMT multi-plex analysis (kernel compute; render plots separately with
+the wheel periphery as shown in <a href="#plots-and-reports">Plots and Reports</a>):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">    </span>--min-unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">    </span>--remove-contaminants<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="w">    </span>--batch-correction<span class="w"> </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH vs HL&quot;</span><span class="w"> </span>--de-method<span class="w"> </span>limrots<span class="w"> </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span></code></pre></div>
 
 
@@ -1864,70 +2367,105 @@
         
       </main>
       
-<footer class="md-footer">
+        <footer class="md-footer">
   
-  <nav class="md-footer__inner md-grid" aria-label="Footer">
     
-    <a href="../" class="md-footer__link md-footer__link--prev">
-      <div class="md-footer__button md-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </div>
-      <div class="md-footer__title">
-        <span class="md-footer__direction">Previous</span>
-        User Guide
-      </div>
-    </a>
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: User Guide">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                User Guide
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../features2peptides/" class="md-footer__link md-footer__link--next" aria-label="Next: features2peptides">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                features2peptides
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
     
-    
-    <a href="../features2peptides/" class="md-footer__link md-footer__link--next">
-      <div class="md-footer__title">
-        <span class="md-footer__direction">Next</span>
-        features2peptides
-      </div>
-      <div class="md-footer__button md-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-      </div>
-    </a>
-    
-  </nav>
   
-  <div class="qms-ecosystem-banner">
-    <div class="qms-banner-inner">
-      <div>
-        <div class="qms-brand"><svg width="20" height="20" viewBox="0 0 70 70" fill="none"><polygon points="35,56 10,46 35,36 60,46" fill="#60a5fa" opacity="0.4"/><polygon points="35,48 14,40 35,32 56,40" fill="#818cf8" opacity="0.6"/><polygon points="35,40 18,34 35,28 52,34" fill="#a78bfa" opacity="0.75"/><rect x="28" y="14" width="2.5" height="12" rx="0.8" fill="#c4b5fd" opacity="0.55"/><rect x="32" y="8" width="2.5" height="18" rx="0.8" fill="#a78bfa" opacity="0.9"/><rect x="36" y="12" width="2.5" height="14" rx="0.8" fill="#c4b5fd" opacity="0.6"/></svg><span class="qms-brand-text">quant<span>ms</span></span></div>
-        <p>A complete, open-source ecosystem for quantitative proteomics analysis.</p>
-      </div>
-      <div>
-        <h4>Pipelines</h4>
-        <ul>
-          <li><a href="https://docs.quantms.org" target="_blank">quantms (DDA)</a></li>
-          <li><a href="https://github.com/bigbio/quantmsdiann" target="_blank">quantmsdiann (DIA)</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Libraries</h4>
-        <ul>
-          <li><a href="https://mokume.quantms.org" target="_blank">mokume</a></li>
-          <li><a href="https://qpx.quantms.org" target="_blank">qpx</a></li>
-          <li><a href="https://pmultiqc.quantms.org" target="_blank">pmultiqc</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Resources</h4>
-        <ul>
-          <li><a href="https://quantms.org" target="_blank">quantms.org</a></li>
-          <li><a href="https://portal.quantms.org" target="_blank">Data Portal</a></li>
-          <li><a href="https://github.com/bigbio" target="_blank">GitHub</a></li>
-        </ul>
-      </div>
-      <div class="qms-bottom">
-        <span>&copy; 2024-2026 BigBio Team</span>
-        <span>Built with open science</span>
-      </div>
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2024-2026 BigBio Team
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/bigbio/mokume" target="_blank" rel="noopener" title="GitHub Repository" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/mokume/" target="_blank" rel="noopener" title="PyPI Package" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bigbio/mokume/issues" target="_blank" rel="noopener" title="Report Issues" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M192 96c0-53 43-96 96-96s96 43 96 96v3.6c0 15.7-12.7 28.4-28.4 28.4H220.5c-15.7 0-28.4-12.7-28.4-28.4V96zm345.6 12.8c10.6 14.1 7.7 34.2-6.4 44.8l-97.8 73.3c5.3 8.9 9.3 18.7 11.8 29.1H544c17.7 0 32 14.3 32 32s-14.3 32-32 32h-96v32c0 2.6-.1 5.3-.2 7.9l83.4 62.5c14.1 10.6 17 30.7 6.4 44.8s-30.7 17-44.8 6.4l-63.1-47.3c-23.2 44.2-66.5 76.2-117.7 83.9V280c0-13.3-10.7-24-24-24s-24 10.7-24 24v230.2c-51.2-7.7-94.5-39.7-117.7-83.9l-63.1 47.3c-14.1 10.6-34.2 7.7-44.8-6.4s-7.7-34.2 6.4-44.8l83.4-62.5c-.1-2.6-.2-5.2-.2-7.9v-32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32h98.8c2.5-10.4 6.5-20.2 11.8-29.1l-97.8-73.3c-14.1-10.6-17-30.7-6.4-44.8s30.7-17 44.8-6.4L192 184c12.3-5.1 25.8-8 40-8h112c14.2 0 27.7 2.8 40 8l108.8-81.6c14.1-10.6 34.2-7.7 44.8 6.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://quantms.org" target="_blank" rel="noopener" title="quantms Ecosystem" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
     </div>
   </div>
 </footer>
-
+      
     </div>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
@@ -1937,7 +2475,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>

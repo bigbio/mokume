@@ -12,13 +12,13 @@
         <meta name="author" content="BigBio Team">
       
       
-        <link rel="canonical" href="https://mokume.quantms.org/quickstart/">
+        <link rel="canonical" href="https://mokume.quantms.org/periphery/">
       
       
-        <link rel="prev" href="../installation/">
+        <link rel="prev" href="../user-guide/batch-correct/">
       
       
-        <link rel="next" href="../architecture/">
+        <link rel="next" href="tissuemap/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Quick Start - mokume</title>
+        <title>Python Periphery - mokume</title>
       
     
     
@@ -147,7 +147,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#quick-start" class="md-skip">
+        <a href="#python-periphery" class="md-skip">
           Skip to content
         </a>
       
@@ -183,7 +183,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Quick Start
+              Python Periphery
             
           </span>
         </div>
@@ -293,12 +293,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href=".." class="md-tabs__link">
           
   
@@ -361,11 +359,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../periphery/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -477,8 +477,6 @@
       
   
   
-    
-  
   
   
     
@@ -500,19 +498,18 @@
     
     
       
-        
-        
-      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -534,13 +531,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -585,37 +582,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quick Start
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
         
   
   
@@ -631,81 +601,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#one-step-pipeline-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        One-Step Pipeline (Recommended)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-step-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two-Step Pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tissue-atlas-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tissue Atlas Workflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#whats-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What's Next?
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1260,6 +1155,8 @@
       
   
   
+    
+  
   
   
     
@@ -1279,22 +1176,23 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../periphery/" class="md-nav__link ">
+            <a href="./" class="md-nav__link md-nav__link--active">
               
   
   
@@ -1312,13 +1210,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+              <label class="md-nav__link md-nav__link--active" for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1338,7 +1236,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../periphery/tissuemap/" class="md-nav__link">
+      <a href="tissuemap/" class="md-nav__link">
         
   
   
@@ -1366,7 +1264,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../periphery/visualization/" class="md-nav__link">
+      <a href="visualization/" class="md-nav__link">
         
   
   
@@ -1394,7 +1292,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../periphery/analysis-fallbacks/" class="md-nav__link">
+      <a href="analysis-fallbacks/" class="md-nav__link">
         
   
   
@@ -1671,136 +1569,136 @@
   
 
 
-<h1 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Anchor link to this section">&para;</a></h1>
-<p>This guide shows how to go from raw feature data to protein intensities using mokume.</p>
-<p><img alt="The mokume features2proteins pipeline: source data through quantify, normalize, impute, batch-correct, and differential expression" src="../assets/pipeline.svg" width="100%" /></p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Anchor link to this section">&para;</a></h2>
-<p>You need:</p>
-<ol>
-<li>A <strong>parquet file</strong> in quantms.io/qpx format (output from quantms pipeline)</li>
-<li>Optionally, an <strong>SDRF file</strong> for sample metadata</li>
-</ol>
-<p>For most workflows, <code>pip install mokume-rs</code> is enough. The wheel runs the Rust
-compute kernel in-process; you can also use the standalone <code>mokume</code> CLI binary
-(built from <code>rust/crates/mokume-cli</code> with cargo, no Python). If you want the
-TissueMap periphery command, install <code>mokume[tissuemap]</code> first.</p>
-<div class="admonition warning">
-<p class="admonition-title"><code>mokume-rs</code> is not on PyPI yet</p>
-<p><code>pip install mokume-rs</code> does not work yet — the Rust wheel is unreleased. Use
-<code>pip install mokume</code> (pure-Python, same <code>import mokume</code> API) or build the
-wheel from <code>rust/</code>; see <a href="../installation/">Installation</a>.</p>
-</div>
-<h2 id="one-step-pipeline-recommended">One-Step Pipeline (Recommended)<a class="headerlink" href="#one-step-pipeline-recommended" title="Anchor link to this section">&para;</a></h2>
-<p>The <code>features2proteins</code> command handles everything: loading, filtering, normalization, and quantification.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># MaxLFQ quantification (default)</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># With TMT IRS normalization + differential expression</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># (the kernel writes one DE result CSV per contrast via --de-output)</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH-HL&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="c1"># DirectLFQ (native Rust)</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="c1"># iBAQ (requires FASTA)</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">    </span>--quant-method<span class="w"> </span>ibaq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">    </span>--fasta<span class="w"> </span>proteome.fasta
+<h1 id="python-periphery">Python Periphery<a class="headerlink" href="#python-periphery" title="Anchor link to this section">&para;</a></h1>
+<p>The periphery is the Python half of the toolkit: plotting, tissue maps,
+interactive reports, the iBAQ QC report, the pure-Python iBAQ path for unported
+enzymes, and the pure-Python method fallbacks. It lives in
+<code>rust/python/mokume/commands/</code> (plus <code>rust/python/mokume/reports/</code>,
+<code>rust/python/mokume/normalization/</code>, <code>rust/python/mokume/imputation/</code> for the
+analysis fallbacks) and is reached <strong>only</strong> through the
+<code>pip install mokume-rs</code> wheel. The standalone Rust CLI binary is pure compute
+and carries none of this.</p>
+<h2 id="the-guarantee-the-periphery-reads-kernel-output-never-recomputes">The guarantee: the periphery reads kernel output, never recomputes<a class="headerlink" href="#the-guarantee-the-periphery-reads-kernel-output-never-recomputes" title="Anchor link to this section">&para;</a></h2>
+<p>Every periphery command opens the tables the <strong>kernel</strong> wrote — the protein
+matrix CSV, the peptide parquet, the iBAQ TSV, the DE result CSVs — and renders
+figures or reports from them. It does <strong>not</strong> re-run the quantification, so the
+cells in a plot match the cells in the kernel's output. The numbers stay
+single-sourced in Rust.</p>
+<p>There is exactly <strong>one</strong> documented exception:
+<code>mokume.peptides2protein_ibaq</code> computes a whole iBAQ table in pure Python (via
+<code>mokume.quantification.ibaq</code>) for enzymes outside the Rust-ported set — see
+<a href="../cli-vs-wheel/">CLI vs Wheel</a>. The pure-Python method fallback
+(<code>mokume.impute(method='missforest')</code>) is covered
+in <a href="analysis-fallbacks/">Analysis Fallbacks</a>; this is a method the Rust kernel
+does not reproduce, not a recomputation of something the kernel already produced.</p>
+<h2 id="extras-matrix">Extras matrix<a class="headerlink" href="#extras-matrix" title="Anchor link to this section">&para;</a></h2>
+<p>The compute kernel (<code>mokume._mokume</code>) needs <strong>no</strong> third-party Python
+dependencies. The extras pull in only the libraries a given periphery command
+needs. Install just the extra for the command you run.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Extra</th>
+<th>Third-party libraries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mokume.tsne_visualization</code></td>
+<td><code>plotting</code></td>
+<td>numpy, pandas, scipy, scikit-learn, matplotlib, seaborn</td>
+</tr>
+<tr>
+<td><code>mokume.peptides2protein_qc</code></td>
+<td><code>plotting</code></td>
+<td>numpy, pandas, matplotlib, seaborn</td>
+</tr>
+<tr>
+<td><code>mokume.de_plots</code></td>
+<td><code>plotting</code></td>
+<td>numpy, pandas, matplotlib, seaborn, scikit-learn</td>
+</tr>
+<tr>
+<td><code>mokume.interactive_report</code></td>
+<td><code>reports</code></td>
+<td>numpy, pandas, plotly</td>
+</tr>
+<tr>
+<td><code>mokume.tissuemap</code></td>
+<td><code>tissuemap</code></td>
+<td>scanpy, anndata, umap-learn, combat, matplotlib, seaborn, pyarrow</td>
+</tr>
+<tr>
+<td><code>mokume.peptides2protein_ibaq</code></td>
+<td><code>ibaq</code></td>
+<td>pyopenms, pyarrow, PyYAML, numpy, pandas, scipy</td>
+</tr>
+<tr>
+<td><code>mokume.qc_report</code> / <code>mokume.workflow_comparison</code></td>
+<td><code>analysis</code></td>
+<td>numpy, pandas, scipy, scikit-learn</td>
+</tr>
+<tr>
+<td><code>mokume.impute</code></td>
+<td><code>analysis</code></td>
+<td>numpy, pandas, scipy, scikit-learn</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="w">                 </span><span class="c1"># compute kernel + Python API</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[plotting]&quot;</span><span class="w">     </span><span class="c1"># + t-SNE / DE plots / iBAQ QC report</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[reports]&quot;</span><span class="w">      </span><span class="c1"># + interactive HTML DE report</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[tissuemap]&quot;</span><span class="w">    </span><span class="c1"># + per-dataset tissue proteome analysis</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[ibaq]&quot;</span><span class="w">         </span><span class="c1"># + pure-Python iBAQ for unported enzymes</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[analysis]&quot;</span><span class="w">     </span><span class="c1"># + QC/comparison reports + missforest</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[all]&quot;</span><span class="w">          </span><span class="c1"># everything</span>
 </span></code></pre></div>
+<p>The exact dependency lists are declared in <code>pyproject.toml</code>'s
+<code>[project.optional-dependencies]</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Removed extras</p>
+<p>The old <code>directlfq</code> and <code>batch-correction</code> extras are <strong>gone</strong>. DirectLFQ and
+ComBat are now native Rust in the kernel and need no extra and no third-party
+Python dependency.</p>
 </div>
-<div class="tabbed-block">
+<h2 id="the-import-then-call-pattern">The import-then-call pattern<a class="headerlink" href="#the-import-then-call-pattern" title="Anchor link to this section">&para;</a></h2>
+<p>Each periphery command lives in <code>mokume.commands.&lt;name&gt;</code> with a <code>main(argv)</code>
+entry point, is runnable as <code>python -m mokume.commands.&lt;name&gt;</code>, and most have an
+ergonomic wrapper on the top-level <code>mokume</code> package. Import the package and call
+the wrapper:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># The wheel runs the same Rust kernel in-process (no subprocess); kwargs map</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># to CLI flags (key=value -&gt; --key value, key=True -&gt; --key, a list repeats</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># the flag, with _ rewritten to -).</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Simple MaxLFQ</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># kwarg wrappers (the kwargs -&gt; flags rule applies):</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tsne_visualization</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s2">&quot;./proteins&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;proteins.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span><span class="n">scan_dir</span><span class="o">=</span><span class="s2">&quot;./data&quot;</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./out&quot;</span><span class="p">)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein_qc</span><span class="p">(</span><span class="n">protein_table</span><span class="o">=</span><span class="s2">&quot;proteins.tsv&quot;</span><span class="p">,</span> <span class="n">qc_report</span><span class="o">=</span><span class="s2">&quot;QC.pdf&quot;</span><span class="p">)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein_ibaq</span><span class="p">(</span><span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.parquet&quot;</span><span class="p">,</span> <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;proteome.fasta&quot;</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                             <span class="n">enzyme</span><span class="o">=</span><span class="s2">&quot;CNBr&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># de_plots / interactive_report take an explicit argv (the per-contrast</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># --contrast KEY A B CSV flag repeats, which keyword arguments cannot express):</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">mokume</span><span class="o">.</span><span class="n">de_plots</span><span class="p">([</span><span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;--plot-dir&quot;</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">,</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                 <span class="s2">&quot;--volcano&quot;</span><span class="p">,</span> <span class="s2">&quot;--contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;c1&quot;</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;de.csv&quot;</span><span class="p">])</span>
 </span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="c1"># TMT with IRS + DE</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    <span class="n">irs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="n">irs_remove_reference</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>    <span class="n">de</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    <span class="n">de_contrasts</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;NASH-HL&quot;</span><span class="p">],</span>
-</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    <span class="n">de_output</span><span class="o">=</span><span class="s2">&quot;de_results.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="p">)</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="c1"># QC / comparison reports + the pure-Python method fallbacks (analysis extra):</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="n">mokume</span><span class="o">.</span><span class="n">qc_report</span><span class="p">(</span><span class="n">protein_matrix</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;x.sdrf.tsv&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;qc.html&quot;</span><span class="p">)</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;missforest&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;imputed.csv&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-</div>
-</div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Plots and reports are periphery commands</p>
-<p><code>features2proteins</code> no longer accepts <code>--plot-*</code> / <code>--interactive-report</code>
-flags — the kernel is pure-compute and only writes tables (the protein matrix
-and, with <code>--de-output</code>, the DE result CSVs). Render figures afterward from
-those tables with the Python periphery: <code>mokume.de_plots([...])</code> for volcano /
-PCA / heatmap plots and <code>mokume.interactive_report([...])</code> for the HTML report
-(both need the <code>plotting</code> / <code>reports</code> extras).</p>
-</div>
-<h2 id="two-step-pipeline">Two-Step Pipeline<a class="headerlink" href="#two-step-pipeline" title="Anchor link to this section">&para;</a></h2>
-<p>For more control, use the peptide normalization step separately:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Step 1: Normalize peptides</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="c1"># Step 2: Quantify proteins</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span>--method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span>-o<span class="w"> </span>proteins.tsv
-</span></code></pre></div>
-<h2 id="tissue-atlas-workflow">Tissue Atlas Workflow<a class="headerlink" href="#tissue-atlas-workflow" title="Anchor link to this section">&para;</a></h2>
-<p>Use <code>tissuemap</code> when your goal is tissue atlas analysis rather than standard
-protein quantification. TissueMap is a Python periphery command (not a kernel
-subcommand) and lives only in the wheel:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Install the optional dependencies first: pip install mokume-rs[tissuemap]</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">scan_dir</span><span class="o">=</span><span class="s2">&quot;QPX_data/tissues-mq/PXD016999&quot;</span><span class="p">,</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./tissuemap_results&quot;</span><span class="p">,</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">)</span>
-</span></code></pre></div>
-<p>This workflow generates batch-corrected AnnData outputs, tissue-specificity scores, and atlas-style plots.</p>
-<h2 id="whats-next">What's Next?<a class="headerlink" href="#whats-next" title="Anchor link to this section">&para;</a></h2>
+<p>The kwarg wrappers follow the <a href="../cli-vs-wheel/">kwargs &rarr; flags rule</a>
+(<code>key=value</code> &rarr; <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> &rarr;
+<code>--key</code>; a list repeats the flag; <code>None</code> / <code>False</code> skipped). <code>de_plots</code> and
+<code>interactive_report</code> take a literal argument list because their per-contrast
+flag repeats in a shape keyword arguments cannot express.</p>
+<h2 id="what-lives-where">What lives where<a class="headerlink" href="#what-lives-where" title="Anchor link to this section">&para;</a></h2>
 <ul>
-<li><a href="../concepts/quantification/">Quantification Methods</a> — understand iBAQ, MaxLFQ, TopN, and more</li>
-<li><a href="../concepts/normalization/">Normalization</a> — learn about the normalization pipeline</li>
-<li><a href="../user-guide/features2proteins/">Unified Pipeline</a> — full reference for features2proteins</li>
-<li><a href="../periphery/tissuemap/">Tissue Proteome Atlas</a> — run the per-dataset TissueMap periphery command</li>
+<li><strong>Tissue Proteome Atlas</strong> &rarr; <a href="tissuemap/"><code>mokume.tissuemap</code></a> — PCA /
+  t-SNE / UMAP / AdaTiSS tissue-specificity scoring, markers, atlas plots.</li>
+<li><strong>Visualization &amp; Reports</strong> &rarr;
+  <a href="visualization/">t-SNE / DE plots / interactive report</a>.</li>
+<li><strong>Analysis Fallbacks</strong> &rarr; <a href="analysis-fallbacks/"><code>mokume.impute</code>,
+  <code>mokume.qc_report</code>, <code>mokume.workflow_comparison</code></a> —
+  methods the Rust kernel does not reproduce, plus the QC / comparison reports.</li>
 </ul>
 
 
@@ -1839,7 +1737,7 @@ subcommand) and lives only in the wheel:</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../installation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Installation">
+          <a href="../user-guide/batch-correct/" class="md-footer__link md-footer__link--prev" aria-label="Previous: correct-batches">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1849,20 +1747,20 @@ subcommand) and lives only in the wheel:</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Installation
+                correct-batches
               </div>
             </div>
           </a>
         
         
           
-          <a href="../architecture/" class="md-footer__link md-footer__link--next" aria-label="Next: Architecture">
+          <a href="tissuemap/" class="md-footer__link md-footer__link--next" aria-label="Next: Tissue Proteome Atlas">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Architecture
+                Tissue Proteome Atlas
               </div>
             </div>
             <div class="md-footer__button md-icon">

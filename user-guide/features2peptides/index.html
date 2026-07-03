@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A comprehensive proteomics quantification library supporting iBAQ, TopN, MaxLFQ, DirectLFQ, and more">
+        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
       
       
         <meta name="author" content="BigBio Team">
@@ -112,9 +112,15 @@
     
     
       
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
     
     
-      <link rel="stylesheet" href="https://quantms.org/css/quantms-theme.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -132,7 +138,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -155,7 +161,7 @@
 
   
 
-<header class="md-header md-header--shadow" data-md-component="header">
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../.." title="mokume" class="md-header__button md-logo" aria-label="mokume" data-md-component="logo">
       
@@ -190,7 +196,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -200,7 +206,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -277,13 +283,153 @@
     
   </nav>
   
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  User Guide (CLI)
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../periphery/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Python Periphery
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../community/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Community
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
 </header>
     
     <div class="md-container" data-md-component="container">
       
       
-        
-          
         
       
       <main class="md-main" data-md-component="main">
@@ -297,8 +443,12 @@
                     
 
 
+  
 
-<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
     <a href="../.." title="mokume" class="md-nav__button md-logo" aria-label="mokume" data-md-component="logo">
       
@@ -342,16 +492,18 @@
       
         
       
-    
-    
-    
-      
-        
         
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -368,7 +520,7 @@
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Home
   
 
     
@@ -379,7 +531,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -390,7 +542,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Getting Started
+    Home
   
 
           </label>
@@ -461,14 +613,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../community/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Community
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli-vs-wheel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI vs Wheel
   
 
     
@@ -512,16 +692,20 @@
       
         
       
-    
-    
-    
-      
         
+      
         
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -538,7 +722,7 @@
   <span class="md-ellipsis">
     
   
-    Library
+    Concepts
   
 
     
@@ -549,7 +733,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -560,7 +744,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Library
+    Concepts
   
 
           </label>
@@ -611,6 +795,62 @@
     
   
     Normalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/differential-expression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differential Expression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/imputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imputation
   
 
     
@@ -694,7 +934,7 @@
   <span class="md-ellipsis">
     
   
-    Preprocessing
+    Preprocessing Filters
   
 
     
@@ -738,13 +978,14 @@
       
         
       
-        
-      
     
     
     
       
         
+        
+      
+      
         
       
     
@@ -764,7 +1005,7 @@
   <span class="md-ellipsis">
     
   
-    CLI
+    User Guide (CLI)
   
 
     
@@ -786,7 +1027,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    CLI
+    User Guide (CLI)
   
 
           </label>
@@ -923,10 +1164,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#feature-level-nmethod" class="md-nav__link">
+  <a href="#feature-level-run-normalization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Feature-Level (--nmethod)
+        Feature-Level (--run-normalization)
       
     </span>
   </a>
@@ -934,10 +1175,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#sample-level-pnmethod" class="md-nav__link">
+  <a href="#sample-level-sample-normalization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sample-Level (--pnmethod)
+        Sample-Level (--sample-normalization)
       
     </span>
   </a>
@@ -954,6 +1195,17 @@
     <span class="md-ellipsis">
       
         Filtering Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tmt-itraq-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TMT / ITRAQ Options
       
     </span>
   </a>
@@ -1078,7 +1330,117 @@
   <span class="md-ellipsis">
     
   
-    batch-correct
+    correct-batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../periphery/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python Periphery
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python Periphery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../periphery/tissuemap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tissue Proteome Atlas
   
 
     
@@ -1099,14 +1461,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../visualization/" class="md-nav__link">
+      <a href="../../periphery/visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization
+    Visualization & Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../periphery/analysis-fallbacks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis Fallbacks
   
 
     
@@ -1152,18 +1542,18 @@
     
     
       
-        
+      
         
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1174,7 +1564,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Reference
   
 
     
@@ -1185,18 +1575,18 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
-    API Reference
+    Reference
   
 
           </label>
@@ -1218,7 +1608,35 @@
   <span class="md-ellipsis">
     
   
-    CLI Options
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/python-api-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API (package)
   
 
     
@@ -1246,35 +1664,7 @@
   <span class="md-ellipsis">
     
   
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/configuration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuration
+    Python API (wheel)
   
 
     
@@ -1323,177 +1713,39 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../community/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
                 </div>
               </div>
             
-            
-              
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Usage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#processing-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Processing Steps
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#normalization-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Normalization Methods
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Normalization Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#feature-level-nmethod" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Feature-Level (--nmethod)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sample-level-pnmethod" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sample-Level (--pnmethod)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#filtering-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Filtering Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#preprocessing-filters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Preprocessing Filters
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Preprocessing Filters">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cli-filter-overrides" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CLI Filter Overrides
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#output-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Output Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#python-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Python API
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Python API">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#with-preprocessing-filters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        With Preprocessing Filters
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-                  </div>
-                </div>
-              </div>
             
           
           
@@ -1517,27 +1769,41 @@
 <h1 id="features2peptides-peptide-normalization">features2peptides: Peptide Normalization<a class="headerlink" href="#features2peptides-peptide-normalization" title="Anchor link to this section">&para;</a></h1>
 <p>The <code>features2peptides</code> command normalizes feature-level mass spectrometry data into peptide intensities. This is the first step of the two-step pipeline, giving you fine-grained control over normalization before protein quantification.</p>
 <h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Anchor link to this section">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label><label for="__tabbed_1_3">Python (explicit argv)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>--nmethod<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--pnmethod<span class="w"> </span>globalMedian<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.normalization.peptide</span><span class="w"> </span><span class="kn">import</span> <span class="n">peptide_normalization</span>
+<p>The wheel wrapper maps keyword arguments to CLI flags (<code>key=value</code> → <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> → <code>--key</code>) and runs the same kernel in-process:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">peptide_normalization</span><span class="p">(</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2peptides</span><span class="p">(</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">nmethod</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">pnmethod</span><span class="o">=</span><span class="s2">&quot;globalMedian&quot;</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">&quot;features2peptides&quot;</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;--parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">&quot;--sdrf&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">&quot;--run-normalization&quot;</span><span class="p">,</span> <span class="s2">&quot;median&quot;</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">&quot;--sample-normalization&quot;</span><span class="p">,</span> <span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">])</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -1550,15 +1816,15 @@
 <li>Filter peptides by minimum amino acid length</li>
 <li>Remove low-confidence proteins (&lt; min unique peptides)</li>
 <li>Optionally remove decoys, contaminants, and specified proteins</li>
-<li>Normalize at feature level between MS runs (<code>--nmethod</code>)</li>
+<li>Normalize at feature level between MS runs (<code>--run-normalization</code>)</li>
 <li>Merge peptidoforms across fractions and technical replicates</li>
-<li>Normalize at sample level (<code>--pnmethod</code>)</li>
+<li>Normalize at sample level (<code>--sample-normalization</code>)</li>
 <li>Remove low-frequency peptides (optional)</li>
 <li>Assemble peptidoforms to peptides</li>
 <li>Optional log2 transformation</li>
 </ol>
 <h2 id="normalization-methods">Normalization Methods<a class="headerlink" href="#normalization-methods" title="Anchor link to this section">&para;</a></h2>
-<h3 id="feature-level-nmethod">Feature-Level (<code>--nmethod</code>)<a class="headerlink" href="#feature-level-nmethod" title="Anchor link to this section">&para;</a></h3>
+<h3 id="feature-level-run-normalization">Feature-Level (<code>--run-normalization</code>)<a class="headerlink" href="#feature-level-run-normalization" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1576,6 +1842,18 @@
 <td>Normalize by mean across MS runs</td>
 </tr>
 <tr>
+<td><code>max</code></td>
+<td>Normalize by the maximum intensity within each run</td>
+</tr>
+<tr>
+<td><code>global</code></td>
+<td>Normalize by total intensity within each run</td>
+</tr>
+<tr>
+<td><code>max_min</code></td>
+<td>Apply min-max scaling</td>
+</tr>
+<tr>
 <td><code>iqr</code></td>
 <td>Normalize by interquartile range</td>
 </tr>
@@ -1585,7 +1863,7 @@
 </tr>
 </tbody>
 </table>
-<h3 id="sample-level-pnmethod">Sample-Level (<code>--pnmethod</code>)<a class="headerlink" href="#sample-level-pnmethod" title="Anchor link to this section">&para;</a></h3>
+<h3 id="sample-level-sample-normalization">Sample-Level (<code>--sample-normalization</code>)<a class="headerlink" href="#sample-level-sample-normalization" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1603,24 +1881,32 @@
 <td>Adjust samples within each condition</td>
 </tr>
 <tr>
-<td><code>hierarchical</code></td>
-<td>DirectLFQ-style hierarchical clustering normalization</td>
-</tr>
-<tr>
 <td><code>none</code></td>
 <td>Skip sample normalization</td>
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Only scalar-per-sample methods change the peptide output</p>
+<p>In the peptide flow only the factor-based normalizers (<code>globalmedian</code> /
+<code>conditionmedian</code>) are applied. The dataset-level methods
+(<code>quantile</code>, <code>rlr</code>, <code>loess</code>, <code>hierarchical</code>,
+<code>mediancenter</code>, <code>meancenter</code>) are accepted but are a deterministic <strong>no-op</strong>
+here (same result as <code>--sample-normalization none</code>): they need the full
+matrix, which the streaming peptide pass does not hold, and Python's
+per-sample loop also leaves them unchanged. All of these methods <strong>are</strong> implemented and
+oracle-verified in <a href="../features2proteins/#normalization-options"><code>features2proteins</code></a>,
+where the full matrix exists — run dataset-level normalization there.</p>
+</div>
 <h2 id="filtering-options">Filtering Options<a class="headerlink" href="#filtering-options" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>--min_aa<span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>--min_unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span>--remove_decoy_contaminants<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span>--remove_low_frequency_peptides<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--min_aa<span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--min_unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>--remove_decoy_contaminants<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span>--remove_low_frequency_peptides<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
 </span></code></pre></div>
 <table>
 <thead>
@@ -1642,6 +1928,11 @@
 <td>Minimum unique peptides per protein</td>
 </tr>
 <tr>
+<td><code>--keep-shared-peptides</code></td>
+<td>off</td>
+<td>Keep shared/non-unique peptides and skip the unique-peptide gate</td>
+</tr>
+<tr>
 <td><code>--remove_decoy_contaminants</code></td>
 <td>off</td>
 <td>Remove decoys and contaminants</td>
@@ -1658,27 +1949,75 @@
 </tr>
 </tbody>
 </table>
+<h2 id="tmt-itraq-options">TMT / ITRAQ Options<a class="headerlink" href="#tmt-itraq-options" title="Anchor link to this section">&para;</a></h2>
+<p>For labeled datasets, <code>features2peptides</code> also supports IRS-style scaling and control over aggregation level:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--irs_channel</code></td>
+<td>none</td>
+<td>Explicit pooled/reference channel label</td>
+</tr>
+<tr>
+<td><code>--irs_autodetect_regex</code></td>
+<td>none</td>
+<td>Regex to detect pooled samples from SDRF</td>
+</tr>
+<tr>
+<td><code>--irs_stat</code></td>
+<td><code>median</code></td>
+<td>IRS per-run statistic: median or mean</td>
+</tr>
+<tr>
+<td><code>--irs_scope</code></td>
+<td><code>global</code></td>
+<td>IRS scaling scope: global, by_mixture, or two_stage</td>
+</tr>
+<tr>
+<td><code>--aggregation_level</code></td>
+<td><code>sample</code></td>
+<td>Aggregate intensities at sample or run level</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Channel-based IRS</p>
+<p>The channel IRS path (<code>--irs_channel</code> / <code>--irs_autodetect_regex</code>) scales on
+the TMT <code>mixture</code> / <code>channel</code> columns and is implemented for all three scopes
+(<code>--irs_scope global</code> / <code>by_mixture</code> / <code>two_stage</code>). The reference channel is
+taken from <code>--irs_channel</code>, or auto-detected from the SDRF when
+<code>--irs_autodetect_regex</code> is given. For cross-plex reference scaling driven by
+the SDRF, see
+<a href="../features2proteins/#irs-normalization-multi-plex-tmt"><code>features2proteins</code></a>.</p>
+</div>
 <h2 id="preprocessing-filters">Preprocessing Filters<a class="headerlink" href="#preprocessing-filters" title="Anchor link to this section">&para;</a></h2>
 <p>For more advanced filtering, use a YAML/JSON configuration file:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Generate example configuration</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>--generate-filter-config<span class="w"> </span>filters.yaml
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Use filter configuration</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>--filter-config<span class="w"> </span>filters.yaml<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># CLI overrides (take precedence over config file)</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span>--filter-config<span class="w"> </span>filters.yaml<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span>--filter-min-intensity<span class="w"> </span><span class="m">1000</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span>--filter-cv-threshold<span class="w"> </span><span class="m">0</span>.3<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span>--filter-charge-states<span class="w"> </span><span class="s2">&quot;2,3,4&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Generate example configuration</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>--generate-filter-config<span class="w"> </span>filters.yaml
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Use filter configuration</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span>--filter-config<span class="w"> </span>filters.yaml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># CLI overrides (take precedence over config file)</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span>--filter-config<span class="w"> </span>filters.yaml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span>--filter-min-intensity<span class="w"> </span><span class="m">1000</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span>--filter-cv-threshold<span class="w"> </span><span class="m">0</span>.3<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span>--filter-charge-states<span class="w"> </span><span class="s2">&quot;2,3,4&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
 </span></code></pre></div>
 <h3 id="cli-filter-overrides">CLI Filter Overrides<a class="headerlink" href="#cli-filter-overrides" title="Anchor link to this section">&para;</a></h3>
 <table>
@@ -1723,56 +2062,69 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Group-level filters: what runs and what is a no-op</p>
+<p>The per-row filters (min-intensity floor, peptide length, charge states,
+excluded modifications, missed cleavages) and the per-<code>(protein, sample)</code>
+unique-peptide gate are wired in the kernel and oracle-locked vs Python.
+Among the group-level filters, CV threshold (<code>--filter-cv-threshold</code>),
+quantile outlier removal, and the run-QC checks <code>--filter-min-features</code> /
+min-total-intensity / min-proteins are implemented via a pre-pass. Replicate
+agreement reproduces Python's degenerate per-sample behaviour (a threshold
+<code>&gt;= 2</code> empties the output, matching the reference). <code>--filter-max-missing-rate</code>,
+sample correlation, min-search-score, and min-coverage are no-ops on the QPX
+streaming model — each warns and passes rows through, exactly as Python skips
+them. Only an unknown <code>razor-peptide-handling</code> value returns <code>NotImplemented</code>.</p>
+</div>
 <p>See <a href="../../concepts/preprocessing/">Preprocessing Filters</a> for the full filter reference.</p>
 <h2 id="output-options">Output Options<a class="headerlink" href="#output-options" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Standard CSV output</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Parquet output</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--save_parquet
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Log2 transform</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--log2
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Skip normalization entirely</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--skip_normalization
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Standard CSV output</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Parquet output</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--save_parquet
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Log2 transform</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--log2
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># Skip normalization entirely</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--skip_normalization
 </span></code></pre></div>
 <h2 id="python-api">Python API<a class="headerlink" href="#python-api" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.normalization.peptide</span><span class="w"> </span><span class="kn">import</span> <span class="n">peptide_normalization</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">peptide_normalization</span><span class="p">(</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">min_aa</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">min_unique</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">remove_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">remove_decoy_contaminants</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">remove_low_frequency_peptides</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides-norm.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">skip_normalization</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="n">nmethod</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="n">pnmethod</span><span class="o">=</span><span class="s2">&quot;globalMedian&quot;</span><span class="p">,</span>
-</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">log2</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>    <span class="n">save_parquet</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="p">)</span>
+<p>The wheel exposes the same command as a thin wrapper; keyword arguments map to CLI
+flags (<code>key=value</code> → <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> → <code>--key</code>).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2peptides</span><span class="p">(</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">min_aa</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">min_unique</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">remove_decoy_contaminants</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">remove_low_frequency_peptides</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides-norm.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">log2</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">save_parquet</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="with-preprocessing-filters">With Preprocessing Filters<a class="headerlink" href="#with-preprocessing-filters" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.normalization.peptide</span><span class="w"> </span><span class="kn">import</span> <span class="n">peptide_normalization</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.model.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">PreprocessingFilterConfig</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PreprocessingFilterConfig</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;custom&quot;</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">config</span><span class="o">.</span><span class="n">intensity</span><span class="o">.</span><span class="n">min_intensity</span> <span class="o">=</span> <span class="mf">1000.0</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">config</span><span class="o">.</span><span class="n">peptide</span><span class="o">.</span><span class="n">allowed_charge_states</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">config</span><span class="o">.</span><span class="n">protein</span><span class="o">.</span><span class="n">min_unique_peptides</span> <span class="o">=</span> <span class="mi">2</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">peptide_normalization</span><span class="p">(</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">nmethod</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">pnmethod</span><span class="o">=</span><span class="s2">&quot;globalMedian&quot;</span><span class="p">,</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">filter_config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="p">)</span>
+<p>Point the wrapper at a YAML/JSON filter config, or pass the per-filter overrides
+directly:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2peptides</span><span class="p">(</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">filter_config</span><span class="o">=</span><span class="s2">&quot;filters.yaml&quot;</span><span class="p">,</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">filter_min_intensity</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="n">filter_charge_states</span><span class="o">=</span><span class="s2">&quot;2,3,4&quot;</span><span class="p">,</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="n">filter_min_unique_peptides</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="p">)</span>
 </span></code></pre></div>
 
 
@@ -1804,70 +2156,105 @@
         
       </main>
       
-<footer class="md-footer">
+        <footer class="md-footer">
   
-  <nav class="md-footer__inner md-grid" aria-label="Footer">
     
-    <a href="../features2proteins/" class="md-footer__link md-footer__link--prev">
-      <div class="md-footer__button md-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </div>
-      <div class="md-footer__title">
-        <span class="md-footer__direction">Previous</span>
-        features2proteins
-      </div>
-    </a>
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../features2proteins/" class="md-footer__link md-footer__link--prev" aria-label="Previous: features2proteins">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                features2proteins
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../peptides2protein/" class="md-footer__link md-footer__link--next" aria-label="Next: peptides2protein">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                peptides2protein
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
     
-    
-    <a href="../peptides2protein/" class="md-footer__link md-footer__link--next">
-      <div class="md-footer__title">
-        <span class="md-footer__direction">Next</span>
-        peptides2protein
-      </div>
-      <div class="md-footer__button md-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-      </div>
-    </a>
-    
-  </nav>
   
-  <div class="qms-ecosystem-banner">
-    <div class="qms-banner-inner">
-      <div>
-        <div class="qms-brand"><svg width="20" height="20" viewBox="0 0 70 70" fill="none"><polygon points="35,56 10,46 35,36 60,46" fill="#60a5fa" opacity="0.4"/><polygon points="35,48 14,40 35,32 56,40" fill="#818cf8" opacity="0.6"/><polygon points="35,40 18,34 35,28 52,34" fill="#a78bfa" opacity="0.75"/><rect x="28" y="14" width="2.5" height="12" rx="0.8" fill="#c4b5fd" opacity="0.55"/><rect x="32" y="8" width="2.5" height="18" rx="0.8" fill="#a78bfa" opacity="0.9"/><rect x="36" y="12" width="2.5" height="14" rx="0.8" fill="#c4b5fd" opacity="0.6"/></svg><span class="qms-brand-text">quant<span>ms</span></span></div>
-        <p>A complete, open-source ecosystem for quantitative proteomics analysis.</p>
-      </div>
-      <div>
-        <h4>Pipelines</h4>
-        <ul>
-          <li><a href="https://docs.quantms.org" target="_blank">quantms (DDA)</a></li>
-          <li><a href="https://github.com/bigbio/quantmsdiann" target="_blank">quantmsdiann (DIA)</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Libraries</h4>
-        <ul>
-          <li><a href="https://mokume.quantms.org" target="_blank">mokume</a></li>
-          <li><a href="https://qpx.quantms.org" target="_blank">qpx</a></li>
-          <li><a href="https://pmultiqc.quantms.org" target="_blank">pmultiqc</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Resources</h4>
-        <ul>
-          <li><a href="https://quantms.org" target="_blank">quantms.org</a></li>
-          <li><a href="https://portal.quantms.org" target="_blank">Data Portal</a></li>
-          <li><a href="https://github.com/bigbio" target="_blank">GitHub</a></li>
-        </ul>
-      </div>
-      <div class="qms-bottom">
-        <span>&copy; 2024-2026 BigBio Team</span>
-        <span>Built with open science</span>
-      </div>
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2024-2026 BigBio Team
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/bigbio/mokume" target="_blank" rel="noopener" title="GitHub Repository" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/mokume/" target="_blank" rel="noopener" title="PyPI Package" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bigbio/mokume/issues" target="_blank" rel="noopener" title="Report Issues" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M192 96c0-53 43-96 96-96s96 43 96 96v3.6c0 15.7-12.7 28.4-28.4 28.4H220.5c-15.7 0-28.4-12.7-28.4-28.4V96zm345.6 12.8c10.6 14.1 7.7 34.2-6.4 44.8l-97.8 73.3c5.3 8.9 9.3 18.7 11.8 29.1H544c17.7 0 32 14.3 32 32s-14.3 32-32 32h-96v32c0 2.6-.1 5.3-.2 7.9l83.4 62.5c14.1 10.6 17 30.7 6.4 44.8s-30.7 17-44.8 6.4l-63.1-47.3c-23.2 44.2-66.5 76.2-117.7 83.9V280c0-13.3-10.7-24-24-24s-24 10.7-24 24v230.2c-51.2-7.7-94.5-39.7-117.7-83.9l-63.1 47.3c-14.1 10.6-34.2 7.7-44.8-6.4s-7.7-34.2 6.4-44.8l83.4-62.5c-.1-2.6-.2-5.2-.2-7.9v-32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32h98.8c2.5-10.4 6.5-20.2 11.8-29.1l-97.8-73.3c-14.1-10.6-17-30.7-6.4-44.8s30.7-17 44.8-6.4L192 184c12.3-5.1 25.8-8 40-8h112c14.2 0 27.7 2.8 40 8l108.8-81.6c14.1-10.6 34.2-7.7 44.8 6.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://quantms.org" target="_blank" rel="noopener" title="quantms Ecosystem" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
     </div>
   </div>
 </footer>
-
+      
     </div>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
@@ -1877,7 +2264,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>

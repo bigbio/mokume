@@ -11,7 +11,7 @@ description = "Streaming QPX, SDRF and FASTA IO for mokume"
 workspace = true
 
 [dependencies]
-arrow = "58.3.0"
+arrow = "59.0.0"
 csv = "1.4.0"
 mokume-core = { path = "../mokume-core" }
 parquet = "58.3.0"

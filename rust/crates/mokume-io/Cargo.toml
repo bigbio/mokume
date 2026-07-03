@@ -14,7 +14,7 @@ workspace = true
 arrow = "58.3.0"
 csv = "1.4.0"
 mokume-core = { path = "../mokume-core" }
-parquet = "58.3.0"
+parquet = "59.0.0"
 tracing.workspace = true
 
 [dev-dependencies]

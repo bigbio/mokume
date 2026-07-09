@@ -12,31 +12,31 @@
         <meta name="author" content="BigBio Team">
       
       
-        <link rel="canonical" href="https://mokume.quantms.org/concepts/batch-correction/">
+        <link rel="canonical" href="https://mokume.quantms.org/examples/">
       
       
-        <link rel="prev" href="../imputation/">
+        <link rel="prev" href="../concepts/preprocessing/">
       
       
-        <link rel="next" href="../irs/">
+        <link rel="next" href="quantification/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Batch Correction - mokume</title>
+        <title>Examples - mokume</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
   
@@ -120,9 +120,9 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -147,7 +147,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#batch-correction" class="md-skip">
+        <a href="#examples" class="md-skip">
           Skip to content
         </a>
       
@@ -163,7 +163,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="mokume" class="md-header__button md-logo" aria-label="mokume" data-md-component="logo">
+    <a href=".." title="mokume" class="md-header__button md-logo" aria-label="mokume" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -183,7 +183,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Batch Correction
+              Examples
             
           </span>
         </div>
@@ -297,7 +297,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../.." class="md-tabs__link">
+        <a href=".." class="md-tabs__link">
           
   
   
@@ -315,13 +315,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../concepts/" class="md-tabs__link">
           
   
   
@@ -339,11 +337,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../examples/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -365,7 +365,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../user-guide/" class="md-tabs__link">
+        <a href="../user-guide/" class="md-tabs__link">
           
   
   
@@ -387,7 +387,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../periphery/" class="md-tabs__link">
+        <a href="../periphery/" class="md-tabs__link">
           
   
   
@@ -409,7 +409,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../reference/" class="md-tabs__link">
+        <a href="../reference/" class="md-tabs__link">
           
   
   
@@ -429,7 +429,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../community/" class="md-tabs__link">
+      <a href="../community/" class="md-tabs__link">
         
   
   
@@ -472,7 +472,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="mokume" class="md-nav__button md-logo" aria-label="mokume" data-md-component="logo">
+    <a href=".." title="mokume" class="md-nav__button md-logo" aria-label="mokume" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -535,7 +535,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../.." class="md-nav__link ">
+            <a href=".." class="md-nav__link ">
               
   
   
@@ -579,7 +579,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../installation/" class="md-nav__link">
+      <a href="../installation/" class="md-nav__link">
         
   
   
@@ -607,7 +607,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/" class="md-nav__link">
+      <a href="../quickstart/" class="md-nav__link">
         
   
   
@@ -635,7 +635,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -663,7 +663,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../cli-vs-wheel/" class="md-nav__link">
         
   
   
@@ -695,8 +695,6 @@
       
   
   
-    
-  
   
   
     
@@ -724,23 +722,22 @@
     
     
       
-        
-        
-      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../concepts/" class="md-nav__link ">
               
   
   
@@ -758,13 +755,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -784,7 +781,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quantification/" class="md-nav__link">
+      <a href="../concepts/quantification/" class="md-nav__link">
         
   
   
@@ -812,7 +809,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../normalization/" class="md-nav__link">
+      <a href="../concepts/normalization/" class="md-nav__link">
         
   
   
@@ -840,7 +837,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../differential-expression/" class="md-nav__link">
+      <a href="../concepts/differential-expression/" class="md-nav__link">
         
   
   
@@ -868,7 +865,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../imputation/" class="md-nav__link">
+      <a href="../concepts/imputation/" class="md-nav__link">
         
   
   
@@ -893,37 +890,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Batch Correction
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../concepts/batch-correction/" class="md-nav__link">
         
   
   
@@ -939,120 +909,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-are-batch-effects" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What Are Batch Effects?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Concepts
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-batch-correction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Batch Correction
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Using Batch Correction">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#integrated-pipeline-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Integrated Pipeline (Recommended)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#standalone-ibaq-correction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Standalone iBAQ correction
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#batch-detection-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Batch Detection Methods
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use-batch-correction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to Use Batch Correction
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1065,7 +921,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../irs/" class="md-nav__link">
+      <a href="../concepts/irs/" class="md-nav__link">
         
   
   
@@ -1093,7 +949,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../preprocessing/" class="md-nav__link">
+      <a href="../concepts/preprocessing/" class="md-nav__link">
         
   
   
@@ -1125,6 +981,8 @@
       
   
   
+    
+  
   
   
     
@@ -1146,22 +1004,23 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../examples/" class="md-nav__link ">
+            <a href="./" class="md-nav__link md-nav__link--active">
               
   
   
@@ -1179,13 +1038,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+              <label class="md-nav__link md-nav__link--active" for="__nav_3" id="__nav_3_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1205,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/quantification/" class="md-nav__link">
+      <a href="quantification/" class="md-nav__link">
         
   
   
@@ -1233,7 +1092,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/differential-expression/" class="md-nav__link">
+      <a href="differential-expression/" class="md-nav__link">
         
   
   
@@ -1261,7 +1120,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/absolute-expression/" class="md-nav__link">
+      <a href="absolute-expression/" class="md-nav__link">
         
   
   
@@ -1289,7 +1148,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/pipeline/" class="md-nav__link">
+      <a href="pipeline/" class="md-nav__link">
         
   
   
@@ -1357,7 +1216,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../user-guide/" class="md-nav__link ">
+            <a href="../user-guide/" class="md-nav__link ">
               
   
   
@@ -1401,7 +1260,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/features2proteins/" class="md-nav__link">
+      <a href="../user-guide/features2proteins/" class="md-nav__link">
         
   
   
@@ -1429,7 +1288,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/features2peptides/" class="md-nav__link">
+      <a href="../user-guide/features2peptides/" class="md-nav__link">
         
   
   
@@ -1457,7 +1316,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/peptides2protein/" class="md-nav__link">
+      <a href="../user-guide/peptides2protein/" class="md-nav__link">
         
   
   
@@ -1485,7 +1344,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/batch-correct/" class="md-nav__link">
+      <a href="../user-guide/batch-correct/" class="md-nav__link">
         
   
   
@@ -1551,7 +1410,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../periphery/" class="md-nav__link ">
+            <a href="../periphery/" class="md-nav__link ">
               
   
   
@@ -1595,7 +1454,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../periphery/tissuemap/" class="md-nav__link">
+      <a href="../periphery/tissuemap/" class="md-nav__link">
         
   
   
@@ -1623,7 +1482,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../periphery/visualization/" class="md-nav__link">
+      <a href="../periphery/visualization/" class="md-nav__link">
         
   
   
@@ -1651,7 +1510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../periphery/analysis-fallbacks/" class="md-nav__link">
+      <a href="../periphery/analysis-fallbacks/" class="md-nav__link">
         
   
   
@@ -1719,7 +1578,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../reference/" class="md-nav__link ">
+            <a href="../reference/" class="md-nav__link ">
               
   
   
@@ -1763,7 +1622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/cli/" class="md-nav__link">
+      <a href="../reference/cli/" class="md-nav__link">
         
   
   
@@ -1791,7 +1650,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/python-api-package/" class="md-nav__link">
+      <a href="../reference/python-api-package/" class="md-nav__link">
         
   
   
@@ -1819,7 +1678,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/python-api/" class="md-nav__link">
+      <a href="../reference/python-api/" class="md-nav__link">
         
   
   
@@ -1847,7 +1706,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/computed-values/" class="md-nav__link">
+      <a href="../reference/computed-values/" class="md-nav__link">
         
   
   
@@ -1882,7 +1741,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../community/" class="md-nav__link">
+      <a href="../community/" class="md-nav__link">
         
   
   
@@ -1928,157 +1787,47 @@
   
 
 
-<h1 id="batch-correction">Batch Correction<a class="headerlink" href="#batch-correction" title="Anchor link to this section">&para;</a></h1>
-<p>Batch effects are systematic technical variations introduced during sample processing that can obscure true biological differences.</p>
-<h2 id="what-are-batch-effects">What Are Batch Effects?<a class="headerlink" href="#what-are-batch-effects" title="Anchor link to this section">&para;</a></h2>
-<p>Common sources include:</p>
+<h1 id="examples">Examples<a class="headerlink" href="#examples" title="Anchor link to this section">&para;</a></h1>
+<p>Worked, copy-pasteable examples for each kind of analysis mokume supports. Every
+command and snippet on these pages is run against the small fixtures shipped in
+the repository (<code>python/tests/example/</code>), so you can reproduce them without your
+own data:</p>
 <ul>
-<li>Different processing days or times</li>
-<li>Different instruments or operators</li>
-<li>Different reagent lots</li>
-<li>Multi-site studies with different labs</li>
+<li><code>feature_wide.parquet</code> — a 500-feature QPX slice from PXD020192 (10 samples).</li>
+<li><code>PXD020192.sdrf.tsv</code> — the matching SDRF metadata.</li>
+<li><code>PXD017834-peptides.csv</code> — a normalized peptide table used for iBAQ.</li>
+<li><code>Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta</code> — a human
+  UniProt FASTA used as the iBAQ digestion reference.</li>
 </ul>
-<p>mokume uses the <strong>ComBat algorithm</strong> to remove batch effects while preserving biological signal. ComBat is a native Rust implementation, oracle-verified against <a href="https://github.com/epigenelabs/inmoose">inmoose</a> (~1e-6 / 1e-9). It needs no third-party Python dependency.</p>
-<h2 id="key-concepts">Key Concepts<a class="headerlink" href="#key-concepts" title="Anchor link to this section">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Term</th>
-<th>Definition</th>
-<th>Example</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Batch</strong></td>
-<td>Technical variation to <strong>remove</strong></td>
-<td>Samples from Lab A vs Lab B</td>
-</tr>
-<tr>
-<td><strong>Covariate</strong></td>
-<td>Biological signal to <strong>preserve</strong></td>
-<td>Tissue type, sex, disease status</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition warning">
-<p class="admonition-title">Why covariates matter</p>
-<p>Without covariates, batch correction may accidentally remove biological signal that correlates with batch assignments.</p>
-<p>For example, if all liver samples were processed on Day 1 and all brain samples on Day 2, naive batch correction would remove the tissue-specific signal. By specifying tissue as a covariate, ComBat preserves this biological variation.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Without covariates:  Batch effect removed, but tissue signal also reduced
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>With covariates:     Batch effect removed, tissue signal preserved
-</span></code></pre></div>
-</div>
-<h2 id="using-batch-correction">Using Batch Correction<a class="headerlink" href="#using-batch-correction" title="Anchor link to this section">&para;</a></h2>
-<h3 id="integrated-pipeline-recommended">Integrated Pipeline (Recommended)<a class="headerlink" href="#integrated-pipeline-recommended" title="Anchor link to this section">&para;</a></h3>
-<p>Run ComBat as part of <code>features2proteins</code> with <code>--batch-correction</code>. Batches are
-detected from the sample-name prefix (or an explicit SDRF column), and
-<code>--batch-covariates</code> names the SDRF columns whose biological signal to preserve.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span>--batch-correction<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span>--batch-covariates<span class="w"> </span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span>
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">batch_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">batch_method</span><span class="o">=</span><span class="s2">&quot;sample_prefix&quot;</span><span class="p">,</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="n">batch_covariates</span><span class="o">=</span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span><span class="p">,</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">)</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<p>The covariate columns are extracted from the SDRF (column match with a
-sample-substring fallback, <code>pd.factorize</code> encoding, single-value columns
-dropped) and fed to the covariate ComBat design. ComBat runs on the proteins
-with no missing cells; the rest are kept uncorrected.</p>
-<h3 id="standalone-ibaq-correction">Standalone iBAQ correction<a class="headerlink" href="#standalone-ibaq-correction" title="Anchor link to this section">&para;</a></h3>
-<p>To correct already-written iBAQ tables (e.g. when merging datasets), use the
-dedicated <code>correct-batches</code> command, which runs the sample-prefix ComBat flow
-over a folder of iBAQ TSVs:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">CLI</label><label for="__tabbed_2_2">Python (wheel)</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>correct-batches<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--folder<span class="w"> </span>./ibaq_outputs<span class="w"> </span>--pattern<span class="w"> </span><span class="s2">&quot;*ibaq.tsv&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--output<span class="w"> </span>corrected.tsv
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">correct_batches</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s2">&quot;./ibaq_outputs&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;*ibaq.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>                       <span class="n">output</span><span class="o">=</span><span class="s2">&quot;corrected.tsv&quot;</span><span class="p">)</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="batch-detection-methods">Batch Detection Methods<a class="headerlink" href="#batch-detection-methods" title="Anchor link to this section">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>Description</th>
-<th>Example</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>sample_prefix</code></td>
-<td>Extract from sample name prefix</td>
-<td><code>PXD001-S1</code> &rarr; batch <code>PXD001</code></td>
-</tr>
-<tr>
-<td><code>column</code></td>
-<td>Explicit values from SDRF column (<code>--batch-column</code>)</td>
-<td>User-specified</td>
-</tr>
-<tr>
-<td><code>run</code></td>
-<td>Use run/reference file name</td>
-<td>Each file is a batch</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition warning">
-<p class="admonition-title"><code>--batch-method run</code> in the protein-matrix flow</p>
-<p><code>--batch-method run</code> has no run-level mapping in the <code>features2proteins</code>
-protein-matrix flow and <strong>errors at runtime</strong> (the same way Python raises
-<code>run_info required</code>). Use <code>sample_prefix</code> or <code>column</code> here. The PCA + HDBSCAN
-outlier-removal pass is unported (HDBSCAN is not reproducible cross-language).</p>
-</div>
-<h2 id="when-to-use-batch-correction">When to Use Batch Correction<a class="headerlink" href="#when-to-use-batch-correction" title="Anchor link to this section">&para;</a></h2>
-<p><strong>Recommended scenarios:</strong></p>
+<p>Each page uses the same three tabs you saw in the <a href="../quickstart/">Quick Start</a>:</p>
 <ul>
-<li>Combining datasets from multiple studies (e.g., PXD001 + PXD002)</li>
-<li>Samples processed on different days/instruments</li>
-<li>Multi-site studies with different labs</li>
+<li><strong>CLI</strong> — the <code>mokume</code> kernel binary (or <code>mokume.run([...])</code> from the wheel).</li>
+<li><strong>Python (wheel)</strong> — the thin keyword wrappers exposed by <code>pip install mokume-rs</code>
+  (<code>mokume.features2proteins(...)</code>, <code>mokume.peptides2protein(...)</code>). These call
+  the same Rust kernel in-process.</li>
+<li><strong>Python (package)</strong> — the pure-Python <code>mokume</code> package (<code>pip install mokume</code>),
+  which exposes the object-oriented <code>PipelineConfig</code> / <code>QpxDataset</code> API plus the
+  <code>mokume.analysis</code> and <code>mokume.agentic</code> modules.</li>
 </ul>
-<p><strong>Requirements:</strong></p>
-<ul>
-<li>At least 2 samples per batch</li>
-<li>At least 2 batches</li>
-</ul>
-<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Anchor link to this section">&para;</a></h2>
-<ol>
-<li><strong>Always specify covariates</strong> when biological groups correlate with batches</li>
-<li><strong>Use SDRF characteristics</strong> to identify biological variables to preserve</li>
-<li><strong>Apply at protein level</strong> (after quantification) for best results</li>
-<li><strong>Verify results</strong> by checking that biological signal (e.g., condition clustering) is preserved</li>
-</ol>
+<p>See <a href="../cli-vs-wheel/">CLI vs Wheel</a> for the full picture of which surface does
+what.</p>
+<h2 id="analysis-pages">Analysis pages<a class="headerlink" href="#analysis-pages" title="Anchor link to this section">&para;</a></h2>
+<h3 id="quantification"><a href="quantification/">Quantification</a><a class="headerlink" href="#quantification" title="Anchor link to this section">&para;</a></h3>
+<p>Turn features into a protein matrix with MaxLFQ, DirectLFQ, TopN, Sum, or Median.
+Covers all three surfaces and how the quant method is selected.</p>
+<h3 id="differential-expression"><a href="differential-expression/">Differential Expression</a><a class="headerlink" href="#differential-expression" title="Anchor link to this section">&para;</a></h3>
+<p>Test proteins for abundance changes between conditions. Covers the kernel's
+<code>--de</code> flags, the Python <code>DifferentialExpression</code> class and the standalone
+<code>run_*</code> functions, and the LLM-free agentic optimizer.</p>
+<h3 id="absolute-expression"><a href="absolute-expression/">Absolute Expression</a><a class="headerlink" href="#absolute-expression" title="Anchor link to this section">&para;</a></h3>
+<p>Estimate per-protein copy numbers and concentrations with iBAQ, TPA, and the
+ProteomicRuler. Explains every computed column
+(<code>Ibaq</code>, <code>IbaqNorm</code>, <code>TPA</code>, <code>CopyNumber</code>, <code>EvidenceLevel</code>, ...).</p>
+<h3 id="full-pipeline"><a href="pipeline/">Full Pipeline</a><a class="headerlink" href="#full-pipeline" title="Anchor link to this section">&para;</a></h3>
+<p>Wire quantification, normalization, imputation, batch correction, IRS, and DE
+into one <code>PipelineConfig</code> and run it through <code>run_pipeline</code> /
+<code>QuantificationPipeline.run_dataset</code>. Shows the <code>QpxDataset</code> result API and how
+to switch to the Rust backend.</p>
 
 
 
@@ -2116,7 +1865,7 @@ outlier-removal pass is unported (HDBSCAN is not reproducible cross-language).</
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../imputation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Imputation">
+          <a href="../concepts/preprocessing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Preprocessing Filters">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2126,20 +1875,20 @@ outlier-removal pass is unported (HDBSCAN is not reproducible cross-language).</
                 Previous
               </span>
               <div class="md-ellipsis">
-                Imputation
+                Preprocessing Filters
               </div>
             </div>
           </a>
         
         
           
-          <a href="../irs/" class="md-footer__link md-footer__link--next" aria-label="Next: IRS Normalization">
+          <a href="quantification/" class="md-footer__link md-footer__link--next" aria-label="Next: Quantification">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                IRS Normalization
+                Quantification
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2217,10 +1966,10 @@ outlier-removal pass is unported (HDBSCAN is not reproducible cross-language).</
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

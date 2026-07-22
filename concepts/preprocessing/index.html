@@ -1012,6 +1012,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#qpx-and-sdrf-sample-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QPX and SDRF sample identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#filter-categories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1958,6 +1969,9 @@
 
 <h1 id="preprocessing-filters">Preprocessing Filters<a class="headerlink" href="#preprocessing-filters" title="Anchor link to this section">&para;</a></h1>
 <p>mokume provides a configurable filter system for quality control, driven by YAML/JSON files or CLI options on the <code>features2peptides</code> command.</p>
+<h2 id="qpx-and-sdrf-sample-identity">QPX and SDRF sample identity<a class="headerlink" href="#qpx-and-sdrf-sample-identity" title="Anchor link to this section">&para;</a></h2>
+<p>When an SDRF is supplied for the current QPX list-of-label/intensity schema, every positive intensity must resolve to exactly one SDRF record before preprocessing starts. Run keys use the filename basename, ignore ASCII case, and remove one trailing <code>.raw</code>, <code>.mzml</code>, <code>.d</code>, or <code>.wiff</code> extension. Labels ignore surrounding whitespace and ASCII case, and SDRF controlled-vocabulary values use their <code>NT=</code> term. <code>LFQ</code>, <code>label-free</code>, and <code>label free sample</code> are the only equivalent label aliases.</p>
+<p>Label-free QPX entries whose intensity labels are run filenames use each intensity label as its owning run. Isobaric entries use the row run together with the reporter label. Duplicate normalized SDRF keys, unmatched runs, missing reporter channels, and ambiguous run-only matches are errors; mokume does not fall back to the first SDRF row or a run name when an SDRF mapping is invalid.</p>
 <h2 id="filter-categories">Filter Categories<a class="headerlink" href="#filter-categories" title="Anchor link to this section">&para;</a></h2>
 <h3 id="intensity-filters">Intensity Filters<a class="headerlink" href="#intensity-filters" title="Anchor link to this section">&para;</a></h3>
 <table>

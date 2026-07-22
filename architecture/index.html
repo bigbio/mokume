@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1970,9 +1970,42 @@ wheel.</p>
 full OOP compute pipeline: a <code>QpxDataset</code> container, a <code>PluginRegistry</code> of
 quantification / normalization / imputation / harmonization methods, and
 <code>run_pipeline(config) -&gt; QpxDataset</code>. By default it computes in pure Python; set
-<code>RuntimeConfig.backend = "rust"</code> to route the same configuration through the
-compiled <code>mokume._mokume</code> kernel instead (it raises a clear error when the kernel
-is not installed).</p>
+<code>RuntimeConfig.backend = "rust"</code> to route the supported features-to-proteins
+configuration through the compiled <code>mokume._mokume</code> kernel instead (it raises a
+clear error when the kernel is not installed).</p>
+<p>The hybrid profile has an explicit stage boundary:</p>
+<table>
+<thead>
+<tr>
+<th>Configuration area</th>
+<th>Effective owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parquet and FASTA input, filtering, run/sample normalization, protein quantification, and peptide/ion exports</td>
+<td>Rust kernel</td>
+</tr>
+<tr>
+<td>QPX metadata, coverage filtering, IRS, imputation, batch correction, differential expression, plots, reports, and AnnData export</td>
+<td>Python postprocessing</td>
+</tr>
+<tr>
+<td>SDRF context, quantification-method selection, and ratio reference-sample selection</td>
+<td>Shared across the boundary</td>
+</tr>
+<tr>
+<td>Backend selection</td>
+<td>Python hybrid adapter</td>
+</tr>
+</tbody>
+</table>
+<p><code>duckdb_memory</code> and <code>duckdb_threads</code> are rejected for this profile because the
+in-process kernel cannot enforce their documented per-run resource semantics.
+Ion alignment accepts only <code>None</code> or <code>"none"</code>. Other method-specific invalid
+combinations are forwarded so the Rust kernel retains its detailed validation
+error. These checks happen before the extension is invoked or temporary output
+is allocated.</p>
 <p>Because the pure-Python package has its <strong>own</strong> implementation of the compute —
 distinct from the Rust kernel — a pure-Python result and a Rust-backend result
 agree <strong>within floating-point tolerance</strong> (the kernel computes in <code>f32</code>), not
@@ -2120,7 +2153,7 @@ The API is documented under <a href="../reference/python-api-package/">Python AP
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

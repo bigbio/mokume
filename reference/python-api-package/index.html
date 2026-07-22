@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -6177,11 +6177,14 @@ and runs common post-processing.</p>
 
 </div><h2 id="compute-backend">Compute backend<a class="headerlink" href="#compute-backend" title="Anchor link to this section">&para;</a></h2>
 <p><code>RuntimeConfig.backend</code> selects the compute engine. The default <code>"python"</code> runs
-the pure-Python pipeline; <code>"rust"</code> routes the same configuration through the
-compiled <code>mokume._mokume</code> kernel (installed with the <code>mokume-rs</code> wheel) and
-returns the same protein matrix within floating-point tolerance. When the kernel
-is absent, the <code>"rust"</code> backend raises a clear error rather than silently
-falling back.</p>
+the pure-Python pipeline; <code>"rust"</code> routes supported loading, filtering,
+normalization, and quantification settings through the compiled
+<code>mokume._mokume</code> kernel (installed with the <code>mokume-rs</code> wheel), then returns to
+Python for postprocessing. When the kernel is absent, the <code>"rust"</code> backend
+raises a clear error rather than silently falling back. The hybrid profile also
+rejects <code>duckdb_memory</code>, <code>duckdb_threads</code>, and ion alignment other than <code>None</code>
+or <code>"none"</code> before invoking the extension because it cannot honor those settings
+with their documented semantics.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeConfig</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
@@ -6621,7 +6624,7 @@ column per sample -- exactly the layout the pipeline flows produce) from
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

@@ -1732,7 +1732,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mokume.quantification.TopNQuantification" class="md-nav__link">
+  <a href="#mokume.quantification.topn.TopNQuantification" class="md-nav__link">
     <span class="md-ellipsis">
       
         TopNQuantification
@@ -1744,7 +1744,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#mokume.quantification.TopNQuantification.__init__" class="md-nav__link">
+  <a href="#mokume.quantification.topn.TopNQuantification.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       
         __init__
@@ -1755,7 +1755,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mokume.quantification.TopNQuantification.quantify" class="md-nav__link">
+  <a href="#mokume.quantification.topn.TopNQuantification.quantify" class="md-nav__link">
     <span class="md-ellipsis">
       
         quantify
@@ -1771,7 +1771,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mokume.quantification.MaxLFQQuantification" class="md-nav__link">
+  <a href="#mokume.quantification.maxlfq.MaxLFQQuantification" class="md-nav__link">
     <span class="md-ellipsis">
       
         MaxLFQQuantification
@@ -1783,7 +1783,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#mokume.quantification.MaxLFQQuantification.__init__" class="md-nav__link">
+  <a href="#mokume.quantification.maxlfq.MaxLFQQuantification.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       
         __init__
@@ -1794,7 +1794,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mokume.quantification.MaxLFQQuantification.quantify" class="md-nav__link">
+  <a href="#mokume.quantification.maxlfq.MaxLFQQuantification.quantify" class="md-nav__link">
     <span class="md-ellipsis">
       
         quantify
@@ -1810,7 +1810,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mokume.quantification.AllPeptidesQuantification" class="md-nav__link">
+  <a href="#mokume.quantification.all_peptides.AllPeptidesQuantification" class="md-nav__link">
     <span class="md-ellipsis">
       
         AllPeptidesQuantification
@@ -1822,7 +1822,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#mokume.quantification.AllPeptidesQuantification.quantify" class="md-nav__link">
+  <a href="#mokume.quantification.all_peptides.AllPeptidesQuantification.quantify" class="md-nav__link">
     <span class="md-ellipsis">
       
         quantify
@@ -2642,11 +2642,11 @@ matches the installed version rather than a hand-written copy.</p>
 
 
 
-<h2 id="mokume.quantification.TopNQuantification" class="doc doc-heading">
-            <code>mokume.quantification.TopNQuantification</code>
+<h2 id="mokume.quantification.topn.TopNQuantification" class="doc doc-heading">
+            <code>mokume.quantification.topn.TopNQuantification</code>
 
 
-<a href="#mokume.quantification.TopNQuantification" class="headerlink" title="Anchor link to this section">&para;</a></h2>
+<a href="#mokume.quantification.topn.TopNQuantification" class="headerlink" title="Anchor link to this section">&para;</a></h2>
 
 
     <div class="doc doc-contents first">
@@ -2683,10 +2683,10 @@ peptides for each protein in each sample (or run if run_column is provided).</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="mokume.quantification.TopNQuantification.__init__" class="doc doc-heading">
+<h3 id="mokume.quantification.topn.TopNQuantification.__init__" class="doc doc-heading">
             <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span></code>
 
-<a href="#mokume.quantification.TopNQuantification.__init__" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<a href="#mokume.quantification.topn.TopNQuantification.__init__" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
 
     <div class="doc doc-contents ">
@@ -2732,10 +2732,10 @@ peptides for each protein in each sample (or run if run_column is provided).</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="mokume.quantification.TopNQuantification.quantify" class="doc doc-heading">
+<h3 id="mokume.quantification.topn.TopNQuantification.quantify" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">quantify</span><span class="p">(</span><span class="n">peptide_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">protein_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PROTEIN_NAME</span><span class="p">,</span> <span class="n">peptide_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PEPTIDE_CANONICAL</span><span class="p">,</span> <span class="n">intensity_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NORM_INTENSITY</span><span class="p">,</span> <span class="n">sample_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SAMPLE_ID</span><span class="p">,</span> <span class="n">run_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
 
-<a href="#mokume.quantification.TopNQuantification.quantify" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<a href="#mokume.quantification.topn.TopNQuantification.quantify" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
 
     <div class="doc doc-contents ">
@@ -2895,11 +2895,11 @@ is performed at the run level instead of sample level.</p>
 
 
 
-<h2 id="mokume.quantification.MaxLFQQuantification" class="doc doc-heading">
-            <code>mokume.quantification.MaxLFQQuantification</code>
+<h2 id="mokume.quantification.maxlfq.MaxLFQQuantification" class="doc doc-heading">
+            <code>mokume.quantification.maxlfq.MaxLFQQuantification</code>
 
 
-<a href="#mokume.quantification.MaxLFQQuantification" class="headerlink" title="Anchor link to this section">&para;</a></h2>
+<a href="#mokume.quantification.maxlfq.MaxLFQQuantification" class="headerlink" title="Anchor link to this section">&para;</a></h2>
 
 
     <div class="doc doc-contents first">
@@ -3011,7 +3011,7 @@ is available. Useful for testing or comparison. Default is False.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code><span title="mokume.quantification.MaxLFQQuantification.using_directlfq">using_directlfq</span></code></td>
+            <td><code><span title="mokume.quantification.maxlfq.MaxLFQQuantification.using_directlfq">using_directlfq</span></code></td>
             <td>
                   <code><span title="bool">bool</span></code>
             </td>
@@ -3082,10 +3082,10 @@ unlimited numbers of proteomes. Mol Cell Proteomics. 2023.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="mokume.quantification.MaxLFQQuantification.__init__" class="doc doc-heading">
+<h3 id="mokume.quantification.maxlfq.MaxLFQQuantification.__init__" class="doc doc-heading">
             <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">min_peptides</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="n">threads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">force_builtin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span></code>
 
-<a href="#mokume.quantification.MaxLFQQuantification.__init__" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<a href="#mokume.quantification.maxlfq.MaxLFQQuantification.__init__" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
 
     <div class="doc doc-contents ">
@@ -3179,10 +3179,10 @@ unlimited numbers of proteomes. Mol Cell Proteomics. 2023.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="mokume.quantification.MaxLFQQuantification.quantify" class="doc doc-heading">
+<h3 id="mokume.quantification.maxlfq.MaxLFQQuantification.quantify" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">quantify</span><span class="p">(</span><span class="n">peptide_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">protein_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PROTEIN_NAME</span><span class="p">,</span> <span class="n">peptide_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PEPTIDE_CANONICAL</span><span class="p">,</span> <span class="n">intensity_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NORM_INTENSITY</span><span class="p">,</span> <span class="n">sample_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SAMPLE_ID</span><span class="p">,</span> <span class="n">run_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
 
-<a href="#mokume.quantification.MaxLFQQuantification.quantify" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<a href="#mokume.quantification.maxlfq.MaxLFQQuantification.quantify" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
 
     <div class="doc doc-contents ">
@@ -3347,11 +3347,11 @@ so the built-in implementation will be used when run_column is provided.</p>
 
 
 
-<h2 id="mokume.quantification.AllPeptidesQuantification" class="doc doc-heading">
-            <code>mokume.quantification.AllPeptidesQuantification</code>
+<h2 id="mokume.quantification.all_peptides.AllPeptidesQuantification" class="doc doc-heading">
+            <code>mokume.quantification.all_peptides.AllPeptidesQuantification</code>
 
 
-<a href="#mokume.quantification.AllPeptidesQuantification" class="headerlink" title="Anchor link to this section">&para;</a></h2>
+<a href="#mokume.quantification.all_peptides.AllPeptidesQuantification" class="headerlink" title="Anchor link to this section">&para;</a></h2>
 
 
     <div class="doc doc-contents first">
@@ -3388,10 +3388,10 @@ for each protein in each sample (or run if run_column is provided).</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="mokume.quantification.AllPeptidesQuantification.quantify" class="doc doc-heading">
+<h3 id="mokume.quantification.all_peptides.AllPeptidesQuantification.quantify" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">quantify</span><span class="p">(</span><span class="n">peptide_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">protein_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PROTEIN_NAME</span><span class="p">,</span> <span class="n">peptide_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PEPTIDE_CANONICAL</span><span class="p">,</span> <span class="n">intensity_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NORM_INTENSITY</span><span class="p">,</span> <span class="n">sample_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SAMPLE_ID</span><span class="p">,</span> <span class="n">run_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
 
-<a href="#mokume.quantification.AllPeptidesQuantification.quantify" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<a href="#mokume.quantification.all_peptides.AllPeptidesQuantification.quantify" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
 
     <div class="doc doc-contents ">

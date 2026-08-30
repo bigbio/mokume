@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1153,6 +1183,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1321,6 +1355,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1339,6 +1429,8 @@
       
         
           
+        
+      
         
       
         
@@ -1403,6 +1495,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1983,12 +2103,12 @@
 <tr>
 <td style="text-align: center;">2</td>
 <td>Explicit sample names</td>
-<td><code>--irs-reference-samples</code> CLI option</td>
+<td>Repeated <code>--irs-reference-sample</code> options</td>
 </tr>
 <tr>
 <td style="text-align: center;">3</td>
 <td>Column + values</td>
-<td><code>--irs-sdrf-column</code> + <code>--irs-sdrf-values</code></td>
+<td><code>--irs-sdrf-column</code> + repeated <code>--irs-sdrf-value</code></td>
 </tr>
 <tr>
 <td style="text-align: center;">4</td>
@@ -2026,41 +2146,41 @@
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Anchor link to this section">&para;</a></h2>
 <h3 id="cli">CLI<a class="headerlink" href="#cli" title="Anchor link to this section">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Auto-detect references from SDRF</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Explicit reference samples</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-samples<span class="w"> </span><span class="s2">&quot;p1_11,p2_11&quot;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-sample<span class="w"> </span>p1_11<span class="w"> </span>--irs-reference-sample<span class="w"> </span>p2_11
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># Custom regex for reference detection</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-regex<span class="w"> </span><span class="s2">&quot;pool|bridge|control&quot;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-regex<span class="w"> </span><span class="s2">"pool|bridge|control"</span>
 </span></code></pre></div>
 <h3 id="python-wheel">Python (wheel)<a class="headerlink" href="#python-wheel" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Auto-detect references and plexes from the SDRF</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"data.parquet"</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"median"</span><span class="p">,</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">irs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">irs_remove_reference</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">)</span>
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
 </span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Explicit reference samples</span>
 </span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"data.parquet"</span><span class="p">,</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
 </span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="n">irs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    <span class="n">irs_reference_samples</span><span class="o">=</span><span class="s2">&quot;p1_11,p2_11&quot;</span><span class="p">,</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    <span class="n">irs_reference_sample</span><span class="o">=</span><span class="p">[</span><span class="s2">"p1_11"</span><span class="p">,</span> <span class="s2">"p2_11"</span><span class="p">],</span>
 </span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>Reference and plex detection happen inside the kernel from the SDRF — the wheel
@@ -2068,11 +2188,11 @@ never recomputes them.</p>
 <div class="admonition note">
 <p class="admonition-title">Channel-based IRS</p>
 <p>The SDRF-driven multi-plex IRS described here runs in <code>features2proteins</code>.
-The <code>features2peptides</code> channel path (<code>--irs_channel</code> /
-<code>--irs_autodetect_regex</code>) scales on the TMT <code>mixture</code> / <code>channel</code> columns and
-is implemented for all three scopes (<code>--irs_scope global</code> / <code>by_mixture</code> /
-<code>two_stage</code>); the reference channel is taken from <code>--irs_channel</code>, or
-auto-detected from the SDRF when <code>--irs_autodetect_regex</code> is given.</p>
+The <code>features2peptides</code> channel path (<code>--irs-channel</code> /
+<code>--irs-autodetect-regex</code>) scales on the TMT <code>mixture</code> / <code>channel</code> columns and
+is implemented for all three scopes (<code>--irs-scope global</code> / <code>by-mixture</code> /
+<code>two-stage</code>); the reference channel is taken from <code>--irs-channel</code>, or
+auto-detected from the SDRF when <code>--irs-autodetect-regex</code> is given.</p>
 </div>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Anchor link to this section">&para;</a></h2>
 <table>

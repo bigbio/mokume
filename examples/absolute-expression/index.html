@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1000,6 +1030,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1180,10 +1214,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#ibaq-inside-the-pipeline" class="md-nav__link">
+  <a href="#pibaq-inside-the-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        iBAQ inside the pipeline
+        piBAQ inside the pipeline
       
     </span>
   </a>
@@ -1191,10 +1225,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#standalone-ibaq-tpa-proteomicruler" class="md-nav__link">
+  <a href="#standalone-pibaq-tpa-proteomicruler" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Standalone iBAQ + TPA + ProteomicRuler
+        Standalone piBAQ + TPA + ProteomicRuler
       
     </span>
   </a>
@@ -1202,10 +1236,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#normalizing-ibaq-in-python" class="md-nav__link">
+  <a href="#normalizing-pibaq-in-python" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Normalizing iBAQ in Python
+        Normalizing piBAQ in Python
       
     </span>
   </a>
@@ -1260,6 +1294,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1278,6 +1368,8 @@
       
         
           
+        
+      
         
       
         
@@ -1342,6 +1434,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1880,28 +2000,31 @@
 
 <h1 id="absolute-expression">Absolute Expression<a class="headerlink" href="#absolute-expression" title="Anchor link to this section">&para;</a></h1>
 <p>Absolute quantification estimates how much of each protein is present, not just
-relative fold changes. mokume implements iBAQ (Intensity-Based Absolute
-Quantification) with a paralog-aware family model (piBAQ), plus the Total Protein
-Approach (TPA) and the ProteomicRuler for copy numbers and concentrations.</p>
+relative fold changes. Mokume implements piBAQ, a paralog-aware extension of
+the original iBAQ scaling, plus the Total Protein Approach (TPA) and the
+ProteomicRuler for copy numbers and concentrations.</p>
 <p>Two entry points:</p>
 <ul>
-<li><strong><code>features2proteins --quant-method ibaq --fasta ...</code></strong> — iBAQ inside the
-  unified pipeline (loads features, filters, normalizes, then computes iBAQ).</li>
-<li><strong><code>peptides2protein --method ibaq ...</code></strong> — the standalone step that takes an
+<li><strong><code>features2proteins --quant-method pibaq --fasta ...</code></strong> — piBAQ inside the
+  unified pipeline (loads features, filters, normalizes, then computes piBAQ).</li>
+<li><strong><code>peptides2protein --quant-method pibaq ...</code></strong> — the standalone step that takes an
   already-normalized peptide table and adds all the absolute columns (TPA,
   ProteomicRuler, ...).</li>
 </ul>
-<p>Both need a <strong>FASTA</strong> file — iBAQ divides observed intensity by the number of
-theoretically observable tryptic peptides, which comes from digesting the FASTA.</p>
-<h2 id="ibaq-inside-the-pipeline">iBAQ inside the pipeline<a class="headerlink" href="#ibaq-inside-the-pipeline" title="Anchor link to this section">&para;</a></h2>
+<p>Both need a <strong>FASTA</strong> file. piBAQ retains iBAQ's theoretical-peptide scaling
+while allocating shared-peptide intensity explicitly and using an owned-peptide
+denominator symmetric with that allocation. Both Rust-backed entry points digest
+through every protease registered in the installed pyOpenMS runtime; Python passes
+the complete theoretical-peptide map to the Rust aggregation kernel.</p>
+<h2 id="pibaq-inside-the-pipeline">piBAQ inside the pipeline<a class="headerlink" href="#pibaq-inside-the-pipeline" title="Anchor link to this section">&para;</a></h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label><label for="__tabbed_1_3">Python (package)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>-p<span class="w"> </span>python/tests/example/feature_wide.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins_ibaq.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins_pibaq.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>-s<span class="w"> </span>python/tests/example/PXD020192.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>ibaq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span>--fasta<span class="w"> </span>python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta
 </span></code></pre></div>
 </div>
@@ -1909,11 +2032,11 @@ theoretically observable tryptic peptides, which comes from digesting the FASTA.
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;python/tests/example/feature_wide.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins_ibaq.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;python/tests/example/PXD020192.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;ibaq&quot;</span><span class="p">,</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta&quot;</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"python/tests/example/feature_wide.parquet"</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins_pibaq.csv"</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"python/tests/example/PXD020192.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"pibaq"</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">"python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta"</span><span class="p">,</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
@@ -1927,11 +2050,11 @@ theoretically observable tryptic peptides, which comes from digesting the FASTA.
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>        <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;python/tests/example/feature_wide.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;python/tests/example/PXD020192.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        <span class="n">fasta_file</span><span class="o">=</span><span class="s2">&quot;python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta&quot;</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>        <span class="n">parquet</span><span class="o">=</span><span class="s2">"python/tests/example/feature_wide.parquet"</span><span class="p">,</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        <span class="n">sdrf</span><span class="o">=</span><span class="s2">"python/tests/example/PXD020192.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        <span class="n">fasta_file</span><span class="o">=</span><span class="s2">"python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta"</span><span class="p">,</span>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="p">),</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;ibaq&quot;</span><span class="p">),</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">"pibaq"</span><span class="p">),</span>
 </span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="p">)</span>
 </span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="n">proteins</span> <span class="o">=</span> <span class="n">QuantificationPipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span></code></pre></div>
@@ -1940,12 +2063,12 @@ theoretically observable tryptic peptides, which comes from digesting the FASTA.
 </div>
 <div class="admonition note">
 <p class="admonition-title">Empty output on the tiny fixture is expected</p>
-<p><code>feature_wide.parquet</code> is a 500-feature slice, and iBAQ requires enough unique
+<p><code>feature_wide.parquet</code> is a 500-feature slice, and piBAQ requires enough unique
 anchor peptides per protein. On this slice the anchor filter removes every
 protein, so the run completes cleanly but the matrix has zero rows. Use the
-richer <code>peptides2protein</code> example below to see fully populated iBAQ output.</p>
+richer <code>peptides2protein</code> example below to see fully populated piBAQ output.</p>
 </div>
-<h2 id="standalone-ibaq-tpa-proteomicruler">Standalone iBAQ + TPA + ProteomicRuler<a class="headerlink" href="#standalone-ibaq-tpa-proteomicruler" title="Anchor link to this section">&para;</a></h2>
+<h2 id="standalone-pibaq-tpa-proteomicruler">Standalone piBAQ + TPA + ProteomicRuler<a class="headerlink" href="#standalone-pibaq-tpa-proteomicruler" title="Anchor link to this section">&para;</a></h2>
 <p><code>peptides2protein</code> takes a normalized peptide table
 (<code>python/tests/example/PXD017834-peptides.csv</code>) and the FASTA, and produces a
 long-format table with every absolute-expression column. <code>--tpa</code> adds the Total
@@ -1954,59 +2077,59 @@ the histone reference used by the ruler.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">CLI</label><label for="__tabbed_2_2">Python (wheel)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--method<span class="w"> </span>ibaq<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--tpa<span class="w"> </span>--ruler<span class="w"> </span>--organism<span class="w"> </span>human<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>-f<span class="w"> </span>python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>-p<span class="w"> </span>python/tests/example/PXD017834-peptides.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>-o<span class="w"> </span>proteins_ibaq_absolute.tsv
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>-o<span class="w"> </span>proteins_pibaq_absolute.tsv
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;ibaq&quot;</span><span class="p">,</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"pibaq"</span><span class="p">,</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">tpa</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">ruler</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">organism</span><span class="o">=</span><span class="s2">&quot;human&quot;</span><span class="p">,</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta&quot;</span><span class="p">,</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;python/tests/example/PXD017834-peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins_ibaq_absolute.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">organism</span><span class="o">=</span><span class="s2">"human"</span><span class="p">,</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">"python/tests/example/Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta"</span><span class="p">,</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="n">peptides</span><span class="o">=</span><span class="s2">"python/tests/example/PXD017834-peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins_pibaq_absolute.tsv"</span><span class="p">,</span>
 </span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
-<p>This writes a 14-column table (1688 rows on the fixture). The first row looks
+<p>This writes a 14-column table (1670 rows on the fixture). The first row looks
 like:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ProteinName  SampleID            Condition     NormIntensity  Ibaq      FamilyId    EvidenceLevel  FamilySize  MolecularWeight  TPA       CopyNumber    Moles[nmol]  Weight[ng]  Concentration[nM]
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>A0A075B6I0   PXD017834-Sample-1  Blood Plasma  34.218126      8.554531  A0A075B6I0  medium         1           12806.123706     0.002672  1.063371e+10  0.000018     0.226127    116730.137994
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ProteinName  SampleID            Condition     NormIntensity  PiBAQ    FamilyId  EvidenceLevel  FamilySize  MolecularWeight  TPA       CopyNumber   Moles[nmol]   Weight[ng]  Concentration[nM]
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>A4D1B5       PXD017834-Sample-1  Blood Plasma  50.233559      1.357664 A4D1B5    high           1           97738.851166     0.000514  7.049979e+06 1.170677e-08  0.001144    0.266295
 </span></code></pre></div>
-<h2 id="normalizing-ibaq-in-python">Normalizing iBAQ in Python<a class="headerlink" href="#normalizing-ibaq-in-python" title="Anchor link to this section">&para;</a></h2>
-<p>The package exposes the iBAQ normalization step directly. <code>normalize_ibaq</code> takes a
-DataFrame with <code>ProteinName</code>, <code>SampleID</code>, <code>Condition</code>, and <code>Ibaq</code> columns and adds
+<h2 id="normalizing-pibaq-in-python">Normalizing piBAQ in Python<a class="headerlink" href="#normalizing-pibaq-in-python" title="Anchor link to this section">&para;</a></h2>
+<p>The package exposes the piBAQ normalization step directly. <code>normalize_pibaq</code> takes a
+DataFrame with <code>ProteinName</code>, <code>SampleID</code>, <code>Condition</code>, and <code>PiBAQ</code> columns and adds
 the PRIDE/ProteomicsDB-normalized columns.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="3:1"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Python (package)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.quantification</span><span class="w"> </span><span class="kn">import</span> <span class="n">normalize_ibaq</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.quantification</span><span class="w"> </span><span class="kn">import</span> <span class="n">normalize_pibaq</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="p">{</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        <span class="s2">&quot;ProteinName&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;P1&quot;</span><span class="p">,</span> <span class="s2">&quot;P2&quot;</span><span class="p">,</span> <span class="s2">&quot;P3&quot;</span><span class="p">],</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="s2">&quot;SampleID&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;s1&quot;</span><span class="p">,</span> <span class="s2">&quot;s1&quot;</span><span class="p">,</span> <span class="s2">&quot;s1&quot;</span><span class="p">],</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="s2">&quot;Condition&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;ctrl&quot;</span><span class="p">,</span> <span class="s2">&quot;ctrl&quot;</span><span class="p">,</span> <span class="s2">&quot;ctrl&quot;</span><span class="p">],</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>        <span class="s2">&quot;Ibaq&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">30.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">],</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        <span class="s2">"ProteinName"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"P1"</span><span class="p">,</span> <span class="s2">"P2"</span><span class="p">,</span> <span class="s2">"P3"</span><span class="p">],</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="s2">"SampleID"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"s1"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">],</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="s2">"Condition"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"ctrl"</span><span class="p">,</span> <span class="s2">"ctrl"</span><span class="p">,</span> <span class="s2">"ctrl"</span><span class="p">],</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>        <span class="s2">"PiBAQ"</span><span class="p">:</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">30.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">],</span>
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="p">}</span>
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">)</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="n">result</span> <span class="o">=</span> <span class="n">normalize_ibaq</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[[</span><span class="s2">&quot;ProteinName&quot;</span><span class="p">,</span> <span class="s2">&quot;Ibaq&quot;</span><span class="p">,</span> <span class="s2">&quot;IbaqNorm&quot;</span><span class="p">,</span> <span class="s2">&quot;IbaqLog&quot;</span><span class="p">,</span> <span class="s2">&quot;IbaqPpb&quot;</span><span class="p">]])</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="n">result</span> <span class="o">=</span> <span class="n">normalize_pibaq</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[[</span><span class="s2">"ProteinName"</span><span class="p">,</span> <span class="s2">"PiBAQ"</span><span class="p">,</span> <span class="s2">"PiBAQNorm"</span><span class="p">,</span> <span class="s2">"PiBAQLog"</span><span class="p">,</span> <span class="s2">"PiBAQPpb"</span><span class="p">]])</span>
 </span></code></pre></div>
-<p>Output — <code>IbaqNorm</code> is the per-sample fraction, <code>IbaqLog</code> is
-<code>10 + log10(IbaqNorm)</code>, and <code>IbaqPpb</code> is <code>IbaqNorm * 1e8</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>  ProteinName  Ibaq  IbaqNorm  IbaqLog     IbaqPpb
+<p>Output — <code>PiBAQNorm</code> is the per-sample fraction, <code>PiBAQLog</code> is
+<code>10 + log10(PiBAQNorm)</code>, and <code>PiBAQPpb</code> is <code>PiBAQNorm * 1e8</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>  ProteinName  PiBAQ  PiBAQNorm  PiBAQLog     PiBAQPpb
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>0          P1  10.0       0.1   9.0000  10000000.0
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>1          P2  30.0       0.3   9.4771  30000000.0
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>2          P3  60.0       0.6   9.7782  60000000.0
@@ -2019,10 +2142,10 @@ or wheel wrapper shown above rather than calling it directly.</p>
 </div>
 </div>
 <h2 id="computed-columns">Computed columns<a class="headerlink" href="#computed-columns" title="Anchor link to this section">&para;</a></h2>
-<p><code>peptides2protein --method ibaq --tpa --ruler</code> produces these columns. The
-<code>EvidenceLevel</code> label tells you how to read <code>Ibaq</code>: <code>high</code>/<code>medium</code> are
-per-protein proportional iBAQ, while <code>family_only</code> means the value was rolled up
-across a paralog family.</p>
+<p><code>peptides2protein --quant-method pibaq --tpa --ruler</code> produces these columns. The
+<code>EvidenceLevel</code> records the strength of member-resolving anchor evidence.
+<code>family_only</code> means that no family member reaches the minimum anchor threshold;
+shared signal is split equally rather than duplicated across the family.</p>
 <table>
 <thead>
 <tr>
@@ -2032,20 +2155,20 @@ across a paralog family.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>Ibaq</code></td>
-<td>Per-protein iBAQ (or family-level, per <code>EvidenceLevel</code>)</td>
+<td><code>PiBAQ</code></td>
+<td>Per-protein piBAQ after exact shared-peptide allocation</td>
 </tr>
 <tr>
-<td><code>IbaqNorm</code></td>
-<td><code>Ibaq / sum(Ibaq)</code> within each sample</td>
+<td><code>PiBAQNorm</code></td>
+<td><code>PiBAQ / sum(PiBAQ)</code> within each sample</td>
 </tr>
 <tr>
-<td><code>IbaqLog</code></td>
-<td><code>10 + log10(IbaqNorm)</code> (ProteomicsDB convention)</td>
+<td><code>PiBAQLog</code></td>
+<td><code>10 + log10(PiBAQNorm)</code> (ProteomicsDB convention)</td>
 </tr>
 <tr>
-<td><code>IbaqPpb</code></td>
-<td><code>IbaqNorm * 1e8</code> (parts per billion, PRIDE convention)</td>
+<td><code>PiBAQPpb</code></td>
+<td><code>PiBAQNorm * 1e8</code> (parts per billion, PRIDE convention)</td>
 </tr>
 <tr>
 <td><code>FamilyId</code></td>
@@ -2057,7 +2180,7 @@ across a paralog family.</p>
 </tr>
 <tr>
 <td><code>EvidenceLevel</code></td>
-<td><code>high</code> (&gt;=3 anchors), <code>medium</code> (1-2), or <code>family_only</code> (0)</td>
+<td><code>high</code> (all members meet the high threshold), <code>medium</code> (some member meets the minimum), or <code>family_only</code> (none does)</td>
 </tr>
 <tr>
 <td><code>MolecularWeight</code></td>
@@ -2077,7 +2200,7 @@ across a paralog family.</p>
 </tr>
 </tbody>
 </table>
-<p>The full reference, including the iBAQ-plus-ComBat <code>IbaqBec</code> column, lives in
+<p>The full reference, including the piBAQ-plus-ComBat <code>PiBAQBec</code> column, lives in
 <a href="../../reference/computed-values/">Computed Values</a>.</p>
 
 

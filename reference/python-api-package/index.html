@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1184,6 +1274,8 @@
       
         
           
+        
+      
         
       
         
@@ -1248,6 +1340,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -2288,13 +2408,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="run_pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#directlfq-ion-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DirectLFQ ion export
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#compute-backend" class="md-nav__link">
+  <a href="#runtime-resources" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compute backend
+        Runtime resources
       
     </span>
   </a>
@@ -2330,21 +2467,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#agentic-optimization" class="md-nav__link">
+  <a href="#agentic-recommendation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Agentic optimization
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mokume.agentic.optimizer.optimize_from_dataset" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        optimize_from_dataset
+        Agentic recommendation
       
     </span>
   </a>
@@ -2477,9 +2603,9 @@
 
 
 <h1 id="python-api-package">Python API (package)<a class="headerlink" href="#python-api-package" title="Anchor link to this section">&para;</a></h1>
-<p>The pure-Python <code>mokume</code> package (<code>pip install mokume</code>) exposes a class-based API
+<p>The pure-Python <code>mokume-py</code> package (<code>pip install mokume-py</code>) exposes a class-based API
 for quantification and differential expression, built on an OOP data layer
-(<code>QpxDataset</code>) with a pluggable method registry and a selectable compute backend.
+(<code>QpxDataset</code>) with a pluggable method registry and runtime resource controls.
 The reference below is rendered directly from the package source, so it always
 matches the installed version rather than a hand-written copy.</p>
 <p>For the Rust-accelerated wheel's thin in-process API, see
@@ -2523,8 +2649,9 @@ matches the installed version rather than a hand-written copy.</p>
               <div class="doc-md-description">
                 <p>Name of the quantification method. One of:
 'topN' (where N is any number, e.g., 'top3', 'top5', 'top10'),
-'maxlfq', 'directlfq', 'all', 'sum',
-'abd' / 'abundance', 'intensity' / 'reporter', 'ratio'.</p>
+'pibaq', 'maxlfq', 'directlfq', 'all', 'sum',
+'abd' / 'abundance', 'intensity' / 'reporter', 'peptide_count',
+'spectral_count', 'ratio'.</p>
               </div>
             </td>
             <td>
@@ -2549,6 +2676,9 @@ matches the installed version rather than a hand-written copy.</p>
     - min_nonan: int (default 1)
     - num_cores: int (default None)
     - deactivate_normalization: bool (default False)</p>
+<p>For piBAQ:
+    - fasta: str (required before quantification)
+    - enzyme: str (default "Trypsin")</p>
 <p>For 'ratio' (TMT ratio quantification):
     - reference_samples: list[str] (required)
     - sample_to_plex: dict[str, str] (required)
@@ -2622,15 +2752,15 @@ matches the installed version rather than a hand-written copy.</p>
 
 
 <p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span> <span class="n">min_peptides</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <div class="language-pycon highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">"maxlfq"</span><span class="p">,</span> <span class="n">min_peptides</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">quantify</span><span class="p">(</span><span class="n">peptide_df</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </span></code></pre></div>
     <div class="language-pycon highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="c1"># TopN with any N</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">&quot;top5&quot;</span><span class="p">)</span>  <span class="c1"># Top 5 peptides</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">&quot;top10&quot;</span><span class="p">)</span>  <span class="c1"># Top 10 peptides</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">"top5"</span><span class="p">)</span>  <span class="c1"># Top 5 peptides</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">"top10"</span><span class="p">)</span>  <span class="c1"># Top 10 peptides</span>
 </span></code></pre></div>
     <div class="language-pycon highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="c1"># DirectLFQ requires optional install</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">&quot;directlfq&quot;</span><span class="p">,</span> <span class="n">min_nonan</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">method</span> <span class="o">=</span> <span class="n">get_quantification_method</span><span class="p">(</span><span class="s2">"directlfq"</span><span class="p">,</span> <span class="n">min_nonan</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 </span></code></pre></div>
 
 
@@ -2913,7 +3043,7 @@ is performed at the run level instead of sample level.</p>
 it uses DirectLFQ (if installed) for maximum accuracy. If DirectLFQ is
 not available, it falls back to a built-in implementation.</p>
 <p><strong>Recommended:</strong> Install DirectLFQ for best results:
-    pip install mokume[directlfq]</p>
+    pip install mokume-py[directlfq]</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3030,13 +3160,13 @@ is available. Useful for testing or comparison. Default is False.</p>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">maxlfq</span> <span class="o">=</span> <span class="n">MaxLFQQuantification</span><span class="p">(</span><span class="n">min_peptides</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">maxlfq</span><span class="o">.</span><span class="n">quantify</span><span class="p">(</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">... </span>    <span class="n">peptide_df</span><span class="p">,</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">... </span>    <span class="n">protein_column</span><span class="o">=</span><span class="s2">&quot;ProteinName&quot;</span><span class="p">,</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="gp">... </span>    <span class="n">peptide_column</span><span class="o">=</span><span class="s2">&quot;PeptideSequence&quot;</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="gp">... </span>    <span class="n">intensity_column</span><span class="o">=</span><span class="s2">&quot;Intensity&quot;</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="gp">... </span>    <span class="n">sample_column</span><span class="o">=</span><span class="s2">&quot;SampleID&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">... </span>    <span class="n">protein_column</span><span class="o">=</span><span class="s2">"ProteinName"</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="gp">... </span>    <span class="n">peptide_column</span><span class="o">=</span><span class="s2">"PeptideSequence"</span><span class="p">,</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="gp">... </span>    <span class="n">intensity_column</span><span class="o">=</span><span class="s2">"Intensity"</span><span class="p">,</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="gp">... </span>    <span class="n">sample_column</span><span class="o">=</span><span class="s2">"SampleID"</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="gp">... </span><span class="p">)</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Check which implementation was used</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Used DirectLFQ: </span><span class="si">{</span><span class="n">maxlfq</span><span class="o">.</span><span class="n">using_directlfq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Used DirectLFQ: </span><span class="si">{</span><span class="n">maxlfq</span><span class="o">.</span><span class="n">using_directlfq</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span></code></pre></div>
 
 
@@ -3044,7 +3174,7 @@ is available. Useful for testing or comparison. Default is False.</p>
   <summary>Notes</summary>
   <p>DirectLFQ typically provides slightly better accuracy than the built-in
 implementation. If you need the most accurate results, install DirectLFQ:</p>
-<div class="language-text highlight"><pre><span></span><code>pip install mokume[directlfq]
+<div class="language-text highlight"><pre><span></span><code>pip install mokume-py[directlfq]
 </code></pre></div>
 <p>The built-in implementation uses peptide trace alignment (inspired by
 DirectLFQ) and achieves ~0.95 correlation with DIA-NN's MaxLFQ values.</p>
@@ -3590,7 +3720,7 @@ is performed at the run level instead of sample level.</p>
 
 
 <h3 id="mokume.analysis.DifferentialExpression.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;limrots&#39;</span><span class="p">,</span> <span class="n">peptide_counts</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'limrots'</span><span class="p">,</span> <span class="n">peptide_counts</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span></code>
 
 <a href="#mokume.analysis.DifferentialExpression.__init__" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -3656,14 +3786,14 @@ method from the <code>PluginRegistry</code>, dispatches to the flow matching the
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.runner</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_pipeline</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span><span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">),</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">),</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span><span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">),</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">"maxlfq"</span><span class="p">),</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">run_pipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>                 <span class="c1"># QpxDataset with .proteins populated</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">protein_matrix</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_level</span><span class="p">(</span><span class="s2">&quot;proteins&quot;</span><span class="p">)</span>  <span class="c1"># protein x sample DataFrame</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">protein_matrix</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_level</span><span class="p">(</span><span class="s2">"proteins"</span><span class="p">)</span>  <span class="c1"># protein x sample DataFrame</span>
 </span></code></pre></div>
 <p><code>QuantificationPipeline(config).run_dataset()</code> returns the same <code>QpxDataset</code> from
-the pipeline object directly; the legacy <code>run()</code> returns the bare protein matrix.</p>
+the pipeline object directly; <code>run()</code> returns the bare protein matrix.</p>
 <h3 id="qpxdataset">QpxDataset<a class="headerlink" href="#qpxdataset" title="Anchor link to this section">&para;</a></h3>
 
 
@@ -4298,7 +4428,7 @@ materializing the full dataset.</p>
 
 
 <h3 id="mokume.core.dataset.QpxDataset.to_wide_matrix" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">to_wide_matrix</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;proteins&#39;</span><span class="p">,</span> <span class="n">value_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;Intensity&#39;</span><span class="p">,</span> <span class="n">protein_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PROTEIN_NAME</span><span class="p">,</span> <span class="n">sample_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SAMPLE_ID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
+            <code class="highlight language-python"><span class="n">to_wide_matrix</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'proteins'</span><span class="p">,</span> <span class="n">value_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'Intensity'</span><span class="p">,</span> <span class="n">protein_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PROTEIN_NAME</span><span class="p">,</span> <span class="n">sample_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SAMPLE_ID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
 
 <a href="#mokume.core.dataset.QpxDataset.to_wide_matrix" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -4418,7 +4548,7 @@ materializing the full dataset.</p>
 
 
 <h3 id="mokume.core.dataset.QpxDataset.to_long_format" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">to_long_format</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;proteins&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
+            <code class="highlight language-python"><span class="n">to_long_format</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'proteins'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
 
 <a href="#mokume.core.dataset.QpxDataset.to_long_format" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -4914,7 +5044,7 @@ instead of materializing to DataFrames.</p>
 
 
 <h3 id="mokume.core.dataset.QpxDataset.to_anndata" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">to_anndata</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;proteins&#39;</span><span class="p">,</span> <span class="n">value_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;Intensity&#39;</span><span class="p">,</span> <span class="n">protein_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PROTEIN_NAME</span><span class="p">,</span> <span class="n">sample_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SAMPLE_ID</span><span class="p">,</span> <span class="n">layer_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">to_anndata</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'proteins'</span><span class="p">,</span> <span class="n">value_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'Intensity'</span><span class="p">,</span> <span class="n">protein_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">PROTEIN_NAME</span><span class="p">,</span> <span class="n">sample_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SAMPLE_ID</span><span class="p">,</span> <span class="n">layer_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#mokume.core.dataset.QpxDataset.to_anndata" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -5178,7 +5308,7 @@ instead of materializing to DataFrames.</p>
 
 
 <h3 id="mokume.core.dataset.QpxDataset.from_parquet" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">from_parquet</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">sdrf_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;features&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QpxDataset</span></code>
+            <code class="highlight language-python"><span class="n">from_parquet</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">sdrf_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'features'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QpxDataset</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -5293,7 +5423,7 @@ datasets, use <code>from_parquet_lazy()</code> instead.</p>
 
 
 <h3 id="mokume.core.dataset.QpxDataset.from_parquet_lazy" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">from_parquet_lazy</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">sdrf_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;features&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QpxDataset</span></code>
+            <code class="highlight language-python"><span class="n">from_parquet_lazy</span><span class="p">(</span><span class="n">parquet_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">sdrf_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'features'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QpxDataset</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -5418,9 +5548,9 @@ via <code>get_level()</code> or <code>materialize()</code>.</p>
 decorator; resolve one with <code>get</code>; list a group with <code>available</code>.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.core.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">PluginRegistry</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">PluginRegistry</span><span class="o">.</span><span class="n">available</span><span class="p">(</span><span class="s2">&quot;quantification&quot;</span><span class="p">)</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># [&#39;directlfq&#39;, &#39;ibaq&#39;, &#39;maxlfq&#39;, &#39;median&#39;, &#39;ratio&#39;, &#39;spectral_count&#39;, &#39;sum&#39;, ...]</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">method</span> <span class="o">=</span> <span class="n">PluginRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;quantification&quot;</span><span class="p">,</span> <span class="s2">&quot;maxlfq&quot;</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">PluginRegistry</span><span class="o">.</span><span class="n">available</span><span class="p">(</span><span class="s2">"quantification"</span><span class="p">)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># ['directlfq', 'maxlfq', 'median', 'peptide_count', 'pibaq', 'ratio', 'spectral_count', 'sum', ...]</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">method</span> <span class="o">=</span> <span class="n">PluginRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"quantification"</span><span class="p">,</span> <span class="s2">"maxlfq"</span><span class="p">)</span>
 </span></code></pre></div>
 
 
@@ -5577,7 +5707,7 @@ entry-point discovery (third-party packages).</p>
 
 
 <p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="nd">@PluginRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;quantification&quot;</span><span class="p">,</span> <span class="s2">&quot;my_method&quot;</span><span class="p">)</span>
+    <div class="language-pycon highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="nd">@PluginRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">"quantification"</span><span class="p">,</span> <span class="s2">"my_method"</span><span class="p">)</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">... </span><span class="k">class</span><span class="w"> </span><span class="nc">MyMethod</span><span class="p">(</span><span class="n">QuantificationMethod</span><span class="p">):</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">... </span>    <span class="o">...</span>
 </span></code></pre></div>
@@ -6175,24 +6305,33 @@ and runs common post-processing.</p>
 
     </div>
 
-</div><h2 id="compute-backend">Compute backend<a class="headerlink" href="#compute-backend" title="Anchor link to this section">&para;</a></h2>
-<p><code>RuntimeConfig.backend</code> selects the compute engine. The default <code>"python"</code> runs
-the pure-Python pipeline; <code>"rust"</code> routes supported loading, filtering,
-normalization, and quantification settings through the compiled
-<code>mokume._mokume</code> kernel (installed with the <code>mokume-rs</code> wheel), then returns to
-Python for postprocessing. When the kernel is absent, the <code>"rust"</code> backend
-raises a clear error rather than silently falling back. The hybrid profile also
-rejects <code>duckdb_memory</code>, <code>duckdb_threads</code>, and ion alignment other than <code>None</code>
-or <code>"none"</code> before invoking the extension because it cannot honor those settings
-with their documented semantics.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeConfig</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span><span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">),</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;sum&quot;</span><span class="p">),</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">runtime</span><span class="o">=</span><span class="n">RuntimeConfig</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rust&quot;</span><span class="p">),</span>  <span class="c1"># requires the mokume-rs wheel</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="p">)</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">run_pipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</div><h3 id="directlfq-ion-export">DirectLFQ ion export<a class="headerlink" href="#directlfq-ion-export" title="Anchor link to this section">&para;</a></h3>
+<p>The pure-Python command can stream the normalized ion matrix produced during
+DirectLFQ protein estimation without retaining the full ion result in memory:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--parquet<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>--output<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>--export-ions<span class="w"> </span>normalized-ions.csv
+</span></code></pre></div>
+<p>The CSV contains <code>protein</code>, <code>ion</code>, and one linear-intensity column per sample.
+The same output is available through <code>OutputConfig(export_ions=...)</code> when using
+<code>run_pipeline</code> or <code>QuantificationPipeline</code> directly. Other quantification
+methods reject <code>export_ions</code>.</p>
+<h2 id="runtime-resources">Runtime resources<a class="headerlink" href="#runtime-resources" title="Anchor link to this section">&para;</a></h2>
+<p><code>RuntimeConfig</code> controls the DuckDB memory and thread hints used by the
+pure-Python pipeline. <code>run_pipeline</code> always uses the pure-Python implementation;
+it does not dispatch into <code>mokume</code>. To use the Rust implementation, install
+<code>mokume</code> in a separate environment and use its <a href="../python-api/">thin Python API</a>
+or installed console command.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeConfig</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span><span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">),</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">"sum"</span><span class="p">),</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">runtime</span><span class="o">=</span><span class="n">RuntimeConfig</span><span class="p">(</span><span class="n">duckdb_memory</span><span class="o">=</span><span class="s2">"80GB"</span><span class="p">,</span> <span class="n">duckdb_threads</span><span class="o">=</span><span class="mi">24</span><span class="p">),</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">)</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">run_pipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </span></code></pre></div>
 
 
@@ -6261,19 +6400,6 @@ connection opened by :class:<code>mokume.io.feature.Feature</code>.</p>
             <td>
               <div class="doc-md-description">
                 <p>Number of threads DuckDB may use. Must be &gt;= 1.</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="mokume.pipeline.config.RuntimeConfig.backend">backend</span></code></td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Which quantification kernel to route <code>run_pipeline</code> through:
-<code>"python"</code> (default) runs the pure-Python flows; <code>"rust"</code> delegates
-the features-to-proteins path to the compiled <code>mokume-rs</code> kernel.</p>
               </div>
             </td>
           </tr>
@@ -6446,43 +6572,11 @@ when both hints are absent.</p>
 
     </div>
 
-</div><h2 id="agentic-optimization">Agentic optimization<a class="headerlink" href="#agentic-optimization" title="Anchor link to this section">&para;</a></h2>
-<p><code>optimize_from_dataset</code> runs the LLM-driven differential-expression optimizer on
-the protein matrix carried by a <code>QpxDataset</code>, mirroring the DataFrame-based
-<code>optimize</code> entry point.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.agentic.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">AgenticConfig</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.agentic.optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimize_from_dataset</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">states</span> <span class="o">=</span> <span class="n">optimize_from_dataset</span><span class="p">(</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">dataset</span><span class="p">,</span>                                    <span class="c1"># a QpxDataset with .proteins populated</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">sample_to_condition</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;S1&quot;</span><span class="p">:</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;S2&quot;</span><span class="p">:</span> <span class="s2">&quot;B&quot;</span><span class="p">},</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">config</span><span class="o">=</span><span class="n">AgenticConfig</span><span class="p">(</span><span class="n">use_llm</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">)</span>
-</span></code></pre></div>
-
-
-<div class="doc doc-object doc-function">
-
-
-<h2 id="mokume.agentic.optimizer.optimize_from_dataset" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mokume</span><span class="o">.</span><span class="n">agentic</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">optimize_from_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">:</span> <span class="n">QpxDataset</span><span class="p">,</span> <span class="n">sample_to_condition</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">config</span><span class="p">:</span> <span class="n">AgenticConfig</span><span class="p">,</span> <span class="n">ground_truth</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">peptide_counts</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AgenticState</span><span class="p">]</span></code>
-
-<a href="#mokume.agentic.optimizer.optimize_from_dataset" class="headerlink" title="Anchor link to this section">&para;</a></h2>
-
-
-    <div class="doc doc-contents first">
-
-        <p>Run :func:<code>optimize</code> on the protein matrix carried by a QpxDataset.</p>
-<p>QpxDataset entry point for the agentic optimizer. It pulls the
-materialised wide protein matrix (protein id in the first column, one
-column per sample -- exactly the layout the pipeline flows produce) from
-<code>dataset</code> and delegates to :func:<code>optimize</code>. The DataFrame-based
-:func:<code>optimize</code> API is unchanged; this is a thin, additive convenience.</p>
-
-
-    </div>
-
-</div>
+</div><h2 id="agentic-recommendation">Agentic recommendation<a class="headerlink" href="#agentic-recommendation" title="Anchor link to this section">&para;</a></h2>
+<p>Agentic recommendation is not part of <code>mokume-py</code>. Install the default
+Rust-backed <code>mokume[agentic]</code> distribution and the
+<a href="../../user-guide/agentic-plugin/">Mokume Plugin</a>; use the plugin in a separate
+environment because both distributions provide the same <code>mokume</code> import name.</p>
 
 
 

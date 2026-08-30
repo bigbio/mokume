@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1270,6 +1300,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1438,6 +1472,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1456,6 +1546,8 @@
       
         
           
+        
+      
         
       
         
@@ -1520,6 +1612,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -2065,7 +2185,7 @@ Different downstream analyses (PCA, batch correction, DE) tolerate
 missingness very differently, so imputation is often required.</p>
 <p>mokume runs imputation in the native Rust kernel <strong>after</strong> coverage
 filtering and <strong>before</strong> batch correction in the <code>features2proteins</code>
-pipeline (the <code>--impute</code> flag), plus a wheel-only standalone helper
+pipeline (selecting <code>--impute-method</code> enables it), plus a wheel-only standalone helper
 <code>mokume.impute</code> for the methods the kernel does not reproduce.</p>
 <h2 id="pipeline-position">Pipeline Position<a class="headerlink" href="#pipeline-position" title="Anchor link to this section">&para;</a></h2>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>LoadingStage → QuantificationStage → IRS → coverage filter
@@ -2114,38 +2234,38 @@ distribution (Perseus-style):</p>
 <p>where <code>q_low</code> is the <code>--impute-quantile</code>-quantile of observed log2
 intensities, <code>shift</code> is <code>--impute-shift</code> standard deviations and
 <code>sigma_scaled = sample_sd * --impute-scale</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>minprob<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>minprob<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-shift<span class="w"> </span><span class="m">1</span>.6<span class="w"> </span>--impute-scale<span class="w"> </span><span class="m">0</span>.3
 </span></code></pre></div>
 <h3 id="mindet">MinDet<a class="headerlink" href="#mindet" title="Anchor link to this section">&para;</a></h3>
 <p>Replaces all missing values in a sample with a single deterministic
 quantile of that sample's observed values. More conservative than
 MinProb because it does not introduce sample-level variance.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>mindet<span class="w"> </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>mindet<span class="w"> </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01
 </span></code></pre></div>
 <h3 id="qrilc">QRILC<a class="headerlink" href="#qrilc" title="Anchor link to this section">&para;</a></h3>
 <p>Quantile Regression Imputation of Left-Censored data: fits a truncated
 normal to the observed distribution per sample and draws replacement
 values from the truncated lower tail. Theoretically more principled
 than MinProb when the MNAR assumption holds.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>qrilc
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>qrilc
 </span></code></pre></div>
 <h2 id="local-similarity-methods">Local-Similarity Methods<a class="headerlink" href="#local-similarity-methods" title="Anchor link to this section">&para;</a></h2>
 <h3 id="knn">KNN<a class="headerlink" href="#knn" title="Anchor link to this section">&para;</a></h3>
 <p><code>sklearn.impute.KNNImputer</code> with <code>nan_euclidean</code> distance. Works on
 per-protein vectors across samples; suitable when proteins co-vary.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>knn<span class="w"> </span>--impute-n-neighbors<span class="w"> </span><span class="m">5</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>knn<span class="w"> </span>--impute-n-neighbors<span class="w"> </span><span class="m">5</span>
 </span></code></pre></div>
 <h3 id="seqknn">SeqKNN<a class="headerlink" href="#seqknn" title="Anchor link to this section">&para;</a></h3>
 <p>Sequential KNN orders proteins by missingness and imputes iteratively,
 using already-imputed values as features for the next step (Kim et al.
 2004). Runs natively in the Rust kernel.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>seqknn<span class="w"> </span>--impute-n-neighbors<span class="w"> </span><span class="m">5</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>seqknn<span class="w"> </span>--impute-n-neighbors<span class="w"> </span><span class="m">5</span>
 </span></code></pre></div>
 <h2 id="iterative-model-methods">Iterative Model Methods<a class="headerlink" href="#iterative-model-methods" title="Anchor link to this section">&para;</a></h2>
 <h3 id="missforest">missForest<a class="headerlink" href="#missforest" title="Anchor link to this section">&para;</a></h3>
@@ -2155,9 +2275,9 @@ Generally the most accurate of the MAR family but the slowest.</p>
 <p class="admonition-title">Wheel-only</p>
 <p><code>missforest</code> is <strong>not</strong> ported to the Rust kernel — it wraps scikit-learn's
 <code>IterativeImputer</code> driven by <code>RandomForestRegressor</code>, whose tree-building and
-RNG cannot be reproduced cross-language. The kernel rejects
-<code>--impute-method missforest</code> and points to the wheel:
-<code>mokume.impute(matrix, method="missforest")</code> (<code>pip install mokume-rs[analysis]</code>).</p>
+RNG cannot be reproduced cross-language. The Rust compute CLI does not
+advertise this method; use the wheel's Python analysis API:
+<code>mokume.impute(matrix, method="missforest")</code> (<code>pip install mokume[analysis]</code>).</p>
 </div>
 <h2 id="latent-matrix-completion-methods">Latent / Matrix-Completion Methods<a class="headerlink" href="#latent-matrix-completion-methods" title="Anchor link to this section">&para;</a></h2>
 <h3 id="bpca">BPCA<a class="headerlink" href="#bpca" title="Anchor link to this section">&para;</a></h3>
@@ -2165,23 +2285,23 @@ RNG cannot be reproduced cross-language. The kernel rejects
 factorisation via EM and uses the model to predict missing entries.
 Runs natively in the Rust kernel. In the OpDEA benchmark BPCA is a top-tier
 imputer (best on MaxQuant TMT).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>bpca
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>bpca
 </span></code></pre></div>
 <h3 id="gms">GMS<a class="headerlink" href="#gms" title="Anchor link to this section">&para;</a></h3>
 <p>Gaussian Mixture Sampling — fits a small mixture model to observed
 values and draws missing entries from the appropriate component.
 Runs natively in the Rust kernel. In the OpDEA benchmark GMS is the
 best-performing imputer for FragPipe TMT data.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>gms
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>gms
 </span></code></pre></div>
 <h3 id="impseq-impseqrob">impSeq / impSeqRob<a class="headerlink" href="#impseq-impseqrob" title="Anchor link to this section">&para;</a></h3>
 <p>Sequential regression imputation following the variable-by-variable
 ordering of the rrcovNA package; <code>impseqrob</code> uses MCD-based robust
 regression to resist outliers. Both run natively in the Rust kernel.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>impseq<span class="w">   </span><span class="c1"># or: impseqrob</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>impseq<span class="w">   </span><span class="c1"># or: impseqrob</span>
 </span></code></pre></div>
 <h2 id="choosing-a-method">Choosing a Method<a class="headerlink" href="#choosing-a-method" title="Anchor link to this section">&para;</a></h2>
 <pre class="mermaid"><code>graph TD
@@ -2205,17 +2325,17 @@ regression to resist outliers. Both run natively in the Rust kernel.</p>
 <p>The wheel exposes a single helper that runs any supported method on a wide
 protein matrix CSV (or DataFrame) outside the pipeline. It reaches both the
 kernel methods and the wheel-only <code>missforest</code> imputer, and is
-available with <code>pip install mokume-rs[analysis]</code>:</p>
+available with <code>pip install mokume[analysis]</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># Wide matrix: rows=proteins, columns=samples</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;minprob&quot;</span><span class="p">,</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>              <span class="n">quantile</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mf">1.6</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;imputed.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"minprob"</span><span class="p">,</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>              <span class="n">quantile</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mf">1.6</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
 </span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;knn&quot;</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;imputed.csv&quot;</span><span class="p">)</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;missforest&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;imputed.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"knn"</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"missforest"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
 </span></code></pre></div>
-<p>The same methods run inside the pipeline via <code>--impute --impute-method &lt;name&gt;</code>,
+<p>The same methods run inside the pipeline via <code>--impute-method &lt;name&gt;</code>,
 which is the single-sourced path for the kernel-ported imputers.</p>
 <h2 id="caveats">Caveats<a class="headerlink" href="#caveats" title="Anchor link to this section">&para;</a></h2>
 <ul>

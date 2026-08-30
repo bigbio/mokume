@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1184,6 +1274,8 @@
       
         
           
+        
+      
         
       
         
@@ -1248,6 +1340,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1777,10 +1897,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#derived-values-ibaq" class="md-nav__link">
+  <a href="#derived-values-pibaq" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Derived Values (iBAQ)
+        Derived Values (piBAQ)
       
     </span>
   </a>
@@ -1902,44 +2022,44 @@
 </thead>
 <tbody>
 <tr>
-<td><code>Ibaq</code></td>
-<td>iBAQ</td>
-<td>Per-protein iBAQ (proportional branch) <strong>or</strong> family-level iBAQ (fallback). Interpretation depends on <code>EvidenceLevel</code>.</td>
+<td><code>PiBAQ</code></td>
+<td>piBAQ</td>
+<td>Per-protein piBAQ after shared-peptide signal is allocated proportionally or, without anchor signal, equally.</td>
 </tr>
 <tr>
-<td><code>IbaqNorm</code></td>
-<td>iBAQ</td>
-<td><code>ibaq / sum(ibaq)</code> per sample</td>
+<td><code>PiBAQNorm</code></td>
+<td>piBAQ</td>
+<td><code>PiBAQ / sum(PiBAQ)</code> per sample</td>
 </tr>
 <tr>
-<td><code>IbaqLog</code></td>
-<td>iBAQ</td>
-<td><code>10 + log10(IbaqNorm)</code></td>
+<td><code>PiBAQLog</code></td>
+<td>piBAQ</td>
+<td><code>10 + log10(PiBAQNorm)</code></td>
 </tr>
 <tr>
-<td><code>IbaqPpb</code></td>
-<td>iBAQ</td>
-<td><code>IbaqNorm * 100,000,000</code> (parts per billion)</td>
+<td><code>PiBAQPpb</code></td>
+<td>piBAQ</td>
+<td><code>PiBAQNorm * 100,000,000</code> (parts per billion)</td>
 </tr>
 <tr>
-<td><code>IbaqBec</code></td>
-<td>iBAQ + ComBat</td>
-<td>Batch effect corrected iBAQ</td>
+<td><code>PiBAQBec</code></td>
+<td>piBAQ + ComBat</td>
+<td>Batch effect corrected piBAQ</td>
 </tr>
 <tr>
 <td><code>FamilyId</code></td>
-<td>iBAQ</td>
+<td>piBAQ</td>
 <td>Canonical accession identifying the protein family used by the piBAQ algorithm</td>
 </tr>
 <tr>
 <td><code>FamilySize</code></td>
-<td>iBAQ</td>
+<td>piBAQ</td>
 <td>Number of canonical members in the family (1 = singleton, isolated protein)</td>
 </tr>
 <tr>
 <td><code>EvidenceLevel</code></td>
-<td>iBAQ</td>
-<td><code>high</code> (≥3 unique anchors), <code>medium</code> (1-2 anchors), or <code>family_only</code> (zero anchors -&gt; aggregated)</td>
+<td>piBAQ</td>
+<td><code>high</code> (all members meet the high-anchor threshold), <code>medium</code> (at least one member meets the minimum), or <code>family_only</code> (none does)</td>
 </tr>
 <tr>
 <td><code>TopNIntensity</code></td>
@@ -1968,7 +2088,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="derived-values-ibaq">Derived Values (iBAQ)<a class="headerlink" href="#derived-values-ibaq" title="Anchor link to this section">&para;</a></h2>
+<h2 id="derived-values-pibaq">Derived Values (piBAQ)<a class="headerlink" href="#derived-values-pibaq" title="Anchor link to this section">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2042,7 +2162,7 @@
 <tbody>
 <tr>
 <td><code>ProteinName</code></td>
-<td>UniProt accession (<code>Protein</code> in the ensemble output)</td>
+<td>UniProt accession (same header for single-method and ensemble output)</td>
 </tr>
 <tr>
 <td><code>log2FC</code></td>
@@ -2055,6 +2175,10 @@
 <tr>
 <td><code>adj_pvalue</code></td>
 <td>FDR-adjusted p-value</td>
+</tr>
+<tr>
+<td><code>log_pvalue</code></td>
+<td>Natural logarithm of the raw p-value (DEqMS only; remains finite when <code>pvalue</code> underflows to zero)</td>
 </tr>
 <tr>
 <td><code>significance</code></td>

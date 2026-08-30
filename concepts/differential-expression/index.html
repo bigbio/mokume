@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1208,6 +1238,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1376,6 +1410,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1394,6 +1484,8 @@
       
         
           
+        
+      
         
       
         
@@ -1458,6 +1550,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -2062,21 +2182,24 @@ sample → condition mapping; it returns one result table per contrast:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">DifferentialExpression</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># protein_df: a DataFrame with ProteinName + one intensity column per sample</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># sample_to_condition: {&quot;sampleA&quot;: &quot;Treatment&quot;, &quot;sampleB&quot;: &quot;Control&quot;, ...}</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">de</span> <span class="o">=</span> <span class="n">DifferentialExpression</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;limrots&quot;</span><span class="p">,</span> <span class="n">fdr_method</span><span class="o">=</span><span class="s2">&quot;bh&quot;</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># sample_to_condition: {"sampleA": "Treatment", "sampleB": "Control", ...}</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">de</span> <span class="o">=</span> <span class="n">DifferentialExpression</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">"limrots"</span><span class="p">,</span> <span class="n">fdr_method</span><span class="o">=</span><span class="s2">"bh"</span><span class="p">)</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">results</span> <span class="o">=</span> <span class="n">de</span><span class="o">.</span><span class="n">run_comparisons</span><span class="p">(</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">protein_df</span><span class="p">,</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">sample_to_condition</span><span class="p">,</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">contrasts</span><span class="o">=</span><span class="p">[(</span><span class="s2">&quot;Treatment&quot;</span><span class="p">,</span> <span class="s2">&quot;Control&quot;</span><span class="p">)],</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">contrasts</span><span class="o">=</span><span class="p">[(</span><span class="s2">"Treatment"</span><span class="p">,</span> <span class="s2">"Control"</span><span class="p">)],</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># results[&quot;Treatment-Control&quot;] -&gt; ProteinName, log2FC, pvalue, adj_pvalue, significance</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">table</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;Treatment-Control&quot;</span><span class="p">]</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># results["Treatment-Control"] -&gt; ProteinName, log2FC, pvalue, adj_pvalue, significance</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">table</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s2">"Treatment-Control"</span><span class="p">]</span>
 </span></code></pre></div>
 <p><code>method</code> accepts any of <code>limrots</code>, <code>deqms</code>, <code>proda</code>, <code>limma</code>, or <code>rots</code>
 (the <code>ensemble</code> consensus is exposed through the CLI / <code>run_ensemble</code>,
-not this class); <code>fdr_method</code> is <code>bh</code> (default) or <code>ihw</code>. LimROTS and ROTS report
-their own permutation-based FDR, which an <code>ihw</code> request leaves untouched. The
+not this class); <code>fdr_method</code> is <code>bh</code> (default), <code>ihw</code>, <code>bky</code>, or <code>storey</code>.
+BKY and Storey fall back to BH when pi0 is not reliable. LimROTS and ROTS report
+their own permutation-based FDR, which another FDR request leaves untouched.
+<code>log2fc_threshold="auto"</code> estimates a mixture-model effect-size gate; the Rust
+CLI exposes the same behavior as <code>--de-log2fc auto</code>. The
 Rust build runs the same methods through the CLI shown below (and the in-process
 wheel binding).</p>
 <h2 id="limrots">LimROTS<a class="headerlink" href="#limrots" title="Anchor link to this section">&para;</a></h2>
@@ -2094,8 +2217,8 @@ wheel binding).</p>
 <li>Lower sensitivity than DEqMS — may miss real differential proteins</li>
 <li>Computationally more expensive due to bootstrap iterations</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;A vs B&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"A"</span><span class="w"> </span><span class="s2">"B"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--de-method<span class="w"> </span>limrots<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
@@ -2116,8 +2239,8 @@ wheel binding).</p>
 <li>Requires peptide count information (automatically provided by the pipeline)</li>
 <li>LOESS variance fitting can be unstable on small datasets, falling back to constant variance</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;A vs B&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"A"</span><span class="w"> </span><span class="s2">"B"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>--de-method<span class="w"> </span>deqms<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
@@ -2139,8 +2262,8 @@ wheel binding).</p>
 <li>More conservative, especially on low fold-change contrasts</li>
 <li>Dropout model adds computational overhead and may over-regularize on clean datasets with few missing values</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;A vs B&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"A"</span><span class="w"> </span><span class="s2">"B"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--de-method<span class="w"> </span>proda<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
@@ -2162,8 +2285,8 @@ wheel binding).</p>
 <li>Does not account for peptide-count information</li>
 <li>May be less powerful than DEqMS when peptide counts are available</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;A vs B&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"A"</span><span class="w"> </span><span class="s2">"B"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--de-method<span class="w"> </span>limma<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
@@ -2180,8 +2303,8 @@ wheel binding).</p>
 <li>Computationally expensive (bootstrap iterations)</li>
 <li>May be redundant with LimROTS in most scenarios</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;A vs B&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"A"</span><span class="w"> </span><span class="s2">"B"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--de-method<span class="w"> </span>rots<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
@@ -2193,7 +2316,7 @@ rule: a protein is called significant only when at least <code>min_k</code> memb
 methods agree on direction (UP or DOWN) and the Fisher-combined p-value
 passes the FDR threshold.</p>
 <p><strong>Output columns</strong> include the median log2FC across members, the
-Fisher-combined p-value (BH-adjusted), <code>n_methods_up</code>, <code>n_methods_down</code>,
+Fisher-combined p-value (adjusted with the requested FDR method), <code>n_methods_up</code>, <code>n_methods_down</code>,
 and <code>methods_significant</code> (comma-separated list of members that called
 the protein).</p>
 <p><strong>Strengths:</strong></p>
@@ -2207,16 +2330,20 @@ the protein).</p>
 <li>Cost scales with the number of member methods</li>
 <li>May lose sensitivity for proteins that only one method can detect</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;A vs B&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"A"</span><span class="w"> </span><span class="s2">"B"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--de-method<span class="w"> </span>ensemble<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--de-ensemble-methods<span class="w"> </span>limrots,deqms,proda<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>--de-ensemble-min-k<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--de-ensemble-method<span class="w"> </span>limrots<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>--de-ensemble-method<span class="w"> </span>deqms<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span>--de-ensemble-method<span class="w"> </span>proda<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span>--de-ensemble-min-k<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span>--de-fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--de-log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span></code></pre></div>
 <h2 id="fdr-correction">FDR Correction<a class="headerlink" href="#fdr-correction" title="Anchor link to this section">&para;</a></h2>
-<p>All methods produce raw p-values that are corrected for multiple testing. mokume supports two correction methods:</p>
+<p>Mokume supports four requested FDR corrections. LimROTS and ROTS are the
+exception: they retain their native permutation-based FDR rather than replacing
+it with another requested correction.</p>
 <table>
 <thead>
 <tr>
@@ -2236,12 +2363,29 @@ the protein).</p>
 <td>Independent Hypothesis Weighting</td>
 <td>When a meaningful covariate exists (e.g., base mean expression)</td>
 </tr>
+<tr>
+<td><code>bky</code></td>
+<td>Benjamini-Krieger-Yekutieli</td>
+<td>Adaptive two-stage control when the estimated null fraction is reliable</td>
+</tr>
+<tr>
+<td><code>storey</code></td>
+<td>Storey's q-value method</td>
+<td>Adaptive control when the estimated null fraction is reliable</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
-<p>IHW requires a suitable covariate to improve power over BH. If no covariate is available, mokume falls back to BH automatically.</p>
+<p>IHW requires a suitable covariate to improve power over BH. If no covariate
+is available, mokume falls back to BH automatically. BKY and Storey also
+fall back to BH when their null-fraction estimate is not reliable.</p>
 </div>
+<p>For an ensemble, eligible non-ROTS members use the requested correction while
+ROTS and LimROTS keep their native permutation FDR. Fisher-combined p-values use
+BH by default; BKY or Storey replaces that ensemble-level BH adjustment when
+requested and reliable. IHW remains a member-level correction because the
+combined rows have no IHW covariate.</p>
 <h2 id="benchmark-reference">Benchmark Reference<a class="headerlink" href="#benchmark-reference" title="Anchor link to this section">&para;</a></h2>
 <p>The following results are from the <strong>PXD001819</strong> UPS1 spike-in benchmark (48 UPS1 proteins spiked into yeast lysate, 3 contrasts at FC = 10×, 5×, 2.5×). Values are aggregated across all contrasts. Thresholds: FDR &lt; 0.05, |log2FC| &gt; 1.0.</p>
 <h3 id="maxlfq-806-proteins">MaxLFQ (806 proteins)<a class="headerlink" href="#maxlfq-806-proteins" title="Anchor link to this section">&para;</a></h3>

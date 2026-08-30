@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -514,6 +514,8 @@
       
         
       
+        
+      
     
     
     
@@ -661,14 +663,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli-vs-wheel/" class="md-nav__link">
+      <a href="../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -996,6 +1026,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1164,6 +1198,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1182,6 +1272,8 @@
       
         
           
+        
+      
         
       
         
@@ -1246,6 +1338,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1924,11 +2044,15 @@
 <li>Fork the <a href="https://github.com/bigbio/mokume">repository</a></li>
 <li>Create a feature branch</li>
 <li>Make your changes</li>
-<li>Run the Rust test suite (<code>cargo test</code>) and, if you touched the periphery, <code>pytest</code></li>
+<li>Run the test suite for each implementation or periphery area you changed</li>
 <li>Submit a pull request</li>
 </ol>
 <h3 id="development-setup">Development Setup<a class="headerlink" href="#development-setup" title="Anchor link to this section">&para;</a></h3>
-<p>mokume is a Rust compute kernel (the <code>rust/crates/</code> workspace) with a Python periphery (<code>rust/python/mokume/</code>). The compute numbers live in Rust; the periphery is plain Python that reads the kernel's output. Most contributions touch one side or the other.</p>
+<p>mokume contains a leading Rust compute kernel (<code>rust/crates/</code>), its wheel
+periphery (<code>rust/python/mokume/</code>), and a separately maintained pure-Python
+implementation (<code>python/mokume/</code>). New native computation lands in Rust first;
+see <a href="../maintenance-scope/">Maintenance scope</a> for when a matching pure-Python
+change is expected.</p>
 <p>The Rust toolchain is pinned to <strong>1.96.0</strong> via <code>rust-toolchain.toml</code> (with the <code>rustfmt</code> and <code>clippy</code> components), so <code>rustup</code> selects it automatically inside the checkout.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/bigbio/mokume
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>mokume/rust
@@ -1946,6 +2070,11 @@
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>pytest
 </span></code></pre></div>
 <p><code>maturin develop</code> compiles the PyO3 binding crate (<code>crates/mokume-py</code>) into the in-process <code>mokume._mokume</code> extension and installs the wheel editable; the periphery under <code>rust/python/mokume/commands/</code> is plain Python and needs no build step. After changing kernel code, re-run <code>maturin develop</code> so the Python wrappers pick up the new extension.</p>
+<p>For changes to the separately maintained pure-Python implementation:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>../python
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[all]"</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>pytest
+</span></code></pre></div>
 <h2 id="license">License<a class="headerlink" href="#license" title="Anchor link to this section">&para;</a></h2>
 <p>mokume is released under the <a href="https://github.com/bigbio/mokume/blob/main/LICENSE">MIT License</a>.</p>
 <h2 id="links">Links<a class="headerlink" href="#links" title="Anchor link to this section">&para;</a></h2>

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1186,6 +1276,8 @@
       
         
           
+        
+      
         
       
         
@@ -1251,6 +1343,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1990,24 +2110,25 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label><label for="__tabbed_1_3">Python (explicit argv)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>global-median<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<p>The wheel wrapper maps keyword arguments to CLI flags (<code>key=value</code> → <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> → <code>--key</code>) and runs the same kernel in-process:</p>
+<p>The wheel wrapper validates documented keyword arguments, maps them to the
+command's exact CLI flags, and runs the same kernel in-process:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2peptides</span><span class="p">(</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">"median"</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">"global-median"</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
@@ -2015,13 +2136,14 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">&quot;features2peptides&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;--parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">&quot;--sdrf&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">&quot;--run-normalization&quot;</span><span class="p">,</span> <span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">&quot;--sample-normalization&quot;</span><span class="p">,</span> <span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">])</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">"quantify"</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">"features2peptides"</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">"--parquet"</span><span class="p">,</span> <span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">"--sdrf"</span><span class="p">,</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">"--run-normalization"</span><span class="p">,</span> <span class="s2">"median"</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="s2">"--sample-normalization"</span><span class="p">,</span> <span class="s2">"global-median"</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="s2">"--output"</span><span class="p">,</span> <span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">])</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -2068,7 +2190,7 @@
 <td>Normalize by total intensity within each run</td>
 </tr>
 <tr>
-<td><code>max_min</code></td>
+<td><code>max-min</code></td>
 <td>Apply min-max scaling</td>
 </tr>
 <tr>
@@ -2091,11 +2213,11 @@
 </thead>
 <tbody>
 <tr>
-<td><code>globalMedian</code></td>
+<td><code>global-median</code></td>
 <td>Adjust all samples to global median (default)</td>
 </tr>
 <tr>
-<td><code>conditionMedian</code></td>
+<td><code>condition-median</code></td>
 <td>Adjust samples within each condition</td>
 </tr>
 <tr>
@@ -2105,25 +2227,20 @@
 </tbody>
 </table>
 <div class="admonition note">
-<p class="admonition-title">Only scalar-per-sample methods change the peptide output</p>
-<p>In the peptide flow only the factor-based normalizers (<code>globalmedian</code> /
-<code>conditionmedian</code>) are applied. The dataset-level methods
-(<code>quantile</code>, <code>rlr</code>, <code>loess</code>, <code>hierarchical</code>,
-<code>mediancenter</code>, <code>meancenter</code>) are accepted but are a deterministic <strong>no-op</strong>
-here (same result as <code>--sample-normalization none</code>): they need the full
-matrix, which the streaming peptide pass does not hold, and Python's
-per-sample loop also leaves them unchanged. All of these methods <strong>are</strong> implemented and
-oracle-verified in <a href="../features2proteins/#normalization-options"><code>features2proteins</code></a>,
-where the full matrix exists — run dataset-level normalization there.</p>
+<p class="admonition-title">Only scalar-per-sample methods are accepted</p>
+<p>The peptide flow accepts only <code>none</code>, <code>global-median</code>, and
+<code>condition-median</code>. Dataset-level methods need the full matrix and are
+rejected here instead of being accepted as no-ops. They remain available
+in <a href="../features2proteins/#normalization-options"><code>features2proteins</code></a>.</p>
 </div>
 <h2 id="filtering-options">Filtering Options<a class="headerlink" href="#filtering-options" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--min_aa<span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--min_unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>--remove_decoy_contaminants<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span>--remove_low_frequency_peptides<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--min-aa<span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--min-unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>--remove-decoy-contaminants<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span>--remove-low-frequency-peptides<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
 </span></code></pre></div>
 <table>
@@ -2136,12 +2253,12 @@ where the full matrix exists — run dataset-level normalization there.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--min_aa</code></td>
+<td><code>--min-aa</code></td>
 <td>7</td>
 <td>Minimum amino acid length</td>
 </tr>
 <tr>
-<td><code>--min_unique</code></td>
+<td><code>--min-unique</code></td>
 <td>2</td>
 <td>Minimum unique peptides per protein</td>
 </tr>
@@ -2151,17 +2268,17 @@ where the full matrix exists — run dataset-level normalization there.</p>
 <td>Keep shared/non-unique peptides and skip the unique-peptide gate</td>
 </tr>
 <tr>
-<td><code>--remove_decoy_contaminants</code></td>
+<td><code>--remove-decoy-contaminants</code></td>
 <td>off</td>
 <td>Remove decoys and contaminants</td>
 </tr>
 <tr>
-<td><code>--remove_low_frequency_peptides</code></td>
+<td><code>--remove-low-frequency-peptides</code></td>
 <td>off</td>
 <td>Remove peptides in &lt;20% of samples</td>
 </tr>
 <tr>
-<td><code>--remove_ids</code></td>
+<td><code>--remove-ids</code></td>
 <td>none</td>
 <td>File with protein IDs to exclude</td>
 </tr>
@@ -2179,27 +2296,27 @@ where the full matrix exists — run dataset-level normalization there.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--irs_channel</code></td>
+<td><code>--irs-channel</code></td>
 <td>none</td>
 <td>Explicit pooled/reference channel label</td>
 </tr>
 <tr>
-<td><code>--irs_autodetect_regex</code></td>
+<td><code>--irs-autodetect-regex</code></td>
 <td>none</td>
 <td>Regex to detect pooled samples from SDRF</td>
 </tr>
 <tr>
-<td><code>--irs_stat</code></td>
+<td><code>--irs-stat</code></td>
 <td><code>median</code></td>
 <td>IRS per-run statistic: median or mean</td>
 </tr>
 <tr>
-<td><code>--irs_scope</code></td>
+<td><code>--irs-scope</code></td>
 <td><code>global</code></td>
-<td>IRS scaling scope: global, by_mixture, or two_stage</td>
+<td>IRS scaling scope: global, by-mixture, or two-stage</td>
 </tr>
 <tr>
-<td><code>--aggregation_level</code></td>
+<td><code>--aggregation-level</code></td>
 <td><code>sample</code></td>
 <td>Aggregate intensities at sample or run level</td>
 </tr>
@@ -2207,35 +2324,39 @@ where the full matrix exists — run dataset-level normalization there.</p>
 </table>
 <div class="admonition note">
 <p class="admonition-title">Channel-based IRS</p>
-<p>The channel IRS path (<code>--irs_channel</code> / <code>--irs_autodetect_regex</code>) scales on
+<p>The channel IRS path (<code>--irs-channel</code> / <code>--irs-autodetect-regex</code>) scales on
 the TMT <code>mixture</code> / <code>channel</code> columns and is implemented for all three scopes
-(<code>--irs_scope global</code> / <code>by_mixture</code> / <code>two_stage</code>). The reference channel is
-taken from <code>--irs_channel</code>, or auto-detected from the SDRF when
-<code>--irs_autodetect_regex</code> is given. For cross-plex reference scaling driven by
+(<code>--irs-scope global</code> / <code>by-mixture</code> / <code>two-stage</code>). The reference channel is
+taken from <code>--irs-channel</code>, or auto-detected from the SDRF when
+<code>--irs-autodetect-regex</code> is given. For cross-plex reference scaling driven by
 the SDRF, see
 <a href="../features2proteins/#irs-normalization-multi-plex-tmt"><code>features2proteins</code></a>.</p>
 </div>
 <h2 id="preprocessing-filters">Preprocessing Filters<a class="headerlink" href="#preprocessing-filters" title="Anchor link to this section">&para;</a></h2>
 <p>For more advanced filtering, use a YAML/JSON configuration file:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Generate example configuration</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>--generate-filter-config<span class="w"> </span>filters.yaml
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span>--generate-filter-config<span class="w"> </span>filters.yaml
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Use filter configuration</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span>--filter-config<span class="w"> </span>filters.yaml<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
 </span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
 </span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># CLI overrides (take precedence over config file)</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span>--filter-config<span class="w"> </span>filters.yaml<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span>--filter-min-intensity<span class="w"> </span><span class="m">1000</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span>--filter-cv-threshold<span class="w"> </span><span class="m">0</span>.3<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span>--filter-charge-states<span class="w"> </span><span class="s2">&quot;2,3,4&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span>--filter-charge-state<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span>--filter-charge-state<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span>--filter-charge-state<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">    </span>--filter-score<span class="w"> </span><span class="nv">diann_ms1_profile_corr</span><span class="o">=</span><span class="m">0</span>.8<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">    </span>--filter-protein-fdr<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">    </span>--output<span class="w"> </span>peptides.csv
 </span></code></pre></div>
 <h3 id="cli-filter-overrides">CLI Filter Overrides<a class="headerlink" href="#cli-filter-overrides" title="Anchor link to this section">&para;</a></h3>
 <table>
@@ -2255,20 +2376,28 @@ the SDRF, see
 <td>Maximum CV across replicates</td>
 </tr>
 <tr>
-<td><code>--filter-charge-states</code></td>
-<td>Comma-separated allowed charge states</td>
+<td><code>--filter-charge-state</code></td>
+<td>Allowed charge state; repeat for multiple states</td>
 </tr>
 <tr>
 <td><code>--filter-max-missed-cleavages</code></td>
 <td>Maximum missed cleavages</td>
 </tr>
 <tr>
-<td><code>--filter-exclude-modifications</code></td>
-<td>Comma-separated modifications to exclude</td>
+<td><code>--filter-peptide-fdr</code></td>
+<td>Maximum QPX <code>peptide_qvalue</code></td>
 </tr>
 <tr>
-<td><code>--filter-min-unique-peptides</code></td>
-<td>Minimum unique peptides per protein</td>
+<td><code>--filter-score</code></td>
+<td>Named QPX <code>additional_scores</code> threshold (<code>NAME=THRESHOLD</code>)</td>
+</tr>
+<tr>
+<td><code>--filter-exclude-modification</code></td>
+<td>Modification to exclude; repeat for multiple names</td>
+</tr>
+<tr>
+<td><code>--filter-protein-fdr</code></td>
+<td>Maximum QPX <code>pg_global_qvalue</code> per protein group</td>
 </tr>
 <tr>
 <td><code>--filter-min-features</code></td>
@@ -2276,53 +2405,66 @@ the SDRF, see
 </tr>
 <tr>
 <td><code>--filter-max-missing-rate</code></td>
-<td>Maximum missing value rate (0.0-1.0)</td>
+<td>Maximum missing feature fraction per technical run</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition note">
-<p class="admonition-title">Group-level filters: what runs and what is a no-op</p>
+<p class="admonition-title">Group-level filter support</p>
 <p>The per-row filters (min-intensity floor, peptide length, charge states,
 excluded modifications, missed cleavages) and the per-<code>(protein, sample)</code>
 unique-peptide gate are wired in the kernel and oracle-locked vs Python.
+FDR filtering is opt-in: peptide FDR uses <code>peptide_qvalue</code>, while protein
+FDR keeps groups whose minimum <code>pg_global_qvalue</code> passes. A requested but
+unpopulated q-value field is an error rather than a no-op.
+<code>--filter-score</code> matches one exact score name and reads its QPX
+<code>higher_better</code> flag, so higher-better scores use <code>&gt;=</code> and lower-better
+scores use <code>&lt;=</code>. Missing, invalid, or direction-inconsistent scores fail
+before output is written.
 Among the group-level filters, CV threshold (<code>--filter-cv-threshold</code>),
 quantile outlier removal, and the run-QC checks <code>--filter-min-features</code> /
-min-total-intensity / min-proteins are implemented via a pre-pass. Replicate
-agreement reproduces Python's degenerate per-sample behaviour (a threshold
-<code>&gt;= 2</code> empties the output, matching the reference). <code>--filter-max-missing-rate</code>,
-sample correlation, min-search-score, and min-coverage are no-ops on the QPX
-streaming model — each warns and passes rows through, exactly as Python skips
-them. Only an unknown <code>razor-peptide-handling</code> value returns <code>NotImplemented</code>.</p>
+min-total-intensity / min-proteins / <code>--filter-max-missing-rate</code> are
+implemented via a pre-pass. Run-QC rejects individual technical runs;
+missing rate uses the complete distinct <code>(protein, peptide)</code> universe among
+the surviving runs in that sample. Replicate agreement reproduces the Python
+per-sample behaviour. Filter-config keys that the QPX streaming model cannot
+evaluate (including sample correlation, search score, and protein coverage)
+are rejected when active. Unknown YAML/JSON keys are also rejected, so a typo
+cannot silently pass through.</p>
 </div>
 <p>See <a href="../../concepts/preprocessing/">Preprocessing Filters</a> for the full filter reference.</p>
 <h2 id="output-options">Output Options<a class="headerlink" href="#output-options" title="Anchor link to this section">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Standard CSV output</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Parquet output</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--save_parquet
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--save-parquet
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Log2 transform</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--log2
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--log2
 </span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># Skip normalization entirely</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--skip_normalization
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>peptides.csv<span class="w"> </span>--skip-normalization
 </span></code></pre></div>
+<p><code>--skip-normalization</code> conflicts with channel IRS options. IRS autodetection
+requires an SDRF and must match a reference channel; otherwise the command
+fails instead of writing an unscaled result.</p>
 <h2 id="python-api">Python API<a class="headerlink" href="#python-api" title="Anchor link to this section">&para;</a></h2>
 <p>The wheel exposes the same command as a thin wrapper; keyword arguments map to CLI
-flags (<code>key=value</code> → <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> → <code>--key</code>).</p>
+validated command flags; unknown keywords and invalid value shapes fail before
+dispatch.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2peptides</span><span class="p">(</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">min_aa</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">min_unique</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">remove_decoy_contaminants</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">remove_low_frequency_peptides</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides-norm.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"peptides-norm.csv"</span><span class="p">,</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">"median"</span><span class="p">,</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">"global-median"</span><span class="p">,</span>
 </span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">log2</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">save_parquet</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="p">)</span>
@@ -2333,15 +2475,15 @@ directly:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2peptides</span><span class="p">(</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">&quot;globalmedian&quot;</span><span class="p">,</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">filter_config</span><span class="o">=</span><span class="s2">&quot;filters.yaml&quot;</span><span class="p">,</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">run_normalization</span><span class="o">=</span><span class="s2">"median"</span><span class="p">,</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">sample_normalization</span><span class="o">=</span><span class="s2">"global-median"</span><span class="p">,</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">filter_config</span><span class="o">=</span><span class="s2">"filters.yaml"</span><span class="p">,</span>
 </span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">filter_min_intensity</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="n">filter_charge_states</span><span class="o">=</span><span class="s2">&quot;2,3,4&quot;</span><span class="p">,</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="n">filter_min_unique_peptides</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="n">filter_charge_state</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="n">min_unique</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
 </span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="p">)</span>
 </span></code></pre></div>
 

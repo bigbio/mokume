@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://mokume.quantms.org/user-guide/features2proteins/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../agentic-plugin/">
       
       
         <link rel="next" href="../features2peptides/">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1186,6 +1276,8 @@
       
         
           
+        
+      
         
       
         
@@ -1251,6 +1343,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1331,6 +1451,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#input-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Formats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#quantification-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1396,6 +1527,17 @@
     <span class="md-ellipsis">
       
         IRS Normalization (Multi-Plex TMT)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sample-correlation-qc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sample Correlation QC
       
     </span>
   </a>
@@ -2001,7 +2143,7 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label><label for="__tabbed_1_3">Python (explicit argv)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
@@ -2009,14 +2151,15 @@
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<p>The wheel wrapper maps keyword arguments to CLI flags (<code>key=value</code> → <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> → <code>--key</code>) and runs the same kernel in-process:</p>
+<p>The wheel wrapper validates documented keyword arguments, maps them to the
+command's exact CLI flags, and runs the same kernel in-process:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"maxlfq"</span><span class="p">,</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
@@ -2024,16 +2167,37 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">&quot;features2proteins&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;--parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">&quot;--sdrf&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">&quot;--quant-method&quot;</span><span class="p">,</span> <span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">])</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">"quantify"</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">"features2proteins"</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">"--parquet"</span><span class="p">,</span> <span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">"--output"</span><span class="p">,</span> <span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">"--sdrf"</span><span class="p">,</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="s2">"--quant-method"</span><span class="p">,</span> <span class="s2">"maxlfq"</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">])</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
+<h2 id="input-formats">Input Formats<a class="headerlink" href="#input-formats" title="Anchor link to this section">&para;</a></h2>
+<p>Choose one input mode:</p>
+<ul>
+<li><code>--parquet</code> accepts a quantms.io/QPX feature parquet file. It is also the
+  required protein-group mapping paired with <code>--psm</code> for <code>spectral-count</code>.</li>
+<li><code>--msstats</code> accepts a native MSstats CSV and requires <code>--sdrf</code> so runs and
+  channels can be mapped to samples.</li>
+<li><code>--psm</code> accepts a PSM-level QPX parquet for true <code>spectral-count</code>; it requires
+  both the matching feature QPX via <code>--parquet</code> and sample metadata via <code>--sdrf</code>.</li>
+</ul>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--msstats<span class="w"> </span>msstats.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--output<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq
+</span></code></pre></div>
+<p>An MSstats CSV must contain <code>ProteinName</code>, <code>PeptideSequence</code>, <code>Intensity</code>,
+<code>Charge</code> or <code>PrecursorCharge</code>, and <code>Run</code> or <code>Reference</code>. Isobaric data also
+requires <code>Channel</code>. <code>--quant-method ratio</code> requires PSM-level QPX evidence and
+therefore cannot use an MSstats feature table.</p>
 <h2 id="quantification-methods">Quantification Methods<a class="headerlink" href="#quantification-methods" title="Anchor link to this section">&para;</a></h2>
 <table>
 <thead>
@@ -2058,16 +2222,16 @@
 <td>Hierarchical alignment (native Rust)</td>
 </tr>
 <tr>
-<td>iBAQ</td>
-<td><code>--quant-method ibaq</code></td>
+<td>piBAQ</td>
+<td><code>--quant-method pibaq</code></td>
 <td style="text-align: center;">Yes</td>
 <td>Absolute quantification</td>
 </tr>
 <tr>
 <td>TopN</td>
-<td><code>--quant-method topn</code></td>
+<td><code>--quant-method top3</code> / <code>top5</code> / any <code>top&lt;N&gt;</code></td>
 <td style="text-align: center;">No</td>
-<td>Average of N most intense peptides</td>
+<td>Average of the N most intense peptides</td>
 </tr>
 <tr>
 <td>Sum</td>
@@ -2100,126 +2264,144 @@
 <td>Sum of raw reporter intensities (TMT)</td>
 </tr>
 <tr>
-<td>Spectral Count</td>
-<td><code>--quant-method spectral_count</code></td>
+<td>Peptide Count</td>
+<td><code>--quant-method peptide-count</code></td>
 <td style="text-align: center;">No</td>
-<td>Count of distinct peptides per (protein, sample)</td>
+<td>Distinct canonical peptides from feature QPX</td>
+</tr>
+<tr>
+<td>Spectral Count</td>
+<td><code>--quant-method spectral-count --psm PSM --parquet FEATURE</code></td>
+<td style="text-align: center;">No</td>
+<td>Unique QPX <code>psm_id</code> values from feature-linked PSMs; requires SDRF</td>
 </tr>
 </tbody>
 </table>
 <p>In practice:</p>
 <ul>
 <li>Use <code>maxlfq</code> as the default starting point for standard LFQ workflows.</li>
-<li>Use <code>directlfq</code> when you explicitly want the DirectLFQ package to handle normalization and quantification together.</li>
-<li>Use <code>ibaq</code> when you need absolute-style quantification and have a FASTA file. The pipeline path delegates to the same piBAQ (paralog-aware iBAQ) algorithm as the <code>peptides2protein</code> CLI -- see <a href="../../concepts/quantification/#ibaq-pibaq-paralog-aware">Quantification Methods → iBAQ</a> for the family discovery and fallback semantics; the wide-format pipeline output retains per-protein <code>Ibaq</code> values but does not surface the <code>FamilyId</code> / <code>EvidenceLevel</code> metadata columns.</li>
+<li>Use <code>directlfq</code> when you explicitly want the native Rust DirectLFQ estimator
+  to handle normalization and quantification together.</li>
+<li>Use <code>pibaq</code> when you need absolute-style quantification and have a FASTA
+  file. The pipeline delegates to the same piBAQ algorithm as
+  <code>peptides2protein</code> -- see
+  <a href="../../concepts/quantification/#pibaq-paralog-aware-ibaq">Quantification Methods → piBAQ</a>
+  for family discovery and exact shared-peptide allocation. The wide-format
+  pipeline output retains per-protein <code>PiBAQ</code> values but does not surface the
+  <code>FamilyId</code> / <code>EvidenceLevel</code> metadata columns.</li>
 <li>Use <code>ratio</code> for TMT PS-style reference-based analysis.</li>
+<li>Use <code>peptide-count</code> for distinct peptide identifications from feature QPX;
+  use <code>spectral-count</code> for unique feature-linked PSMs from matching PSM and
+  feature QPX files. Both are integer evidence counts, so run/sample intensity
+  normalization and IRS are rejected.</li>
+<li>Use <code>top&lt;N&gt;</code> for the classic Top3-style summary; <code>top3</code> is the method from
+  Silva et al. 2006, and any other N works the same way (<code>top5</code>, <code>top10</code>, ...).</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># iBAQ (requires FASTA)</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>ibaq<span class="w"> </span>--fasta<span class="w"> </span>proteome.fasta
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># TopN (Top5)</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span>--quant-method<span class="w"> </span>topn<span class="w"> </span>--topn<span class="w"> </span><span class="m">5</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># DirectLFQ (native Rust, no extra dependency)</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span>--directlfq-cores<span class="w"> </span><span class="m">4</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># piBAQ (requires FASTA)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span>--fasta<span class="w"> </span>proteome.fasta
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1"># TopN — the N lives in the method name (top3, top5, top10, ...)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span>--quant-method<span class="w"> </span>top5
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># DirectLFQ (native Rust, no extra dependency)</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
 </span></code></pre></div>
 <h2 id="memory-performance-for-large-studies">Memory &amp; Performance for Large Studies<a class="headerlink" href="#memory-performance-for-large-studies" title="Anchor link to this section">&para;</a></h2>
-<p>When the input parquet has thousands of samples (~5000+), the long-form
-features must be pivoted into a wide DirectLFQ matrix. mokume streams the
-DuckDB result set through Arrow into polars and pivots there, which keeps the
-load step's wall time down (cf. PXD030304: ~32 min on 163M long rows pivoted
-into 147,374 × 5,798) and avoids the OOM that pandas pivots used to trigger.</p>
-<p>The DuckDB engine itself can be size-capped via <code>--duckdb-memory</code> /
-<code>--duckdb-threads</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--duckdb-memory<span class="w"> </span>40GB<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--duckdb-threads<span class="w"> </span><span class="m">16</span>
+<p>The Rust kernel reads QPX parquet data in Arrow record batches and accumulates
+the compact peptide, protein, and sample structures needed by the selected
+method. It does not load the input through DuckDB or build a pandas pivot.</p>
+<p>Use <code>--threads</code> to size the Rayon thread pool used by parallel Rust sections:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--threads<span class="w"> </span><span class="m">24</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--memory<span class="w"> </span>1GB
 </span></code></pre></div>
-<div class="admonition warning">
-<p class="admonition-title"><code>--duckdb-memory</code> is <em>not</em> a hard process cap</p>
-<p>The flag only sizes DuckDB's internal buffer pool. PyArrow, polars, and
-pandas allocate independently, so peak Python process RSS can grow to
-<strong>2-3x</strong> the DuckDB cap on wide pivots. For production environments
-that need a strict ceiling, layer one of these on top of mokume:</p>
-<ul>
-<li><strong>systemd / cgroup</strong>: <code>systemd-run --scope -p MemoryMax=80G -- mokume features2proteins ...</code></li>
-<li><strong>SLURM</strong>: <code>sbatch --mem=80G ...</code></li>
-<li><strong>Docker / k8s</strong>: <code>resources.limits.memory: 80Gi</code></li>
-</ul>
-<p>The <code>directlfq-cores</code> worker count is automatically reduced when
-<code>--duckdb-memory</code> is set, so each forked worker has room for its
-COW-amplified copy of the wide matrix.</p>
-</div>
+<p><code>--memory</code> sets a cross-platform soft process resident-memory budget. It reduces
+the QPX Arrow batch size, disables read-ahead, and checks RSS on Unix-like
+systems or the process Working Set on Windows after input batches and major
+pipeline phases. If in-memory aggregation state cannot fit, Mokume exits with a
+clear budget-exceeded error rather than silently ignoring the option. The guard
+can observe a transient overshoot only at the next checkpoint, and smaller
+synchronous batches may reduce throughput. Use an external cgroup, scheduler,
+Windows Job Object, or container limit when a hard ceiling is required.</p>
+<p>Runtime pyOpenMS FASTA digestion for piBAQ occurs before the Rust pipeline
+starts, so it is not covered by <code>--memory</code>.</p>
 <h2 id="normalization-options">Normalization Options<a class="headerlink" href="#normalization-options" title="Anchor link to this section">&para;</a></h2>
 <h3 id="run-level-normalization">Run-Level Normalization<a class="headerlink" href="#run-level-normalization" title="Anchor link to this section">&para;</a></h3>
 <p>Adjusts for intensity differences between MS runs within each sample.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w">  </span><span class="c1"># median, mean, max, global, max_min, iqr, none</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w">  </span><span class="c1"># median, mean, max, global, max-min, iqr, none</span>
 </span></code></pre></div>
 <h3 id="sample-level-normalization">Sample-Level Normalization<a class="headerlink" href="#sample-level-normalization" title="Anchor link to this section">&para;</a></h3>
 <p>Adjusts for systematic differences across samples.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Global median (default)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Hierarchical (DirectLFQ-style)</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># With specific normalization proteins</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span>--normalization-proteins<span class="w"> </span>housekeeping.txt
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Quantile / MedianCenter / MeanCenter / RLR / LOESS / TMM (dataset-level)</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>quantile
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>
-</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>loess
-</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>
-</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>tmm
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Global median (default)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>global-median
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Hierarchical (DirectLFQ-style)</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># With specific normalization proteins</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>global-median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span>--normalization-proteins<span class="w"> </span>housekeeping.txt
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="c1"># Quantile / MedianCenter / MeanCenter / RLR / LOESS / TMM (dataset-level)</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>quantile
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>loess
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>tmm
 </span></code></pre></div>
+<p><code>--normalization-proteins</code> is available for applicable intensity normalizers.
+It is unavailable for DirectLFQ, Ratio, peptide-count, and spectral-count.</p>
 <div class="admonition note">
 <p class="admonition-title">Dataset-level normalizers</p>
-<p><code>quantile</code>, <code>mediancenter</code>, <code>meancenter</code>, <code>rlr</code>, <code>loess</code>, and <code>tmm</code> are
+<p><code>quantile</code>, <code>median-center</code>, <code>mean-center</code>, <code>rlr</code>, <code>loess</code>, and <code>tmm</code> are
 dataset-level normalizers applied after peptide aggregation, all native in
 the Rust kernel. <code>tmm</code> (Trimmed Mean of M-values,
 <code>mokume.normalization.tmm.TMMNormalizer</code>) is robust to composition bias from
 highly abundant proteins.</p>
+<p>MaxLFQ and piBAQ currently accept <code>quantile</code> as their dataset-level method;
+requesting RLR, LOESS, hierarchical, centering, or TMM with either method
+is rejected before input loading. For MaxLFQ + quantile, Mokume selects the
+built-in MaxLFQ path so the requested normalization is actually applied.</p>
 </div>
 <ul>
-<li><code>globalMedian</code> is the default and a good general-purpose starting point.</li>
+<li><code>global-median</code> is the default and a good general-purpose starting point.</li>
 <li><code>hierarchical</code> is useful when you want DirectLFQ-style normalization with a non-DirectLFQ quantification method.</li>
 </ul>
 <h2 id="irs-normalization-multi-plex-tmt">IRS Normalization (Multi-Plex TMT)<a class="headerlink" href="#irs-normalization-multi-plex-tmt" title="Anchor link to this section">&para;</a></h2>
 <p>For TMT experiments with shared reference channels across plexes:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Auto-detect references from SDRF</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Explicit reference samples</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-samples<span class="w"> </span><span class="s2">&quot;p1_11,p2_11&quot;</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Custom regex for reference detection</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-regex<span class="w"> </span><span class="s2">&quot;pool|bridge|control&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Auto-detect references from SDRF</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Explicit reference samples</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-sample<span class="w"> </span><span class="s2">"p1_11"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">    </span>--irs-reference-sample<span class="w"> </span><span class="s2">"p2_11"</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="c1"># Custom regex for reference detection</span>
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-reference-regex<span class="w"> </span><span class="s2">"pool|bridge|control"</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2236,9 +2418,9 @@ highly abundant proteins.</p>
 <td>Enable IRS normalization</td>
 </tr>
 <tr>
-<td><code>--irs-reference-samples</code></td>
+<td><code>--irs-reference-sample</code></td>
 <td>auto</td>
-<td>Comma-separated reference sample names</td>
+<td>Reference sample name; repeat for multiple samples</td>
 </tr>
 <tr>
 <td><code>--irs-sdrf-column</code></td>
@@ -2246,9 +2428,9 @@ highly abundant proteins.</p>
 <td>SDRF column for reference detection</td>
 </tr>
 <tr>
-<td><code>--irs-sdrf-values</code></td>
+<td><code>--irs-sdrf-value</code></td>
 <td>auto</td>
-<td>Values indicating reference samples</td>
+<td>Value indicating reference samples; repeat for multiple values</td>
 </tr>
 <tr>
 <td><code>--irs-reference-regex</code></td>
@@ -2267,84 +2449,106 @@ highly abundant proteins.</p>
 </tr>
 </tbody>
 </table>
+<p>Every IRS sub-option requires <code>--irs</code> and an SDRF. If reference detection finds
+no usable sample/plex mapping or no finite scale, the command fails rather than
+returning an unscaled matrix. IRS is not applicable to <code>peptide-count</code> or
+<code>spectral-count</code> and is rejected for both methods.</p>
+<h2 id="sample-correlation-qc">Sample Correlation QC<a class="headerlink" href="#sample-correlation-qc" title="Anchor link to this section">&para;</a></h2>
+<p>Use <code>--min-sample-correlation</code> to remove a sample when its mean Pearson
+correlation to the other samples in the same SDRF condition falls below a
+threshold:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>--min-sample-correlation<span class="w"> </span><span class="m">0</span>.8
+</span></code></pre></div>
+<p>The comparison is one-shot on the normalized protein matrix: positive finite
+linear intensities are log2-transformed, while the already-log2 <code>abd</code> and
+<code>ratio</code> outputs are used directly. Each pair uses its shared proteins, and all
+sample scores are computed before any sample is removed. Conditions with fewer
+than two samples and pairs with fewer than three usable proteins are rejected
+because the requested correlation cannot be evaluated. Pooled/powder reference
+conditions are retained but are not scored.</p>
 <h2 id="ratio-quantification-tmt-ps-protocol">Ratio Quantification (TMT PS Protocol)<a class="headerlink" href="#ratio-quantification-tmt-ps-protocol" title="Anchor link to this section">&para;</a></h2>
 <p>For multi-plex TMT with per-plex reference division:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>ratio<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span>--coverage-threshold<span class="w"> </span><span class="m">0</span>.65<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span>--ratio-fraction-merge<span class="w"> </span>mean
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>ratio<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span>--coverage-threshold<span class="w"> </span><span class="m">0</span>.65<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span>--ratio-fraction-merge<span class="w"> </span>mean
 </span></code></pre></div>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
-<p>Ratio quantification handles cross-plex normalization inherently via per-plex reference division. The <code>--irs</code> flag is ignored in ratio mode.</p>
+<p>Ratio quantification handles cross-plex normalization inherently via
+per-plex reference division. Combining it with <code>--irs</code> is rejected.</p>
 </div>
 <h2 id="batch-correction">Batch Correction<a class="headerlink" href="#batch-correction" title="Anchor link to this section">&para;</a></h2>
 <p>ComBat runs as a native Rust kernel (oracle-verified vs inmoose), so no extra dependency is needed.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">CLI</label><label for="__tabbed_2_2">Python (wheel)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>--batch-correction<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span>--batch-covariates<span class="w"> </span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span>--batch-correction<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span>--batch-method<span class="w"> </span>sample-prefix<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span>--batch-covariate<span class="w"> </span><span class="s2">"characteristics[sex]"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span>--batch-covariate<span class="w"> </span><span class="s2">"characteristics[organism part]"</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">batch_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="n">batch_method</span><span class="o">=</span><span class="s2">&quot;sample_prefix&quot;</span><span class="p">,</span>
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="n">batch_covariates</span><span class="o">=</span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span><span class="p">,</span>
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"maxlfq"</span><span class="p">,</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="n">batch_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="n">batch_method</span><span class="o">=</span><span class="s2">"sample-prefix"</span><span class="p">,</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="n">batch_covariate</span><span class="o">=</span><span class="p">[</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>        <span class="s2">"characteristics[sex]"</span><span class="p">,</span>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>        <span class="s2">"characteristics[organism part]"</span><span class="p">,</span>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    <span class="p">],</span>
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
-<div class="admonition warning">
-<p class="admonition-title"><code>--batch-method run</code> is not available in this flow</p>
-<p>Only <code>sample_prefix</code> and <code>column</code> (with <code>--batch-column</code>) detection are
-supported in the protein-matrix flow. <code>--batch-method run</code> has no run-level
-mapping here and errors at runtime; PCA + HDBSCAN outlier removal is not
-ported.</p>
-</div>
+<p>Only <code>sample-prefix</code> and <code>column</code> (with <code>--batch-column</code>) are exposed in this
+protein-matrix flow. ComBat requires at least two batches with two samples each
+and at least one protein observed in every sample; otherwise it fails instead
+of returning unchanged values. PCA + HDBSCAN outlier removal is not ported.</p>
 <h2 id="differential-expression">Differential Expression<a class="headerlink" href="#differential-expression" title="Anchor link to this section">&para;</a></h2>
-<p>Contrasts must be explicitly specified via <code>--de-contrasts</code> (inline) or <code>--de-contrasts-file</code> (TSV). Both can be combined.</p>
+<p>Contrasts must be explicitly specified via repeated <code>--de-contrast GROUP_A GROUP_B</code>
+options or <code>--de-contrast-file</code> (TSV). Both can be combined, and any DE option
+enables differential expression without a separate switch.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Inline contrasts</label><label for="__tabbed_3_2">Contrasts file</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span>--de<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH vs HL,NASH vs Control&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span>--de-method<span class="w"> </span>limrots<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"NASH"</span><span class="w"> </span><span class="s2">"HL"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"NASH"</span><span class="w"> </span><span class="s2">"Control"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span>--de-method<span class="w"> </span>deqms<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span>--de<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span>--de-contrasts-file<span class="w"> </span>contrasts.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span>--de-method<span class="w"> </span>deqms<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span>--de-contrast-file<span class="w"> </span>contrasts.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span>--de-method<span class="w"> </span>deqms<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span></code></pre></div>
 <p>Where <code>contrasts.tsv</code> is a two-column TSV:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>group1    group2
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>NASH      HL
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>NASH      Control
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>HL        Control
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>group1    group2
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>NASH      HL
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>NASH      Control
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>HL        Control
 </span></code></pre></div>
 </div>
 </div>
@@ -2359,17 +2563,12 @@ ported.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--de</code></td>
-<td>off</td>
-<td>Enable differential expression</td>
-</tr>
-<tr>
-<td><code>--de-contrasts</code></td>
+<td><code>--de-contrast</code></td>
 <td>—</td>
-<td>Comma-separated contrasts (e.g., <code>"A vs B,A vs C"</code>)</td>
+<td>Two condition labels; repeat the option for multiple contrasts</td>
 </tr>
 <tr>
-<td><code>--de-contrasts-file</code></td>
+<td><code>--de-contrast-file</code></td>
 <td>—</td>
 <td>TSV file with columns <code>group1</code>, <code>group2</code></td>
 </tr>
@@ -2379,19 +2578,24 @@ ported.</p>
 <td>Method: auto, limrots, limma, deqms, proda, rots, ensemble</td>
 </tr>
 <tr>
-<td><code>--de-ensemble-methods</code></td>
-<td><code>limrots,deqms,proda</code></td>
-<td>Comma-separated DE methods used when <code>--de-method=ensemble</code></td>
+<td><code>--de-ensemble-method</code></td>
+<td><code>limrots</code>, <code>deqms</code>, <code>proda</code></td>
+<td>Ensemble member; repeat to override the defaults</td>
 </tr>
 <tr>
 <td><code>--de-ensemble-min-k</code></td>
 <td>2</td>
-<td>Minimum ensemble members that must agree on direction</td>
+<td>Minimum ensemble members that must agree on direction (ensemble only)</td>
 </tr>
 <tr>
 <td><code>--de-log2fc</code></td>
 <td>0.5</td>
-<td>Minimum absolute log2 fold change</td>
+<td>Minimum absolute log2 fold change, or <code>auto</code> for the data-driven mixture gate</td>
+</tr>
+<tr>
+<td><code>--de-effect-size-gate</code></td>
+<td>—</td>
+<td>Explicit data-driven gate: <code>mixture</code> or <code>null-quantile</code>; a numeric <code>--de-log2fc</code> becomes its fallback</td>
 </tr>
 <tr>
 <td><code>--de-fdr</code></td>
@@ -2401,7 +2605,7 @@ ported.</p>
 <tr>
 <td><code>--de-fdr-method</code></td>
 <td><code>bh</code></td>
-<td>FDR correction: bh or ihw</td>
+<td>FDR correction: bh, ihw, bky, or storey</td>
 </tr>
 <tr>
 <td><code>--de-output</code></td>
@@ -2412,48 +2616,53 @@ ported.</p>
 </table>
 <div class="admonition warning">
 <p class="admonition-title">Contrasts are required</p>
-<p>If <code>--de</code> is enabled but no contrasts are provided
-(neither <code>--de-contrasts</code> nor <code>--de-contrasts-file</code>),
-the pipeline raises an error listing available conditions.
-Use <code>" vs "</code> as the delimiter to support hyphenated
-condition names.</p>
+<p>If DE options are supplied without <code>--de-contrast</code> or <code>--de-contrast-file</code>,
+the pipeline raises an error. Each inline contrast receives two distinct
+arguments, so hyphenated condition names are unambiguous.
+A DE output path is also required, so completed results cannot be discarded.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p><code>--de-method auto</code> chooses <code>deqms</code> for <code>directlfq</code>
 quantification and <code>limrots</code> for all others. All methods
 run in the native Rust kernel — no R or rpy2 required.
+BKY and Storey fall back to BH when their pi0 estimate is not reliable.
+ROTS and LimROTS retain their own permutation FDR, so alternative
+<code>--de-fdr-method</code> values are rejected for those methods. Ensemble applies
+the selected correction to the combined result.
 See <a href="../../concepts/differential-expression/">Differential Expression
 concepts</a> for a
 detailed comparison of methods.</p>
 </div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Top-k consensus across multiple methods</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH vs HL&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span>--de-method<span class="w"> </span>ensemble<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span>--de-ensemble-methods<span class="w"> </span><span class="s2">&quot;limrots,deqms,proda&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span>--de-ensemble-min-k<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span>--de-output<span class="w"> </span>ensemble_de.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Top-k consensus across multiple methods</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"NASH"</span><span class="w"> </span><span class="s2">"HL"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span>--de-method<span class="w"> </span>ensemble<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span>--de-ensemble-method<span class="w"> </span>limrots<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">    </span>--de-ensemble-method<span class="w"> </span>deqms<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">    </span>--de-ensemble-method<span class="w"> </span>proda<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">    </span>--de-ensemble-min-k<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">    </span>--de-output<span class="w"> </span>ensemble_de.csv
 </span></code></pre></div>
 <h2 id="imputation">Imputation<a class="headerlink" href="#imputation" title="Anchor link to this section">&para;</a></h2>
 <p>Proteomics data is sparse. The pipeline can fill missing values on the
 protein matrix after coverage filtering and before batch correction.
 Imputation runs in log2 space so that censored-aware methods (MinProb,
 MinDet, QRILC) behave correctly.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># MinProb low-tail draw (Perseus style)</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>minprob<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-shift<span class="w"> </span><span class="m">1</span>.6<span class="w"> </span>--impute-scale<span class="w"> </span><span class="m">0</span>.3
-</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>
-</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1"># KNN imputation</span>
-</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="w">    </span>--impute<span class="w"> </span>--impute-method<span class="w"> </span>knn<span class="w"> </span>--impute-n-neighbors<span class="w"> </span><span class="m">5</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># MinProb low-tail draw (Perseus style)</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span>--impute-method<span class="w"> </span>minprob<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-shift<span class="w"> </span><span class="m">1</span>.6<span class="w"> </span>--impute-scale<span class="w"> </span><span class="m">0</span>.3
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="c1"># KNN imputation</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">    </span>--impute-method<span class="w"> </span>knn<span class="w"> </span>--impute-n-neighbors<span class="w"> </span><span class="m">5</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2465,19 +2674,14 @@ MinDet, QRILC) behave correctly.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--impute</code></td>
-<td>off</td>
-<td>Enable imputation on the protein matrix</td>
-</tr>
-<tr>
 <td><code>--impute-method</code></td>
-<td><code>none</code></td>
-<td>none, knn, minprob, mindet, qrilc, missforest, seqknn, impseq, gms, bpca, impseqrob</td>
+<td>none</td>
+<td>Select a method and enable imputation; use <code>zero</code> for zero filling</td>
 </tr>
 <tr>
 <td><code>--impute-quantile</code></td>
 <td>0.01</td>
-<td>Quantile for MinProb/MinDet/QRILC low-tail draw</td>
+<td>Quantile for MinProb/MinDet</td>
 </tr>
 <tr>
 <td><code>--impute-shift</code></td>
@@ -2496,16 +2700,17 @@ MinDet, QRILC) behave correctly.</p>
 </tr>
 </tbody>
 </table>
+<p>Imputation tuning options are method-scoped: quantile applies to MinDet/MinProb,
+shift and scale to MinProb, and neighbour count to KNN/SeqKNN. Passing them to
+another method is rejected.</p>
 <div class="admonition warning">
-<p class="admonition-title"><code>missforest</code> is wheel-only</p>
-<p>Every imputation method above runs in the Rust kernel except <code>missforest</code>,
-which wraps scikit-learn's <code>IterativeImputer</code>, whose tree-building internals
-are not reproducible cross-language. Passing
-<code>--impute-method missforest</code> errors with a pointer to the
-pure-Python fallback. Run it on the protein matrix instead (<code>analysis</code> extra):</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;missforest&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;imputed.csv&quot;</span><span class="p">)</span>
+<p class="admonition-title"><code>missforest</code> is Python analysis periphery</p>
+<p><code>missforest</code> is not offered by the Rust compute command because it wraps
+scikit-learn. Install the Rust-backed wheel's <code>analysis</code> dependencies and
+call the Python API:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"missforest"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
 </span></code></pre></div>
 </div>
 <h2 id="plots-and-reports">Plots and Reports<a class="headerlink" href="#plots-and-reports" title="Anchor link to this section">&para;</a></h2>
@@ -2514,51 +2719,61 @@ CLI — there are no <code>--plot-*</code> / <code>--interactive-report</code> f
 protein matrix and, with <code>--de-output</code>, one DE result CSV per contrast; the Python
 periphery then reads those CSVs and renders the figures. Install the <code>plotting</code>
 and/or <code>reports</code> extra:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c1"># DE plots (volcano / heatmap / PCA) — explicit argv: the per-contrast</span>
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># --contrast KEY A B CSV flag repeats, which keyword arguments cannot express.</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="n">mokume</span><span class="o">.</span><span class="n">de_plots</span><span class="p">([</span>
-</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    <span class="s2">&quot;--plot-dir&quot;</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">,</span>
-</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="s2">&quot;--volcano&quot;</span><span class="p">,</span> <span class="s2">&quot;--heatmap&quot;</span><span class="p">,</span> <span class="s2">&quot;--pca&quot;</span><span class="p">,</span>
-</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="s2">&quot;--contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH-HL&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH&quot;</span><span class="p">,</span> <span class="s2">&quot;HL&quot;</span><span class="p">,</span> <span class="s2">&quot;de_results.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="p">])</span>
-</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>
-</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="c1"># Interactive HTML report from the same kernel CSVs (reports extra).</span>
-</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="n">mokume</span><span class="o">.</span><span class="n">interactive_report</span><span class="p">([</span>
-</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>    <span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>    <span class="s2">&quot;--sdrf&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>    <span class="s2">&quot;--report-output&quot;</span><span class="p">,</span> <span class="s2">&quot;qc_report.html&quot;</span><span class="p">,</span>
-</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>    <span class="s2">&quot;--contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH-HL&quot;</span><span class="p">,</span> <span class="s2">&quot;NASH&quot;</span><span class="p">,</span> <span class="s2">&quot;HL&quot;</span><span class="p">,</span> <span class="s2">&quot;de_results.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-17-18"><a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c1"># DE plots (volcano / heatmap) — explicit argv: the per-contrast</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># --contrast KEY A B CSV flag repeats, which keyword arguments cannot express.</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">mokume</span><span class="o">.</span><span class="n">de_plots</span><span class="p">([</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>    <span class="s2">"--protein-matrix"</span><span class="p">,</span> <span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>    <span class="s2">"--outdir"</span><span class="p">,</span> <span class="s2">"plots"</span><span class="p">,</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>    <span class="s2">"--sdrf"</span><span class="p">,</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="s2">"--volcano"</span><span class="p">,</span> <span class="s2">"--heatmap"</span><span class="p">,</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>    <span class="s2">"--contrast"</span><span class="p">,</span> <span class="s2">"NASH-HL"</span><span class="p">,</span> <span class="s2">"NASH"</span><span class="p">,</span> <span class="s2">"HL"</span><span class="p">,</span> <span class="s2">"de_results.csv"</span><span class="p">,</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="p">])</span>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="c1"># Interactive HTML report from the same kernel CSVs (reports extra).</span>
+</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="n">mokume</span><span class="o">.</span><span class="n">interactive_report</span><span class="p">([</span>
+</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a>    <span class="s2">"--protein-matrix"</span><span class="p">,</span> <span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a>    <span class="s2">"--sdrf"</span><span class="p">,</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a>    <span class="s2">"--output"</span><span class="p">,</span> <span class="s2">"qc_report.html"</span><span class="p">,</span>
+</span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>    <span class="s2">"--contrast"</span><span class="p">,</span> <span class="s2">"NASH-HL"</span><span class="p">,</span> <span class="s2">"NASH"</span><span class="p">,</span> <span class="s2">"HL"</span><span class="p">,</span> <span class="s2">"de_results.csv"</span><span class="p">,</span>
+</span><span id="__span-19-19"><a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a><span class="p">])</span>
 </span></code></pre></div>
 <p>The figures read the kernel's output tables, so the cells in the plots match the
 cells in the kernel matrix.</p>
 <h2 id="exporting-intermediate-data">Exporting Intermediate Data<a class="headerlink" href="#exporting-intermediate-data" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Export normalized peptides and ions</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span>--export-peptides<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span>--export-ions<span class="w"> </span>ions.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Export normalized peptides from a non-DirectLFQ aggregation</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>sum<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">    </span>--export-peptides<span class="w"> </span>peptides.csv
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1"># Export the normalized ion table used by DirectLFQ</span>
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">    </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-11"><a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="w">    </span>--export-ions<span class="w"> </span>ions.csv
 </span></code></pre></div>
+<p>DirectLFQ and Ratio peptide export is not supported because those calculations
+operate on method-specific normalized structures. Conversely, <code>--export-ions</code> is DirectLFQ-only. For
+non-cell-based aggregation methods, peptide export also rejects dataset-level
+sample normalization because the exported peptide values would not represent
+the normalized protein matrix.</p>
 <h2 id="full-example">Full Example<a class="headerlink" href="#full-example" title="Anchor link to this section">&para;</a></h2>
 <p>A complete TMT multi-plex analysis (kernel compute; render plots separately with
 the wheel periphery as shown in <a href="#plots-and-reports">Plots and Reports</a>):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>globalMedian<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">    </span>--min-unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">    </span>--remove-contaminants<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="w">    </span>--batch-correction<span class="w"> </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH vs HL&quot;</span><span class="w"> </span>--de-method<span class="w"> </span>limrots<span class="w"> </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>global-median<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">    </span>--min-unique<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">    </span>--irs<span class="w"> </span>--irs-remove-reference<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">    </span>--batch-correction<span class="w"> </span>--batch-method<span class="w"> </span>sample-prefix<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"NASH"</span><span class="w"> </span><span class="s2">"HL"</span><span class="w"> </span>--de-method<span class="w"> </span>deqms<span class="w"> </span>--de-fdr-method<span class="w"> </span>ihw<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-12"><a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span></code></pre></div>
 
 
@@ -2597,7 +2812,7 @@ the wheel periphery as shown in <a href="#plots-and-reports">Plots and Reports</
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: User Guide">
+          <a href="../agentic-plugin/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Mokume Plugin">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2607,7 +2822,7 @@ the wheel periphery as shown in <a href="#plots-and-reports">Plots and Reports</
                 Previous
               </span>
               <div class="md-ellipsis">
-                User Guide
+                Mokume Plugin
               </div>
             </div>
           </a>

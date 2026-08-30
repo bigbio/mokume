@@ -12,13 +12,13 @@
         <meta name="author" content="BigBio Team">
       
       
-        <link rel="canonical" href="https://mokume.quantms.org/user-guide/">
+        <link rel="canonical" href="https://mokume.quantms.org/maintenance-scope/">
       
       
-        <link rel="prev" href="../examples/pxd030304-cell-lines/">
+        <link rel="prev" href="../rust-wheel/">
       
       
-        <link rel="next" href="agentic-plugin/">
+        <link rel="next" href="../concepts/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>User Guide - mokume</title>
+        <title>Maintenance Scope - mokume</title>
       
     
     
@@ -147,7 +147,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#user-guide" class="md-skip">
+        <a href="#maintenance-scope-rust-first" class="md-skip">
           Skip to content
         </a>
       
@@ -183,7 +183,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              User Guide
+              Maintenance Scope
             
           </span>
         </div>
@@ -293,10 +293,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href=".." class="md-tabs__link">
           
   
@@ -359,13 +361,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../user-guide/" class="md-tabs__link">
           
   
   
@@ -499,6 +499,8 @@
       
   
   
+    
+  
   
   
     
@@ -522,18 +524,19 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -555,13 +558,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -690,10 +693,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../maintenance-scope/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -709,6 +739,87 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-covers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this covers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The rule
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#support-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Support table
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Support table">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#distribution-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distribution selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#practical-guidance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical guidance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1267,8 +1378,6 @@
       
   
   
-    
-  
   
   
     
@@ -1292,23 +1401,22 @@
     
     
       
-        
-        
-      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="./" class="md-nav__link md-nav__link--active">
+            <a href="../user-guide/" class="md-nav__link ">
               
   
   
@@ -1326,13 +1434,13 @@
             </a>
             
               
-              <label class="md-nav__link md-nav__link--active" for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1352,7 +1460,7 @@
   
   
     <li class="md-nav__item">
-      <a href="agentic-plugin/" class="md-nav__link">
+      <a href="../user-guide/agentic-plugin/" class="md-nav__link">
         
   
   
@@ -1380,7 +1488,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features2proteins/" class="md-nav__link">
+      <a href="../user-guide/features2proteins/" class="md-nav__link">
         
   
   
@@ -1408,7 +1516,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features2peptides/" class="md-nav__link">
+      <a href="../user-guide/features2peptides/" class="md-nav__link">
         
   
   
@@ -1436,7 +1544,7 @@
   
   
     <li class="md-nav__item">
-      <a href="peptides2protein/" class="md-nav__link">
+      <a href="../user-guide/peptides2protein/" class="md-nav__link">
         
   
   
@@ -1464,7 +1572,7 @@
   
   
     <li class="md-nav__item">
-      <a href="batch-correct/" class="md-nav__link">
+      <a href="../user-guide/batch-correct/" class="md-nav__link">
         
   
   
@@ -1907,35 +2015,117 @@
   
 
 
-<h1 id="user-guide">User Guide<a class="headerlink" href="#user-guide" title="Anchor link to this section">&para;</a></h1>
-<p>This section covers the practical usage of each mokume command. The
-<code>mokume</code> wheel installs a <code>mokume</code> console command backed by the compiled
-<code>mokume._mokume</code> extension and the wheel's Python periphery. Compute commands
-run the leading Rust kernel in-process; plotting, reporting, and TissueMap
-commands route to the periphery. The separately maintained pure-Python
-distribution is documented under
-<a href="../reference/python-api-package/">Python API (package)</a>.</p>
-<h2 id="rust-native-compute-commands">Rust-native compute commands<a class="headerlink" href="#rust-native-compute-commands" title="Anchor link to this section">&para;</a></h2>
-<p>The console command exposes exactly four compute subcommands. Each can also be
-driven through a thin keyword wrapper (<code>mokume.&lt;command&gt;(**kwargs)</code>) or with an
-explicit argument list (<code>mokume.run([...])</code>).</p>
-<h3 id="features2proteins-unified-pipeline"><a href="features2proteins/">features2proteins: Unified Pipeline</a><a class="headerlink" href="#features2proteins-unified-pipeline" title="Anchor link to this section">&para;</a></h3>
-<p>The recommended entry point. Takes raw feature data and produces a protein quantification matrix in one step, with optional normalization, batch correction, IRS, imputation, and differential expression.</p>
-<h3 id="features2peptides-peptide-normalization"><a href="features2peptides/">features2peptides: Peptide Normalization</a><a class="headerlink" href="#features2peptides-peptide-normalization" title="Anchor link to this section">&para;</a></h3>
-<p>Normalizes and filters feature-level data into peptide intensities. Use this when you need fine-grained control over the normalization step before quantification.</p>
-<h3 id="peptides2protein-protein-quantification"><a href="peptides2protein/">peptides2protein: Protein Quantification</a><a class="headerlink" href="#peptides2protein-protein-quantification" title="Anchor link to this section">&para;</a></h3>
-<p>Quantifies proteins from normalized peptide data. Supports piBAQ (with TPA and ProteomicRuler), TopN, MaxLFQ, DirectLFQ, and Sum.</p>
-<h3 id="correct-batches-batch-correction"><a href="batch-correct/">correct-batches: Batch Correction</a><a class="headerlink" href="#correct-batches-batch-correction" title="Anchor link to this section">&para;</a></h3>
-<p>Standalone batch correction for already-quantified protein data. Combines multiple files and applies native Rust ComBat (oracle-verified vs inmoose) correction.</p>
-<h2 id="python-periphery-commands">Python periphery commands<a class="headerlink" href="#python-periphery-commands" title="Anchor link to this section">&para;</a></h2>
-<p>The same <code>mokume</code> console command exposes <code>tsne-visualization</code>, <code>tissuemap</code>,
-<code>de-plots</code>, and <code>interactive-report</code>. These commands live in the Python
-periphery of the wheel: plotting and reporting consume kernel tables, while
-TissueMap derives its downstream atlas from QPX data. Install the relevant
-extra (<code>plotting</code>, <code>reports</code>, <code>tissuemap</code>, or <code>all</code>) to pull in their libraries.
-The top-level Python wrappers remain available for scripts. The agentic workflow
-is provided by the <a href="agentic-plugin/">Mokume Plugin</a>, whose hidden local MCP
-service uses the default Rust-backed wheel.</p>
+<h1 id="maintenance-scope-rust-first">Maintenance scope: Rust-first<a class="headerlink" href="#maintenance-scope-rust-first" title="Anchor link to this section">&para;</a></h1>
+<p>mokume ships its computation in two codebases — a <strong>Rust compute kernel</strong>
+(<code>rust/crates/</code>) and a <strong>pure-Python package</strong> (<code>python/mokume/</code>, <code>pip install
+mokume-py</code>) — which expose the same four computation commands with different
+support levels: <code>features2proteins</code>, <code>features2peptides</code>, <code>peptides2protein</code>, and
+<code>correct-batches</code>. This page states which implementation leads, what each is
+maintained for, and where new work goes, so overlapping behavior does not drift.</p>
+<div class="admonition abstract">
+<p class="admonition-title">The policy in one line</p>
+<p><strong>Rust is the leading implementation. The pure-Python computation package is
+added value — a readable implementation and compatibility baseline where
+covered — not the place new computation lands first.</strong></p>
+</div>
+<h2 id="what-this-covers">What this covers<a class="headerlink" href="#what-this-covers" title="Anchor link to this section">&para;</a></h2>
+<p>This page is about the <strong>computation implementations only</strong>: the quantification,
+normalization, imputation, batch-correction, and differential-expression logic
+behind the four commands above.</p>
+<p>It does <strong>not</strong> govern the Python periphery — the Python pipeline API and its
+shared post-processing, plotting, reporting, and
+<a href="../periphery/tissuemap/">TissueMap</a>. Agentic recommendation is an installable
+plugin over the default Rust-backed wheel, not a third computation
+implementation. See
+<a href="../architecture/">Architecture</a> and <a href="../rust-wheel/">Rust Wheel</a>.</p>
+<h2 id="the-rule">The rule<a class="headerlink" href="#the-rule" title="Anchor link to this section">&para;</a></h2>
+<ol>
+<li><strong>The Rust kernel leads the native computation commands.</strong> New behavior,
+   supported options, and validation are defined there first. Where Python
+   implements the same capability, it follows the shared public contract. This
+   does not transfer ownership of the Python pipeline's orchestration and
+   post-processing, or of intentional Python-only fallbacks, to Rust. The CLI
+   command and Python API installed by the <code>mokume</code> wheel are two front doors
+   onto the same kernel (see <a href="../architecture/">Architecture</a>).</li>
+<li><strong>New computation is written in Rust first.</strong> When a feature touches the
+   computation commands — for example <a href="https://github.com/bigbio/mokume/pull/74">native SDRF + MSstats input
+   support</a> — it is implemented and
+   tested in the Rust I/O, CLI, and pipeline crates. It does <strong>not</strong> need a
+   matching pure-Python change to ship.</li>
+<li><strong>The pure-Python computation package is added value.</strong> It is kept public and
+   usable so that people can plug individual functions into Python-based
+   pipelines and inspect readable implementations. A Python equivalent of new
+   computation is built <strong>only</strong> when someone needs it for their pipeline or
+   maintainers choose to expand compatibility coverage — and that can be done
+   later.</li>
+<li><strong>Parity is checked, not assumed.</strong> Where both implementations and
+   compatibility coverage exist, tests compare results within the documented
+   floating-point tolerance. <code>rust/tests/test_rust_python_equivalence.py</code> covers
+   selected <code>features2proteins</code> paths against frozen Python-generated golden
+   outputs; it does not assert that every option is synchronized.</li>
+</ol>
+<h2 id="support-table">Support table<a class="headerlink" href="#support-table" title="Anchor link to this section">&para;</a></h2>
+<p>Both codebases implement the four computation commands today. The table records
+which implementation leads and how each is maintained.</p>
+<table>
+<thead>
+<tr>
+<th>Computation command</th>
+<th>Rust kernel (<code>rust/</code>)</th>
+<th>Pure-Python package (<code>python/mokume/</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>features2proteins</code></td>
+<td>✅ Leading — authoritative</td>
+<td>✅ Added value · parity-checked where covered</td>
+</tr>
+<tr>
+<td><code>features2peptides</code></td>
+<td>✅ Leading — authoritative</td>
+<td>✅ Added value · best-effort</td>
+</tr>
+<tr>
+<td><code>peptides2protein</code></td>
+<td>✅ Leading — authoritative</td>
+<td>✅ Added value · best-effort</td>
+</tr>
+<tr>
+<td><code>correct-batches</code></td>
+<td>✅ Leading — authoritative (native ComBat)</td>
+<td>✅ Added value · best-effort</td>
+</tr>
+</tbody>
+</table>
+<p>Legend:</p>
+<ul>
+<li><strong>Leading — authoritative:</strong> new computation lands here first; defines correct
+  behavior, options, and validation.</li>
+<li><strong>Added value · parity-checked where covered:</strong> maintained as a usable
+  implementation; documented overlapping paths are covered by automated
+  compatibility tests against the Rust kernel.</li>
+<li><strong>Added value · best-effort:</strong> kept public and usable; updated when a user
+  needs the function in a Python pipeline or maintainers choose to expand
+  compatibility coverage, not as a release gate.</li>
+</ul>
+<h3 id="distribution-selection">Distribution selection<a class="headerlink" href="#distribution-selection" title="Anchor link to this section">&para;</a></h3>
+<p>There is no runtime backend selector. Install <code>mokume</code> for the leading Rust
+kernel or <code>mokume-py</code> for the separately maintained pure-Python implementation.
+Both distributions provide the <code>mokume</code> import package and console command, so
+use them in separate environments rather than installing both together.</p>
+<h2 id="practical-guidance">Practical guidance<a class="headerlink" href="#practical-guidance" title="Anchor link to this section">&para;</a></h2>
+<ul>
+<li><strong>Contributing computation changes?</strong> Implement them in the Rust crates and
+  their tests. A pure-Python counterpart is optional and can follow later.</li>
+<li><strong>Need a computation function in a Python pipeline?</strong> Prefer the <code>mokume</code>
+  wheel (<code>mokume.features2proteins(...)</code>, <code>mokume.peptides2protein(...)</code>, …),
+  which runs the Rust kernel in-process. The pure-Python package remains
+  available when you specifically want the readable Python implementation or to
+  compose individual functions.</li>
+<li><strong>Filing an issue about behavior differences?</strong> Treat the Rust kernel's result
+  as the reference and the pure-Python result as the one to reconcile.</li>
+</ul>
 
 
 
@@ -1973,7 +2163,7 @@ service uses the default Rust-backed wheel.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../examples/pxd030304-cell-lines/" class="md-footer__link md-footer__link--prev" aria-label="Previous: PXD030304 Cancer Cell-Line Atlas">
+          <a href="../rust-wheel/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Rust Wheel">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1983,20 +2173,20 @@ service uses the default Rust-backed wheel.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                PXD030304 Cancer Cell-Line Atlas
+                Rust Wheel
               </div>
             </div>
           </a>
         
         
           
-          <a href="agentic-plugin/" class="md-footer__link md-footer__link--next" aria-label="Next: Mokume Plugin">
+          <a href="../concepts/" class="md-footer__link md-footer__link--next" aria-label="Next: Key Concepts">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Mokume Plugin
+                Key Concepts
               </div>
             </div>
             <div class="md-footer__button md-icon">

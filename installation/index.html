@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -518,6 +518,8 @@
       
         
       
+        
+      
     
     
     
@@ -774,14 +776,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli-vs-wheel/" class="md-nav__link">
+      <a href="../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1109,6 +1139,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1277,6 +1311,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1295,6 +1385,8 @@
       
         
           
+        
+      
         
       
         
@@ -1359,6 +1451,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1897,67 +2017,60 @@
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Anchor link to this section">&para;</a></h1>
 <h2 id="from-pypi">From PyPI<a class="headerlink" href="#from-pypi" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume
 </span></code></pre></div>
+<p><code>mokume</code> is the default Rust-kernel distribution. It installs the compiled
+<code>mokume._mokume</code> extension, its Python API and periphery, and the <code>mokume</code>
+console command.</p>
 <div class="admonition warning">
-<p class="admonition-title"><code>mokume-rs</code> is not on PyPI yet</p>
-<p>The Rust wheel has not been published to PyPI yet, so <code>pip install mokume-rs</code>
-does not work today. Until it ships, either install the pure-Python package
-(<code>pip install mokume</code> — same <code>import mokume</code> API) or build the wheel from
-source: <code>pip install ./rust</code> (needs the Rust toolchain and cmake). The
-<code>mokume-rs</code> instructions on this page describe the wheel for when it is
-released.</p>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Install <code>mokume-rs</code> <strong>or</strong> <code>mokume</code> — never both</p>
+<p class="admonition-title">Install <code>mokume</code> <strong>or</strong> <code>mokume-py</code> — never both</p>
 <p>Both distributions install the same <code>mokume</code> import package, so having both
 in one environment makes pip silently overwrite files (it does not detect the
 collision). Keep only one; to switch, <code>pip uninstall</code> the other first. Each
 package warns at import time if it finds its sibling installed.</p>
 </div>
-<p><code>pip install mokume-rs</code> gives you the Rust compute kernel (the compiled
-<code>mokume._mokume</code> extension) and the thin Python API that drives it in-process.
-The kernel needs no third-party Python dependencies, so for standard
-quantification workflows the core package is enough. Extras pull in only the
-Python periphery libraries; install one when you need a specific periphery
-command.</p>
+<p>Install the pure-Python implementation explicitly when needed:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-py
+</span></code></pre></div>
+<p><code>mokume-py</code> also installs pyOpenMS as a base dependency. Its piBAQ paths call
+the installed pyOpenMS <code>ProteaseDigestion</code> implementation directly; piBAQ is
+included in the base install and has no self-maintained cleavage-rule catalog.</p>
+<p><code>pip install mokume</code> gives you the Rust compute kernel (the compiled
+<code>mokume._mokume</code> extension), the thin Python API that drives it in-process, and
+pyOpenMS. The base dependency supplies the runtime protease catalog and FASTA
+digestion for both piBAQ commands; pyOpenMS itself depends on numpy, pandas, and
+matplotlib. Extras select the additional Python stacks needed by each Mokume
+periphery command.</p>
 <div class="admonition note">
-<p class="admonition-title">Standalone CLI binary</p>
-<p>The kernel also ships as a standalone CLI binary <code>mokume</code>, built from
-<code>rust/crates/mokume-cli</code> with cargo and requiring no Python at all. The wheel and
-the binary expose the same four compute subcommands over the same kernel.</p>
+<p class="admonition-title">Console command</p>
+<p>The wheel installs one <code>mokume</code> console command. Its root help lists the
+<code>quantify</code> command group, standalone batch correction, and the optional
+Python periphery workflows supplied by the installed wheel.</p>
 </div>
 <h3 id="optional-extras">Optional Extras<a class="headerlink" href="#optional-extras" title="Anchor link to this section">&para;</a></h3>
 <p>mokume uses optional dependencies for the periphery commands:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:6"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><input id="__tabbed_1_6" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Plotting</label><label for="__tabbed_1_2">Interactive Reports</label><label for="__tabbed_1_3">TissueMap</label><label for="__tabbed_1_4">iBAQ</label><label for="__tabbed_1_5">Analysis</label><label for="__tabbed_1_6">Everything</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:6"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><input id="__tabbed_1_6" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Plotting</label><label for="__tabbed_1_2">Interactive Reports</label><label for="__tabbed_1_3">TissueMap</label><label for="__tabbed_1_4">Analysis</label><label for="__tabbed_1_5">Mokume Plugin</label><label for="__tabbed_1_6">Everything</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="o">[</span>plotting<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>plotting<span class="o">]</span>
 </span></code></pre></div>
-<p>Enables the t-SNE visualization, DE plots, and iBAQ QC report periphery
-commands (numpy, pandas, scipy, scikit-learn, matplotlib, seaborn).</p>
+<p>Enables <code>mokume plot tsne</code>, <code>mokume plot pca</code>, <code>mokume plot de</code>, and the piBAQ QC
+report (numpy, pandas, scipy, scikit-learn, matplotlib, seaborn).</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="o">[</span>reports<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>reports<span class="o">]</span>
 </span></code></pre></div>
-<p>Enables the interactive HTML report periphery command (plotly).</p>
+<p>Enables <code>mokume interactive-report</code> (plotly).</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="o">[</span>tissuemap<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>tissuemap<span class="o">]</span>
 </span></code></pre></div>
-<p>Enables the <code>mokume.tissuemap</code> periphery command for per-dataset tissue atlas
-analysis, including AdaTiSS tissue-specificity scoring, embeddings, and atlas
-plots (scanpy, anndata, umap-learn, combat, matplotlib, seaborn, pyarrow).</p>
+<p>Enables <code>mokume tissuemap</code> for per-dataset tissue atlas analysis, including
+AdaTiSS tissue-specificity scoring, embeddings, and atlas plots (scanpy,
+anndata, umap-learn, combat, matplotlib, seaborn, pyarrow).</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="o">[</span>ibaq<span class="o">]</span>
-</span></code></pre></div>
-<p>Enables the pure-Python <code>mokume.peptides2protein_ibaq</code> fallback for enzymes
-the Rust kernel does not digest (pyopenms, pyarrow, PyYAML, numpy, pandas,
-scipy).</p>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="o">[</span>analysis<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>analysis<span class="o">]</span>
 </span></code></pre></div>
 <p>Enables the QC / workflow-comparison reports and the pure-Python method
 fallback the Rust kernel does not reproduce — <code>mokume.impute(method="missforest")</code>
@@ -1965,35 +2078,42 @@ fallback the Rust kernel does not reproduce — <code>mokume.impute(method="miss
 and <code>mokume.workflow_comparison</code> (numpy, pandas, scipy, scikit-learn).</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="o">[</span>all<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[agentic]"</span>
 </span></code></pre></div>
-<p>Installs all optional periphery dependencies.</p>
+<p>This optional MCP workflow requires Python 3.10 or newer.</p>
+<p>Installs the local MCP service used by the installable Mokume Plugin. The
+plugin host owns the model and credentials; Mokume does not need a model API
+key. Continue with the <a href="../user-guide/agentic-plugin/">plugin installation</a>.</p>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>all<span class="o">]</span>
+</span></code></pre></div>
+<p>Installs all optional periphery and local MCP dependencies.</p>
 </div>
 </div>
 </div>
 <h2 id="from-source">From Source<a class="headerlink" href="#from-source" title="Anchor link to this section">&para;</a></h2>
 <p>mokume builds from two project roots, one per distribution:</p>
 <ul>
-<li><strong><code>mokume</code> (pure Python)</strong> — <code>python/pyproject.toml</code> uses standard PEP 621
+<li><strong><code>mokume-py</code> (pure Python)</strong> — <code>python/pyproject.toml</code> uses standard PEP 621
   metadata with the <strong>hatchling</strong> build backend
   (<code>build-backend = "hatchling.build"</code>, not Poetry). Install it from source with:</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/bigbio/mokume
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">cd</span><span class="w"> </span>mokume
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>pip<span class="w"> </span>install<span class="w"> </span>./python<span class="w">          </span><span class="c1"># builds the mokume package via the hatchling backend</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/bigbio/mokume
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">cd</span><span class="w"> </span>mokume
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>pip<span class="w"> </span>install<span class="w"> </span>./python<span class="w">          </span><span class="c1"># builds mokume-py via the hatchling backend</span>
 </span></code></pre></div>
 <ul>
-<li><strong><code>mokume-rs</code> (Rust wheel)</strong> — the wheel is built with maturin, which compiles
-  the <code>mokume-py</code> PyO3 crate into the <code>mokume._mokume</code> extension and packages it
+<li><strong><code>mokume</code> (Rust wheel)</strong> — the default distribution is built with maturin,
+  which compiles the internal <code>crates/mokume-py</code> PyO3 binding crate into the
+  <code>mokume._mokume</code> extension and packages it
   with the Python periphery. The maturin project lives in <code>rust/</code>:</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pip<span class="w"> </span>install<span class="w"> </span>./rust<span class="w">            </span><span class="c1"># builds the extension via the maturin backend</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>pip<span class="w"> </span>install<span class="w"> </span>./rust<span class="w">            </span><span class="c1"># builds the extension via the maturin backend</span>
 </span></code></pre></div>
 <p>For a development checkout of the Rust wheel, build the extension in place with
 <code>maturin develop</code> run from <code>rust/</code>; the periphery is plain Python and needs no
-build step. The standalone CLI binary is built from the same workspace:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cargo<span class="w"> </span>build<span class="w"> </span>--release<span class="w"> </span>--manifest-path<span class="w"> </span>rust/Cargo.toml<span class="w"> </span>-p<span class="w"> </span>mokume-cli
-</span></code></pre></div>
+separate build step.</p>
 <h2 id="using-conda">Using Conda<a class="headerlink" href="#using-conda" title="Anchor link to this section">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mamba<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>rust/environment.yaml
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>mokume
@@ -2001,17 +2121,24 @@ build step. The standalone CLI binary is built from the same workspace:</p>
 </span></code></pre></div>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Anchor link to this section">&para;</a></h2>
 <ul>
-<li>Python &gt;= 3.9 (for the wheel) — the standalone CLI binary needs no Python</li>
-<li>The compute kernel needs <strong>no third-party Python dependencies</strong>; the periphery
-  extras pull in numpy, pandas, scipy, scikit-learn, pyopenms, pyarrow, plotly,
-  scanpy, and friends only for the periphery commands you run</li>
-<li>The quantification methods (DirectLFQ, MaxLFQ, iBAQ), ComBat batch correction,
+<li>Python &gt;= 3.10 for the Rust-backed <code>mokume</code> distribution, <code>mokume-py</code>,
+  and the optional <code>mokume[agentic]</code> Plugin/MCP workflow</li>
+<li>Both distributions declare pyOpenMS as a base dependency. In the default
+  Rust-backed wheel, piBAQ reads every protease registered by the installed
+  runtime, digests the FASTA in Python, and passes the complete theoretical-
+  peptide map into the Rust kernel. pyOpenMS's declared dependencies also install
+  numpy, pandas, and matplotlib</li>
+<li>Periphery extras select additional packages such as scipy, scikit-learn,
+  pyarrow, plotly, scanpy, and friends for the commands that need them</li>
+<li>The quantification methods (DirectLFQ, MaxLFQ, piBAQ), ComBat batch correction,
   DE methods (limma, DEqMS, proDA, LimROTS, ROTS), and most imputation methods
   run in the <strong>native Rust kernel</strong> — no R or rpy2 required. ComBat is
   oracle-verified against inmoose</li>
 <li>A method stays in the Python periphery because the kernel cannot reproduce
   it cross-language: the <code>missforest</code> imputer (<code>mokume.impute</code>), in the
   <code>analysis</code> extra</li>
+<li>The Mokume Plugin requires an agent host plus <code>mokume[agentic]</code>; its bundled
+  stdio MCP server is started by the host and calls the local Rust-backed wheel</li>
 </ul>
 
 

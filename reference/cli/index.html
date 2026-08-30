@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1184,6 +1274,8 @@
       
         
           
+        
+      
         
       
         
@@ -1248,6 +1340,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1694,10 +1814,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#required-options" class="md-nav__link">
+  <a href="#input-output" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Required Options
+        Input &amp; Output
       
     </span>
   </a>
@@ -1705,10 +1825,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#input-filtering" class="md-nav__link">
+  <a href="#metadata-filtering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Input &amp; Filtering
+        Metadata &amp; Filtering
       
     </span>
   </a>
@@ -1749,10 +1869,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#coverage-filter" class="md-nav__link">
+  <a href="#matrix-qc-and-coverage-filter" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Coverage Filter
+        Matrix QC and Coverage Filter
       
     </span>
   </a>
@@ -1826,10 +1946,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#duckdb-resource-limits" class="md-nav__link">
+  <a href="#runtime-resource-controls" class="md-nav__link">
     <span class="md-ellipsis">
       
-        DuckDB Resource Limits
+        Runtime Resource Controls
       
     </span>
   </a>
@@ -1925,10 +2045,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#periphery-tissue-maps-t-sne" class="md-nav__link">
+  <a href="#periphery-commands" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Periphery (tissue maps, t-SNE)
+        Periphery commands
       
     </span>
   </a>
@@ -2089,37 +2209,71 @@
 
 
 <h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Anchor link to this section">&para;</a></h1>
-<p>The <code>mokume</code> binary is the Rust compute kernel's command-line entry point. It exposes exactly four compute subcommands — <code>features2proteins</code>, <code>features2peptides</code>, <code>peptides2protein</code>, and <code>correct-batches</code> — and shells out to nothing. Most users start with <code>features2proteins</code> for quantification workflows.
-Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for details.</p>
-<p>The same <code>mokume</code> command is available two ways: as a standalone Rust binary (built with <code>cargo</code>, no Python) and from the <code>pip install mokume-rs</code> wheel, which runs the identical kernel in-process through the <code>mokume._mokume</code> extension. The flag surface below is single-sourced in Rust and is identical for both.</p>
+<p>The <code>mokume</code> console command is installed by the Rust-backed wheel. Native
+quantification commands live under <code>mokume quantify</code>; optional Python periphery
+workflows provide TissueMap, plots, and interactive reports. Most users start
+with <code>mokume quantify features2proteins</code>.
+Use <code>mokume --help</code> or <code>mokume help &lt;COMMAND&gt; [SUBCOMMAND]</code> for details.</p>
+<p>In generated help, angle brackets name a value that follows an option; they are
+not typed literally. For example, <code>--output &lt;FILE&gt;</code> expects one file path, while
+<code>--de-contrast &lt;GROUP_A&gt; &lt;GROUP_B&gt;</code> expects two condition labels.</p>
+<p>The compute flag surface below is single-sourced in Rust and shared with the
+wheel's thin Python API. Periphery commands dispatch to modules packaged in the
+same wheel and state their required extra in root help.</p>
 <div class="admonition note">
-<p class="admonition-title">Plotting, tissue maps, and reports live in the Python wheel</p>
-<p>The visualization periphery — t-SNE, tissue-proteome maps, DE plots, interactive HTML reports, iBAQ QC — is <strong>not</strong> part of this CLI. It ships in the <code>pip install mokume-rs</code> wheel as <code>mokume.tsne_visualization(...)</code>, <code>mokume.tissuemap(...)</code>, <code>mokume.de_plots([...])</code>, <code>mokume.interactive_report([...])</code>, and <code>mokume.peptides2protein_qc(...)</code>. See the <a href="../python-api/">Python API</a>. These commands read the tables the kernel wrote and never recompute the numbers.</p>
+<p class="admonition-title">One CLI, two implementation layers</p>
+<p><code>quantify features2proteins</code>, <code>quantify features2peptides</code>,
+<code>quantify peptides2protein</code>, and <code>correct-batches</code> run in the Rust kernel.
+<code>tissuemap</code>, <code>plot</code>, and <code>interactive-report</code> run in the wheel's Python periphery.
+Plotting and reporting consume kernel tables; TissueMap performs its
+documented downstream analysis from QPX data.</p>
 </div>
 <h2 id="features2proteins">features2proteins<a class="headerlink" href="#features2proteins" title="Anchor link to this section">&para;</a></h2>
 <p>The unified pipeline: features to protein quantification in one step.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
-<h3 id="required-options">Required Options<a class="headerlink" href="#required-options" title="Anchor link to this section">&para;</a></h3>
+<h3 id="input-output">Input &amp; Output<a class="headerlink" href="#input-output" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>Option</th>
+<th>Default</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>-p/--parquet</code></td>
-<td>Input parquet file (quantms.io/qpx format)</td>
+<td>none</td>
+<td>Input quantms.io/QPX feature parquet; pair it with <code>--psm</code> for <code>spectral-count</code></td>
+</tr>
+<tr>
+<td><code>--msstats</code></td>
+<td>none</td>
+<td>Input MSstats CSV; mutually exclusive with QPX inputs and requires <code>--sdrf</code></td>
+</tr>
+<tr>
+<td><code>--psm</code></td>
+<td>none</td>
+<td>PSM-level QPX parquet for <code>spectral-count</code>; requires matching <code>--parquet</code> and <code>--sdrf</code></td>
 </tr>
 <tr>
 <td><code>-o/--output</code></td>
+<td>required</td>
 <td>Output protein intensities CSV</td>
 </tr>
 </tbody>
 </table>
-<h3 id="input-filtering">Input &amp; Filtering<a class="headerlink" href="#input-filtering" title="Anchor link to this section">&para;</a></h3>
+<p>The output schema is fixed: the protein identifier column is <code>ProteinName</code>.
+There is no alternate output-format switch.</p>
+<p>Provide <code>--parquet</code>, <code>--msstats</code>, or the paired <code>--psm</code> and <code>--parquet</code> inputs.
+The paired QPX inputs are used only by true <code>spectral-count</code> and require SDRF.
+MSstats input requires
+<code>ProteinName</code>, <code>PeptideSequence</code>, <code>Intensity</code>, <code>Charge</code> or <code>PrecursorCharge</code>,
+and <code>Run</code> or <code>Reference</code>; isobaric data also requires <code>Channel</code>. Ratio
+quantification requires PSM-level QPX evidence and does not accept MSstats
+feature tables.</p>
+<h3 id="metadata-filtering">Metadata &amp; Filtering<a class="headerlink" href="#metadata-filtering" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2142,17 +2296,12 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <tr>
 <td><code>--min-unique</code></td>
 <td>2</td>
-<td>Minimum unique peptides per protein</td>
-</tr>
-<tr>
-<td><code>--remove-contaminants</code></td>
-<td>on</td>
-<td>Remove contaminants and decoys</td>
+<td>Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option</td>
 </tr>
 <tr>
 <td><code>--keep-contaminants</code></td>
 <td>off</td>
-<td>Keep contaminants and decoys</td>
+<td>Keep contaminants; rows marked <code>is_decoy=true</code> are always removed</td>
 </tr>
 </tbody>
 </table>
@@ -2169,35 +2318,60 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <tr>
 <td><code>--quant-method</code></td>
 <td><code>maxlfq</code></td>
-<td>Method: maxlfq, directlfq, ibaq, topn, top3, sum, median, ratio, abd (TMT abundance), intensity (TMT reporter), spectral_count</td>
+<td>Method: maxlfq, directlfq, pibaq, <code>top&lt;N&gt;</code>, sum, median, ratio, abd, intensity, peptide-count, spectral-count</td>
 </tr>
 <tr>
-<td><code>--fasta</code></td>
+<td><code>-f/--fasta</code></td>
 <td>none</td>
-<td>FASTA file (required for iBAQ)</td>
+<td>FASTA file (required for piBAQ)</td>
 </tr>
 <tr>
-<td><code>--topn</code></td>
-<td>3</td>
-<td>N for TopN quantification</td>
-</tr>
-<tr>
-<td><code>--ion-alignment</code></td>
-<td>none</td>
-<td>Ion alignment: none or hierarchical</td>
-</tr>
-<tr>
-<td><code>--directlfq-cores</code></td>
+<td><code>-t/--threads</code></td>
 <td>auto</td>
-<td>CPU cores for DirectLFQ</td>
+<td>Shared Rust worker count for all methods, including DirectLFQ</td>
 </tr>
 <tr>
 <td><code>--directlfq-min-nonan</code></td>
 <td>1</td>
 <td>Min non-NaN values for DirectLFQ</td>
 </tr>
+<tr>
+<td><code>--directlfq-num-samples-quadratic</code></td>
+<td>50</td>
+<td>Maximum samples in DirectLFQ's quadratic global-alignment subset</td>
+</tr>
+<tr>
+<td><code>--pibaq-enzyme</code></td>
+<td><code>Trypsin</code></td>
+<td>Protease name from the installed pyOpenMS catalog</td>
+</tr>
+<tr>
+<td><code>--pibaq-max-aa</code></td>
+<td>30</td>
+<td>Maximum theoretical peptide length</td>
+</tr>
+<tr>
+<td><code>--pibaq-min-shared</code></td>
+<td>2</td>
+<td>Minimum shared peptides for automatic family discovery</td>
+</tr>
+<tr>
+<td><code>--pibaq-families</code></td>
+<td>none</td>
+<td>YAML file with explicit family overrides</td>
+</tr>
+<tr>
+<td><code>--pibaq-min-anchors</code></td>
+<td>1</td>
+<td>Minimum unique-peptide anchors required before proportional family allocation</td>
+</tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Write the N in the method name: <code>--quant-method top&lt;N&gt;</code></p>
+<p>TopN quantification takes its N from the method name — <code>--quant-method top3</code>,
+<code>top5</code>, <code>top10</code>, and so on for any N ≥ 1.</p>
+</div>
 <h3 id="normalization">Normalization<a class="headerlink" href="#normalization" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2210,21 +2384,26 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <tbody>
 <tr>
 <td><code>--run-normalization</code></td>
-<td><code>median</code></td>
-<td>Run-level: median, mean, max, global, max_min, iqr, none</td>
+<td>method-dependent</td>
+<td>Run-level: median, mean, max, global, max-min, iqr, none</td>
 </tr>
 <tr>
 <td><code>--sample-normalization</code></td>
-<td><code>globalMedian</code></td>
-<td>Sample-level: globalMedian, conditionMedian, hierarchical, quantile, mediancenter, meancenter, rlr, loess, none</td>
+<td>method-dependent</td>
+<td>Sample-level: global-median, condition-median, hierarchical, quantile, median-center, mean-center, rlr, loess, tmm, none</td>
 </tr>
 <tr>
 <td><code>--normalization-proteins</code></td>
 <td>none</td>
-<td>File with protein IDs for normalization</td>
+<td>Protein-ID file for applicable intensity normalizers; unavailable for directlfq, ratio, peptide-count, and spectral-count</td>
 </tr>
 </tbody>
 </table>
+<p>DirectLFQ and Ratio manage normalization internally. <code>peptide-count</code> and
+<code>spectral-count</code> count evidence identities and do not use intensity
+normalization. All four therefore default both normalization layers to <code>none</code>;
+passing a non-<code>none</code> value is rejected. Other methods default to <code>median</code> /
+<code>global-median</code>.</p>
 <h3 id="irs-multi-plex-tmt">IRS (Multi-Plex TMT)<a class="headerlink" href="#irs-multi-plex-tmt" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2241,9 +2420,9 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <td>Enable IRS normalization</td>
 </tr>
 <tr>
-<td><code>--irs-reference-samples</code></td>
+<td><code>--irs-reference-sample</code></td>
 <td>auto</td>
-<td>Comma-separated reference sample names</td>
+<td>Reference sample name; repeat for multiple samples</td>
 </tr>
 <tr>
 <td><code>--irs-sdrf-column</code></td>
@@ -2251,9 +2430,9 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <td>SDRF column for reference detection</td>
 </tr>
 <tr>
-<td><code>--irs-sdrf-values</code></td>
+<td><code>--irs-sdrf-value</code></td>
 <td>auto</td>
-<td>Values indicating reference samples</td>
+<td>Value indicating a reference sample; repeat for multiple values</td>
 </tr>
 <tr>
 <td><code>--irs-reference-regex</code></td>
@@ -2272,7 +2451,11 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </tr>
 </tbody>
 </table>
-<h3 id="coverage-filter">Coverage Filter<a class="headerlink" href="#coverage-filter" title="Anchor link to this section">&para;</a></h3>
+<p>IRS options require <code>--irs</code> and an SDRF. Reference detection must find usable
+reference samples and plex assignments; otherwise the command fails. IRS is
+rejected for <code>peptide-count</code> and <code>spectral-count</code> because scaling count evidence
+would no longer represent an integer evidence count.</p>
+<h3 id="matrix-qc-and-coverage-filter">Matrix QC and Coverage Filter<a class="headerlink" href="#matrix-qc-and-coverage-filter" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2282,6 +2465,11 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>--min-sample-correlation</code></td>
+<td>none</td>
+<td>Drop samples whose mean pairwise Pearson correlation to same-condition peers is below the threshold; uses pairwise-complete log2 protein intensities and requires SDRF metadata</td>
+</tr>
 <tr>
 <td><code>--coverage-threshold</code></td>
 <td>none</td>
@@ -2323,8 +2511,8 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </tr>
 <tr>
 <td><code>--batch-method</code></td>
-<td><code>sample_prefix</code></td>
-<td>Detection method: sample_prefix, run, column</td>
+<td><code>sample-prefix</code></td>
+<td>Detection method: sample-prefix or column</td>
 </tr>
 <tr>
 <td><code>--batch-column</code></td>
@@ -2332,14 +2520,14 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <td>SDRF column used when <code>--batch-method=column</code></td>
 </tr>
 <tr>
-<td><code>--batch-covariates</code></td>
+<td><code>--batch-covariate</code></td>
 <td>none</td>
-<td>Comma-separated SDRF columns to preserve</td>
+<td>SDRF column to preserve; repeat for multiple columns</td>
 </tr>
 <tr>
-<td><code>--batch-parametric</code> / <code>--batch-nonparametric</code></td>
-<td>parametric</td>
-<td>ComBat estimation mode</td>
+<td><code>--batch-nonparametric</code></td>
+<td>off</td>
+<td>Use non-parametric ComBat instead of the parametric default</td>
 </tr>
 <tr>
 <td><code>--batch-mean-only</code></td>
@@ -2349,15 +2537,16 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <tr>
 <td><code>--batch-ref</code></td>
 <td>none</td>
-<td>Reference batch ID</td>
+<td>Original sample-prefix or SDRF-column batch label</td>
 </tr>
 </tbody>
 </table>
-<p>ComBat is a native Rust implementation, oracle-verified against inmoose (parametric ~1e-6, covariate / non-parametric / <code>ref_batch</code> / <code>mean_only</code> paths included). It runs on the proteins with no missing cells; the rest are kept uncorrected.</p>
-<div class="admonition warning">
-<p class="admonition-title"><code>--batch-method run</code> is unsupported in the protein-matrix flow</p>
-<p>The protein-matrix flow has no run-level mapping, so <code>--batch-method run</code> errors at runtime (the same gate Python's <code>_detect_batch_indices</code> enforces). Use <code>sample_prefix</code> (default) or <code>column</code> (with <code>--batch-column</code>). The PCA + HDBSCAN outlier-removal pass is not ported.</p>
-</div>
+<p>ComBat is a native Rust implementation, oracle-verified against inmoose
+(parametric ~1e-6, covariate / non-parametric / <code>ref_batch</code> / <code>mean_only</code>
+paths included). Numeric covariates keep their values, while nominal covariates
+use k-1 one-hot indicators. It runs on proteins with no missing cells; the rest
+are kept uncorrected. Invalid batch layouts and an empty complete-protein subset
+are errors rather than successful uncorrected outputs.</p>
 <h3 id="imputation">Imputation<a class="headerlink" href="#imputation" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2369,19 +2558,14 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </thead>
 <tbody>
 <tr>
-<td><code>--impute</code></td>
-<td>off</td>
-<td>Enable missing-value imputation on the protein matrix</td>
-</tr>
-<tr>
 <td><code>--impute-method</code></td>
-<td><code>none</code></td>
-<td>Method: none, knn, minprob, mindet, qrilc, missforest, seqknn, impseq, gms, bpca, impseqrob</td>
+<td>none</td>
+<td>Select a method and enable imputation; use <code>zero</code> for zero filling</td>
 </tr>
 <tr>
 <td><code>--impute-quantile</code></td>
 <td>0.01</td>
-<td>Quantile for MinProb/MinDet/QRILC low-tail draw</td>
+<td>Quantile for MinProb/MinDet</td>
 </tr>
 <tr>
 <td><code>--impute-shift</code></td>
@@ -2401,10 +2585,9 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </tbody>
 </table>
 <p>Imputation runs in log2 space (the matrix is transformed before imputation and back to linear afterwards) so that censored-aware methods like MinProb/MinDet/QRILC behave correctly. The imputation step is applied after coverage filtering and before batch correction in the pipeline.</p>
-<div class="admonition note">
-<p class="admonition-title"><code>missforest</code> is wheel-only</p>
-<p>Every method above runs in the native Rust kernel except <code>missforest</code>, which wraps scikit-learn's <code>IterativeImputer</code> (<code>RandomForestRegressor</code>) and cannot be reproduced bit-for-bit cross-language. The kernel accepts it but returns a clear error pointing to the wheel's <code>mokume.impute(matrix, method="missforest")</code> (the <code>analysis</code> extra), which runs the pure-Python imputer.</p>
-</div>
+<p><code>missforest</code> is intentionally absent from this Rust compute command because it
+wraps scikit-learn. Install <code>mokume[analysis]</code> and call the wheel's Python
+<code>mokume.impute</code> API when that method is required.</p>
 <h3 id="differential-expression">Differential Expression<a class="headerlink" href="#differential-expression" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2416,17 +2599,12 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </thead>
 <tbody>
 <tr>
-<td><code>--de</code></td>
-<td>off</td>
-<td>Enable differential expression analysis</td>
-</tr>
-<tr>
-<td><code>--de-contrasts</code></td>
+<td><code>--de-contrast</code></td>
 <td>—</td>
-<td>Comma-separated contrasts (e.g., <code>"A vs B,A vs C"</code>)</td>
+<td>Two condition labels; repeat for multiple contrasts</td>
 </tr>
 <tr>
-<td><code>--de-contrasts-file</code></td>
+<td><code>--de-contrast-file</code></td>
 <td>—</td>
 <td>TSV file with columns <code>group1</code>, <code>group2</code></td>
 </tr>
@@ -2436,9 +2614,9 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <td>Method: auto, limrots, limma, deqms, proda, rots, ensemble</td>
 </tr>
 <tr>
-<td><code>--de-ensemble-methods</code></td>
-<td><code>limrots,deqms,proda</code></td>
-<td>Comma-separated DE methods used when <code>--de-method=ensemble</code></td>
+<td><code>--de-ensemble-method</code></td>
+<td><code>limrots</code>, <code>deqms</code>, <code>proda</code></td>
+<td>Ensemble member; repeat to override the defaults</td>
 </tr>
 <tr>
 <td><code>--de-ensemble-min-k</code></td>
@@ -2448,7 +2626,12 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <tr>
 <td><code>--de-log2fc</code></td>
 <td>0.5</td>
-<td>Minimum absolute log2 fold change</td>
+<td>Minimum absolute log2 fold change, or <code>auto</code> for the data-driven mixture gate</td>
+</tr>
+<tr>
+<td><code>--de-effect-size-gate</code></td>
+<td>none</td>
+<td>Explicit data-driven gate: mixture or null-quantile; a numeric log2FC value is its fallback</td>
 </tr>
 <tr>
 <td><code>--de-fdr</code></td>
@@ -2458,31 +2641,43 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <tr>
 <td><code>--de-fdr-method</code></td>
 <td><code>bh</code></td>
-<td>FDR correction: bh or ihw</td>
+<td>FDR correction: bh, ihw, bky, or storey</td>
 </tr>
 <tr>
 <td><code>--de-output</code></td>
-<td>none</td>
+<td>required for DE</td>
 <td>DE results file; with multiple contrasts each is written as <code>&lt;stem&gt;_&lt;A-B&gt;.&lt;ext&gt;</code></td>
 </tr>
 </tbody>
 </table>
-<p>Contrasts must be explicitly provided via <code>--de-contrasts</code> and/or <code>--de-contrasts-file</code>. Both can be combined.</p>
-<p><code>--de-method auto</code> selects <code>deqms</code> for <code>directlfq</code> quantification and <code>limrots</code> for other quantification methods. All methods run in the native Rust kernel — no R or rpy2 required. Deterministic methods (limma / deqms) are cell-exact against the Python reference; RNG/optimizer-driven methods (rots / limrots / proda) match log2 fold change cell-exactly and p-values at rank level.</p>
-<p><code>--de-method ensemble</code> runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least <code>--de-ensemble-min-k</code> members agree on direction and the Fisher-combined p-value passes the FDR threshold.</p>
+<p>Any DE option enables differential expression. At least one contrast and an
+output path must be supplied, so a completed calculation cannot be discarded.
+Inline and file contrasts can be combined.</p>
+<p><code>--de-method auto</code> selects <code>deqms</code> for <code>directlfq</code> quantification and <code>limrots</code>
+for other quantification methods. All methods run in the native Rust kernel —
+no R or rpy2 required. ROTS and LimROTS retain permutation FDR and therefore
+reject alternative <code>--de-fdr-method</code> values. Deterministic methods (limma /
+deqms) are cell-exact against frozen Python-generated compatibility output;
+RNG/optimizer-driven methods (rots / limrots / proda) match log2 fold change
+cell-exactly and p-values at rank level.</p>
+<p><code>--de-method ensemble</code> runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least <code>--de-ensemble-min-k</code> members agree on direction and the Fisher-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Fisher-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate.</p>
 <h3 id="plots-reports">Plots &amp; Reports<a class="headerlink" href="#plots-reports" title="Anchor link to this section">&para;</a></h3>
 <p><code>features2proteins</code> is pure compute and writes no figures. The kernel emits the protein-matrix CSV and (with <code>--de-output</code>) one DE result CSV per contrast; render plots and HTML reports from those CSVs with the wheel periphery:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># DE volcano / heatmap / PCA from the kernel CSVs (plotting extra):</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">de_plots</span><span class="p">([</span><span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;--plot-dir&quot;</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>                 <span class="s2">&quot;--volcano&quot;</span><span class="p">,</span> <span class="s2">&quot;--heatmap&quot;</span><span class="p">,</span> <span class="s2">&quot;--pca&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>                 <span class="s2">&quot;--contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;c1&quot;</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;de.csv&quot;</span><span class="p">])</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># interactive HTML report (reports extra):</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">mokume</span><span class="o">.</span><span class="n">interactive_report</span><span class="p">([</span><span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;--report-output&quot;</span><span class="p">,</span> <span class="s2">&quot;report.html&quot;</span><span class="p">])</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># PCA from the protein matrix (plotting extra)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>pca<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--output<span class="w"> </span>pca.pdf
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># DE volcano / heatmap from the kernel CSVs (plotting extra)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>mokume<span class="w"> </span>plot<span class="w"> </span>de<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span>--outdir<span class="w"> </span>plots<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--volcano<span class="w"> </span>--heatmap<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>--contrast<span class="w"> </span>c1<span class="w"> </span>A<span class="w"> </span>B<span class="w"> </span>de.csv
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Interactive HTML report (reports extra)</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>mokume<span class="w"> </span>interactive-report<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--output<span class="w"> </span>report.html<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span>--contrast<span class="w"> </span>c1<span class="w"> </span>A<span class="w"> </span>B<span class="w"> </span>de.csv
 </span></code></pre></div>
-<p>Pass <code>--help</code> to either (<code>python -m mokume.commands.de_plots --help</code>) for the full flag set.</p>
+<p>Pass <code>--help</code> to either command for the full flag set.</p>
 <h3 id="export">Export<a class="headerlink" href="#export" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2496,7 +2691,7 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 <tr>
 <td><code>--export-peptides</code></td>
 <td>none</td>
-<td>Export normalized peptides to file</td>
+<td>Export normalized peptides (not supported with DirectLFQ)</td>
 </tr>
 <tr>
 <td><code>--export-ions</code></td>
@@ -2505,7 +2700,10 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </tr>
 </tbody>
 </table>
-<h3 id="duckdb-resource-limits">DuckDB Resource Limits<a class="headerlink" href="#duckdb-resource-limits" title="Anchor link to this section">&para;</a></h3>
+<p><code>--export-peptides</code> also rejects dataset-level sample normalization for
+non-cell-based aggregation methods, because those peptide values would not
+represent the normalized protein matrix.</p>
+<h3 id="runtime-resource-controls">Runtime Resource Controls<a class="headerlink" href="#runtime-resource-controls" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2516,34 +2714,34 @@ Use <code>mokume --help</code> or <code>mokume &lt;command&gt; --help</code> for
 </thead>
 <tbody>
 <tr>
-<td><code>--duckdb-memory</code></td>
-<td>DuckDB autoconfig (~80% of total RAM)</td>
-<td>DuckDB memory limit (e.g. <code>80GB</code>, <code>16384MB</code>). See note below.</td>
+<td><code>-t/--threads</code></td>
+<td>Rayon default</td>
+<td>Size the Rayon thread pool used by parallel Rust sections</td>
 </tr>
 <tr>
-<td><code>--duckdb-threads</code></td>
-<td>all cores</td>
-<td>Number of threads DuckDB may use</td>
+<td><code>--memory</code></td>
+<td>none</td>
+<td>Cross-platform soft process resident-memory budget, such as <code>512MB</code> or <code>1GB</code>; reduces QPX batch size/read-ahead and fails when a checkpoint observes usage above the budget</td>
 </tr>
 </tbody>
 </table>
-<div class="admonition warning">
-<p class="admonition-title"><code>--duckdb-memory</code> is not a hard process cap</p>
-<p>The flag only sizes DuckDB's internal buffer pool. PyArrow, polars, and pandas each
-have their own independent allocators, so the surrounding Python process can grow to
-<strong>2-3x</strong> the DuckDB limit on wide pivots (e.g. PXD030304 at 5798 samples peaks
-~94 GB of process RSS with <code>--duckdb-memory 40GB</code>). For production environments
-that require a hard ceiling, layer one of these on top of mokume:</p>
-<ul>
-<li><strong>systemd / cgroup</strong>: <code>systemd-run --scope -p MemoryMax=80G -- mokume features2proteins ...</code></li>
-<li><strong>SLURM</strong>: <code>sbatch --mem=80G ...</code></li>
-<li><strong>Docker / k8s</strong>: <code>resources.limits.memory: 80Gi</code></li>
-</ul>
-</div>
+<p><code>--memory</code> is a planner and runtime guard, not an operating-system hard limit.
+The Rust pipeline checks resident memory at startup, after decoded input
+batches, and between major phases. It reads RSS on Unix-like systems and the
+process Working Set on Windows. A batch may transiently cross the requested
+value, and dataset-sized aggregation state is not spilled to disk; if that
+state no longer fits, the command exits with an explicit error instead of
+continuing to grow unchecked. The smaller synchronous batches may reduce
+throughput. Use systemd/cgroup, SLURM, Windows Job Objects, or container limits
+when the process must never exceed a hard ceiling.</p>
+<p>The Rust path does not expose DuckDB-specific resource options because it does
+not use DuckDB.
+For piBAQ, runtime pyOpenMS FASTA digestion happens before dispatch to the Rust
+pipeline and therefore lies outside this soft budget.</p>
 <hr />
 <h2 id="features2peptides">features2peptides<a class="headerlink" href="#features2peptides" title="Anchor link to this section">&para;</a></h2>
 <p>Feature-level to peptide-level normalization.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>features2peptides<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="core-options">Core Options<a class="headerlink" href="#core-options" title="Anchor link to this section">&para;</a></h3>
 <table>
@@ -2571,12 +2769,12 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Output peptide intensity file</td>
 </tr>
 <tr>
-<td><code>--min_aa</code></td>
+<td><code>--min-aa</code></td>
 <td>7</td>
 <td>Minimum amino acid length</td>
 </tr>
 <tr>
-<td><code>--min_unique</code></td>
+<td><code>--min-unique</code></td>
 <td>2</td>
 <td>Minimum unique peptides per protein</td>
 </tr>
@@ -2586,17 +2784,17 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Keep shared/non-unique peptides and skip the unique-peptide gate</td>
 </tr>
 <tr>
-<td><code>--remove_ids</code></td>
+<td><code>--remove-ids</code></td>
 <td>none</td>
 <td>File with protein IDs to exclude</td>
 </tr>
 <tr>
-<td><code>--remove_decoy_contaminants</code></td>
+<td><code>--remove-decoy-contaminants</code></td>
 <td>off</td>
 <td>Remove decoys and contaminants</td>
 </tr>
 <tr>
-<td><code>--remove_low_frequency_peptides</code></td>
+<td><code>--remove-low-frequency-peptides</code></td>
 <td>off</td>
 <td>Remove peptides in &lt;20% of samples</td>
 </tr>
@@ -2615,15 +2813,15 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <tr>
 <td><code>--run-normalization</code></td>
 <td><code>median</code></td>
-<td>Feature normalization: median, mean, max, global, max_min, iqr, none</td>
+<td>Feature normalization: median, mean, max, global, max-min, iqr, none</td>
 </tr>
 <tr>
 <td><code>--sample-normalization</code></td>
-<td><code>globalMedian</code></td>
-<td>Sample normalization: globalMedian, conditionMedian, hierarchical, none</td>
+<td><code>global-median</code></td>
+<td>Sample normalization: global-median, condition-median, none</td>
 </tr>
 <tr>
-<td><code>--skip_normalization</code></td>
+<td><code>--skip-normalization</code></td>
 <td>off</td>
 <td>Skip all normalization</td>
 </tr>
@@ -2633,16 +2831,14 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Log2 transform output</td>
 </tr>
 <tr>
-<td><code>--save_parquet</code></td>
+<td><code>--save-parquet</code></td>
 <td>off</td>
 <td>Save output as parquet</td>
 </tr>
 </tbody>
 </table>
-<div class="admonition note">
-<p class="admonition-title">Only factor-based sample normalization changes the peptide output</p>
-<p>In <code>features2peptides</code>, only the scalar-per-sample methods (<code>globalMedian</code> / <code>conditionMedian</code>) are applied; the cross-sample distribution-alignment methods (<code>quantile</code>, <code>rlr</code>, <code>loess</code>, <code>hierarchical</code>, <code>mediancenter</code>, <code>meancenter</code>) are accepted but are a deterministic no-op here (same as <code>none</code>), because the streaming peptide loop cannot see the full matrix and Python's per-sample loop also leaves them unchanged. All are implemented and oracle-verified in <code>features2proteins</code>, where the full matrix exists.</p>
-</div>
+<p>Dataset-level sample normalizers are not accepted by <code>features2peptides</code>; run
+them through <code>features2proteins</code>, where the full matrix exists.</p>
 <h3 id="tmt-itraq">TMT / ITRAQ<a class="headerlink" href="#tmt-itraq" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2654,27 +2850,27 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--irs_channel</code></td>
+<td><code>--irs-channel</code></td>
 <td>none</td>
 <td>Explicit pooled/reference channel label</td>
 </tr>
 <tr>
-<td><code>--irs_autodetect_regex</code></td>
+<td><code>--irs-autodetect-regex</code></td>
 <td>none</td>
 <td>Regex to detect pooled samples from SDRF</td>
 </tr>
 <tr>
-<td><code>--irs_stat</code></td>
+<td><code>--irs-stat</code></td>
 <td><code>median</code></td>
 <td>IRS per-run statistic</td>
 </tr>
 <tr>
-<td><code>--irs_scope</code></td>
+<td><code>--irs-scope</code></td>
 <td><code>global</code></td>
-<td>IRS scaling scope: global, by_mixture, or two_stage</td>
+<td>IRS scaling scope: global, by-mixture, or two-stage</td>
 </tr>
 <tr>
-<td><code>--aggregation_level</code></td>
+<td><code>--aggregation-level</code></td>
 <td><code>sample</code></td>
 <td>Aggregate at sample or run level</td>
 </tr>
@@ -2682,7 +2878,12 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 </table>
 <div class="admonition note">
 <p class="admonition-title">Channel-based IRS in <code>features2peptides</code></p>
-<p>The <code>--irs_channel</code> / <code>--irs_autodetect_regex</code> channel path scales on the TMT <code>mixture</code> / <code>channel</code> columns and is implemented for all three <code>--irs_scope</code> values (<code>global</code> / <code>by_mixture</code> / <code>two_stage</code>); the reference channel is taken from <code>--irs_channel</code> or auto-detected from the SDRF via <code>--irs_autodetect_regex</code>. SDRF-driven multi-plex IRS is also available in <code>features2proteins</code> (<code>--irs</code> with <code>--irs-reference-samples</code> / <code>--irs-sdrf-column</code>).</p>
+<p>Choose exactly one of <code>--irs-channel</code> and <code>--irs-autodetect-regex</code>.
+Autodetection requires an SDRF and must match a reference channel; a
+requested channel must produce scaling factors. <code>--skip-normalization</code>
+conflicts with IRS. SDRF-driven multi-plex IRS is also available in
+<code>features2proteins</code> (<code>--irs</code> with repeated <code>--irs-reference-sample</code> /
+<code>--irs-sdrf-column</code>).</p>
 </div>
 <h3 id="filter-configuration">Filter Configuration<a class="headerlink" href="#filter-configuration" title="Anchor link to this section">&para;</a></h3>
 <table>
@@ -2715,9 +2916,9 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Max CV across replicates (override)</td>
 </tr>
 <tr>
-<td><code>--filter-charge-states</code></td>
+<td><code>--filter-charge-state</code></td>
 <td>none</td>
-<td>Comma-separated charge states (override)</td>
+<td>Charge state override; repeat for multiple states</td>
 </tr>
 <tr>
 <td><code>--filter-max-missed-cleavages</code></td>
@@ -2725,14 +2926,24 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Max missed cleavages (override)</td>
 </tr>
 <tr>
-<td><code>--filter-exclude-modifications</code></td>
+<td><code>--filter-peptide-fdr</code></td>
 <td>none</td>
-<td>Comma-separated modifications (override)</td>
+<td>Max QPX peptide q-value (override)</td>
 </tr>
 <tr>
-<td><code>--filter-min-unique-peptides</code></td>
+<td><code>--filter-score NAME=THRESHOLD</code></td>
 <td>none</td>
-<td>Min unique peptides (override)</td>
+<td>Named QPX score threshold; direction comes from <code>higher_better</code></td>
+</tr>
+<tr>
+<td><code>--filter-exclude-modification</code></td>
+<td>none</td>
+<td>Modification override; repeat for multiple names</td>
+</tr>
+<tr>
+<td><code>--filter-protein-fdr</code></td>
+<td>none</td>
+<td>Max QPX protein-group q-value (override)</td>
 </tr>
 <tr>
 <td><code>--filter-min-features</code></td>
@@ -2742,18 +2953,23 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <tr>
 <td><code>--filter-max-missing-rate</code></td>
 <td>none</td>
-<td>Max missing rate (override)</td>
+<td>Max missing feature fraction per technical run (override)</td>
 </tr>
 </tbody>
 </table>
-<div class="admonition note">
-<p class="admonition-title">Group-level filters: what runs and what is a no-op</p>
-<p>The per-row filters (min-intensity floor, peptide length, charge states, excluded modifications, missed cleavages) and the per-<code>(protein, sample)</code> unique-peptide gate run natively and are oracle-locked vs Python. Among the <strong>group-level</strong> filters, CV threshold, quantile outlier removal, and the run-QC checks <code>--filter-min-features</code> / min-total-intensity / min-proteins are implemented via a pre-pass; replicate agreement reproduces Python's degenerate per-sample behaviour (a <code>&gt;= 2</code> threshold empties the output); and <code>--filter-max-missing-rate</code>, sample-correlation, min-search-score, and min-coverage are no-ops that warn and pass rows through (matching Python's per-sample / column-absent skip). Only an unknown <code>razor-peptide-handling</code> value returns <code>NotImplemented</code>.</p>
-</div>
+<p>Only implemented filters appear in the generated example. FDR filtering is
+disabled by default and requires populated <code>peptide_qvalue</code> or
+<code>pg_global_qvalue</code> input. Missing rate uses the complete distinct
+<code>(protein, peptide)</code> universe among the surviving technical runs in each sample.
+Named-score filtering is applied before normalization and aggregation, matches
+<code>additional_scores.score_name</code> exactly, and fails if the requested score is
+missing or has inconsistent <code>higher_better</code> values.
+Active unsupported filter-config values are rejected instead of being logged and
+ignored.</p>
 <hr />
 <h2 id="peptides2protein">peptides2protein<a class="headerlink" href="#peptides2protein" title="Anchor link to this section">&para;</a></h2>
 <p>Protein quantification from normalized peptide data.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2772,92 +2988,87 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <tr>
 <td><code>-f/--fasta</code></td>
 <td>none</td>
-<td>FASTA file (required for iBAQ)</td>
+<td>FASTA file (required for piBAQ)</td>
 </tr>
 <tr>
-<td><code>--method</code></td>
-<td><code>ibaq</code></td>
-<td>Method: ibaq, top3, topn, maxlfq, sum, directlfq</td>
+<td><code>--quant-method</code></td>
+<td><code>pibaq</code></td>
+<td>Method: pibaq, <code>top&lt;N&gt;</code> (top3, top5, top10, ...), maxlfq, sum, directlfq</td>
 </tr>
 <tr>
-<td><code>-e/--enzyme</code></td>
+<td><code>--enzyme</code></td>
 <td><code>Trypsin</code></td>
 <td>Enzyme for in-silico digestion</td>
 </tr>
 <tr>
-<td><code>-n/--normalize</code></td>
+<td><code>--normalize</code></td>
 <td>off</td>
 <td>Normalize quantification values</td>
 </tr>
 <tr>
-<td><code>--min_aa</code></td>
+<td><code>--min-aa</code></td>
 <td>7</td>
 <td>Min amino acid length</td>
 </tr>
 <tr>
-<td><code>--max_aa</code></td>
+<td><code>--max-aa</code></td>
 <td>30</td>
 <td>Max amino acid length</td>
 </tr>
 <tr>
-<td><code>-t/--tpa</code></td>
+<td><code>--tpa</code></td>
 <td>off</td>
-<td>Calculate TPA (iBAQ only)</td>
+<td>Calculate TPA (piBAQ only)</td>
 </tr>
 <tr>
-<td><code>-r/--ruler</code></td>
+<td><code>--ruler</code></td>
 <td>off</td>
-<td>ProteomicRuler (iBAQ only)</td>
+<td>ProteomicRuler (piBAQ only)</td>
 </tr>
 <tr>
-<td><code>-i/--ploidy</code></td>
-<td>2</td>
-<td>Ploidy number</td>
+<td><code>--ploidy</code></td>
+<td>2 with <code>--ruler</code></td>
+<td>Positive ploidy number (ruler only)</td>
 </tr>
 <tr>
-<td><code>-m/--organism</code></td>
-<td><code>human</code></td>
-<td>Organism for histone data</td>
+<td><code>--organism</code></td>
+<td><code>human</code> with <code>--ruler</code></td>
+<td>Organism for histone data (ruler only)</td>
 </tr>
 <tr>
-<td><code>-c/--cpc</code></td>
-<td>200</td>
-<td>Cellular protein concentration (g/L)</td>
+<td><code>--cpc</code></td>
+<td>200 with <code>--ruler</code></td>
+<td>Positive cellular protein concentration in g/L (ruler only)</td>
 </tr>
 <tr>
-<td><code>--topn_n</code></td>
-<td>3</td>
-<td>N for TopN quantification</td>
+<td><code>-t/--threads</code></td>
+<td>auto</td>
+<td>Positive worker count for MaxLFQ and DirectLFQ</td>
 </tr>
 <tr>
-<td><code>--threads</code></td>
-<td>-1</td>
-<td>Threads for MaxLFQ (-1 = all cores)</td>
-</tr>
-<tr>
-<td><code>--min_nonan</code></td>
+<td><code>--directlfq-min-nonan</code></td>
 <td>1</td>
 <td>Min non-NaN for DirectLFQ</td>
 </tr>
 <tr>
 <td><code>--families</code></td>
 <td>none</td>
-<td>YAML file with explicit family overrides (iBAQ only; see <a href="../../user-guide/peptides2protein/#family-discovery-tuning">user guide</a>)</td>
+<td>YAML file with explicit family overrides (piBAQ only; see <a href="../../user-guide/peptides2protein/#family-discovery-tuning">user guide</a>)</td>
 </tr>
 <tr>
 <td><code>--min-shared</code></td>
 <td>2</td>
-<td>Minimum shared peptides for auto-family discovery (iBAQ only)</td>
+<td>Minimum shared peptides for auto-family discovery (piBAQ only)</td>
 </tr>
 <tr>
 <td><code>--min-anchors</code></td>
 <td>1</td>
-<td>Minimum anchor peptides per family member (iBAQ only)</td>
+<td>Anchor threshold; if no member reaches it, shared signal is split equally and evidence is <code>family_only</code> (piBAQ only)</td>
 </tr>
 <tr>
 <td><code>--high-anchor-threshold</code></td>
 <td>3</td>
-<td>Anchors required for an <code>EvidenceLevel</code> of <code>high</code> (iBAQ only)</td>
+<td>Anchors every member must reach for <code>EvidenceLevel=high</code> (piBAQ only)</td>
 </tr>
 <tr>
 <td><code>-o/--output</code></td>
@@ -2865,25 +3076,25 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Output file path</td>
 </tr>
 <tr>
-<td><code>--verbose</code></td>
-<td>off</td>
-<td>Print a pointer to the wheel QC report command</td>
-</tr>
-<tr>
-<td><code>--qc_report</code></td>
-<td>QCprofile.pdf</td>
-<td>QC report path echoed by <code>--verbose</code></td>
+<td><code>--qc-report</code></td>
+<td>none</td>
+<td>Generate the piBAQ QC PDF at this path after native quantification</td>
 </tr>
 </tbody>
 </table>
-<p>Use <code>--method topn --topn_n 5</code> or <code>--method topn --topn_n 10</code> for Top5 or Top10-style quantification. <code>--output</code> is required for every method.</p>
+<p>Use <code>--quant-method top5</code> or <code>--quant-method top10</code> for Top5 or Top10-style quantification; <code>top3</code> is the named method from <a href="https://doi.org/10.1074/mcp.M500230-MCP200">Silva et al. 2006</a>. <code>--output</code> is required for every method.</p>
 <div class="admonition note">
-<p class="admonition-title">iBAQ for unported enzymes lives in the wheel</p>
-<p>The native iBAQ path digests proteins for the ported pyOpenMS enzymes (Trypsin[/P], Lys-C[/P], Arg-C[/P], Chymotrypsin[/P], Glu-C, Asp-N, Lys-N, PepsinA, ...), oracle-locked against pyOpenMS. For any other enzyme pyOpenMS knows (CNBr, V8-DE, unspecific cleavage, ...) the kernel has no cleavage rule and fails with an error pointing to the wheel: <code>mokume.peptides2protein_ibaq(peptides=..., fasta=..., enzyme="CNBr", output=...)</code> (the <code>ibaq</code> extra), which computes the whole iBAQ table in pure Python.</p>
+<p class="admonition-title">piBAQ uses the installed pyOpenMS catalog</p>
+<p>Both piBAQ commands query the installed pyOpenMS <code>ProteaseDB</code> at runtime and
+support its complete catalog. Python digests the FASTA and passes the full
+protein-to-theoretical-peptide map into Rust. At <code>debug</code> or <code>info</code> log level,
+the run log records the pyOpenMS version, canonical enzyme, catalog SHA-256,
+peptide-length bounds, and missed-cleavage count.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title"><code>--verbose</code> no longer draws a QC PDF</p>
-<p>QC plotting moved to the wheel. On the iBAQ path <code>--verbose</code> prints a one-line pointer to <code>mokume.peptides2protein_qc(protein_table=..., qc_report=...)</code> (the <code>plotting</code> extra), which draws the same density / box plots from the kernel's output table; it writes no PDF itself.</p>
+<p class="admonition-title"><code>--qc-report</code> plots the native result table</p>
+<p>Rust writes the piBAQ table first, then the wheel renders the density and box
+plots from those exact values. Install <code>mokume[plotting]</code> to use this option.</p>
 </div>
 <hr />
 <h2 id="correct-batches">correct-batches<a class="headerlink" href="#correct-batches" title="Anchor link to this section">&para;</a></h2>
@@ -2900,13 +3111,13 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>-f/--folder</code></td>
+<td><code>-i/--input</code></td>
 <td>required</td>
-<td>Folder with TSV files</td>
+<td>Directory with TSV files</td>
 </tr>
 <tr>
 <td><code>-p/--pattern</code></td>
-<td><code>*ibaq.tsv</code></td>
+<td><code>*pibaq.tsv</code></td>
 <td>File matching pattern</td>
 </tr>
 <tr>
@@ -2915,23 +3126,23 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Output file path</td>
 </tr>
 <tr>
-<td><code>--sample_id_column</code> / <code>--sid</code></td>
+<td><code>--sample-id-column</code></td>
 <td><code>SampleID</code></td>
 <td>Sample ID column</td>
 </tr>
 <tr>
-<td><code>--protein_id_column</code> / <code>--pid</code></td>
+<td><code>--protein-id-column</code></td>
 <td><code>ProteinName</code></td>
 <td>Protein ID column</td>
 </tr>
 <tr>
-<td><code>--ibaq_raw_column</code> / <code>--ibaq</code></td>
-<td><code>Ibaq</code></td>
+<td><code>--pibaq-raw-column</code></td>
+<td><code>PiBAQ</code></td>
 <td>Raw intensity column</td>
 </tr>
 <tr>
-<td><code>--ibaq_corrected_column</code></td>
-<td><code>IbaqBec</code></td>
+<td><code>--pibaq-corrected-column</code></td>
+<td><code>PiBAQBec</code></td>
 <td>Corrected intensity column</td>
 </tr>
 <tr>
@@ -2945,22 +3156,32 @@ that require a hard ceiling, layer one of these on top of mokume:</p>
 <td>Field separator</td>
 </tr>
 <tr>
-<td><code>--export_anndata</code></td>
+<td><code>--export-anndata</code></td>
 <td>off</td>
 <td>Export to AnnData h5ad</td>
 </tr>
 </tbody>
 </table>
-<p>ComBat here is the native Rust implementation, oracle-verified against inmoose. The <code>.h5ad</code> written by <code>--export_anndata</code> is Rust-native and verified to round-trip through <code>anndata.read_h5ad</code>. This command does not expose batch-method or covariate options; for those, use <code>features2proteins --batch-correction</code>.</p>
+<p>ComBat here is the native Rust implementation, oracle-verified against inmoose.
+The combined protein × sample matrix must be complete and finite; structural
+gaps, blanks, <code>NaN</code>, and infinities fail instead of being silently filled with
+zero. Explicit numeric zero remains a valid observation. The <code>.h5ad</code> written by
+<code>--export-anndata</code> is Rust-native and verified to round-trip through
+<code>anndata.read_h5ad</code>. This command does not expose batch-method or covariate
+options; for those, use <code>features2proteins --batch-correction</code>.</p>
 <hr />
-<h2 id="periphery-tissue-maps-t-sne">Periphery (tissue maps, t-SNE)<a class="headerlink" href="#periphery-tissue-maps-t-sne" title="Anchor link to this section">&para;</a></h2>
-<p>Tissue-proteome maps and t-SNE visualization are <strong>not</strong> CLI subcommands — they ship in the <code>pip install mokume-rs</code> wheel and read the kernel's output tables:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span><span class="n">scan_dir</span><span class="o">=</span><span class="s2">&quot;./data&quot;</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./out&quot;</span><span class="p">)</span>     <span class="c1"># tissuemap extra</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tsne_visualization</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s2">&quot;./proteins&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;proteins.tsv&quot;</span><span class="p">)</span>  <span class="c1"># plotting extra</span>
+<h2 id="periphery-commands">Periphery commands<a class="headerlink" href="#periphery-commands" title="Anchor link to this section">&para;</a></h2>
+<p>These commands ship in the <code>pip install mokume</code> wheel but remain implemented in
+Python rather than the Rust compute kernel:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[plotting]"</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span>--input<span class="w"> </span>./proteins<span class="w"> </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span>--output<span class="w"> </span>tsne.pdf
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[tissuemap]"</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>./data<span class="w"> </span>--outdir<span class="w"> </span>./out<span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
 </span></code></pre></div>
-<p>Each is also runnable as <code>python -m mokume.commands.tissuemap --help</code> / <code>python -m mokume.commands.visualize --help</code>. See the <a href="../python-api/">Python API</a> for the full periphery surface and the matching extras.</p>
+<p>t-SNE visualization reads protein tables, while TissueMap derives a downstream
+atlas from QPX data. See the <a href="../python-api/">Python API</a> for the corresponding
+in-process functions and the full periphery surface.</p>
 
 
 

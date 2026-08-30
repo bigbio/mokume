@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1184,6 +1274,8 @@
       
         
           
+        
+      
         
       
         
@@ -1248,6 +1340,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1939,13 +2059,11 @@ per-dataset tissue proteome atlas from QPX parquet outputs. It is intended for
 atlas-style tissue exploration and tissue-specificity scoring, not for standard
 protein quantification from a single experiment.</p>
 <div class="admonition note">
-<p class="admonition-title">Periphery command — not a CLI subcommand</p>
-<p><code>tissuemap</code> is <strong>not</strong> one of the four Rust CLI subcommands
-(<code>features2proteins</code>, <code>features2peptides</code>, <code>peptides2protein</code>,
-<code>correct-batches</code>). It lives only in the Python wheel as
-<code>mokume.tissuemap(**kwargs)</code> (or <code>python -m mokume.commands.tissuemap</code>) and
+<p class="admonition-title">Python periphery command</p>
+<p><code>mokume tissuemap</code> is exposed by the wheel's unified CLI, but it is not a
+Rust-native compute command. It dispatches to the Python periphery and
 requires the <code>tissuemap</code> extra:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[tissuemap]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[tissuemap]"</span>
 </span></code></pre></div></p>
 </div>
 <h2 id="when-to-use-tissuemap">When to Use TissueMap<a class="headerlink" href="#when-to-use-tissuemap" title="Anchor link to this section">&para;</a></h2>
@@ -1959,7 +2077,7 @@ requires the <code>tissuemap</code> extra:
 <p>If your goal is standard LFQ or TMT protein quantification, start with
 <a href="../../user-guide/features2proteins/"><code>features2proteins</code></a> instead.</p>
 <h2 id="expected-input-layout">Expected Input Layout<a class="headerlink" href="#expected-input-layout" title="Anchor link to this section">&para;</a></h2>
-<p><code>scan_dir</code> can point to either:</p>
+<p><code>--input</code> can point to either:</p>
 <ul>
 <li>a single dataset directory containing <code>qpx_output/</code></li>
 <li>a parent directory containing multiple dataset directories, each with <code>qpx_output/</code></li>
@@ -1967,36 +2085,24 @@ requires the <code>tissuemap</code> extra:
 <p>If a dataset is TMT and auto-detection is not sufficient, specify it explicitly
 with repeated <code>tmt_dataset</code> values.</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Generate a default YAML template</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span><span class="n">generate_config</span><span class="o">=</span><span class="s2">&quot;tissuemap.yaml&quot;</span><span class="p">)</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Run a single dataset directory</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">scan_dir</span><span class="o">=</span><span class="s2">&quot;QPX_data/tissues-mq/PXD016999&quot;</span><span class="p">,</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./results&quot;</span><span class="p">,</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Generate a default YAML template</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--generate-config<span class="w"> </span>tissuemap.yaml
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Run a single dataset directory</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>QPX_data/tissues-mq/PXD016999<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span>--outdir<span class="w"> </span>./results
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Run a parent directory and identify a TMT dataset explicitly</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>QPX_data/tissues-mq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span>--tmt-dataset<span class="w"> </span>PXD016999<span class="w"> </span>--outdir<span class="w"> </span>./results<span class="w"> </span>--threads<span class="w"> </span><span class="m">8</span>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># Run a parent directory containing multiple datasets</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="n">scan_dir</span><span class="o">=</span><span class="s2">&quot;QPX_data/tissues-mq&quot;</span><span class="p">,</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">tmt_dataset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;PXD016999&quot;</span><span class="p">],</span>   <span class="c1"># a list repeats --tmt-dataset</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./results&quot;</span><span class="p">,</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="n">n_jobs</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
-</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="p">)</span>
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="c1"># Run with a custom YAML configuration</span>
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span>
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="n">scan_dir</span><span class="o">=</span><span class="s2">&quot;QPX_data/tissues-mq&quot;</span><span class="p">,</span>
-</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>    <span class="n">config</span><span class="o">=</span><span class="s2">&quot;tissuemap.yaml&quot;</span><span class="p">,</span>
-</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./results&quot;</span><span class="p">,</span>
-</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="p">)</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># Run with a custom YAML configuration</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>QPX_data/tissues-mq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span>--config<span class="w"> </span>tissuemap.yaml<span class="w"> </span>--outdir<span class="w"> </span>./results
 </span></code></pre></div>
-<p>The wrapper maps keyword arguments to the command's flags (<code>key=value</code> →
-<code>--key value</code> with <code>_</code> rewritten to <code>-</code>; a list repeats the flag). The same
-command is runnable from a shell as <code>python -m mokume.commands.tissuemap
---scan-dir ... --output-dir ...</code>.</p>
+<p>The equivalent Python API is <code>mokume.tissuemap(**kwargs)</code>. Its wrapper validates
+keyword arguments and maps them to the command's exact flags; a <code>tmt_dataset</code>
+list repeats <code>--tmt-dataset</code>.</p>
 <h2 id="what-the-pipeline-does">What the Pipeline Does<a class="headerlink" href="#what-the-pipeline-does" title="Anchor link to this section">&para;</a></h2>
 <p>The current TissueMap workflow is organized around per-dataset processing:</p>
 <ol>
@@ -2022,47 +2128,47 @@ command is runnable from a shell as <code>python -m mokume.commands.tissuemap
 </thead>
 <tbody>
 <tr>
-<td><code>scan_dir</code></td>
-<td>required unless <code>generate_config</code></td>
+<td><code>-i</code>, <code>--input</code></td>
+<td>required unless <code>--generate-config</code></td>
 <td>Dataset directory or parent directory containing datasets</td>
 </tr>
 <tr>
-<td><code>output_dir</code></td>
+<td><code>-o</code>, <code>--outdir</code></td>
 <td><code>tissuemap_output</code></td>
 <td>Output directory for all results</td>
 </tr>
 <tr>
-<td><code>config</code></td>
+<td><code>--config</code></td>
 <td>none</td>
 <td>YAML configuration file</td>
 </tr>
 <tr>
-<td><code>generate_config</code></td>
+<td><code>--generate-config</code></td>
 <td>none</td>
 <td>Write a default YAML template and exit</td>
 </tr>
 <tr>
-<td><code>tmt_dataset</code></td>
+<td><code>--tmt-dataset</code></td>
 <td>auto</td>
-<td>Mark one or more dataset IDs as TMT (list repeats the flag)</td>
+<td>Mark one or more dataset IDs as TMT; repeat for multiple datasets</td>
 </tr>
 <tr>
-<td><code>n_jobs</code></td>
+<td><code>-t</code>, <code>--threads</code></td>
 <td><code>8</code></td>
 <td>Threads for dataset processing and embedding</td>
 </tr>
 <tr>
-<td><code>dpi</code></td>
+<td><code>--dpi</code></td>
 <td><code>250</code></td>
 <td>Plot resolution override</td>
 </tr>
 <tr>
-<td><code>imputation_method</code></td>
+<td><code>--impute-method</code></td>
 <td>config default</td>
 <td>Imputation method used before embedding</td>
 </tr>
 <tr>
-<td><code>embedding_method</code></td>
+<td><code>--embedding-method</code></td>
 <td>config default</td>
 <td><code>tsne</code> or <code>umap</code></td>
 </tr>
@@ -2073,7 +2179,7 @@ command is runnable from a shell as <code>python -m mokume.commands.tissuemap
 repeatedly:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span><span class="n">generate_config</span><span class="o">=</span><span class="s2">&quot;tissuemap.yaml&quot;</span><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span><span class="n">generate_config</span><span class="o">=</span><span class="s2">"tissuemap.yaml"</span><span class="p">)</span>
 </span></code></pre></div>
 <p>The generated YAML exposes the main configuration groups:</p>
 <ul>
@@ -2084,8 +2190,8 @@ repeatedly:</p>
 <li><code>plotting</code> — DPI, PDF export, marker plot controls</li>
 <li><code>output</code> — output directory</li>
 </ul>
-<p>Argument values such as <code>scan_dir</code>, <code>output_dir</code>, <code>n_jobs</code>, and <code>dpi</code> override
-the YAML file.</p>
+<p>CLI values such as <code>--input</code>, <code>--outdir</code>, <code>--threads</code>, and <code>--dpi</code>
+override the YAML file.</p>
 <h2 id="output-files">Output Files<a class="headerlink" href="#output-files" title="Anchor link to this section">&para;</a></h2>
 <p>Each processed dataset gets its own output directory.</p>
 <table>
@@ -2176,7 +2282,7 @@ tissue-marker's expression.</em></p>
 GMM-fitted thresholds) and the tissue-specific protein count per tissue.</em></p>
 <h2 id="practical-tips">Practical Tips<a class="headerlink" href="#practical-tips" title="Anchor link to this section">&para;</a></h2>
 <ul>
-<li>Use <code>features2proteins</code> for standard quantification workflows; use <code>tissuemap</code>
+<li>Use <code>quantify features2proteins</code> for standard quantification workflows; use <code>tissuemap</code>
   for atlas-style tissue analysis.</li>
 <li>Start with the generated YAML template if you expect to rerun multiple datasets.</li>
 <li>Pass a list to <code>tmt_dataset</code> when one or more datasets should be treated as TMT

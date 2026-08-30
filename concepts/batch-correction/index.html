@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1001,10 +1031,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#standalone-ibaq-correction" class="md-nav__link">
+  <a href="#standalone-pibaq-correction" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Standalone iBAQ correction
+        Standalone piBAQ correction
       
     </span>
   </a>
@@ -1132,6 +1162,10 @@
       
         
           
+        
+      
+        
+      
         
       
         
@@ -1310,6 +1344,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1328,6 +1418,8 @@
       
         
           
+        
+      
         
       
         
@@ -1392,6 +1484,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1973,59 +2093,64 @@
 <h3 id="integrated-pipeline-recommended">Integrated Pipeline (Recommended)<a class="headerlink" href="#integrated-pipeline-recommended" title="Anchor link to this section">&para;</a></h3>
 <p>Run ComBat as part of <code>features2proteins</code> with <code>--batch-correction</code>. Batches are
 detected from the sample-name prefix (or an explicit SDRF column), and
-<code>--batch-covariates</code> names the SDRF columns whose biological signal to preserve.</p>
+Repeat <code>--batch-covariate</code> for each SDRF column whose biological signal to preserve.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span>--batch-correction<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>--batch-method<span class="w"> </span>sample_prefix<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span>--batch-covariates<span class="w"> </span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>--batch-method<span class="w"> </span>sample-prefix<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span>--batch-covariate<span class="w"> </span><span class="s2">"characteristics[sex]"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span>--batch-covariate<span class="w"> </span><span class="s2">"characteristics[organism part]"</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"data.parquet"</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"maxlfq"</span><span class="p">,</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">batch_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">batch_method</span><span class="o">=</span><span class="s2">&quot;sample_prefix&quot;</span><span class="p">,</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="n">batch_covariates</span><span class="o">=</span><span class="s2">&quot;characteristics[sex],characteristics[organism part]&quot;</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">batch_method</span><span class="o">=</span><span class="s2">"sample-prefix"</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="n">batch_covariate</span><span class="o">=</span><span class="p">[</span><span class="s2">"characteristics[sex]"</span><span class="p">,</span> <span class="s2">"characteristics[organism part]"</span><span class="p">],</span>
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
-<p>The covariate columns are extracted from the SDRF (column match with a
-sample-substring fallback, <code>pd.factorize</code> encoding, single-value columns
-dropped) and fed to the covariate ComBat design. ComBat runs on the proteins
-with no missing cells; the rest are kept uncorrected.</p>
-<h3 id="standalone-ibaq-correction">Standalone iBAQ correction<a class="headerlink" href="#standalone-ibaq-correction" title="Anchor link to this section">&para;</a></h3>
-<p>To correct already-written iBAQ tables (e.g. when merging datasets), use the
+<p>The covariate columns are extracted from the SDRF with a sample-substring
+fallback. Finite numeric columns keep their numeric values; nominal columns
+use k-1 one-hot indicators, so categories are not treated as ordered numbers.
+Constant columns are rejected. Integrated ComBat corrects proteins observed in
+every matrix sample and leaves incomplete protein rows unchanged.</p>
+<h3 id="standalone-pibaq-correction">Standalone piBAQ correction<a class="headerlink" href="#standalone-pibaq-correction" title="Anchor link to this section">&para;</a></h3>
+<p>To correct already-written piBAQ tables (e.g. when merging datasets), use the
 dedicated <code>correct-batches</code> command, which runs the sample-prefix ComBat flow
-over a folder of iBAQ TSVs:</p>
+over a folder of piBAQ TSVs:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">CLI</label><label for="__tabbed_2_2">Python (wheel)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>correct-batches<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--folder<span class="w"> </span>./ibaq_outputs<span class="w"> </span>--pattern<span class="w"> </span><span class="s2">&quot;*ibaq.tsv&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--input<span class="w"> </span>./pibaq_outputs<span class="w"> </span>--pattern<span class="w"> </span><span class="s2">"*pibaq.tsv"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--output<span class="w"> </span>corrected.tsv
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">correct_batches</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s2">&quot;./ibaq_outputs&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;*ibaq.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>                       <span class="n">output</span><span class="o">=</span><span class="s2">&quot;corrected.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">correct_batches</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="s2">"./pibaq_outputs"</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">"*pibaq.tsv"</span><span class="p">,</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>                       <span class="n">output</span><span class="o">=</span><span class="s2">"corrected.tsv"</span><span class="p">)</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
+<p>Unlike the integrated path, this standalone long-table command requires the
+entire protein × sample matrix to be complete and finite. It rejects missing
+cells rather than silently filling them with zero.</p>
 <h2 id="batch-detection-methods">Batch Detection Methods<a class="headerlink" href="#batch-detection-methods" title="Anchor link to this section">&para;</a></h2>
 <table>
 <thead>
@@ -2037,7 +2162,7 @@ over a folder of iBAQ TSVs:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>sample_prefix</code></td>
+<td><code>sample-prefix</code></td>
 <td>Extract from sample name prefix</td>
 <td><code>PXD001-S1</code> &rarr; batch <code>PXD001</code></td>
 </tr>
@@ -2046,20 +2171,12 @@ over a folder of iBAQ TSVs:</p>
 <td>Explicit values from SDRF column (<code>--batch-column</code>)</td>
 <td>User-specified</td>
 </tr>
-<tr>
-<td><code>run</code></td>
-<td>Use run/reference file name</td>
-<td>Each file is a batch</td>
-</tr>
 </tbody>
 </table>
-<div class="admonition warning">
-<p class="admonition-title"><code>--batch-method run</code> in the protein-matrix flow</p>
-<p><code>--batch-method run</code> has no run-level mapping in the <code>features2proteins</code>
-protein-matrix flow and <strong>errors at runtime</strong> (the same way Python raises
-<code>run_info required</code>). Use <code>sample_prefix</code> or <code>column</code> here. The PCA + HDBSCAN
-outlier-removal pass is unported (HDBSCAN is not reproducible cross-language).</p>
-</div>
+<p>The protein-matrix CLI exposes only methods with available sample-level
+metadata. If the selected data do not contain at least two batches with two
+samples each, or contain no complete protein row for ComBat, the command fails
+instead of returning the uncorrected matrix as a successful result.</p>
 <h2 id="when-to-use-batch-correction">When to Use Batch Correction<a class="headerlink" href="#when-to-use-batch-correction" title="Anchor link to this section">&para;</a></h2>
 <p><strong>Recommended scenarios:</strong></p>
 <ul>

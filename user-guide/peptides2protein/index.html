@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1186,6 +1276,8 @@
       
         
           
+        
+      
         
       
         
@@ -1251,6 +1343,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1399,10 +1519,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#ibaq" class="md-nav__link">
+  <a href="#pibaq" class="md-nav__link">
     <span class="md-ellipsis">
       
-        iBAQ
+        piBAQ
       
     </span>
   </a>
@@ -1934,62 +2054,68 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI</label><label for="__tabbed_1_2">Python (wheel)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># iBAQ (default, requires FASTA)</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>ibaq<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># piBAQ (default, requires FASTA)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>-o<span class="w"> </span>proteins-ibaq.tsv
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>-o<span class="w"> </span>proteins-pibaq.tsv
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># TopN (no FASTA needed)</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>top3<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>top3<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span>-o<span class="w"> </span>proteins-top3.tsv
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># MaxLFQ with parallelization</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span>--threads<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span>-o<span class="w"> </span>proteins-maxlfq.tsv
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<p>The wheel wrapper maps keyword arguments to CLI flags (<code>key=value</code> → <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> → <code>--key</code>) and runs the same kernel in-process:</p>
+<p>The wheel wrapper validates documented keyword arguments, maps them to the
+command's exact CLI flags, and runs the same kernel in-process:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># iBAQ (requires FASTA)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># piBAQ (requires FASTA)</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;ibaq&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;proteome.fasta&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins-ibaq.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"pibaq"</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">"proteome.fasta"</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins-pibaq.tsv"</span><span class="p">,</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">)</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># TopN (no FASTA needed)</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;top3&quot;</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins-top3.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">quant_method</span><span class="o">=</span><span class="s2">"top3"</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">"proteins-top3.tsv"</span><span class="p">)</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
 <h2 id="methods">Methods<a class="headerlink" href="#methods" title="Anchor link to this section">&para;</a></h2>
-<h3 id="ibaq">iBAQ<a class="headerlink" href="#ibaq" title="Anchor link to this section">&para;</a></h3>
-<p>Intensity-Based Absolute Quantification with the <strong>piBAQ (paralog-aware iBAQ)</strong> algorithm: per-protein proportional allocation when each family member has at least one detected proteotypic peptide, with automatic fallback to family-level rollup when one or more members have zero anchors (e.g. the actin family). See <a href="../../concepts/quantification/#ibaq-pibaq-paralog-aware">Quantification Methods</a> for the underlying algorithm. <strong>Requires a FASTA file</strong>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>ibaq<span class="w"> </span><span class="se">\</span>
+<h3 id="pibaq">piBAQ<a class="headerlink" href="#pibaq" title="Anchor link to this section">&para;</a></h3>
+<p>piBAQ is Mokume's paralog-aware extension of iBAQ. For each sample,
+shared-peptide signal is allocated in proportion to mapped members'
+proteotypic-peptide intensities; if all mapped members lack that signal, it is
+split equally. Each shared intensity is allocated exactly once. See
+<a href="../../concepts/quantification/#pibaq-paralog-aware-ibaq">Quantification Methods</a>
+for the underlying algorithm. <strong>Requires a FASTA file</strong>.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>-e<span class="w"> </span>Trypsin<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>--enzyme<span class="w"> </span>Trypsin<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>--normalize<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span>--output<span class="w"> </span>proteins-ibaq.tsv
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span>--output<span class="w"> </span>proteins-pibaq.tsv
 </span></code></pre></div>
-<p>The output adds three metadata columns -- <code>FamilyId</code>, <code>FamilySize</code>, <code>EvidenceLevel</code> -- so users can audit which path each protein took. When <code>EvidenceLevel == "family_only"</code>, every member of the family carries the same iBAQ value (member-level resolution was not identifiable from the data); when it is <code>medium</code> or <code>high</code> the iBAQ is per-protein.</p>
+<p>The output adds three metadata columns -- <code>FamilyId</code>, <code>FamilySize</code>, <code>EvidenceLevel</code> -- so users can audit family support. <code>family_only</code> means that no family member reaches the minimum anchor threshold; it does not duplicate one family-level piBAQ across all members. Every reported piBAQ remains a per-member estimate with a per-member theoretical-peptide denominator.</p>
 <h4 id="family-discovery-tuning">Family Discovery Tuning<a class="headerlink" href="#family-discovery-tuning" title="Anchor link to this section">&para;</a></h4>
 <p>Families are discovered automatically by collapsing UniProt isoform suffixes (<code>-2</code>, <code>-3</code>, ...) onto the canonical entry and then grouping proteins on the shared-peptide graph. Two CLI flags tune the auto-discovery; both are optional and rarely need adjustment.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Lower the shared-peptide threshold for very tightly homologous families</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>ibaq<span class="w"> </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--min-shared<span class="w"> </span><span class="m">1</span><span class="w"> </span>-o<span class="w"> </span>out.tsv
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># Pin specific families with an audit-friendly YAML override</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>ibaq<span class="w"> </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span>--families<span class="w"> </span>families.yaml<span class="w"> </span>-o<span class="w"> </span>out.tsv
 </span></code></pre></div>
 <p>The YAML schema is:</p>
@@ -1999,99 +2125,100 @@
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HIST_H2A</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">members</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">P0C0S5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Q96QV6</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">P04908</span><span class="p p-Indicator">]</span>
 </span></code></pre></div>
-<h4 id="full-ibaq-with-tpa-and-proteomicruler">Full iBAQ with TPA and ProteomicRuler<a class="headerlink" href="#full-ibaq-with-tpa-and-proteomicruler" title="Anchor link to this section">&para;</a></h4>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>-e<span class="w"> </span>Trypsin<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--normalize<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span>--tpa<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span>--ruler<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span>--ploidy<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span>--cpc<span class="w"> </span><span class="m">200</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span>--organism<span class="w"> </span>human<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span>--output<span class="w"> </span>proteins-ibaq.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span>--verbose<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span>--qc_report<span class="w"> </span>QC.pdf
+<h4 id="full-pibaq-with-tpa-and-proteomicruler">Full piBAQ with TPA and ProteomicRuler<a class="headerlink" href="#full-pibaq-with-tpa-and-proteomicruler" title="Anchor link to this section">&para;</a></h4>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--quant-method<span class="w"> </span>pibaq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>-f<span class="w"> </span>proteome.fasta<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--enzyme<span class="w"> </span>Trypsin<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span>--normalize<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span>--tpa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span>--ruler<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span>--ploidy<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span>--cpc<span class="w"> </span><span class="m">200</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span>--organism<span class="w"> </span>human<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span>--output<span class="w"> </span>proteins-pibaq.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span>--qc-report<span class="w"> </span>QC.pdf
 </span></code></pre></div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;proteome.fasta&quot;</span><span class="p">,</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">enzyme</span><span class="o">=</span><span class="s2">&quot;Trypsin&quot;</span><span class="p">,</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">fasta</span><span class="o">=</span><span class="s2">"proteome.fasta"</span><span class="p">,</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">enzyme</span><span class="o">=</span><span class="s2">"Trypsin"</span><span class="p">,</span>
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">tpa</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">ruler</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">ploidy</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">cpc</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">organism</span><span class="o">=</span><span class="s2">&quot;human&quot;</span><span class="p">,</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins-ibaq.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">min_aa</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">max_aa</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="p">)</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">organism</span><span class="o">=</span><span class="s2">"human"</span><span class="p">,</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins-pibaq.tsv"</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">qc_report</span><span class="o">=</span><span class="s2">"QC.pdf"</span><span class="p">,</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">min_aa</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    <span class="n">max_aa</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="p">)</span>
 </span></code></pre></div>
 <div class="admonition note">
-<p class="admonition-title">iBAQ enzyme coverage and the QC report</p>
-<p>iBAQ digests natively in Rust for the ported enzymes (Trypsin[/P], Lys-C[/P],
-Arg-C[/P], Chymotrypsin[/P], Glu-C, Asp-N, Lys-N, PepsinA, ...). For any other
-enzyme pyOpenMS knows (CNBr, V8-DE, ...) the kernel has no cleavage rule and
-the command errors with a pointer to the pure-Python fallback
-<code>mokume.peptides2protein_ibaq</code> (<code>ibaq</code> extra). The <code>--qc_report</code> PDF is plotting
-periphery: <code>--verbose</code> prints a one-line pointer to <code>mokume.peptides2protein_qc</code>
-(<code>plotting</code> extra), which draws the density / box plots from the kernel's table.</p>
+<p class="admonition-title">piBAQ enzyme coverage and the QC report</p>
+<p>piBAQ reads the complete protease catalog from the installed pyOpenMS runtime,
+including context-dependent rules, unspecific cleavage, and no cleavage. Python
+supplies the theoretical-peptide map; Rust performs shared-peptide allocation,
+family handling, denominators, TPA, normalization, and output. With the
+plotting dependencies installed, <code>--qc-report QC.pdf</code> writes the PDF after
+the native table has been produced; the path itself enables rendering.</p>
 </div>
 <h3 id="topn">TopN<a class="headerlink" href="#topn" title="Anchor link to this section">&para;</a></h3>
 <p>Averages the N most intense peptides per protein per sample.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Top3 (most common)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>top3<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>out.tsv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Top3 (most common) -- the named method from Silva et al. 2006</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>top3<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>out.tsv
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Top5</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>topn<span class="w"> </span>--topn_n<span class="w"> </span><span class="m">5</span><span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>out.tsv
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>top5<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>out.tsv
 </span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
 </span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Top10</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>topn<span class="w"> </span>--topn_n<span class="w"> </span><span class="m">10</span><span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>out.tsv
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>top10<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>out.tsv
 </span></code></pre></div>
+<p>N is spelled in the method name, so any N works the same way and there is no
+companion option to keep in sync.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;top3&quot;</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;out.tsv&quot;</span><span class="p">)</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;topn&quot;</span><span class="p">,</span> <span class="n">topn_n</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">&quot;out.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">quant_method</span><span class="o">=</span><span class="s2">"top3"</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"out.tsv"</span><span class="p">)</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">quant_method</span><span class="o">=</span><span class="s2">"top5"</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"out.tsv"</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="maxlfq">MaxLFQ<a class="headerlink" href="#maxlfq" title="Anchor link to this section">&para;</a></h3>
 <p>Delayed normalization with pairwise peptide ratios. <code>maxlfq</code> rolls the peptide matrix up with the native Rust DirectLFQ estimator (delegating to it with <code>min_nonan = 2</code>).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>--threads<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>-o<span class="w"> </span>proteins-maxlfq.tsv
 </span></code></pre></div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins-maxlfq.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">quant_method</span><span class="o">=</span><span class="s2">"maxlfq"</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">"proteins-maxlfq.tsv"</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="directlfq">DirectLFQ<a class="headerlink" href="#directlfq" title="Anchor link to this section">&para;</a></h3>
 <p>Uses hierarchical normalization with variance-guided pairwise alignment, native in the Rust kernel (no extra dependency).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>--min_nonan<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>directlfq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>--directlfq-min-nonan<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span>-o<span class="w"> </span>proteins-directlfq.tsv
 </span></code></pre></div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;directlfq&quot;</span><span class="p">,</span> <span class="n">min_nonan</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins-directlfq.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">quant_method</span><span class="o">=</span><span class="s2">"directlfq"</span><span class="p">,</span> <span class="n">directlfq_min_nonan</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">"proteins-directlfq.tsv"</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="sum">Sum<a class="headerlink" href="#sum" title="Anchor link to this section">&para;</a></h3>
 <p>Sums all peptide intensities per protein per sample.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mokume<span class="w"> </span>peptides2protein<span class="w"> </span>--method<span class="w"> </span>sum<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>sum<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span>-o<span class="w"> </span>proteins-sum.tsv
 </span></code></pre></div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;sum&quot;</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins-sum.tsv&quot;</span><span class="p">)</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein</span><span class="p">(</span><span class="n">quant_method</span><span class="o">=</span><span class="s2">"sum"</span><span class="p">,</span> <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>                        <span class="n">output</span><span class="o">=</span><span class="s2">"proteins-sum.tsv"</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="cli-options-reference">CLI Options Reference<a class="headerlink" href="#cli-options-reference" title="Anchor link to this section">&para;</a></h2>
 <table>
@@ -2106,7 +2233,7 @@ periphery: <code>--verbose</code> prints a one-line pointer to <code>mokume.pept
 <tr>
 <td><code>-f/--fasta</code></td>
 <td>none</td>
-<td>FASTA file (required for iBAQ)</td>
+<td>FASTA file (required for piBAQ)</td>
 </tr>
 <tr>
 <td><code>-p/--peptides</code></td>
@@ -2114,98 +2241,92 @@ periphery: <code>--verbose</code> prints a one-line pointer to <code>mokume.pept
 <td>Input peptide intensity file</td>
 </tr>
 <tr>
-<td><code>--method</code></td>
-<td><code>ibaq</code></td>
-<td>Quantification method: ibaq, top3, topn, maxlfq, sum, directlfq</td>
+<td><code>--quant-method</code></td>
+<td><code>pibaq</code></td>
+<td>Quantification method: pibaq, <code>top&lt;N&gt;</code> (for example top3 or top5), maxlfq, sum, directlfq</td>
 </tr>
 <tr>
-<td><code>-e/--enzyme</code></td>
+<td><code>--enzyme</code></td>
 <td><code>Trypsin</code></td>
 <td>Enzyme for in-silico digestion</td>
 </tr>
 <tr>
-<td><code>-n/--normalize</code></td>
+<td><code>--normalize</code></td>
 <td>off</td>
 <td>Normalize quantification values</td>
 </tr>
 <tr>
-<td><code>--min_aa</code></td>
+<td><code>--min-aa</code></td>
 <td>7</td>
 <td>Minimum amino acid length</td>
 </tr>
 <tr>
-<td><code>--max_aa</code></td>
+<td><code>--max-aa</code></td>
 <td>30</td>
 <td>Maximum amino acid length</td>
 </tr>
 <tr>
-<td><code>-t/--tpa</code></td>
+<td><code>--tpa</code></td>
 <td>off</td>
-<td>Calculate TPA (iBAQ only)</td>
+<td>Calculate TPA (piBAQ only)</td>
 </tr>
 <tr>
-<td><code>-r/--ruler</code></td>
+<td><code>--ruler</code></td>
 <td>off</td>
-<td>Use ProteomicRuler (iBAQ only)</td>
+<td>Use ProteomicRuler (piBAQ only)</td>
 </tr>
 <tr>
-<td><code>-i/--ploidy</code></td>
-<td>2</td>
-<td>Ploidy number</td>
+<td><code>--ploidy</code></td>
+<td>2 with <code>--ruler</code></td>
+<td>Positive ploidy number (ruler only)</td>
 </tr>
 <tr>
-<td><code>-m/--organism</code></td>
-<td><code>human</code></td>
-<td>Organism for histone data</td>
+<td><code>--organism</code></td>
+<td><code>human</code> with <code>--ruler</code></td>
+<td>Organism for histone data (ruler only)</td>
 </tr>
 <tr>
-<td><code>-c/--cpc</code></td>
-<td>200</td>
-<td>Cellular protein concentration (g/L)</td>
+<td><code>--cpc</code></td>
+<td>200 with <code>--ruler</code></td>
+<td>Positive cellular protein concentration in g/L (ruler only)</td>
 </tr>
 <tr>
-<td><code>--topn_n</code></td>
-<td>3</td>
-<td>N for TopN quantification</td>
+<td><code>-t/--threads</code></td>
+<td>automatic</td>
+<td>Positive worker count for MaxLFQ and DirectLFQ</td>
 </tr>
 <tr>
-<td><code>--threads</code></td>
-<td>-1</td>
-<td>Threads for MaxLFQ (-1 = all cores)</td>
-</tr>
-<tr>
-<td><code>--min_nonan</code></td>
+<td><code>--directlfq-min-nonan</code></td>
 <td>1</td>
 <td>Min non-NaN values (DirectLFQ)</td>
 </tr>
 <tr>
 <td><code>--families</code></td>
 <td>none</td>
-<td>Optional YAML file with explicit family overrides (iBAQ only)</td>
+<td>Optional YAML file with explicit family overrides (piBAQ only)</td>
 </tr>
 <tr>
 <td><code>--min-shared</code></td>
 <td>2</td>
-<td>Minimum shared peptides for auto-family discovery (iBAQ only)</td>
+<td>Minimum shared peptides for auto-family discovery (piBAQ only)</td>
 </tr>
 <tr>
 <td><code>-o/--output</code></td>
-<td>none</td>
+<td>required</td>
 <td>Output file path</td>
 </tr>
 <tr>
-<td><code>--verbose</code></td>
-<td>off</td>
-<td>Print distribution info</td>
-</tr>
-<tr>
-<td><code>--qc_report</code></td>
-<td>QCprofile.pdf</td>
-<td>Path for QC report PDF</td>
+<td><code>--qc-report</code></td>
+<td>none</td>
+<td>Path for the piBAQ QC report PDF; providing it enables rendering</td>
 </tr>
 </tbody>
 </table>
-<p><code>-o/--output</code> is effectively required for <code>--method ibaq</code>; for the other methods, omitting it prints the result table to stdout.</p>
+<p>Method-specific options are rejected for other methods instead of being
+accepted and ignored. For example, <code>--threads</code> applies only to LFQ methods,
+<code>--directlfq-min-nonan</code> only to DirectLFQ, and FASTA/digestion/family/QC options only to
+piBAQ. <code>--ploidy</code>, <code>--organism</code>, and <code>--cpc</code> require <code>--ruler</code>, and invalid or
+non-positive values are rejected.</p>
 
 
 

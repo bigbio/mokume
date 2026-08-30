@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli-vs-wheel/" class="md-nav__link">
+      <a href="../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1184,6 +1274,8 @@
       
         
           
+        
+      
         
       
         
@@ -1248,6 +1340,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1788,13 +1908,21 @@
 
 
 <h1 id="reference">Reference<a class="headerlink" href="#reference" title="Anchor link to this section">&para;</a></h1>
-<p>Reference documentation for mokume's CLI commands, the wheel's Python API, output columns, and the periphery commands (TissueMap, t-SNE, DE plots, interactive reports).</p>
+<p>Reference documentation for the unified wheel CLI, its Rust-wheel and
+pure-Python APIs, output columns, and periphery workflows.</p>
 <h2 id="cli-reference"><a href="cli/">CLI Reference</a><a class="headerlink" href="#cli-reference" title="Anchor link to this section">&para;</a></h2>
-<p>The four compute subcommands of the <code>mokume</code> binary and their options: <code>features2proteins</code>, <code>features2peptides</code>, <code>peptides2protein</code>, and <code>correct-batches</code>.</p>
-<h2 id="python-api"><a href="python-api/">Python API</a><a class="headerlink" href="#python-api" title="Anchor link to this section">&para;</a></h2>
-<p>The thin <code>pip install mokume-rs</code> wheel: the in-process compute wrappers (<code>mokume.features2proteins(...)</code>, <code>mokume.run([...])</code>, ...) and the Python periphery functions (t-SNE, tissue maps, DE plots, interactive reports, QC, the missforest fallback).</p>
+<p>The four Rust-native compute commands and four Python periphery commands exposed
+by <code>pip install mokume</code>, with their options and dependency extras.</p>
+<h2 id="python-api-wheel"><a href="python-api/">Python API (wheel)</a><a class="headerlink" href="#python-api-wheel" title="Anchor link to this section">&para;</a></h2>
+<p>The thin <code>pip install mokume</code> wheel: the in-process compute wrappers (<code>mokume.features2proteins(...)</code>, <code>mokume.run([...])</code>, ...) and the Python periphery functions (t-SNE, tissue maps, DE plots, interactive reports, QC, the missforest fallback).</p>
+<h2 id="python-api-package"><a href="python-api-package/">Python API (package)</a><a class="headerlink" href="#python-api-package" title="Anchor link to this section">&para;</a></h2>
+<p>The separately maintained pure-Python <code>mokume</code> package: its class-based
+pipeline, <code>QpxDataset</code>, plugin registry, differential-expression API, and
+runtime resource controls.</p>
+<p>Agentic recommendation is provided by the default Rust-backed wheel through the
+<a href="../user-guide/agentic-plugin/">Mokume Plugin</a>, not by <code>mokume-py</code>.</p>
 <h2 id="computed-values"><a href="computed-values/">Computed Values</a><a class="headerlink" href="#computed-values" title="Anchor link to this section">&para;</a></h2>
-<p>Column names and formulas for all output values (iBAQ, TopN, MaxLFQ, TPA, CopyNumber, etc.).</p>
+<p>Column names and formulas for all output values (piBAQ, TopN, MaxLFQ, TPA, CopyNumber, etc.).</p>
 
 
 

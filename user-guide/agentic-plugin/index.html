@@ -6,37 +6,37 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
       
       
-        <link rel="canonical" href="https://mokume.quantms.org/cli-vs-wheel/">
+        <link rel="canonical" href="https://mokume.quantms.org/user-guide/agentic-plugin/">
       
       
-        <link rel="prev" href="../architecture/">
+        <link rel="prev" href="../">
       
       
-        <link rel="next" href="../concepts/">
+        <link rel="next" href="../features2proteins/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>CLI vs Wheel - mokume</title>
+        <title>Mokume Plugin - mokume</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
   
@@ -120,9 +120,9 @@
       
     
     
-      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -147,7 +147,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cli-vs-wheel" class="md-skip">
+        <a href="#mokume-plugin" class="md-skip">
           Skip to content
         </a>
       
@@ -163,7 +163,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="mokume" class="md-header__button md-logo" aria-label="mokume" data-md-component="logo">
+    <a href="../.." title="mokume" class="md-header__button md-logo" aria-label="mokume" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -183,7 +183,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              CLI vs Wheel
+              Mokume Plugin
             
           </span>
         </div>
@@ -293,13 +293,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href=".." class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
           
   
   
@@ -321,7 +319,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../concepts/" class="md-tabs__link">
+        <a href="../../concepts/" class="md-tabs__link">
           
   
   
@@ -343,7 +341,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../examples/" class="md-tabs__link">
+        <a href="../../examples/" class="md-tabs__link">
           
   
   
@@ -361,11 +359,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../user-guide/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -387,7 +387,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../periphery/" class="md-tabs__link">
+        <a href="../../periphery/" class="md-tabs__link">
           
   
   
@@ -409,7 +409,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../reference/" class="md-tabs__link">
+        <a href="../../reference/" class="md-tabs__link">
           
   
   
@@ -429,7 +429,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../community/" class="md-tabs__link">
+      <a href="../../community/" class="md-tabs__link">
         
   
   
@@ -472,7 +472,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="mokume" class="md-nav__button md-logo" aria-label="mokume" data-md-component="logo">
+    <a href="../.." title="mokume" class="md-nav__button md-logo" aria-label="mokume" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -499,8 +499,6 @@
       
   
   
-    
-  
   
   
     
@@ -518,27 +516,28 @@
       
         
       
-    
-    
-    
-      
-        
-        
-      
-      
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href=".." class="md-nav__link ">
+            <a href="../.." class="md-nav__link ">
               
   
   
@@ -556,13 +555,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -582,7 +581,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../installation/" class="md-nav__link">
+      <a href="../../installation/" class="md-nav__link">
         
   
   
@@ -610,7 +609,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quickstart/" class="md-nav__link">
+      <a href="../../quickstart/" class="md-nav__link">
         
   
   
@@ -638,7 +637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -663,44 +662,17 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CLI vs Wheel
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
   
 
     
@@ -709,70 +681,34 @@
   
 
       </a>
-      
-        
+    </li>
+  
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+              
+            
+              
+                
   
   
   
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
     
   
+    Maintenance Scope
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#which-one-do-i-use" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which one do I use?
-      
-    </span>
-  </a>
+
+    
+  </span>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#same-compute-two-front-doors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Same compute, two front doors
-      
-    </span>
-  </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-kwargs-flags-rule" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The kwargs &rarr; flags rule
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#capability-location-delegation-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Capability &rarr; location delegation map
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
+
+      </a>
     </li>
   
 
@@ -831,7 +767,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../concepts/" class="md-nav__link ">
+            <a href="../../concepts/" class="md-nav__link ">
               
   
   
@@ -875,7 +811,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/quantification/" class="md-nav__link">
+      <a href="../../concepts/quantification/" class="md-nav__link">
         
   
   
@@ -903,7 +839,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/normalization/" class="md-nav__link">
+      <a href="../../concepts/normalization/" class="md-nav__link">
         
   
   
@@ -931,7 +867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/differential-expression/" class="md-nav__link">
+      <a href="../../concepts/differential-expression/" class="md-nav__link">
         
   
   
@@ -959,7 +895,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/imputation/" class="md-nav__link">
+      <a href="../../concepts/imputation/" class="md-nav__link">
         
   
   
@@ -987,7 +923,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/batch-correction/" class="md-nav__link">
+      <a href="../../concepts/batch-correction/" class="md-nav__link">
         
   
   
@@ -1015,7 +951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/irs/" class="md-nav__link">
+      <a href="../../concepts/irs/" class="md-nav__link">
         
   
   
@@ -1043,7 +979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/preprocessing/" class="md-nav__link">
+      <a href="../../concepts/preprocessing/" class="md-nav__link">
         
   
   
@@ -1092,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1111,7 +1051,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../examples/" class="md-nav__link ">
+            <a href="../../examples/" class="md-nav__link ">
               
   
   
@@ -1155,7 +1095,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/quantification/" class="md-nav__link">
+      <a href="../../examples/quantification/" class="md-nav__link">
         
   
   
@@ -1183,7 +1123,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/differential-expression/" class="md-nav__link">
+      <a href="../../examples/differential-expression/" class="md-nav__link">
         
   
   
@@ -1211,7 +1151,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/absolute-expression/" class="md-nav__link">
+      <a href="../../examples/absolute-expression/" class="md-nav__link">
         
   
   
@@ -1239,7 +1179,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/pipeline/" class="md-nav__link">
+      <a href="../../examples/pipeline/" class="md-nav__link">
         
   
   
@@ -1247,6 +1187,62 @@
     
   
     Full Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
   
 
     
@@ -1271,6 +1267,8 @@
       
   
   
+    
+  
   
   
     
@@ -1288,26 +1286,29 @@
       
         
       
+        
+      
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../user-guide/" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -1325,13 +1326,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1348,10 +1349,146 @@
                 
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Install">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#codex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Codex
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#claude-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Claude Code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repository-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     <li class="md-nav__item">
-      <a href="../user-guide/features2proteins/" class="md-nav__link">
+      <a href="../features2proteins/" class="md-nav__link">
         
   
   
@@ -1379,7 +1516,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../user-guide/features2peptides/" class="md-nav__link">
+      <a href="../features2peptides/" class="md-nav__link">
         
   
   
@@ -1407,7 +1544,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../user-guide/peptides2protein/" class="md-nav__link">
+      <a href="../peptides2protein/" class="md-nav__link">
         
   
   
@@ -1435,7 +1572,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../user-guide/batch-correct/" class="md-nav__link">
+      <a href="../batch-correct/" class="md-nav__link">
         
   
   
@@ -1501,7 +1638,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../periphery/" class="md-nav__link ">
+            <a href="../../periphery/" class="md-nav__link ">
               
   
   
@@ -1545,7 +1682,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../periphery/tissuemap/" class="md-nav__link">
+      <a href="../../periphery/tissuemap/" class="md-nav__link">
         
   
   
@@ -1573,7 +1710,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../periphery/visualization/" class="md-nav__link">
+      <a href="../../periphery/visualization/" class="md-nav__link">
         
   
   
@@ -1601,7 +1738,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../periphery/analysis-fallbacks/" class="md-nav__link">
+      <a href="../../periphery/analysis-fallbacks/" class="md-nav__link">
         
   
   
@@ -1669,7 +1806,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../reference/" class="md-nav__link ">
+            <a href="../../reference/" class="md-nav__link ">
               
   
   
@@ -1713,7 +1850,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/cli/" class="md-nav__link">
+      <a href="../../reference/cli/" class="md-nav__link">
         
   
   
@@ -1741,7 +1878,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/python-api-package/" class="md-nav__link">
+      <a href="../../reference/python-api-package/" class="md-nav__link">
         
   
   
@@ -1769,7 +1906,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/python-api/" class="md-nav__link">
+      <a href="../../reference/python-api/" class="md-nav__link">
         
   
   
@@ -1797,7 +1934,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/computed-values/" class="md-nav__link">
+      <a href="../../reference/computed-values/" class="md-nav__link">
         
   
   
@@ -1832,7 +1969,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../community/" class="md-nav__link">
+      <a href="../../community/" class="md-nav__link">
         
   
   
@@ -1878,225 +2015,139 @@
   
 
 
-<h1 id="cli-vs-wheel">CLI vs Wheel<a class="headerlink" href="#cli-vs-wheel" title="Anchor link to this section">&para;</a></h1>
-<p>mokume gives you two ways to reach the same Rust compute kernel, plus a Python
-periphery that only the wheel exposes. This page tells you which front door to
-use and where each capability actually lives.</p>
+<h1 id="mokume-plugin">Mokume Plugin<a class="headerlink" href="#mokume-plugin" title="Anchor link to this section">&para;</a></h1>
+<p>The Mokume Plugin adds traceable proteomics method recommendation to Codex and
+Claude Code. The host model performs the reasoning; Mokume supplies the
+knowledge snapshot, deterministic policy checks, validation, and the
+Rust-backed normalization, imputation, and differential-expression tools.</p>
+<p>The plugin does not ask for, store, or call a model API key. It bundles a local
+stdio MCP configuration, so enabling the plugin starts the Mokume MCP server
+automatically for the task. Do not add a second custom MCP entry or run the
+server manually.</p>
+<h2 id="install">Install<a class="headerlink" href="#install" title="Anchor link to this section">&para;</a></h2>
+<p>Install the default Rust-backed distribution with the plugin dependencies:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[agentic]"</span>
+</span></code></pre></div>
+<p>The Rust-backed <code>mokume</code> distribution and this optional MCP workflow require
+Python 3.10 or newer.</p>
+<h3 id="codex">Codex<a class="headerlink" href="#codex" title="Anchor link to this section">&para;</a></h3>
+<p>Add the repository marketplace and install the plugin:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>codex<span class="w"> </span>plugin<span class="w"> </span>marketplace<span class="w"> </span>add<span class="w"> </span>bigbio/mokume
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>codex<span class="w"> </span>plugin<span class="w"> </span>add<span class="w"> </span>mokume@bigbio
+</span></code></pre></div>
+<p>In the Codex app, the same setup is available under <strong>Plugins → Add
+marketplace</strong>. Use <code>https://github.com/bigbio/mokume</code> as the Git source and
+leave the sparse path empty. Start a new task after installation so Codex loads
+the skill and its MCP tools.</p>
+<p>The <code>mokume</code> executable must remain available on <code>PATH</code> to the Codex process.
+Installation is complete when the task exposes <code>mokume.inspect_dataset</code> and
+<code>mokume.evaluate_recommendation</code>.</p>
+<h3 id="claude-code">Claude Code<a class="headerlink" href="#claude-code" title="Anchor link to this section">&para;</a></h3>
+<p>Add the same repository as a Claude Code marketplace and install the same
+plugin bundle:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>claude<span class="w"> </span>plugin<span class="w"> </span>marketplace<span class="w"> </span>add<span class="w"> </span>bigbio/mokume
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>claude<span class="w"> </span>plugin<span class="w"> </span>install<span class="w"> </span>mokume@bigbio
+</span></code></pre></div>
+<p>Start a new Claude Code session after installation. The plugin discovers the
+shared <code>analyze-proteomics</code> skill and starts the bundled Mokume MCP server with
+an installation-independent knowledge path. The <code>mokume</code> executable must be on
+the <code>PATH</code> inherited by Claude Code. No separate <code>/mcp</code> setup is required.</p>
+<h2 id="use">Use<a class="headerlink" href="#use" title="Anchor link to this section">&para;</a></h2>
+<p>Ask Codex to use <code>$mokume:analyze-proteomics</code>, or invoke
+<code>/mokume:analyze-proteomics</code> in Claude Code, and provide:</p>
 <ul>
-<li><strong>CLI binary</strong> <code>mokume</code> — built with <code>cargo</code>, no Python runtime. Pure compute
-  for pipelines and CI.</li>
-<li><strong>Wheel</strong> <code>pip install mokume-rs</code> — the PyO3/maturin extension <code>mokume._mokume</code>
-  runs the same kernel <strong>in-process</strong>, and additionally ships the Python
-  periphery (plots, tissue maps, reports, and the pure-Python method fallbacks).</li>
+<li>an absolute protein-matrix path;</li>
+<li>an absolute SDRF path;</li>
+<li>an exact two-condition contrast from the selected SDRF factor;</li>
+<li>the explicit protein-matrix scale (<code>linear</code> or <code>log2</code>);</li>
+<li>an absolute peptide-count sidecar when testing DEqMS directly or in an ensemble;</li>
+<li>the contrast and, when known, <code>LFQ</code>, <code>DIA</code>, or <code>TMT</code> data type;</li>
+<li>the upstream quantification and engine when known;</li>
+<li>an absolute output directory; and</li>
+<li>optionally, a ground-truth protein list for a spike-in benchmark.</li>
 </ul>
-<h2 id="which-one-do-i-use">Which one do I use?<a class="headerlink" href="#which-one-do-i-use" title="Anchor link to this section">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Your need</th>
-<th>Use</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Pure compute (quantify, normalize, impute, DE, ComBat)</td>
-<td><strong>CLI binary</strong></td>
-</tr>
-<tr>
-<td>Pipeline / batch / CI with no Python runtime available</td>
-<td><strong>CLI binary</strong></td>
-</tr>
-<tr>
-<td>Scripting the compute from Python</td>
-<td><strong>Wheel</strong> (<code>mokume.features2proteins(...)</code>, <code>mokume.run([...])</code>)</td>
-</tr>
-<tr>
-<td>Plots (t-SNE, volcano, heatmap, PCA)</td>
-<td><strong>Wheel</strong> (<code>mokume.tsne_visualization</code>, <code>mokume.de_plots</code>)</td>
-</tr>
-<tr>
-<td>Tissue proteome maps / atlas</td>
-<td><strong>Wheel</strong> (<code>mokume.tissuemap</code>)</td>
-</tr>
-<tr>
-<td>Interactive HTML DE report</td>
-<td><strong>Wheel</strong> (<code>mokume.interactive_report</code>)</td>
-</tr>
-<tr>
-<td>iBAQ QC report PDF</td>
-<td><strong>Wheel</strong> (<code>mokume.peptides2protein_qc</code>)</td>
-</tr>
-<tr>
-<td><code>missforest</code> imputation</td>
-<td><strong>Wheel</strong> (<code>mokume.impute(method=...)</code>)</td>
-</tr>
-<tr>
-<td>iBAQ for an enzyme the Rust kernel does not digest</td>
-<td><strong>Wheel</strong> (<code>mokume.peptides2protein_ibaq</code>)</td>
-</tr>
-</tbody>
-</table>
-<p>The CLI binary is <strong>pure compute</strong>: it does not draw plots, build tissue maps,
-or write HTML reports, and it does not shell out to Python to do so.</p>
-<div class="admonition warning">
-<p class="admonition-title">The CLI binary has exactly four subcommands</p>
-<p><code>features2proteins</code>, <code>features2peptides</code>, <code>peptides2protein</code>,
-<code>correct-batches</code>. There is <strong>no</strong> <code>tissuemap</code>, <strong>no</strong> <code>tsne-visualization</code>,
-and <strong>no</strong> <code>agentic</code> subcommand. <code>features2proteins</code> has <strong>no</strong> <code>--plot-*</code>,
-<code>--interactive-report</code>, or <code>--report-output</code> flags — those moved to the
-wheel. <code>agentic</code> lives in the separate <code>mokume_py</code> package.</p>
-</div>
-<h2 id="same-compute-two-front-doors">Same compute, two front doors<a class="headerlink" href="#same-compute-two-front-doors" title="Anchor link to this section">&para;</a></h2>
-<p>The wheel's compute wrappers parse their arguments through the <strong>same</strong> <code>clap</code>
-definition the binary uses, so a result computed through the wheel is the result
-the binary produces.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">CLI binary</label><label for="__tabbed_1_2">Wheel (kwargs)</label><label for="__tabbed_1_3">Wheel (explicit argv)</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>--parquet<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--output<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>--threads<span class="w"> </span><span class="m">24</span>
+<p>The workflow first calls <code>inspect_dataset</code> with that contrast. This profiles only
+the two requested conditions and binds compatible evidence into typed context
+blocks; unrelated SDRF conditions do not affect diagnostics or preprocessing.
+The host may then propose at most five configurations under the returned contract
+and pass the exact block to <code>evaluate_recommendation</code>.</p>
+<p>The comma- or tab-delimited protein matrix must use its first column for
+non-empty, unique protein identifiers and provide at least two numeric sample
+columns. Column names must be non-empty and unique, every sample column must map
+to the SDRF, and sample cells may contain finite values or missing values (<code>NaN</code>)
+but not positive or negative infinity. A linear matrix requires at least one
+positive finite intensity and treats non-positive cells as missing. A log2 matrix
+requires at least one finite intensity and preserves finite zero and negative
+values as observations. The declared <code>input_scale</code> selects these semantics.</p>
+<p>The MCP schema keeps file paths, contrast, and the generated recommendation
+explicit while grouping the scale, optional sidecar, declared acquisition facts,
+and runtime controls in <code>options</code>; evaluation also places its required
+<code>output_dir</code> in <code>options</code>.
+<code>input_scale</code> must be explicitly declared as <code>linear</code> or <code>log2</code>; Mokume does not
+guess it from intensity magnitude. The peptide-count sidecar is supplied as
+<code>options.peptide_counts</code> during both inspection and evaluation. It
+contains exactly two comma- or tab-delimited columns named <code>protein</code> and
+<code>peptide_count</code>. Protein IDs are unique, counts are positive integers, and at
+least one ID must match the matrix's first column. It is optional for
+count-independent candidates, but mandatory for <code>deqms</code> and every ensemble that
+contains <code>deqms</code>. Without it, policy omits those candidates and evaluation rejects
+any host-added one. Individual matrix proteins absent from a supplied sidecar use
+a count of one.</p>
+<p>When <code>data_type</code> is omitted, Mokume only recognizes explicit <code>LFQ</code>, <code>DIA</code>/<code>DIA-NN</code>,
+or <code>TMT</code>/<code>plex</code> sample-name markers. Generic names such as <code>S1</code> do not imply LFQ:
+the profile returns <code>unknown</code>, policy abstains, and the host must ask for a supported
+declaration. Engine aliases are normalized to the knowledge catalog, so <code>DIANN</code>,
+<code>DIA NN</code>, and <code>DIA-NN</code> all bind as <code>DIA-NN</code>.</p>
+<p>Inspection requires a two-item list using the canonical condition labels derived
+from the selected SDRF factor. Reuse the returned
+<code>profile.samples_per_condition</code> keys, in the same order, for evaluation; do not
+replace them with longer raw SDRF values. Unknown object fields are rejected
+rather than silently ignored.
+The output path must be absolute and must not already exist; Mokume never
+overwrites a previous evaluation round. Artifacts are written to a sibling staging
+directory and the requested path appears only after the full round succeeds. A
+failed candidate leaves no partial target, so the same path can be retried. Repeat
+the inspection scale, sidecar, and metadata inside evaluation so both calls bind
+the same policy context.</p>
+<p>With relevant ground truth and an explicit <code>UP</code> or <code>DOWN</code> expected direction,
+the tool ranks candidates separately on pAUC at 1%, 5%, and 10% false-positive
+cutoffs, normalized MCC, and G-mean, then selects the lowest five-metric
+<code>benchmark_mean_rank</code>. The returned <code>score_a</code> remains the absolute arithmetic
+mean of the three pAUC values and normalized MCC; it is not the winner field.
+Without ground truth, set the expected direction to null; the tool returns
+exploratory diagnostics and no winner. For a ground-truth result, report each
+candidate's tested universe (<code>TP + FP + FN + TN</code>). If those totals differ, the
+ranking is candidate-universe-specific and must not be presented as general
+method superiority.
+Quantification is recorded as provenance but remains frozen because this entry
+point starts from an existing protein matrix.</p>
+<p>The Plugin accepts only <code>fdr_method="bh"</code> for standalone <code>rots</code> and <code>limrots</code>
+candidates. Both methods retain their native permutation FDR, so alternative
+values would otherwise create duplicate candidate signatures with identical
+results. Ensemble candidates may still use the full FDR catalog: eligible
+non-ROTS members and the combination layer use the requested correction, while
+ROTS and LimROTS members retain their native permutation FDR.</p>
+<p>Each evaluated round writes one DE table per candidate,
+<code>method_sensitivity.tsv</code>, and <code>evaluation.json</code>. The sensitivity table separates
+signed calls shared by every tested candidate from calls that depend on the
+chosen method; it is descriptive and never selects a winner. The JSON artifact
+records the knowledge fingerprint, evidence references, confidence, limitations,
+input scale, diagnostics, measurements, and ranking status.</p>
+<h2 id="repository-layout">Repository layout<a class="headerlink" href="#repository-layout" title="Anchor link to this section">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>.agents/plugins/marketplace.json       # Codex marketplace
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>.claude-plugin/marketplace.json        # Claude Code marketplace
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>plugins/mokume/
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>├── .codex-plugin/                      # Codex manifest and MCP adapter
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>├── .claude-plugin/plugin.json         # Claude Code manifest and MCP adapter
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>├── knowledge/knowledge.yaml           # evidence index
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>├── knowledge/sources/                 # immutable benchmark source artifacts
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>└── skills/analyze-proteomics/          # shared workflow and output contract
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>rust/python/mokume/agentic/             # deterministic MCP service
 </span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">threads</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">)</span>
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">&quot;features2proteins&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;--parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">&quot;--sdrf&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">&quot;--quant-method&quot;</span><span class="p">,</span> <span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="s2">&quot;--threads&quot;</span><span class="p">,</span> <span class="s2">&quot;24&quot;</span><span class="p">,</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">])</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="the-kwargs-flags-rule">The kwargs &rarr; flags rule<a class="headerlink" href="#the-kwargs-flags-rule" title="Anchor link to this section">&para;</a></h2>
-<p>The compute wrappers (<code>features2proteins</code>, <code>features2peptides</code>,
-<code>peptides2protein</code>, <code>correct_batches</code>) turn keyword arguments into CLI flags by a
-fixed rule:</p>
-<table>
-<thead>
-<tr>
-<th>Python keyword argument</th>
-<th>CLI flag</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>key="value"</code></td>
-<td><code>--key value</code> (<code>_</code> in the key is rewritten to <code>-</code>)</td>
-</tr>
-<tr>
-<td><code>key=True</code></td>
-<td><code>--key</code></td>
-</tr>
-<tr>
-<td><code>key=[a, b]</code></td>
-<td><code>--key a --key b</code> (the flag repeats once per item)</td>
-</tr>
-<tr>
-<td><code>key=None</code> or <code>key=False</code></td>
-<td><em>skipped</em></td>
-</tr>
-</tbody>
-</table>
-<p>So <code>quant_method="maxlfq"</code> becomes <code>--quant-method maxlfq</code>, <code>log2=True</code> becomes
-<code>--log2</code>, and <code>de_contrasts=["A vs B", "C vs D"]</code> becomes
-<code>--de-contrasts "A vs B" --de-contrasts "C vs D"</code>. When you need flags that
-keyword arguments cannot express (e.g. the per-contrast <code>--contrast KEY A B CSV</code>
-on the periphery plot commands), call <code>mokume.run([...])</code> or the explicit-argv
-periphery wrappers with a literal argument list.</p>
-<h2 id="capability-location-delegation-map">Capability &rarr; location delegation map<a class="headerlink" href="#capability-location-delegation-map" title="Anchor link to this section">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Capability</th>
-<th>Lives in</th>
-<th>Reach it via</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>features2proteins</code> (quant · norm · IRS · coverage · impute · ComBat · DE)</td>
-<td>Rust kernel</td>
-<td>CLI <code>features2proteins</code> / <code>mokume.features2proteins</code></td>
-</tr>
-<tr>
-<td><code>features2peptides</code> (filters · factor normalization · peptide export)</td>
-<td>Rust kernel</td>
-<td>CLI <code>features2peptides</code> / <code>mokume.features2peptides</code></td>
-</tr>
-<tr>
-<td><code>peptides2protein</code> (<code>ibaq</code>, <code>sum</code>, <code>top3</code>, <code>topn</code>, <code>maxlfq</code>, <code>directlfq</code>)</td>
-<td>Rust kernel</td>
-<td>CLI <code>peptides2protein</code> / <code>mokume.peptides2protein</code></td>
-</tr>
-<tr>
-<td><code>correct-batches</code> (ComBat, native Rust)</td>
-<td>Rust kernel</td>
-<td>CLI <code>correct-batches</code> / <code>mokume.correct_batches</code></td>
-</tr>
-<tr>
-<td>t-SNE / DE / iBAQ-QC plots</td>
-<td>Python periphery</td>
-<td><code>mokume.tsne_visualization</code> · <code>mokume.de_plots</code> · <code>mokume.peptides2protein_qc</code></td>
-</tr>
-<tr>
-<td>Tissue proteome maps</td>
-<td>Python periphery</td>
-<td><code>mokume.tissuemap</code></td>
-</tr>
-<tr>
-<td>Interactive HTML DE report</td>
-<td>Python periphery</td>
-<td><code>mokume.interactive_report</code></td>
-</tr>
-<tr>
-<td>QC report / workflow comparison</td>
-<td>Python periphery</td>
-<td><code>mokume.qc_report</code> · <code>mokume.workflow_comparison</code></td>
-</tr>
-<tr>
-<td><code>missforest</code> imputation</td>
-<td>Python periphery</td>
-<td><code>mokume.impute(method=...)</code></td>
-</tr>
-<tr>
-<td>iBAQ for unported enzymes (e.g. <code>CNBr</code>)</td>
-<td>Python periphery</td>
-<td><code>mokume.peptides2protein_ibaq</code></td>
-</tr>
-<tr>
-<td><code>agentic</code> workflow optimizer</td>
-<td>separate <code>mokume_py</code> package</td>
-<td>not in this toolkit</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition note">
-<p class="admonition-title">DirectLFQ and ComBat are native Rust</p>
-<p>DirectLFQ and ComBat are part of the kernel and need no extra and no Python.
-The old <code>directlfq</code> and <code>batch-correction</code> Python extras are removed; ComBat
-is native Rust, oracle-verified vs <code>inmoose</code>.</p>
-</div>
+<p>Update the knowledge index separately from model prompts. Every eligible
+record must retain its source, captured date, artifact hashes, applicability,
+metrics, confidence, status, and limitations. Single-dataset oracle results are
+not eligible priors.</p>
 
 
 
@@ -2134,7 +2185,7 @@ is native Rust, oracle-verified vs <code>inmoose</code>.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../architecture/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Architecture">
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: User Guide">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2144,20 +2195,20 @@ is native Rust, oracle-verified vs <code>inmoose</code>.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Architecture
+                User Guide
               </div>
             </div>
           </a>
         
         
           
-          <a href="../concepts/" class="md-footer__link md-footer__link--next" aria-label="Next: Key Concepts">
+          <a href="../features2proteins/" class="md-footer__link md-footer__link--next" aria-label="Next: features2proteins">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Key Concepts
+                features2proteins
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2235,10 +2286,10 @@ is native Rust, oracle-verified vs <code>inmoose</code>.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

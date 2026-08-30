@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli-vs-wheel/" class="md-nav__link">
+      <a href="../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -998,6 +1028,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1166,6 +1200,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1184,6 +1274,8 @@
       
         
           
+        
+      
         
       
         
@@ -1248,6 +1340,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1789,30 +1909,28 @@
 
 <h1 id="python-periphery">Python Periphery<a class="headerlink" href="#python-periphery" title="Anchor link to this section">&para;</a></h1>
 <p>The periphery is the Python half of the toolkit: plotting, tissue maps,
-interactive reports, the iBAQ QC report, the pure-Python iBAQ path for unported
-enzymes, and the pure-Python method fallbacks. It lives in
+interactive reports, the piBAQ QC report, and the pure-Python method fallbacks.
+It lives in
 <code>rust/python/mokume/commands/</code> (plus <code>rust/python/mokume/reports/</code>,
 <code>rust/python/mokume/normalization/</code>, <code>rust/python/mokume/imputation/</code> for the
 analysis fallbacks) and is reached <strong>only</strong> through the
-<code>pip install mokume-rs</code> wheel. The standalone Rust CLI binary is pure compute
-and carries none of this.</p>
-<h2 id="the-guarantee-the-periphery-reads-kernel-output-never-recomputes">The guarantee: the periphery reads kernel output, never recomputes<a class="headerlink" href="#the-guarantee-the-periphery-reads-kernel-output-never-recomputes" title="Anchor link to this section">&para;</a></h2>
-<p>Every periphery command opens the tables the <strong>kernel</strong> wrote — the protein
-matrix CSV, the peptide parquet, the iBAQ TSV, the DE result CSVs — and renders
-figures or reports from them. It does <strong>not</strong> re-run the quantification, so the
-cells in a plot match the cells in the kernel's output. The numbers stay
-single-sourced in Rust.</p>
-<p>There is exactly <strong>one</strong> documented exception:
-<code>mokume.peptides2protein_ibaq</code> computes a whole iBAQ table in pure Python (via
-<code>mokume.quantification.ibaq</code>) for enzymes outside the Rust-ported set — see
-<a href="../cli-vs-wheel/">CLI vs Wheel</a>. The pure-Python method fallback
-(<code>mokume.impute(method='missforest')</code>) is covered
-in <a href="analysis-fallbacks/">Analysis Fallbacks</a>; this is a method the Rust kernel
-does not reproduce, not a recomputation of something the kernel already produced.</p>
+<code>pip install mokume</code> wheel. The Rust compute extension does not import this
+periphery.</p>
+<h2 id="reporting-reads-kernel-output-fallbacks-are-explicit">Reporting reads kernel output; fallbacks are explicit<a class="headerlink" href="#reporting-reads-kernel-output-fallbacks-are-explicit" title="Anchor link to this section">&para;</a></h2>
+<p>Plotting, QC, and reporting commands consume tables the <strong>kernel</strong> wrote without
+re-running kernel-supported computation. TissueMap instead derives its
+documented downstream normalization, batch correction, tissue-specificity, and
+atlas outputs from QPX data.</p>
+<p>One explicit fallback computes an operation the Rust kernel does not provide:
+<code>mokume.impute(method='missforest')</code> runs the scikit-learn estimator. It is
+documented under <a href="../rust-wheel/">Rust Wheel</a> and
+<a href="analysis-fallbacks/">Analysis Fallbacks</a>, rather than being presented as
+kernel-produced results.</p>
 <h2 id="extras-matrix">Extras matrix<a class="headerlink" href="#extras-matrix" title="Anchor link to this section">&para;</a></h2>
-<p>The compute kernel (<code>mokume._mokume</code>) needs <strong>no</strong> third-party Python
-dependencies. The extras pull in only the libraries a given periphery command
-needs. Install just the extra for the command you run.</p>
+<p>The base wheel depends on pyOpenMS because both Rust-backed piBAQ commands use
+the installed <code>ProteaseDB</code> catalog for FASTA digestion. pyOpenMS itself installs
+numpy, pandas, and matplotlib; the extras select each command's additional
+libraries. Install just the extra for the command you run.</p>
 <table>
 <thead>
 <tr>
@@ -1823,7 +1941,7 @@ needs. Install just the extra for the command you run.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>mokume.tsne_visualization</code></td>
+<td><code>mokume plot tsne</code></td>
 <td><code>plotting</code></td>
 <td>numpy, pandas, scipy, scikit-learn, matplotlib, seaborn</td>
 </tr>
@@ -1833,24 +1951,19 @@ needs. Install just the extra for the command you run.</p>
 <td>numpy, pandas, matplotlib, seaborn</td>
 </tr>
 <tr>
-<td><code>mokume.de_plots</code></td>
+<td><code>mokume plot pca</code> / <code>mokume plot de</code></td>
 <td><code>plotting</code></td>
 <td>numpy, pandas, matplotlib, seaborn, scikit-learn</td>
 </tr>
 <tr>
-<td><code>mokume.interactive_report</code></td>
+<td><code>mokume interactive-report</code></td>
 <td><code>reports</code></td>
 <td>numpy, pandas, plotly</td>
 </tr>
 <tr>
-<td><code>mokume.tissuemap</code></td>
+<td><code>mokume tissuemap</code></td>
 <td><code>tissuemap</code></td>
 <td>scanpy, anndata, umap-learn, combat, matplotlib, seaborn, pyarrow</td>
-</tr>
-<tr>
-<td><code>mokume.peptides2protein_ibaq</code></td>
-<td><code>ibaq</code></td>
-<td>pyopenms, pyarrow, PyYAML, numpy, pandas, scipy</td>
 </tr>
 <tr>
 <td><code>mokume.qc_report</code> / <code>mokume.workflow_comparison</code></td>
@@ -1864,53 +1977,50 @@ needs. Install just the extra for the command you run.</p>
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume-rs<span class="w">                 </span><span class="c1"># compute kernel + Python API</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[plotting]&quot;</span><span class="w">     </span><span class="c1"># + t-SNE / DE plots / iBAQ QC report</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[reports]&quot;</span><span class="w">      </span><span class="c1"># + interactive HTML DE report</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[tissuemap]&quot;</span><span class="w">    </span><span class="c1"># + per-dataset tissue proteome analysis</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[ibaq]&quot;</span><span class="w">         </span><span class="c1"># + pure-Python iBAQ for unported enzymes</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[analysis]&quot;</span><span class="w">     </span><span class="c1"># + QC/comparison reports + missforest</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mokume-rs[all]&quot;</span><span class="w">          </span><span class="c1"># everything</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="w">                 </span><span class="c1"># compute kernel + Python API</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[plotting]"</span><span class="w">     </span><span class="c1"># + t-SNE / DE plots / piBAQ QC report</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[reports]"</span><span class="w">      </span><span class="c1"># + interactive HTML DE report</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[tissuemap]"</span><span class="w">    </span><span class="c1"># + per-dataset tissue proteome analysis</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[analysis]"</span><span class="w">     </span><span class="c1"># + QC/comparison reports + missforest</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[all]"</span><span class="w">          </span><span class="c1"># everything</span>
 </span></code></pre></div>
 <p>The exact dependency lists are declared in <code>pyproject.toml</code>'s
-<code>[project.optional-dependencies]</code>.</p>
-<div class="admonition note">
-<p class="admonition-title">Removed extras</p>
-<p>The old <code>directlfq</code> and <code>batch-correction</code> extras are <strong>gone</strong>. DirectLFQ and
-ComBat are now native Rust in the kernel and need no extra and no third-party
-Python dependency.</p>
-</div>
-<h2 id="the-import-then-call-pattern">The import-then-call pattern<a class="headerlink" href="#the-import-then-call-pattern" title="Anchor link to this section">&para;</a></h2>
-<p>Each periphery command lives in <code>mokume.commands.&lt;name&gt;</code> with a <code>main(argv)</code>
-entry point, is runnable as <code>python -m mokume.commands.&lt;name&gt;</code>, and most have an
-ergonomic wrapper on the top-level <code>mokume</code> package. Import the package and call
-the wrapper:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># kwarg wrappers (the kwargs -&gt; flags rule applies):</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tsne_visualization</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s2">&quot;./proteins&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;proteins.tsv&quot;</span><span class="p">)</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span><span class="n">scan_dir</span><span class="o">=</span><span class="s2">&quot;./data&quot;</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./out&quot;</span><span class="p">)</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein_qc</span><span class="p">(</span><span class="n">protein_table</span><span class="o">=</span><span class="s2">&quot;proteins.tsv&quot;</span><span class="p">,</span> <span class="n">qc_report</span><span class="o">=</span><span class="s2">&quot;QC.pdf&quot;</span><span class="p">)</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein_ibaq</span><span class="p">(</span><span class="n">peptides</span><span class="o">=</span><span class="s2">&quot;peptides.parquet&quot;</span><span class="p">,</span> <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;proteome.fasta&quot;</span><span class="p">,</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                             <span class="n">enzyme</span><span class="o">=</span><span class="s2">&quot;CNBr&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.tsv&quot;</span><span class="p">)</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># de_plots / interactive_report take an explicit argv (the per-contrast</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># --contrast KEY A B CSV flag repeats, which keyword arguments cannot express):</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">mokume</span><span class="o">.</span><span class="n">de_plots</span><span class="p">([</span><span class="s2">&quot;--protein-matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;--plot-dir&quot;</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">,</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                 <span class="s2">&quot;--volcano&quot;</span><span class="p">,</span> <span class="s2">&quot;--contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;c1&quot;</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;de.csv&quot;</span><span class="p">])</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="c1"># QC / comparison reports + the pure-Python method fallbacks (analysis extra):</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="n">mokume</span><span class="o">.</span><span class="n">qc_report</span><span class="p">(</span><span class="n">protein_matrix</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;x.sdrf.tsv&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;qc.html&quot;</span><span class="p">)</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;missforest&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;imputed.csv&quot;</span><span class="p">)</span>
+<code>[project.optional-dependencies]</code>. DirectLFQ and ComBat are native Rust, while
+pyOpenMS-backed FASTA digestion is part of the base piBAQ capability.</p>
+<h2 id="cli-and-python-entry-points">CLI and Python entry points<a class="headerlink" href="#cli-and-python-entry-points" title="Anchor link to this section">&para;</a></h2>
+<p>The public plotting, report, and TissueMap workflows are available directly
+from the wheel console command:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span>--input<span class="w"> </span>./proteins<span class="w"> </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span>--output<span class="w"> </span>tsne.pdf
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>./data<span class="w"> </span>--outdir<span class="w"> </span>./out
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mokume<span class="w"> </span>plot<span class="w"> </span>de<span class="w"> </span>--help
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>mokume<span class="w"> </span>interactive-report<span class="w"> </span>--help
 </span></code></pre></div>
-<p>The kwarg wrappers follow the <a href="../cli-vs-wheel/">kwargs &rarr; flags rule</a>
-(<code>key=value</code> &rarr; <code>--key value</code> with <code>_</code> rewritten to <code>-</code>; <code>key=True</code> &rarr;
-<code>--key</code>; a list repeats the flag; <code>None</code> / <code>False</code> skipped). <code>de_plots</code> and
+<p>Most also have an ergonomic wrapper on the top-level <code>mokume</code> package:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># kwarg wrappers (the kwargs -&gt; flags rule applies):</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tsne_visualization</span><span class="p">(</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="nb">input</span><span class="o">=</span><span class="s2">"./proteins"</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">"proteins.tsv"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"tsne.pdf"</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">)</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">mokume</span><span class="o">.</span><span class="n">tissuemap</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="s2">"./data"</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s2">"./out"</span><span class="p">)</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">mokume</span><span class="o">.</span><span class="n">peptides2protein_qc</span><span class="p">(</span><span class="n">protein_table</span><span class="o">=</span><span class="s2">"proteins.tsv"</span><span class="p">,</span> <span class="n">qc_report</span><span class="o">=</span><span class="s2">"QC.pdf"</span><span class="p">)</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># de_plots / interactive_report take an explicit argv (the per-contrast</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># --contrast KEY A B CSV flag repeats, which keyword arguments cannot express):</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">mokume</span><span class="o">.</span><span class="n">de_plots</span><span class="p">([</span><span class="s2">"--protein-matrix"</span><span class="p">,</span> <span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="s2">"--outdir"</span><span class="p">,</span> <span class="s2">"plots"</span><span class="p">,</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>                 <span class="s2">"--volcano"</span><span class="p">,</span> <span class="s2">"--contrast"</span><span class="p">,</span> <span class="s2">"c1"</span><span class="p">,</span> <span class="s2">"A"</span><span class="p">,</span> <span class="s2">"B"</span><span class="p">,</span> <span class="s2">"de.csv"</span><span class="p">])</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># QC / comparison reports + the pure-Python method fallbacks (analysis extra):</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="n">mokume</span><span class="o">.</span><span class="n">qc_report</span><span class="p">(</span><span class="n">protein_matrix</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">sdrf</span><span class="o">=</span><span class="s2">"x.sdrf.tsv"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"qc.html"</span><span class="p">)</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"missforest"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The kwarg wrappers follow the validated per-command
+<a href="../rust-wheel/">kwargs &rarr; flags rule</a>. <code>de_plots</code> and
 <code>interactive_report</code> take a literal argument list because their per-contrast
 flag repeats in a shape keyword arguments cannot express.</p>
 <h2 id="what-lives-where">What lives where<a class="headerlink" href="#what-lives-where" title="Anchor link to this section">&para;</a></h2>
 <ul>
-<li><strong>Tissue Proteome Atlas</strong> &rarr; <a href="tissuemap/"><code>mokume.tissuemap</code></a> — PCA /
+<li><strong>Tissue Proteome Atlas</strong> &rarr; <a href="tissuemap/"><code>mokume tissuemap</code></a> — PCA /
   t-SNE / UMAP / AdaTiSS tissue-specificity scoring, markers, atlas plots.</li>
 <li><strong>Visualization &amp; Reports</strong> &rarr;
   <a href="visualization/">t-SNE / DE plots / interactive report</a>.</li>

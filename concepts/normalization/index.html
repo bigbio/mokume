@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1197,6 +1227,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1365,6 +1399,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1383,6 +1473,8 @@
       
         
           
+        
+      
         
       
         
@@ -1447,6 +1539,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -2027,7 +2147,7 @@
 <td>intensity / sum(intensity)</td>
 </tr>
 <tr>
-<td><code>max_min</code></td>
+<td><code>max-min</code></td>
 <td>Min-max scaling</td>
 <td>(intensity - min) / (max - min)</td>
 </tr>
@@ -2043,7 +2163,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>--run-normalization<span class="w"> </span>median
 </span></code></pre></div>
 <h2 id="sample-level-normalization">Sample-Level Normalization<a class="headerlink" href="#sample-level-normalization" title="Anchor link to this section">&para;</a></h2>
@@ -2059,12 +2179,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>globalMedian</code></td>
+<td><code>global-median</code></td>
 <td>Divides each sample by its median, normalized to the global median</td>
 </tr>
 <tr>
-<td><code>conditionMedian</code></td>
-<td>Same as globalMedian but within each experimental condition</td>
+<td><code>condition-median</code></td>
+<td>Same as global-median but within each experimental condition</td>
 </tr>
 <tr>
 <td><code>none</code></td>
@@ -2087,11 +2207,11 @@
 <td>Quantile normalization — forces identical intensity distributions across samples</td>
 </tr>
 <tr>
-<td><code>mediancenter</code></td>
+<td><code>median-center</code></td>
 <td>Median centering — subtracts each sample's log2 median (location shift)</td>
 </tr>
 <tr>
-<td><code>meancenter</code></td>
+<td><code>mean-center</code></td>
 <td>Mean centering — subtracts each sample's log2 mean (location shift)</td>
 </tr>
 <tr>
@@ -2114,7 +2234,7 @@
 </table>
 <div class="admonition tip">
 <p class="admonition-title">When to use hierarchical normalization</p>
-<p>Use <code>--sample-normalization hierarchical</code> when you want DirectLFQ-style normalization <strong>combined with a different quantification method</strong> (e.g., iBAQ). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.</p>
+<p>Use <code>--sample-normalization hierarchical</code> when you want DirectLFQ-style normalization <strong>combined with a different quantification method</strong> (e.g., piBAQ). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.</p>
 </div>
 <h3 id="global-median">Global Median<a class="headerlink" href="#global-median" title="Anchor link to this section">&para;</a></h3>
 <p>The default method. For each sample, computes:</p>
@@ -2128,7 +2248,7 @@
 <li>Convert back to linear scale</li>
 </ol>
 <p>You can optionally specify a set of proteins to use for normalization:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--normalization-proteins<span class="w"> </span>housekeeping_proteins.txt
 </span></code></pre></div>
@@ -2137,7 +2257,7 @@
 fitting local regression on MA-plot residuals (M = log2 sample / reference,
 A = log2 mean). Exposed via the pipeline as <code>--sample-normalization loess</code>
 or as a standalone utility on a log2-scale wide matrix.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>loess
 </span></code></pre></div>
 <p>LOESS runs natively in the Rust kernel (~2e-3 vs statsmodels lowess on real data).</p>
@@ -2147,19 +2267,19 @@ intensity distribution</strong>. Working on log2 peptide sums, it replaces each 
 with the cross-sample mean of all values at the same rank, so every column ends
 up with the same sorted profile. It is the strongest distributional correction
 available and assumes most features are unchanged across samples.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>quantile
 </span></code></pre></div>
 <p>Quantile normalization runs natively in the Rust kernel.</p>
 <h3 id="median-and-mean-centering">Median and Mean Centering<a class="headerlink" href="#median-and-mean-centering" title="Anchor link to this section">&para;</a></h3>
 <p>Centering applies a <strong>location shift in log2 space</strong>: for each sample it
-subtracts that sample's log2 median (<code>mediancenter</code>) or log2 mean
-(<code>meancenter</code>), then maps the values back to linear scale
+subtracts that sample's log2 median (<code>median-center</code>) or log2 mean
+(<code>mean-center</code>), then maps the values back to linear scale
 ($2^{\log_2 x - \text{center}}$). Unlike quantile normalization it only aligns
 the central level of each sample and leaves the within-sample spread untouched,
 making it a lighter-touch alternative when distributions are already similar.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>mediancenter<span class="w">   </span><span class="c1"># or: meancenter</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>median-center<span class="w">   </span><span class="c1"># or: mean-center</span>
 </span></code></pre></div>
 <p>Both centering variants run natively in the Rust kernel.</p>
 <h3 id="rlr-normalization">RLR Normalization<a class="headerlink" href="#rlr-normalization" title="Anchor link to this section">&para;</a></h3>
@@ -2168,7 +2288,7 @@ regression of each sample against a common reference profile and removes the
 fitted intensity-dependent bias. The robust fit down-weights the minority of
 genuinely changing proteins, so a handful of large fold-changes do not distort
 the normalization (the approach used by NormalyzerDE).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>rlr
 </span></code></pre></div>
 <p>RLR runs natively in the Rust kernel.</p>
@@ -2180,13 +2300,23 @@ intensity and fold change. Trimming makes the factor <strong>robust to compositi
 from highly abundant proteins</strong>, so a few dominant proteins do not drag the whole
 sample up or down (the edgeR/limma approach adapted for proteomics). Implemented
 in <code>mokume.normalization.tmm.TMMNormalizer</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>tmm
 </span></code></pre></div>
 <h2 id="directlfq-mode">DirectLFQ Mode<a class="headerlink" href="#directlfq-mode" title="Anchor link to this section">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">DirectLFQ handles its own normalization</p>
-<p>When using <code>--quant-method directlfq</code>, the kernel runs <strong>all processing</strong> (normalization + quantification) through the native Rust DirectLFQ estimator. The <code>--run-normalization</code> and <code>--sample-normalization</code> options are ignored.</p>
+<p>When using <code>--quant-method directlfq</code>, the kernel runs normalization and
+quantification through the native Rust DirectLFQ estimator. The CLI defaults
+both external normalization settings to <code>none</code> and rejects any non-<code>none</code>
+value instead of ignoring it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Count methods do not normalize intensities</p>
+<p><code>peptide-count</code> and <code>spectral-count</code> count distinct evidence identities,
+not intensity values. Their run/sample normalization defaults are <code>none</code>,
+and active intensity normalization or IRS options are rejected instead of
+being silently ignored.</p>
 </div>
 
 

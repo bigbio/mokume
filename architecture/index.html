@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -18,7 +18,7 @@
         <link rel="prev" href="../quickstart/">
       
       
-        <link rel="next" href="../cli-vs-wheel/">
+        <link rel="next" href="../rust-wheel/">
       
       
         
@@ -518,6 +518,8 @@
       
         
       
+        
+      
     
     
     
@@ -698,10 +700,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-kernel-wheel-split" class="md-nav__link">
+  <a href="#the-rust-wheel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The kernel + wheel split
+        The Rust wheel
       
     </span>
   </a>
@@ -720,10 +722,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-periphery-reads-the-kernel-computes" class="md-nav__link">
+  <a href="#rust-native-compute-and-the-python-periphery" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The periphery reads, the kernel computes
+        Rust-native compute and the Python periphery
       
     </span>
   </a>
@@ -731,10 +733,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-stays-in-the-separate-mokume_py-package" class="md-nav__link">
+  <a href="#the-mokume-plugin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What stays in the separate mokume_py package
+        The Mokume Plugin
       
     </span>
   </a>
@@ -742,10 +744,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-pure-python-package-and-its-compute-backends" class="md-nav__link">
+  <a href="#the-separate-pure-python-package" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The pure-Python package and its compute backends
+        The separate pure-Python package
       
     </span>
   </a>
@@ -768,14 +770,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli-vs-wheel/" class="md-nav__link">
+      <a href="../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1103,6 +1133,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1271,6 +1305,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1289,6 +1379,8 @@
       
         
           
+        
+      
         
       
         
@@ -1353,6 +1445,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1890,128 +2010,137 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Anchor link to this section">&para;</a></h1>
-<p>mokume is a <strong>toolkit: a Rust compute kernel with a Python periphery</strong>. The
-compute lives once, in Rust, and is shipped two ways:</p>
-<ol>
-<li>a <strong>standalone CLI binary</strong> <code>mokume</code> (built with <code>cargo</code>, no Python runtime
-   needed), and</li>
-<li>a <strong><code>pip install mokume-rs</code> wheel</strong> (PyO3/maturin) whose compiled extension
-   <code>mokume._mokume</code> runs the same kernel <strong>in-process</strong> — there is <strong>no
-   subprocess</strong> and no shelling out to Python.</li>
-</ol>
-<p>The numbers are <strong>single-sourced in Rust</strong>. The Python periphery (plotting,
-tissue maps, interactive reports, iBAQ QC, and the few pure-Python method
-fallbacks) reads the TSV / parquet / CSV tables the kernel writes and renders
-figures or reports from them; it <strong>never recomputes</strong> the quantities.</p>
-<h2 id="the-kernel-wheel-split">The kernel + wheel split<a class="headerlink" href="#the-kernel-wheel-split" title="Anchor link to this section">&para;</a></h2>
+<p>mokume is a <strong>toolkit with two installable compute distributions</strong>: the
+leading Rust-backed <code>mokume</code> wheel and the separately maintained pure-Python
+<code>mokume-py</code> package. The Rust
+wheel contains the compiled <code>mokume._mokume</code> extension, a thin Python API, a
+<code>mokume</code> console command, and the Python periphery. It does not ship a separate
+Rust executable.</p>
+<p>For Rust-backed commands, computed values are single-sourced in the kernel.
+Plotting, interactive reports, and piBAQ QC read the tables the kernel writes;
+TissueMap derives a downstream atlas from QPX outputs. Explicit Python-only
+method fallbacks compute capabilities that the kernel does not provide. These
+periphery and fallback paths are documented separately below. The pure-Python
+package computes the same capabilities through its own implementation.</p>
+<blockquote>
+<p><strong>Measured performance.</strong> Performance is workload-specific. On the
+2026-08-23 <code>sum</code> parity rerun (PXD003539 / PXD004701, 24 threads, one warm-up,
+median of three measured runs), Rust/Python wall times were 8.95/7.17 seconds
+and 17.84/13.99 seconds; peak memory was 0.86/4.25 GiB and 1.29/8.02 GiB.
+Protein/sample sets and every matrix cell were exact. Quote these measured
+trade-offs rather than an unbounded speed claim.</p>
+</blockquote>
+<h2 id="the-rust-wheel">The Rust wheel<a class="headerlink" href="#the-rust-wheel" title="Anchor link to this section">&para;</a></h2>
 <pre class="mermaid"><code>flowchart TB
     subgraph rust["Rust compute kernel (crates/)"]
         crates["mokume-pipeline / mokume-core&lt;br/&gt;quantification · normalization · imputation&lt;br/&gt;differential expression · ComBat batch correction"]
-        cli_crate["crates/mokume-cli"]
+        command_crate["crates/mokume-command&lt;br/&gt;clap parsing + dispatch library"]
         py_crate["crates/mokume-py (PyO3)"]
-        crates --&gt; cli_crate
-        crates --&gt; py_crate
+        crates --&gt; command_crate
+        command_crate --&gt; py_crate
     end
 
-    bin["mokume CLI binary&lt;br/&gt;(cargo build, no Python)"]
     ext["mokume._mokume extension&lt;br/&gt;(maturin build, in-process)"]
-    cli_crate --&gt; bin
     py_crate --&gt; ext
 
-    subgraph wheel["pip install mokume-rs (the wheel)"]
+    subgraph wheel["pip install mokume (the wheel)"]
         ext
         api["thin Python API&lt;br/&gt;features2proteins() · peptides2protein() · run([...])"]
+        console["mokume console command&lt;br/&gt;unified Python entry point"]
         periphery["Python periphery&lt;br/&gt;rust/python/mokume/commands/*"]
         ext --&gt; api
+        ext --&gt; console
+        console --&gt; periphery
     end
 
-    out["kernel output&lt;br/&gt;protein matrix CSV · peptide parquet · iBAQ TSV · DE CSV"]
-    bin --&gt; out
+    out["kernel output&lt;br/&gt;protein matrix CSV · peptide parquet · piBAQ TSV · DE CSV"]
+    qpx["QPX data"]
     api --&gt; out
-    out -. reads, never recomputes .-&gt; periphery
+    console --&gt; out
+    out -. plots and reports .-&gt; periphery
+    qpx -. TissueMap .-&gt; periphery
     periphery --&gt; figs["plots · tissue maps · HTML reports"]</code></pre>
-<p>The CLI binary and the wheel are two front doors onto the <strong>same</strong> crates. The
-wheel's compute wrappers parse their arguments through the same <code>clap</code>
-definition the binary uses, so flag handling stays single-sourced in Rust.</p>
+<p>The wheel entry point routes the three commands under <code>mokume quantify</code> and
+<code>correct-batches</code> through the same <code>clap</code>
+definition as the Python compute wrappers, so their flag handling stays
+single-sourced in Rust. It routes the optional plotting, reporting, and
+TissueMap commands to their Python periphery modules.</p>
 <h2 id="in-process-no-subprocess">In-process, no subprocess<a class="headerlink" href="#in-process-no-subprocess" title="Anchor link to this section">&para;</a></h2>
-<p>The wheel does <strong>not</strong> launch the CLI binary as a child process. <code>import mokume;
-mokume.features2proteins(...)</code> calls straight into the compiled <code>mokume._mokume</code>
+<p>The <code>mokume</code> console command and <code>import mokume;
+mokume.features2proteins(...)</code> both call the compiled <code>mokume._mokume</code>
 extension, which executes the Rust pipeline in the current process. This is the
 PyO3/maturin layout used by projects such as polars and pydantic-core: Python
 imports a compiled Rust extension rather than driving an external program.</p>
 <div class="admonition note">
 <p class="admonition-title">Why this matters</p>
-<p>There is exactly one implementation of every quantity. The CLI binary, the
-wheel's <code>mokume.features2proteins(...)</code>, and <code>mokume.run([...])</code> all reach
-the same Rust code, so a result computed through the wheel is bit-for-bit
-the result the binary produces.</p>
+<p>There is exactly one Rust implementation of every quantity. The installed
+<code>mokume</code> command, <code>mokume.features2proteins(...)</code>, and <code>mokume.run([...])</code>
+all reach the same Rust code. The separate pure-Python distribution is not
+part of this in-wheel guarantee.</p>
 </div>
-<h2 id="the-periphery-reads-the-kernel-computes">The periphery reads, the kernel computes<a class="headerlink" href="#the-periphery-reads-the-kernel-computes" title="Anchor link to this section">&para;</a></h2>
+<h2 id="rust-native-compute-and-the-python-periphery">Rust-native compute and the Python periphery<a class="headerlink" href="#rust-native-compute-and-the-python-periphery" title="Anchor link to this section">&para;</a></h2>
 <p>The periphery lives in <code>rust/python/mokume/commands/</code> and is reached <strong>only</strong>
-through the wheel. It opens the tables the kernel already wrote and draws from them:</p>
+through the wheel. Its public workflows are available from both the unified CLI
+and Python API:</p>
 <ul>
-<li><code>mokume.tsne_visualization</code>, <code>mokume.de_plots</code>, <code>mokume.interactive_report</code> —
+<li><code>mokume plot tsne</code>, <code>mokume plot pca</code>, <code>mokume plot de</code>, <code>mokume interactive-report</code> —
   plots and the HTML report built from the <code>features2proteins</code> matrix / DE CSVs.</li>
-<li><code>mokume.tissuemap</code> — per-dataset tissue proteome analysis.</li>
-<li><code>mokume.peptides2protein_qc</code> — the iBAQ <code>--verbose</code> QC report PDF.</li>
+<li><code>mokume tissuemap</code> — downstream per-dataset normalization, batch correction,
+  tissue-specificity scoring, embeddings, and atlas plots from QPX outputs.</li>
+<li><code>mokume.peptides2protein_qc</code> — the piBAQ <code>--qc-report</code> PDF renderer.</li>
 </ul>
-<p>Because these read kernel output, the cells in a plot match the cells in the
-kernel matrix. The single documented exception is <code>mokume.peptides2protein_ibaq</code>,
-which computes the whole iBAQ table in pure Python for enzymes outside the
-Rust-ported set (see <a href="../cli-vs-wheel/">CLI vs Wheel</a> and
-<a href="../periphery/">Python Periphery</a>).</p>
-<h2 id="what-stays-in-the-separate-mokume_py-package">What stays in the separate <code>mokume_py</code> package<a class="headerlink" href="#what-stays-in-the-separate-mokume_py-package" title="Anchor link to this section">&para;</a></h2>
-<p><code>agentic</code> — the LLM-driven workflow optimizer — is intentionally <strong>not</strong> migrated
-to the Rust track and does <strong>not</strong> appear in the Rust top-level CLI. It lives in
-the separate <code>mokume_py</code> Python package and is out of scope for this kernel +
-wheel.</p>
-<h2 id="the-pure-python-package-and-its-compute-backends">The pure-Python package and its compute backends<a class="headerlink" href="#the-pure-python-package-and-its-compute-backends" title="Anchor link to this section">&para;</a></h2>
-<p>Separately from the wheel, the pure-Python <code>pip install mokume</code> package carries a
+<p>Plotting and reporting render kernel tables without re-running the
+kernel-supported computation. TissueMap performs its documented downstream
+analysis, while the <code>missforest</code> imputer is an explicit fallback for an operation
+the kernel does not provide (see
+<a href="../rust-wheel/">Rust Wheel</a>, <a href="../periphery/">Python Periphery</a>, and
+<a href="../periphery/analysis-fallbacks/">Analysis Fallbacks</a>).</p>
+<p>piBAQ is a deliberate cross-language path within the base wheel: Python reads the
+installed pyOpenMS <code>ProteaseDB</code> and digests the FASTA, PyO3 transfers the complete
+protein-to-theoretical-peptide map, and Rust performs family discovery,
+shared-peptide allocation, denominators, TPA, normalization, and output. Each
+run at the default <code>debug</code> level (or explicit <code>info</code>) logs the pyOpenMS version,
+canonical enzyme, catalog SHA-256, length bounds, and missed-cleavage count so
+the runtime digest is traceable.</p>
+<h2 id="the-mokume-plugin">The Mokume Plugin<a class="headerlink" href="#the-mokume-plugin" title="Anchor link to this section">&para;</a></h2>
+<p>Agentic recommendation is shipped as an installable host plugin under
+<code>plugins/mokume/</code>, not as a model client inside either computation package. The
+bundle contains one skill, automatic local MCP configuration, and a committed
+knowledge snapshot. Its MCP process is provided by <code>mokume[agentic]</code> in the
+default Rust-backed wheel.</p>
+<p>The host model reads the skill and calls <code>mokume.inspect_dataset</code> with a
+two-condition contrast to receive a contrast-scoped typed profile, deterministic
+diagnostics, compatible evidence, and a bounded generation contract. It returns
+an exact recommendation block to
+<code>mokume.evaluate_recommendation</code>, which validates the block before running the
+Rust matrix APIs. Mokume never receives the host's model API key.</p>
+<p>The scientific boundary is explicit: ground-truth datasets may be ranked with
+Score A; unlabelled datasets remain exploratory and have no winner. The plugin
+starts from a protein matrix, so upstream quantification is provenance rather
+than an executable search axis.</p>
+<h2 id="the-separate-pure-python-package">The separate pure-Python package<a class="headerlink" href="#the-separate-pure-python-package" title="Anchor link to this section">&para;</a></h2>
+<p>Separately from the wheel, the pure-Python <code>pip install mokume-py</code> package carries a
 full OOP compute pipeline: a <code>QpxDataset</code> container, a <code>PluginRegistry</code> of
 quantification / normalization / imputation / harmonization methods, and
-<code>run_pipeline(config) -&gt; QpxDataset</code>. By default it computes in pure Python; set
-<code>RuntimeConfig.backend = "rust"</code> to route the supported features-to-proteins
-configuration through the compiled <code>mokume._mokume</code> kernel instead (it raises a
-clear error when the kernel is not installed).</p>
-<p>The hybrid profile has an explicit stage boundary:</p>
-<table>
-<thead>
-<tr>
-<th>Configuration area</th>
-<th>Effective owner</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Parquet and FASTA input, filtering, run/sample normalization, protein quantification, and peptide/ion exports</td>
-<td>Rust kernel</td>
-</tr>
-<tr>
-<td>QPX metadata, coverage filtering, IRS, imputation, batch correction, differential expression, plots, reports, and AnnData export</td>
-<td>Python postprocessing</td>
-</tr>
-<tr>
-<td>SDRF context, quantification-method selection, and ratio reference-sample selection</td>
-<td>Shared across the boundary</td>
-</tr>
-<tr>
-<td>Backend selection</td>
-<td>Python hybrid adapter</td>
-</tr>
-</tbody>
-</table>
-<p><code>duckdb_memory</code> and <code>duckdb_threads</code> are rejected for this profile because the
-in-process kernel cannot enforce their documented per-run resource semantics.
-Ion alignment accepts only <code>None</code> or <code>"none"</code>. Other method-specific invalid
-combinations are forwarded so the Rust kernel retains its detailed validation
-error. These checks happen before the extension is invoked or temporary output
-is allocated.</p>
+<code>run_pipeline(config) -&gt; QpxDataset</code>. This entry point always uses the
+pure-Python implementation. <code>RuntimeConfig</code> controls its DuckDB memory and
+thread hints; it does not select another computation implementation.</p>
+<p>Rust computation is reached through the default <code>mokume</code> wheel. The two
+distributions both provide the <code>mokume</code> import
+package, so they must not be installed together in one environment. Select the
+implementation at installation time rather than routing one distribution into
+the other at runtime.</p>
 <p>Because the pure-Python package has its <strong>own</strong> implementation of the compute —
-distinct from the Rust kernel — a pure-Python result and a Rust-backend result
-agree <strong>within floating-point tolerance</strong> (the kernel computes in <code>f32</code>), not
-bit-for-bit as the wheel's wrappers do against the binary. This equivalence is
-asserted for <code>features2proteins</code> in <code>rust/tests/test_rust_python_equivalence.py</code>.
-The API is documented under <a href="../reference/python-api-package/">Python API (package)</a>.</p>
+distinct from the Rust kernel — covered overlapping paths agree within their
+documented floating-point tolerance, not bit-for-bit as the wheel's wrappers do
+within the Rust distribution. Selected <code>features2proteins</code> paths are checked against
+frozen compatibility goldens in <code>rust/tests/test_rust_python_equivalence.py</code>.
+The API is documented under
+<a href="../reference/python-api-package/">Python API (package)</a>.</p>
+<p>The Rust kernel is the <strong>leading</strong> implementation of this shared computation and
+the pure-Python package is maintained as added value; which side owns new work,
+and the per-command support table, are set out in
+<a href="../maintenance-scope/">Maintenance scope</a>.</p>
 
 
 
@@ -2066,13 +2195,13 @@ The API is documented under <a href="../reference/python-api-package/">Python AP
         
         
           
-          <a href="../cli-vs-wheel/" class="md-footer__link md-footer__link--next" aria-label="Next: CLI vs Wheel">
+          <a href="../rust-wheel/" class="md-footer__link md-footer__link--next" aria-label="Next: Rust Wheel">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                CLI vs Wheel
+                Rust Wheel
               </div>
             </div>
             <div class="md-footer__button md-icon">

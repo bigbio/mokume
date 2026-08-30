@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli-vs-wheel/" class="md-nav__link">
+      <a href="../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1000,6 +1030,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1169,6 +1203,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1187,6 +1277,8 @@
       
         
           
+        
+      
         
       
         
@@ -1251,6 +1343,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1788,28 +1908,28 @@
 
 
 <h1 id="examples">Examples<a class="headerlink" href="#examples" title="Anchor link to this section">&para;</a></h1>
-<p>Worked, copy-pasteable examples for each kind of analysis mokume supports. Every
-command and snippet on these pages is run against the small fixtures shipped in
+<p>Worked, copy-pasteable examples for each kind of analysis mokume supports. Most
+commands and snippets on these pages run against the small fixtures shipped in
 the repository (<code>python/tests/example/</code>), so you can reproduce them without your
 own data:</p>
 <ul>
 <li><code>feature_wide.parquet</code> — a 500-feature QPX slice from PXD020192 (10 samples).</li>
 <li><code>PXD020192.sdrf.tsv</code> — the matching SDRF metadata.</li>
-<li><code>PXD017834-peptides.csv</code> — a normalized peptide table used for iBAQ.</li>
+<li><code>PXD017834-peptides.csv</code> — a normalized peptide table used for piBAQ.</li>
 <li><code>Homo-sapiens-uniprot-reviewed-contaminants-decoy-202210.fasta</code> — a human
-  UniProt FASTA used as the iBAQ digestion reference.</li>
+  UniProt FASTA used as the piBAQ digestion reference.</li>
 </ul>
 <p>Each page uses the same three tabs you saw in the <a href="../quickstart/">Quick Start</a>:</p>
 <ul>
-<li><strong>CLI</strong> — the <code>mokume</code> kernel binary (or <code>mokume.run([...])</code> from the wheel).</li>
-<li><strong>Python (wheel)</strong> — the thin keyword wrappers exposed by <code>pip install mokume-rs</code>
+<li><strong>CLI</strong> — the <code>mokume</code> console command installed by the wheel.</li>
+<li><strong>Python (wheel)</strong> — the thin keyword wrappers exposed by <code>pip install mokume</code>
   (<code>mokume.features2proteins(...)</code>, <code>mokume.peptides2protein(...)</code>). These call
   the same Rust kernel in-process.</li>
-<li><strong>Python (package)</strong> — the pure-Python <code>mokume</code> package (<code>pip install mokume</code>),
-  which exposes the object-oriented <code>PipelineConfig</code> / <code>QpxDataset</code> API plus the
-  <code>mokume.analysis</code> and <code>mokume.agentic</code> modules.</li>
+<li><strong>Python (package)</strong> — the pure-Python <code>mokume-py</code> package (<code>pip install mokume-py</code>),
+  which exposes the object-oriented <code>PipelineConfig</code> / <code>QpxDataset</code> API and
+  <code>mokume.analysis</code>.</li>
 </ul>
-<p>See <a href="../cli-vs-wheel/">CLI vs Wheel</a> for the full picture of which surface does
+<p>See <a href="../rust-wheel/">Rust Wheel</a> for the full picture of which surface does
 what.</p>
 <h2 id="analysis-pages">Analysis pages<a class="headerlink" href="#analysis-pages" title="Anchor link to this section">&para;</a></h2>
 <h3 id="quantification"><a href="quantification/">Quantification</a><a class="headerlink" href="#quantification" title="Anchor link to this section">&para;</a></h3>
@@ -1817,17 +1937,26 @@ what.</p>
 Covers all three surfaces and how the quant method is selected.</p>
 <h3 id="differential-expression"><a href="differential-expression/">Differential Expression</a><a class="headerlink" href="#differential-expression" title="Anchor link to this section">&para;</a></h3>
 <p>Test proteins for abundance changes between conditions. Covers the kernel's
-<code>--de</code> flags, the Python <code>DifferentialExpression</code> class and the standalone
-<code>run_*</code> functions, and the LLM-free agentic optimizer.</p>
+<code>--de-contrast</code> flags, the Python <code>DifferentialExpression</code> class, standalone <code>run_*</code>
+functions, and the separate Mokume Plugin workflow.</p>
 <h3 id="absolute-expression"><a href="absolute-expression/">Absolute Expression</a><a class="headerlink" href="#absolute-expression" title="Anchor link to this section">&para;</a></h3>
-<p>Estimate per-protein copy numbers and concentrations with iBAQ, TPA, and the
+<p>Estimate per-protein copy numbers and concentrations with piBAQ, TPA, and the
 ProteomicRuler. Explains every computed column
-(<code>Ibaq</code>, <code>IbaqNorm</code>, <code>TPA</code>, <code>CopyNumber</code>, <code>EvidenceLevel</code>, ...).</p>
+(<code>PiBAQ</code>, <code>PiBAQNorm</code>, <code>TPA</code>, <code>CopyNumber</code>, <code>EvidenceLevel</code>, ...).</p>
 <h3 id="full-pipeline"><a href="pipeline/">Full Pipeline</a><a class="headerlink" href="#full-pipeline" title="Anchor link to this section">&para;</a></h3>
 <p>Wire quantification, normalization, imputation, batch correction, IRS, and DE
 into one <code>PipelineConfig</code> and run it through <code>run_pipeline</code> /
 <code>QuantificationPipeline.run_dataset</code>. Shows the <code>QpxDataset</code> result API and how
-to switch to the Rust backend.</p>
+to choose between the separate Python and Rust distributions.</p>
+<h3 id="cptac-ucec-total-proteome"><a href="cptac-ucec/">CPTAC UCEC total proteome</a><a class="headerlink" href="#cptac-ucec-total-proteome" title="Anchor link to this section">&para;</a></h3>
+<p>Run a full PDC000125 analysis on 4.13 million QPX feature rows: construct an
+API-validated SDRF, quantify TMT reporter abundance, apply global-median and IRS
+normalization with condition-wise coverage filtering, run limma, and reproduce
+the three six-panel README composites.</p>
+<h3 id="pxd030304-cancer-cell-line-atlas"><a href="pxd030304-cell-lines/">PXD030304 cancer cell-line atlas</a><a class="headerlink" href="#pxd030304-cancer-cell-line-atlas" title="Anchor link to this section">&para;</a></h3>
+<p>Run native Rust DirectLFQ on 178.45 million DIA-NN QPX feature rows from 949
+cell lines, then reproduce the README overview and tissue-biology composites
+from the written matrix.</p>
 
 
 

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A proteomics quantification toolkit: a Rust compute kernel with a Python periphery">
+        <meta name="description" content="A Rust-first proteomics quantification toolkit with Rust and pure-Python implementations">
       
       
         <meta name="author" content="BigBio Team">
@@ -516,6 +516,8 @@
       
         
       
+        
+      
     
     
     
@@ -663,14 +665,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli-vs-wheel/" class="md-nav__link">
+      <a href="../../rust-wheel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI vs Wheel
+    Rust Wheel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Scope
   
 
     
@@ -1000,6 +1030,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1152,10 +1186,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#a-kernel-de-via-features2proteins-de" class="md-nav__link">
+  <a href="#a-kernel-de-via-mokume-quantify-features2proteins" class="md-nav__link">
     <span class="md-ellipsis">
       
-        (a) Kernel DE via features2proteins --de
+        (a) Kernel DE via mokume quantify features2proteins
       
     </span>
   </a>
@@ -1174,10 +1208,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#c-agentic-optimization-no-llm-required" class="md-nav__link">
+  <a href="#c-mokume-plugin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        (c) Agentic optimization (no LLM required)
+        (c) Mokume Plugin
       
     </span>
   </a>
@@ -1249,6 +1283,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cptac-ucec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPTAC UCEC Total Proteome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pxd030304-cell-lines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PXD030304 Cancer Cell-Line Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1267,6 +1357,8 @@
       
         
           
+        
+      
         
       
         
@@ -1331,6 +1423,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/agentic-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mokume Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1872,13 +1992,13 @@
 DE methods — <code>limma</code>, <code>deqms</code>, <code>proda</code>, <code>limrots</code>, <code>rots</code>, a top-k <code>ensemble</code>, and
 <code>auto</code> (pick a method from the data shape) — reachable from three surfaces:</p>
 <ul>
-<li>the kernel's <code>features2proteins --de ...</code> flags (single-sourced Rust);</li>
+<li>the kernel's <code>mokume quantify features2proteins</code> DE flags (single-sourced Rust);</li>
 <li>the pure-Python <code>mokume.analysis.DifferentialExpression</code> class and the
   standalone <code>run_deqms</code> / <code>run_limma</code> / <code>run_limrots</code> / <code>run_proda</code> functions;</li>
-<li>the LLM-free agentic optimizer, which searches preprocessing + DE choices for
-  you.</li>
+<li>the Mokume Plugin, which binds traceable evidence and evaluates bounded
+  preprocessing + DE candidates through the Rust kernel.</li>
 </ul>
-<h2 id="a-kernel-de-via-features2proteins-de">(a) Kernel DE via <code>features2proteins --de</code><a class="headerlink" href="#a-kernel-de-via-features2proteins-de" title="Anchor link to this section">&para;</a></h2>
+<h2 id="a-kernel-de-via-mokume-quantify-features2proteins">(a) Kernel DE via <code>mokume quantify features2proteins</code><a class="headerlink" href="#a-kernel-de-via-mokume-quantify-features2proteins" title="Anchor link to this section">&para;</a></h2>
 <p>The kernel quantifies, then runs DE per contrast and writes one CSV per contrast
 (named from <code>--de-output</code>). A contrast is written <code>GroupA vs GroupB</code> (or
 <code>GroupA-GroupB</code>); the group names must be <strong>conditions that appear in your SDRF</strong>.</p>
@@ -1886,22 +2006,22 @@ DE methods — <code>limma</code>, <code>deqms</code>, <code>proda</code>, <code
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># One inline contrast, limma, one result CSV per contrast</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts<span class="w"> </span><span class="s2">&quot;NASH vs HL&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span>--de-contrast<span class="w"> </span><span class="s2">"NASH"</span><span class="w"> </span><span class="s2">"HL"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span>--de-method<span class="w"> </span>limma<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span>--de-fdr-method<span class="w"> </span>bh<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># Many contrasts from a TSV file (columns: group1&lt;TAB&gt;group2)</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>mokume<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span>--de<span class="w"> </span>--de-contrasts-file<span class="w"> </span>contrasts.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span>--de-contrast-file<span class="w"> </span>contrasts.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span>--de-method<span class="w"> </span>ensemble<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span>--de-output<span class="w"> </span>de_results.csv
 </span></code></pre></div>
@@ -1915,29 +2035,27 @@ header columns (each <code>&lt;TAB&gt;</code> below is a literal tab character):
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># de_contrasts takes a list; each entry is &quot;GroupA vs GroupB&quot;.</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># de_contrast takes a list of two-item condition pairs.</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">de</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="n">de_contrasts</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;NASH vs HL&quot;</span><span class="p">],</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="n">de_method</span><span class="o">=</span><span class="s2">&quot;limma&quot;</span><span class="p">,</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">de_fdr_method</span><span class="o">=</span><span class="s2">&quot;bh&quot;</span><span class="p">,</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="n">de_output</span><span class="o">=</span><span class="s2">&quot;de_results.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">)</span>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1"># Or point at a group1/group2 TSV instead of inline contrasts.</span>
-</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
-</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;features.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">&quot;proteins.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;experiment.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    <span class="n">de</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="n">de_contrasts_file</span><span class="o">=</span><span class="s2">&quot;contrasts.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>    <span class="n">de_method</span><span class="o">=</span><span class="s2">&quot;ensemble&quot;</span><span class="p">,</span>
-</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>    <span class="n">de_output</span><span class="o">=</span><span class="s2">&quot;de_results.csv&quot;</span><span class="p">,</span>
-</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="p">)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">quant_method</span><span class="o">=</span><span class="s2">"maxlfq"</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">de_contrast</span><span class="o">=</span><span class="p">[(</span><span class="s2">"NASH"</span><span class="p">,</span> <span class="s2">"HL"</span><span class="p">)],</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="n">de_method</span><span class="o">=</span><span class="s2">"limma"</span><span class="p">,</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="n">de_fdr_method</span><span class="o">=</span><span class="s2">"bh"</span><span class="p">,</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">de_output</span><span class="o">=</span><span class="s2">"de_results.csv"</span><span class="p">,</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="p">)</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># Or point at a group1/group2 TSV instead of inline contrasts.</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="n">mokume</span><span class="o">.</span><span class="n">features2proteins</span><span class="p">(</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    <span class="n">parquet</span><span class="o">=</span><span class="s2">"features.parquet"</span><span class="p">,</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    <span class="n">de_contrast_file</span><span class="o">=</span><span class="s2">"contrasts.tsv"</span><span class="p">,</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    <span class="n">de_method</span><span class="o">=</span><span class="s2">"ensemble"</span><span class="p">,</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="n">de_output</span><span class="o">=</span><span class="s2">"de_results.csv"</span><span class="p">,</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -1958,7 +2076,7 @@ columns are method-specific. See
 <a href="../../reference/computed-values/#differential-expression-columns">Computed Values</a>
 for the full column reference.</p>
 <h2 id="b-python-differentialexpression-and-the-run_-functions">(b) Python <code>DifferentialExpression</code> and the <code>run_*</code> functions<a class="headerlink" href="#b-python-differentialexpression-and-the-run_-functions" title="Anchor link to this section">&para;</a></h2>
-<p>The pure-Python package (<code>pip install mokume</code>) exposes DE directly on an
+<p>The pure-Python package (<code>pip install mokume-py</code>) exposes DE directly on an
 in-memory protein matrix, so you control the sample-to-condition mapping. This
 runs fully against the fixture.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Python (package)</label></div>
@@ -1973,15 +2091,15 @@ runs fully against the fixture.</p>
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">)</span>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">DifferentialExpression</span>
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">)</span>
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
 </span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># 1. Quantify to a wide protein matrix (ProteinName + one column per sample).</span>
 </span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
 </span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>        <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;python/tests/example/feature_wide.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>        <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;python/tests/example/PXD020192.sdrf.tsv&quot;</span><span class="p">,</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>        <span class="n">parquet</span><span class="o">=</span><span class="s2">"python/tests/example/feature_wide.parquet"</span><span class="p">,</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>        <span class="n">sdrf</span><span class="o">=</span><span class="s2">"python/tests/example/PXD020192.sdrf.tsv"</span><span class="p">,</span>
 </span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    <span class="p">),</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">),</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">"maxlfq"</span><span class="p">),</span>
 </span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="p">)</span>
 </span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="n">proteins</span> <span class="o">=</span> <span class="n">QuantificationPipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>
@@ -1990,14 +2108,14 @@ runs fully against the fixture.</p>
 </span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="n">samples</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">proteins</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="n">proteins</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
 </span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="n">half</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
 </span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="n">sample_to_condition</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>    <span class="n">s</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;groupA&quot;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">half</span> <span class="k">else</span> <span class="s2">&quot;groupB&quot;</span><span class="p">)</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>    <span class="n">s</span><span class="p">:</span> <span class="p">(</span><span class="s2">"groupA"</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">half</span> <span class="k">else</span> <span class="s2">"groupB"</span><span class="p">)</span>
 </span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
 </span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="p">}</span>
 </span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>
 </span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="c1"># 3. Run a single contrast with the method you want.</span>
-</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="n">de</span> <span class="o">=</span> <span class="n">DifferentialExpression</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;limma&quot;</span><span class="p">)</span>
-</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="n">result</span> <span class="o">=</span> <span class="n">de</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">proteins</span><span class="p">,</span> <span class="n">sample_to_condition</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;groupA&quot;</span><span class="p">,</span> <span class="s2">&quot;groupB&quot;</span><span class="p">))</span>
-</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[[</span><span class="s2">&quot;ProteinName&quot;</span><span class="p">,</span> <span class="s2">&quot;log2FC&quot;</span><span class="p">,</span> <span class="s2">&quot;pvalue&quot;</span><span class="p">,</span> <span class="s2">&quot;adj_pvalue&quot;</span><span class="p">,</span> <span class="s2">&quot;significance&quot;</span><span class="p">]])</span>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="n">de</span> <span class="o">=</span> <span class="n">DifferentialExpression</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">"limma"</span><span class="p">)</span>
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="n">result</span> <span class="o">=</span> <span class="n">de</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">proteins</span><span class="p">,</span> <span class="n">sample_to_condition</span><span class="p">,</span> <span class="p">(</span><span class="s2">"groupA"</span><span class="p">,</span> <span class="s2">"groupB"</span><span class="p">))</span>
+</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[[</span><span class="s2">"ProteinName"</span><span class="p">,</span> <span class="s2">"log2FC"</span><span class="p">,</span> <span class="s2">"pvalue"</span><span class="p">,</span> <span class="s2">"adj_pvalue"</span><span class="p">,</span> <span class="s2">"significance"</span><span class="p">]])</span>
 </span></code></pre></div>
 <p>On the fixture only one protein is fully observed in both groups, so the
 result has a single row:</p>
@@ -2026,18 +2144,18 @@ sample lists:</p>
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">log2_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">proteins</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">protein_col</span><span class="p">)[</span><span class="n">samples</span><span class="p">])</span>
 </span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>
 </span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="c1"># run_limma / run_proda take the condition names positionally:</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="n">limma_res</span> <span class="o">=</span> <span class="n">run_limma</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="s2">&quot;groupA&quot;</span><span class="p">,</span> <span class="s2">&quot;groupB&quot;</span><span class="p">)</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="n">proda_res</span> <span class="o">=</span> <span class="n">run_proda</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="s2">&quot;groupA&quot;</span><span class="p">,</span> <span class="s2">&quot;groupB&quot;</span><span class="p">)</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="n">limma_res</span> <span class="o">=</span> <span class="n">run_limma</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="s2">"groupA"</span><span class="p">,</span> <span class="s2">"groupB"</span><span class="p">)</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="n">proda_res</span> <span class="o">=</span> <span class="n">run_proda</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="s2">"groupA"</span><span class="p">,</span> <span class="s2">"groupB"</span><span class="p">)</span>
 </span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>
 </span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="c1"># run_deqms / run_limrots take the contrast as a (name_a, name_b) tuple:</span>
-</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="n">deqms_res</span> <span class="o">=</span> <span class="n">run_deqms</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;groupA&quot;</span><span class="p">,</span> <span class="s2">&quot;groupB&quot;</span><span class="p">))</span>
-</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="n">limrots_res</span> <span class="o">=</span> <span class="n">run_limrots</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;groupA&quot;</span><span class="p">,</span> <span class="s2">&quot;groupB&quot;</span><span class="p">))</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="n">deqms_res</span> <span class="o">=</span> <span class="n">run_deqms</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="p">(</span><span class="s2">"groupA"</span><span class="p">,</span> <span class="s2">"groupB"</span><span class="p">))</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="n">limrots_res</span> <span class="o">=</span> <span class="n">run_limrots</span><span class="p">(</span><span class="n">log2_matrix</span><span class="p">,</span> <span class="n">samples_a</span><span class="p">,</span> <span class="n">samples_b</span><span class="p">,</span> <span class="p">(</span><span class="s2">"groupA"</span><span class="p">,</span> <span class="s2">"groupB"</span><span class="p">))</span>
 </span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>
 </span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">res</span> <span class="ow">in</span> <span class="p">[</span>
-</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>    <span class="p">(</span><span class="s2">&quot;limma&quot;</span><span class="p">,</span> <span class="n">limma_res</span><span class="p">),</span>
-</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>    <span class="p">(</span><span class="s2">&quot;proda&quot;</span><span class="p">,</span> <span class="n">proda_res</span><span class="p">),</span>
-</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>    <span class="p">(</span><span class="s2">&quot;deqms&quot;</span><span class="p">,</span> <span class="n">deqms_res</span><span class="p">),</span>
-</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>    <span class="p">(</span><span class="s2">&quot;limrots&quot;</span><span class="p">,</span> <span class="n">limrots_res</span><span class="p">),</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>    <span class="p">(</span><span class="s2">"limma"</span><span class="p">,</span> <span class="n">limma_res</span><span class="p">),</span>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>    <span class="p">(</span><span class="s2">"proda"</span><span class="p">,</span> <span class="n">proda_res</span><span class="p">),</span>
+</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>    <span class="p">(</span><span class="s2">"deqms"</span><span class="p">,</span> <span class="n">deqms_res</span><span class="p">),</span>
+</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>    <span class="p">(</span><span class="s2">"limrots"</span><span class="p">,</span> <span class="n">limrots_res</span><span class="p">),</span>
 </span><span id="__span-5-25"><a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="p">]:</span>
 </span><span id="__span-5-26"><a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </span></code></pre></div>
@@ -2055,73 +2173,20 @@ of their R counterparts, built on numpy/scipy. They never call R or rpy2 — the
 is no runtime R dependency and no R-to-Python fallback; the Python path always
 runs.</p>
 </div>
-<h2 id="c-agentic-optimization-no-llm-required">(c) Agentic optimization (no LLM required)<a class="headerlink" href="#c-agentic-optimization-no-llm-required" title="Anchor link to this section">&para;</a></h2>
-<p>The <code>mokume.agentic</code> optimizer searches normalization, imputation, and DE choices
-for each contrast and reports the best-scoring configuration. Set
-<code>use_llm=False</code> to run a purely rule-based search with no API key.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="4:1"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Python (package)</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.features_to_proteins</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantificationPipeline</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.pipeline.config</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">PipelineConfig</span><span class="p">,</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">InputConfig</span><span class="p">,</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">QuantificationConfig</span><span class="p">,</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="p">)</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.agentic.optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimize</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.agentic.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">AgenticConfig</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">config</span> <span class="o">=</span> <span class="n">PipelineConfig</span><span class="p">(</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="nb">input</span><span class="o">=</span><span class="n">InputConfig</span><span class="p">(</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>        <span class="n">parquet</span><span class="o">=</span><span class="s2">&quot;python/tests/example/feature_wide.parquet&quot;</span><span class="p">,</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>        <span class="n">sdrf</span><span class="o">=</span><span class="s2">&quot;python/tests/example/PXD020192.sdrf.tsv&quot;</span><span class="p">,</span>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    <span class="p">),</span>
-</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    <span class="n">quantification</span><span class="o">=</span><span class="n">QuantificationConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;maxlfq&quot;</span><span class="p">),</span>
-</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="p">)</span>
-</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="n">proteins</span> <span class="o">=</span> <span class="n">QuantificationPipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>
-</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="n">samples</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">proteins</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="n">proteins</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="n">half</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="n">sample_to_condition</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>    <span class="n">s</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;groupA&quot;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">half</span> <span class="k">else</span> <span class="s2">&quot;groupB&quot;</span><span class="p">)</span>
-</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
-</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="p">}</span>
-</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a>
-</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="n">agentic</span> <span class="o">=</span> <span class="n">AgenticConfig</span><span class="p">(</span>
-</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a>    <span class="n">use_llm</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>                    <span class="c1"># rule-based search, no API key</span>
-</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a>    <span class="n">contrasts</span><span class="o">=</span><span class="p">[(</span><span class="s2">&quot;groupA&quot;</span><span class="p">,</span> <span class="s2">&quot;groupB&quot;</span><span class="p">)],</span>
-</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a>    <span class="n">max_rounds</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a>    <span class="n">max_experiments</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-</span><span id="__span-6-34"><a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./optimization&quot;</span><span class="p">,</span>
-</span><span id="__span-6-35"><a id="__codelineno-6-35" name="__codelineno-6-35" href="#__codelineno-6-35"></a><span class="p">)</span>
-</span><span id="__span-6-36"><a id="__codelineno-6-36" name="__codelineno-6-36" href="#__codelineno-6-36"></a><span class="n">states</span> <span class="o">=</span> <span class="n">optimize</span><span class="p">(</span><span class="n">proteins</span><span class="p">,</span> <span class="n">sample_to_condition</span><span class="p">,</span> <span class="n">agentic</span><span class="p">)</span>
-</span><span id="__span-6-37"><a id="__codelineno-6-37" name="__codelineno-6-37" href="#__codelineno-6-37"></a>
-</span><span id="__span-6-38"><a id="__codelineno-6-38" name="__codelineno-6-38" href="#__codelineno-6-38"></a><span class="c1"># states is keyed by &quot;&lt;A&gt;_vs_&lt;B&gt;&quot;; each value is an AgenticState.</span>
-</span><span id="__span-6-39"><a id="__codelineno-6-39" name="__codelineno-6-39" href="#__codelineno-6-39"></a><span class="n">state</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s2">&quot;groupA_vs_groupB&quot;</span><span class="p">]</span>
-</span><span id="__span-6-40"><a id="__codelineno-6-40" name="__codelineno-6-40" href="#__codelineno-6-40"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;best score:&quot;</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">best_score</span><span class="p">)</span>
-</span><span id="__span-6-41"><a id="__codelineno-6-41" name="__codelineno-6-41" href="#__codelineno-6-41"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;experiments run:&quot;</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">total_experiments</span><span class="p">)</span>
-</span><span id="__span-6-42"><a id="__codelineno-6-42" name="__codelineno-6-42" href="#__codelineno-6-42"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;converged:&quot;</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">converged</span><span class="p">)</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<p>If you already have a <code>QpxDataset</code> (see the <a href="../pipeline/">Full Pipeline</a> page),
-call <code>optimize_from_dataset</code> instead — it pulls the wide protein matrix off the
-dataset and delegates to <code>optimize</code>:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Python (package)</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.agentic.optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimize_from_dataset</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">QuantificationPipeline</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">run_dataset</span><span class="p">()</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">states</span> <span class="o">=</span> <span class="n">optimize_from_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">sample_to_condition</span><span class="p">,</span> <span class="n">agentic</span><span class="p">)</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
+<h2 id="c-mokume-plugin">(c) Mokume Plugin<a class="headerlink" href="#c-mokume-plugin" title="Anchor link to this section">&para;</a></h2>
+<p>Install <code>mokume[agentic]</code> and the <a href="../../user-guide/agentic-plugin/">Mokume Plugin</a>,
+then ask the host to use <code>$mokume:analyze-proteomics</code>. Provide absolute paths
+for the protein matrix, SDRF, and output directory plus the contrast and known
+acquisition metadata.</p>
+<p>The plugin first calls <code>mokume.inspect_dataset</code> with the requested two-condition
+contrast. It returns a typed profile scoped to those conditions, policy
+diagnostics, compatible benchmark evidence, and a candidate contract.
+The host then sends an exact recommendation block to
+<code>mokume.evaluate_recommendation</code>, which validates it and runs the Rust-backed
+normalization, imputation, and DE methods.</p>
+<p>Supply a ground-truth protein list for a spike-in benchmark to enable Score A
+ranking. Without ground truth, the result is exploratory and unranked: no
+candidate is labelled best.</p>
 
 
 

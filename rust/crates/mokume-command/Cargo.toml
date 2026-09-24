@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 clap = { workspace = true }
 csv = "1.4.0"
-hdf5-metno = { version = "0.14.0", features = ["static"] }
+hdf5-metno = { version = "0.15.0", features = ["static"] }
 ndarray = "0.17"
 mokume-core = { path = "../mokume-core" }
 mokume-io = { path = "../mokume-io" }

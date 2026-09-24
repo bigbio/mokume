@@ -11,9 +11,9 @@ description = "Golden pipeline tests for mokume"
 workspace = true
 
 [dependencies]
-arrow = "59.0.0"
+arrow = "60.0.0"
 csv = "1.4.0"
 mokume-core = { path = "../mokume-core" }
 mokume-pipeline = { path = "../mokume-pipeline" }
-parquet = "59.0.0"
+parquet = "60.0.0"
 tempfile = "3"

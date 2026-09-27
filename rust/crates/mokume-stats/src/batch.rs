@@ -6,10 +6,16 @@
 //! (`detection`) and the iterative PCA + HDBSCAN outlier pass (`outlier`,
 //! backed by `pca` and `hdbscan`) cover the remaining detection-side ports
 //! of the same Python module.
+//!
+//! [`lim`] is the learned integration model (LIM, linear variant) for
+//! multi-dataset collections: per-dataset technical offsets from protein
+//! features plus bridge-line residuals, TMT plex effects and sample loadings,
+//! fitted jointly with shared per-line biology (`correct-batches --method lim`).
 
 mod combat;
 mod detection;
 mod hdbscan;
+pub mod lim;
 mod outlier;
 mod pca;
 

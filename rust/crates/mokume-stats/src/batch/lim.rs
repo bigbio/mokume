@@ -55,7 +55,7 @@ use mokume_core::{MokumeError, Result};
 use rayon::prelude::*;
 
 pub use features::{build_design, sequence_features, SequenceFeatures, FEATURE_NAMES};
-pub use plex::{jaccard_plex_groups, NO_PLEX};
+pub use plex::{attach_to_nearest_plex, jaccard_plex_groups, NO_PLEX};
 pub use rng::NumpyRandomState;
 
 /// Genes per work block for row reductions (fixed, so sums are deterministic).
@@ -136,6 +136,9 @@ pub struct LimParams {
     pub plex_min_profiles: usize,
     pub plex_min_assigned: f64,
     pub plex_min_groups: usize,
+    /// Explicit plexes: attach profiles without a plex id to the nearest
+    /// explicit plex of their dataset by missingness (Jaccard <= `plex_cut`).
+    pub plex_attach_unlabelled: bool,
     /// Early stop: after `min_sweeps`, stop when the monitor MSE changed less
     /// than `converge_tol` over the last 3 sweeps.
     pub min_sweeps: usize,
@@ -167,6 +170,7 @@ impl Default for LimParams {
             plex_min_profiles: 20,
             plex_min_assigned: 0.5,
             plex_min_groups: 5,
+            plex_attach_unlabelled: true,
             min_sweeps: 8,
             converge_tol: 2e-4,
         }
@@ -452,6 +456,21 @@ fn assign_plexes(
                     for &pos in *m {
                         labels[pos] = kk as i64;
                     }
+                }
+                if params.plex_attach_unlabelled && labels.contains(&NO_PLEX) {
+                    let observed: Vec<Vec<bool>> = rows
+                        .iter()
+                        .map(|&i| {
+                            (0..g_n)
+                                .map(|g| data.values[i * g_n + g].is_finite())
+                                .collect()
+                        })
+                        .collect();
+                    let unl = labels.iter().filter(|&&l| l == NO_PLEX).count();
+                    let att = attach_to_nearest_plex(&observed, &mut labels, params.plex_cut);
+                    info.push(format!(
+                        "{name}: {att}/{unl} profiles without a plex id attached to the nearest plex by missingness"
+                    ));
                 }
                 labels
             }
@@ -1168,9 +1187,9 @@ fn update_plex(lay: &Layout, abz: &[f64], y: &[f64], obs: &[u8], theta: &[f64], 
                     }
                 }
                 let mean = swp / sw.max(1e-12);
-                for kk in 0..k {
-                    if lay.plex_ds[kk] == d {
-                        p_g[kk] -= mean;
+                for (pk, &pd) in p_g.iter_mut().zip(&lay.plex_ds) {
+                    if pd == d {
+                        *pk -= mean;
                     }
                 }
             }
@@ -1333,8 +1352,8 @@ fn update_noise(
             .map(|s| st.sig_b[s])
             .collect();
         if let (Some(ma), Some(mb)) = (lower_median(&mut a), lower_median(&mut b)) {
-            for s in 0..s_n {
-                if !ds_has_bridge[s] {
+            for (s, &has) in ds_has_bridge.iter().enumerate() {
+                if !has {
                     st.sig2_s[s] = ma;
                     st.sig_b[s] = mb;
                 }
@@ -1391,6 +1410,7 @@ fn output_values(
     }
     let mut plans = Vec::new();
     let mut cf = vec![false; s_n];
+    #[allow(clippy::needless_range_loop)] // s indexes several per-dataset arrays
     for s in 0..s_n {
         if !lay.bridged[s] || lay.nb[s] >= params.cf_max_nb {
             continue;

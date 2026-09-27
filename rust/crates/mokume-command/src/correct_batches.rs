@@ -34,6 +34,7 @@ use std::path::{Path, PathBuf};
 use mokume_core::{MokumeError, Result};
 use mokume_stats::batch::{combat_parametric, ComBatParams};
 
+use crate::other_args::CorrectBatchesMethod;
 use crate::CorrectBatchesArgs;
 
 /// A single parsed long-format input row, retaining every column so the output
@@ -53,6 +54,10 @@ struct LongTable {
 
 /// Entry point for the `correct-batches` command.
 pub fn run_correct_batches(args: &CorrectBatchesArgs) -> Result<()> {
+    if args.method == CorrectBatchesMethod::Lim {
+        return crate::correct_batches_lim::run_lim(args);
+    }
+    crate::correct_batches_lim::reject_lim_only_options(&args.lim)?;
     let separator = single_byte(&args.sep, "sep")?;
     let comment = optional_single_byte(&args.comment, "comment")?;
     let paths = matched_input_files(&args.input, &args.pattern, &args.output)?;
@@ -934,6 +939,8 @@ mod tests {
             pibaq_raw_column: "PiBAQ".to_string(),
             pibaq_corrected_column: "PiBAQBec".to_string(),
             export_anndata: false,
+            method: CorrectBatchesMethod::Combat,
+            lim: crate::correct_batches_lim::default_lim_args(),
         }
     }
 

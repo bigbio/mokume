@@ -101,6 +101,63 @@ pub fn jaccard_plex_groups(observed: &[Vec<bool>], t: f64, min_size: usize) -> V
     label_of
 }
 
+/// Attach unlabelled rows ([`NO_PLEX`]) to the labelled plex whose members are
+/// closest in average Jaccard distance of the observed-gene sets, when that
+/// distance is `<= t` (the average-linkage criterion used for inference).
+///
+/// Used with explicit plex ids for profiles whose id is unknown (e.g. masked
+/// held-out profiles): only the profile's own missingness pattern is used.
+/// Returns the number of rows attached.
+pub fn attach_to_nearest_plex(observed: &[Vec<bool>], labels: &mut [i64], t: f64) -> usize {
+    let bits: Vec<Vec<u64>> = observed.iter().map(|row| pack(row)).collect();
+    let counts: Vec<u32> = bits
+        .iter()
+        .map(|b| b.iter().map(|w| w.count_ones()).sum())
+        .collect();
+    let dist = |i: usize, j: usize| -> f64 {
+        let inter: u32 = bits[i]
+            .iter()
+            .zip(&bits[j])
+            .map(|(a, b)| (a & b).count_ones())
+            .sum();
+        let union = counts[i] + counts[j] - inter;
+        if union == 0 {
+            1.0
+        } else {
+            1.0 - f64::from(inter) / f64::from(union)
+        }
+    };
+    let k = labels.iter().copied().max().unwrap_or(NO_PLEX);
+    if k < 0 {
+        return 0;
+    }
+    let original = labels.to_vec();
+    let mut attached = 0;
+    for i in 0..labels.len() {
+        if original[i] != NO_PLEX {
+            continue;
+        }
+        let mut best: Option<(f64, i64)> = None;
+        for plex in 0..=k {
+            let members: Vec<usize> = (0..labels.len()).filter(|&j| original[j] == plex).collect();
+            if members.is_empty() {
+                continue;
+            }
+            let d = members.iter().map(|&j| dist(i, j)).sum::<f64>() / members.len() as f64;
+            if best.is_none_or(|(bd, _)| d < bd) {
+                best = Some((d, plex));
+            }
+        }
+        if let Some((d, plex)) = best {
+            if d <= t {
+                labels[i] = plex;
+                attached += 1;
+            }
+        }
+    }
+    attached
+}
+
 fn pack(row: &[bool]) -> Vec<u64> {
     let mut out = vec![0_u64; row.len().div_ceil(64)];
     for (g, &o) in row.iter().enumerate() {
@@ -113,7 +170,7 @@ fn pack(row: &[bool]) -> Vec<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{jaccard_plex_groups, NO_PLEX};
+    use super::{attach_to_nearest_plex, jaccard_plex_groups, NO_PLEX};
 
     fn row(genes: &[usize], g: usize) -> Vec<bool> {
         (0..g).map(|i| genes.contains(&i)).collect()
@@ -136,6 +193,24 @@ mod tests {
         assert!(cl[..4].iter().all(|&c| c == 0));
         assert!(cl[4..9].iter().all(|&c| c == 1));
         assert_eq!(cl[9], NO_PLEX);
+    }
+
+    #[test]
+    fn unlabelled_rows_attach_to_nearest_plex() {
+        let g = 100;
+        let a: Vec<usize> = (0..80).collect();
+        let b: Vec<usize> = (20..100).collect();
+        let obs = vec![
+            row(&a, g),
+            row(&a, g),
+            row(&b, g),
+            row(&b, g),
+            row(&b, g),
+            row(&[1, 2], g),
+        ];
+        let mut labels = vec![0, 0, 1, 1, NO_PLEX, NO_PLEX];
+        assert_eq!(attach_to_nearest_plex(&obs, &mut labels, 0.05), 1);
+        assert_eq!(labels, vec![0, 0, 1, 1, 1, NO_PLEX]);
     }
 
     #[test]

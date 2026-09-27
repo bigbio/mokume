@@ -13,6 +13,7 @@ use mokume_pipeline::{
 use tracing_subscriber::EnvFilter;
 
 mod correct_batches;
+mod correct_batches_lim;
 mod features_to_peptides;
 mod features_to_proteins;
 mod filter_config_examples;

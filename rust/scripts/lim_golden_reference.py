@@ -18,6 +18,7 @@ Usage:
         rust/crates/mokume-stats/tests/fixtures/lim_golden_expected.tsv
 Requires numpy, pandas, pyarrow, scipy and torch.
 """
+
 import importlib.util
 import os
 import sys
@@ -54,8 +55,10 @@ def fixture():
     U = np.array([[n() for _ in range(3)] for _ in range(NL)])
     V = np.array([[0.4 * n() for _ in range(3)] for _ in range(G)])
     R = np.array([[0.2 * n() for _ in range(G)] for _ in range(NL)])
-    lineage = [None if l % 10 == 9 else f"LIN{l % 4}" for l in range(NL)]
-    lin_eff = np.array([Lin[l % 4] if lineage[l] else np.zeros(G) for l in range(NL)])
+    lineage = [None if li % 10 == 9 else f"LIN{li % 4}" for li in range(NL)]
+    lin_eff = np.array(
+        [Lin[li % 4] if lineage[li] else np.zeros(G) for li in range(NL)]
+    )
     theta = m[None] + lin_eff + U @ V.T + R
     A = {}
     for d in ORDER:
@@ -69,22 +72,26 @@ def fixture():
     rows = []
     truth = []
     for d in ORDER:
-        for j, l in enumerate(DATASETS[d]):
+        for j, li in enumerate(DATASETS[d]):
             c = 0.2 * n()
             eps = np.array([0.2 * n() for _ in range(G)])
             miss = np.array([rs.rand() < 0.1 for _ in range(G)])
             k = j // 5 if d == "DSC" else -1
             if k >= 0:
                 miss = pmiss[k]
-            y = theta[l] + A[d] + c + eps + (P[k] if k >= 0 else 0.0)
-            line = f"L{l:02d}"
+            y = theta[li] + A[d] + c + eps + (P[k] if k >= 0 else 0.0)
+            line = f"L{li:02d}"
             plex = f"P{k}" if k >= 0 else ""
             truth.append((d, line, c))
             for g in range(G):
                 if not miss[g]:
-                    rows.append((d, line, f"G{g:03d}", float(y[g]), lineage[l] or "", plex))
+                    rows.append(
+                        (d, line, f"G{g:03d}", float(y[g]), lineage[li] or "", plex)
+                    )
     long = pd.DataFrame(rows, columns=["ds", "cvcl", "gene", "v", "lineage", "plex"])
-    feats = pd.DataFrame(X, columns=[f"f{j}" for j in range(NF)], index=[f"G{g:03d}" for g in range(G)])
+    feats = pd.DataFrame(
+        X, columns=[f"f{j}" for j in range(NF)], index=[f"G{g:03d}" for g in range(G)]
+    )
     return long, feats, theta, A
 
 
@@ -95,7 +102,9 @@ def main(lim_path, out_path):
     spec.loader.exec_module(lim)
 
     long, feats, _, _ = fixture()
-    Wd = long.pivot_table(index=["ds", "cvcl"], columns="gene", values="v", aggfunc="first")
+    Wd = long.pivot_table(
+        index=["ds", "cvcl"], columns="gene", values="v", aggfunc="first"
+    )
     X = Wd.values.astype(np.float64)
     genes = np.array(Wd.columns)
     ds_arr = Wd.index.get_level_values(0).values.astype(str)
@@ -125,7 +134,15 @@ def main(lim_path, out_path):
     torch.randn = lambda *shape: torch.tensor(init_rs.standard_normal(shape))
 
     V, info, extra = lim.fit(X, genes, ds_arr, cv_arr, lin_arr, cfg)
-    print("plex:", info["pinfo"], "cf:", info["cf"], "sweeps:", len(info["hist"]), file=sys.stderr)
+    print(
+        "plex:",
+        info["pinfo"],
+        "cf:",
+        info["cf"],
+        "sweeps:",
+        len(info["hist"]),
+        file=sys.stderr,
+    )
 
     # expectation: every 10th observed cell (row-major) + per-dataset summaries
     out = []

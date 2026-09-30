@@ -201,7 +201,7 @@ def peptides2protein(**kwargs):
 
 
 def correct_batches(**kwargs):
-    """Run ``correct-batches`` (ComBat batch-effect correction on piBAQ output)."""
+    """Run ``correct-batches`` (ComBat on piBAQ output, or ``method="bridle"``)."""
     _run(_build_args("correct-batches", kwargs))
 
 

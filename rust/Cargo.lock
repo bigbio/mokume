@@ -986,6 +986,7 @@ dependencies = [
 name = "mokume-command"
 version = "0.2.0"
 dependencies = [
+ "arrow",
  "clap",
  "csv",
  "hdf5-metno",
@@ -994,6 +995,7 @@ dependencies = [
  "mokume-pipeline",
  "mokume-stats",
  "ndarray",
+ "parquet",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -1092,6 +1094,7 @@ dependencies = [
  "libm",
  "mokume-core",
  "rayon",
+ "tracing",
 ]
 
 [[package]]

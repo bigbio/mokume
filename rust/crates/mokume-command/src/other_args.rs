@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 
 use crate::parsers::{
     parse_peptides2protein_method, parse_positive_f64, parse_positive_i32, parse_positive_usize,
@@ -85,9 +85,34 @@ pub(crate) struct Peptides2ProteinArgs {
     pub(crate) high_anchor_threshold: usize,
 }
 
+/// Batch-correction method of `correct-batches`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
+pub(crate) enum CorrectBatchesMethod {
+    /// Parametric ComBat on a complete protein x sample piBAQ matrix (default).
+    #[default]
+    Combat,
+    /// BRIDLE (Batch Removal via Intrinsic Detectability and Latent
+    /// Estimation) for multi-dataset collections (long input with dataset /
+    /// anchor / gene / value columns; missing values kept).
+    Bridle,
+    /// Deprecated alias of `bridle` (hidden; logs a deprecation warning).
+    #[value(hide = true)]
+    Lim,
+}
+
 #[derive(Debug, Args)]
 pub(crate) struct CorrectBatchesArgs {
-    #[arg(short = 'i', long = "input", value_name = "DIR")]
+    #[arg(
+        long = "method",
+        value_enum,
+        default_value_t = CorrectBatchesMethod::Combat,
+        value_name = "METHOD"
+    )]
+    pub(crate) method: CorrectBatchesMethod,
+
+    /// ComBat: folder of long TSV files. BRIDLE: one long-format file
+    /// (.parquet, .tsv or .csv).
+    #[arg(short = 'i', long = "input", value_name = "PATH")]
     pub(crate) input: PathBuf,
 
     #[arg(
@@ -137,4 +162,102 @@ pub(crate) struct CorrectBatchesArgs {
 
     #[arg(long = "export-anndata")]
     pub(crate) export_anndata: bool,
+
+    #[command(flatten)]
+    pub(crate) bridle: BridleArgs,
+}
+
+/// Options of `correct-batches --method bridle`.
+#[derive(Debug, Clone, Args)]
+#[command(next_help_heading = "BRIDLE options (--method bridle)")]
+pub(crate) struct BridleArgs {
+    /// Dataset column of the long input (and of --plex-table).
+    #[arg(long = "dataset-column", value_name = "COLUMN", default_value = "ds")]
+    pub(crate) dataset_column: String,
+
+    /// Anchor-sample column: the biological unit that links datasets (a cell
+    /// line, reference material, pooled QC or the same patient across cohorts,
+    /// e.g. a Cellosaurus id).
+    // `--line-column` is kept as a hidden, deprecated alias.
+    #[arg(
+        long = "anchor-column",
+        alias = "line-column",
+        value_name = "COLUMN",
+        default_value = "cvcl"
+    )]
+    pub(crate) anchor_column: String,
+
+    /// Gene / protein column.
+    #[arg(long = "gene-column", value_name = "COLUMN", default_value = "gene")]
+    pub(crate) gene_column: String,
+
+    /// log2 value column.
+    #[arg(long = "value-column", value_name = "COLUMN", default_value = "v")]
+    pub(crate) value_column: String,
+
+    /// Reference dataset whose offsets are fixed to 0 [default: the dataset
+    /// with the most profiles].
+    #[arg(long = "reference", value_name = "DATASET")]
+    pub(crate) reference: Option<String>,
+
+    /// Optional lineage table (.csv/.tsv), e.g. DepMap Model.csv.
+    #[arg(long = "lineage-table", value_name = "FILE")]
+    pub(crate) lineage_table: Option<PathBuf>,
+
+    #[arg(
+        long = "lineage-key-column",
+        value_name = "COLUMN",
+        default_value = "RRID"
+    )]
+    pub(crate) lineage_key_column: String,
+
+    #[arg(
+        long = "lineage-column",
+        value_name = "COLUMN",
+        default_value = "OncotreeLineage"
+    )]
+    pub(crate) lineage_column: String,
+
+    /// TMT plex / mixture id column (per profile, scoped to its dataset). Read
+    /// from --plex-table when given, else from the input. Without it, plexes
+    /// are inferred from shared missingness (datasets with >= 20 profiles).
+    #[arg(long = "plex-column", value_name = "COLUMN")]
+    pub(crate) plex_column: Option<String>,
+
+    /// Table (.csv/.tsv) with dataset, line and plex columns.
+    #[arg(long = "plex-table", value_name = "FILE")]
+    pub(crate) plex_table: Option<PathBuf>,
+
+    /// Disable the plex block entirely.
+    #[arg(long = "no-plex")]
+    pub(crate) no_plex: bool,
+
+    /// Protein FASTA for technical sequence features (length, tryptic
+    /// peptides, GRAVY, pI, amino-acid composition). Without it only the
+    /// abundance spline is used.
+    #[arg(long = "fasta", value_name = "FILE")]
+    pub(crate) fasta: Option<PathBuf>,
+
+    /// Only map gene names from FASTA headers containing this text (e.g. HUMAN).
+    #[arg(long = "fasta-organism", value_name = "TEXT")]
+    pub(crate) fasta_organism: Option<String>,
+
+    /// Rank of the shared biological low-rank term.
+    #[arg(long = "rank", value_name = "N", default_value_t = 16)]
+    pub(crate) rank: usize,
+
+    /// Maximum number of fitting sweeps.
+    #[arg(long = "sweeps", value_name = "N", default_value_t = 60)]
+    pub(crate) sweeps: usize,
+
+    #[arg(long = "seed", value_name = "N", default_value_t = 0)]
+    pub(crate) seed: u32,
+
+    /// Optional pooled per-line biology (theta) for observed line/gene cells.
+    #[arg(long = "theta-output", value_name = "FILE")]
+    pub(crate) theta_output: Option<PathBuf>,
+
+    /// Optional JSON fit report.
+    #[arg(long = "report", value_name = "FILE")]
+    pub(crate) report: Option<PathBuf>,
 }

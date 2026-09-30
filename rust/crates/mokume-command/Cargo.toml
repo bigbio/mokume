@@ -12,10 +12,12 @@ publish = false
 workspace = true
 
 [dependencies]
+arrow = "60.0.0"
 clap = { workspace = true }
 csv = "1.4.0"
 hdf5-metno = { version = "0.15.0", features = ["static"] }
 ndarray = "0.17"
+parquet = "60.0.0"
 mokume-core = { path = "../mokume-core" }
 mokume-io = { path = "../mokume-io" }
 mokume-pipeline = { path = "../mokume-pipeline" }

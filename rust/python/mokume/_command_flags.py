@@ -39,7 +39,10 @@ _ALLOWED = {
     ),
     "correct-batches": set(
         "input pattern comment sep output sample_id_column protein_id_column "
-        "pibaq_raw_column pibaq_corrected_column export_anndata".split()
+        "pibaq_raw_column pibaq_corrected_column export_anndata method "
+        "dataset_column anchor_column line_column gene_column value_column reference "
+        "lineage_table lineage_key_column lineage_column plex_column plex_table "
+        "no_plex fasta fasta_organism rank sweeps seed theta_output report".split()
     ),
     "visualize": {"input", "pattern", "output"},
     "tissuemap": set(
@@ -70,7 +73,7 @@ _BOOLEAN = {
         "batch_mean_only irs irs_remove_reference".split()
     ),
     "peptides2protein": {"normalize", "tpa", "ruler"},
-    "correct-batches": {"export_anndata"},
+    "correct-batches": {"export_anndata", "no_plex"},
     "visualize": set(),
     "tissuemap": set(),
     "peptides2protein_qc": {"tpa", "ruler"},

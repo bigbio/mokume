@@ -91,8 +91,12 @@ pub(crate) enum CorrectBatchesMethod {
     /// Parametric ComBat on a complete protein x sample piBAQ matrix (default).
     #[default]
     Combat,
-    /// LIM: learned integration model for multi-dataset collections (long
-    /// input with dataset / line / gene / value columns; missing values kept).
+    /// BRIDLE (Batch Removal via Intrinsic Detectability and Latent
+    /// Estimation) for multi-dataset collections (long input with dataset /
+    /// anchor / gene / value columns; missing values kept).
+    Bridle,
+    /// Deprecated alias of `bridle` (hidden; logs a deprecation warning).
+    #[value(hide = true)]
     Lim,
 }
 
@@ -106,7 +110,7 @@ pub(crate) struct CorrectBatchesArgs {
     )]
     pub(crate) method: CorrectBatchesMethod,
 
-    /// ComBat: folder of long TSV files. LIM: one long-format file
+    /// ComBat: folder of long TSV files. BRIDLE: one long-format file
     /// (.parquet, .tsv or .csv).
     #[arg(short = 'i', long = "input", value_name = "PATH")]
     pub(crate) input: PathBuf,
@@ -160,20 +164,28 @@ pub(crate) struct CorrectBatchesArgs {
     pub(crate) export_anndata: bool,
 
     #[command(flatten)]
-    pub(crate) lim: LimArgs,
+    pub(crate) bridle: BridleArgs,
 }
 
-/// Options of `correct-batches --method lim`.
+/// Options of `correct-batches --method bridle`.
 #[derive(Debug, Clone, Args)]
-#[command(next_help_heading = "LIM options (--method lim)")]
-pub(crate) struct LimArgs {
+#[command(next_help_heading = "BRIDLE options (--method bridle)")]
+pub(crate) struct BridleArgs {
     /// Dataset column of the long input (and of --plex-table).
     #[arg(long = "dataset-column", value_name = "COLUMN", default_value = "ds")]
     pub(crate) dataset_column: String,
 
-    /// Line (biological unit, e.g. Cellosaurus id) column.
-    #[arg(long = "line-column", value_name = "COLUMN", default_value = "cvcl")]
-    pub(crate) line_column: String,
+    /// Anchor-sample column: the biological unit that links datasets (a cell
+    /// line, reference material, pooled QC or the same patient across cohorts,
+    /// e.g. a Cellosaurus id).
+    // `--line-column` is kept as a hidden, deprecated alias.
+    #[arg(
+        long = "anchor-column",
+        alias = "line-column",
+        value_name = "COLUMN",
+        default_value = "cvcl"
+    )]
+    pub(crate) anchor_column: String,
 
     /// Gene / protein column.
     #[arg(long = "gene-column", value_name = "COLUMN", default_value = "gene")]

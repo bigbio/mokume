@@ -56,8 +56,8 @@ running this command. An explicit numeric zero remains a valid observed value.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--method` | `combat` | `combat` (this page) or `lim` (see [LIM](#lim-multi-dataset-collections)) |
-| `-i/--input` | required | Folder containing TSV files (`lim`: one long-format file) |
+| `--method` | `combat` | `combat` (this page) or `bridle` (see [BRIDLE](#bridle-multi-dataset-collections)) |
+| `-i/--input` | required | Folder containing TSV files (`bridle`: one long-format file) |
 | `-p/--pattern` | `*pibaq.tsv` | File matching pattern |
 | `-o/--output` | required | Output file path |
 | `--sample-id-column` | `SampleID` | Sample ID column name |
@@ -117,16 +117,22 @@ Export corrected data to AnnData format for downstream analysis with scanpy or o
 
 This creates a `.h5ad` file alongside the TSV output.
 
-## LIM: multi-dataset collections
+## BRIDLE: multi-dataset collections
 
-`--method lim` integrates a *collection* of datasets that measure overlapping
-biological units ("lines", e.g. cell lines) onto one scale. Unlike ComBat it
-does not need a complete matrix: missing values stay missing, nothing is
-imputed and no protein is dropped. It is the Rust port of the `lim_lin` model
-that won the Cell Line Collection integration benchmark.
+BRIDLE (**B**atch **R**emoval via **I**ntrinsic **D**etectability and
+**L**atent **E**stimation) integrates a *collection* of datasets that measure
+overlapping biological units onto one scale. A unit measured by >= 2 datasets
+is an *anchor sample*: a cell line, a reference material, a pooled QC, or the
+same patient across cohorts. Each dataset's offset is predicted from intrinsic
+protein detectability features and refined on its anchor samples, while the
+shared biology is a latent low-rank estimate. Unlike ComBat it does not need a
+complete matrix: missing values stay missing, nothing is imputed and no protein
+is dropped. It is the Rust port of the `lim_lin` prototype that won the Cell
+Line Collection integration benchmark. `--method lim` is still accepted as a
+deprecated alias of `--method bridle` (it logs a warning).
 
 ```text
-y[i,g]     = theta[line,g] + A[dataset,g] + c[i] + P[plex,g] + eps
+y[i,g]     = theta[anchor,g] + A[dataset,g] + c[i] + P[plex,g] + eps
 theta[l,g] = m_g + Lin[lineage(l),g] + U_l . V_g + R[l,g]     (shared biology, rank --rank)
 A[s,g]     = f(s, x_g) + r[s,g]                               (A[--reference] = 0)
 ```
@@ -135,16 +141,18 @@ A[s,g]     = f(s, x_g) + r[s,g]                               (A[--reference] = 
   (reference-abundance spline plus sequence features from `--fasta`: length,
   tryptic peptides, uniqueness, GRAVY, pI, charge, missed-cleavage context,
   amino-acid composition). No functional annotation is used.
-* `r` is an empirical-Bayes gene-specific offset learned from *bridge lines*
-  (lines measured in >= 2 datasets). Datasets with 1 to 19 bridge lines are
-  cross-fitted, so a single-line dataset keeps its own signal.
+* `r` is an empirical-Bayes gene-specific offset learned from *anchor samples*
+  (units measured in >= 2 datasets). Datasets with 1 to 19 anchor samples are
+  cross-fitted, so a single-sample dataset keeps its own signal. A dataset that
+  shares no anchor sample with the rest gets only the intrinsic-detectability
+  correction `f` (a warning is logged).
 * `P` are TMT plex effects, `c` a per-profile loading; noise variance is
   modelled per dataset as a function of abundance.
 * The output is `v = y - A - c - P` for every observed input cell
-  (`imputed = false`). `--theta-output` writes the pooled per-line biology.
+  (`imputed = false`). `--theta-output` writes the pooled per-anchor biology.
 
 ```bash
-mokume correct-batches --method lim \
+mokume correct-batches --method bridle \
     -i raw_long.parquet -o values.parquet \
     --reference ProCan \
     --fasta Homo-sapiens-uniprot-reviewed-contaminants.fasta --fasta-organism HUMAN \
@@ -153,11 +161,11 @@ mokume correct-batches --method lim \
     --theta-output integrated.parquet --report fit_info.json
 ```
 
-Input: `.parquet`, `.tsv` or `.csv` with one row per observed (dataset, line,
-gene) cell and log2 values (collapse replicates per dataset and line first).
+Input: `.parquet`, `.tsv` or `.csv` with one row per observed (dataset, anchor,
+gene) cell and log2 values (collapse replicates per dataset and anchor first).
 
 **Plexes.** With `--plex-column`, plex / mixture ids come from the input column
-or from `--plex-table` (dataset, line, plex; e.g. derived from the SDRF: one
+or from `--plex-table` (dataset, anchor, plex; e.g. derived from the SDRF: one
 plex = one set of fraction files sharing a TMT mixture). Profiles without an id
 in a plexed dataset are attached to the nearest plex by their own missingness
 pattern. Without `--plex-column`, plexes are inferred from shared missingness
@@ -166,15 +174,15 @@ exactly as the prototype. `--no-plex` disables the block.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--dataset-column` / `--line-column` / `--gene-column` / `--value-column` | `ds` / `cvcl` / `gene` / `v` | Input columns (also used for the output) |
+| `--dataset-column` / `--anchor-column` / `--gene-column` / `--value-column` | `ds` / `cvcl` / `gene` / `v` | Input columns (also used for the output); `--line-column` is a deprecated alias of `--anchor-column` |
 | `--reference` | largest dataset | Dataset with `A = 0` |
-| `--lineage-table` | none | Lineage per line, e.g. DepMap `Model.csv` |
+| `--lineage-table` | none | Lineage per anchor, e.g. DepMap `Model.csv` |
 | `--lineage-key-column` / `--lineage-column` | `RRID` / `OncotreeLineage` | Columns of the lineage table |
 | `--plex-column` / `--plex-table` / `--no-plex` | inferred | Plex handling (see above) |
 | `--fasta` / `--fasta-organism` | none | Sequence features; gene names from `GN=` of Swiss-Prot entries |
 | `--rank` | `16` | Rank of the shared biological low-rank term |
 | `--sweeps` / `--seed` | `60` / `0` | Fit sweeps (early stop on a 1% monitor hold-out) and seed |
-| `--theta-output` / `--report` | none | Pooled biology and JSON fit report |
+| `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, ...) |
 
 The fit is deterministic (fixed seed, results independent of the thread
 count) and multi-threaded; set `RAYON_NUM_THREADS` to limit cores.

@@ -1,4 +1,4 @@
-//! Technical protein features `x_g` for LIM's structured offset `f(s, x_g)`.
+//! Technical protein features `x_g` for BRIDLE's structured offset `f(s, x_g)`.
 //!
 //! Port of the prototype's `feats.py` (sequence features) and `gene_feats`
 //! (design preparation). Only sequence-derived, technical properties are used

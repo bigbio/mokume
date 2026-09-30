@@ -1,7 +1,13 @@
-//! LIM: learned integration model for multi-dataset collections (linear `f`).
+//! BRIDLE: Batch Removal via Intrinsic Detectability and Latent Estimation,
+//! for multi-dataset collections (linear `f`).
 //!
 //! Integrates many proteomics datasets that measure overlapping sets of
-//! biological units ("lines", e.g. cell lines) onto one scale. Port of the
+//! biological units onto one scale. A unit measured by >= 2 datasets is an
+//! *anchor sample*: a cell line, a reference material, a pooled QC or the same
+//! patient across cohorts (the code calls every unit a "line", `l`). Each
+//! dataset's offset `A` is predicted from intrinsic protein detectability
+//! features (`f`) and refined on its anchors (`r`); the shared biology is a
+//! latent low-rank estimate (`theta`). Port of the
 //! benchmark-winning `lim_lin` variant of the Cell Line Collection prototype
 //! (`research/cellline-integration/lim_lin/lim.py`; Gaussian likelihood, linear
 //! `f`, joint plex block, sample loading on, `theta` shared across datasets).
@@ -14,7 +20,7 @@
 //! theta[l,g] = m_g + Lin[lineage(l),g] + U_l . V_g + R[l,g] (biology; rank-`rank` U.V)
 //! A[s,g]     = f(s, x_g) + r[s,g]                          (A[reference] = 0)
 //!   f        = per-dataset weighted ridge on [1, x_g] (technical protein features)
-//!   r        ~ N(0, tau_s^2), empirical-Bayes residual, only for bridged datasets
+//!   r        ~ N(0, tau_s^2), empirical-Bayes residual, only for anchored datasets
 //! P[k,g]     ~ N(0, tauP^2), TMT plex effects, centred within each dataset
 //! c[i]       ~ N(0, sd_c^2), per-profile sample loading
 //! ```
@@ -22,14 +28,14 @@
 //! Fit: block-coordinate closed-form weighted ridge (`m`, `Lin`, ALS for
 //! `U`/`V`, `R`, `f`, `r`, `P`, `c`) with EM moment updates for the variance
 //! components (`tauR`, `tau_s`, `tauP`) and a per-dataset noise trend estimated
-//! from leverage-corrected bridge-row residuals, for `sweeps` sweeps or until the
+//! from leverage-corrected anchor-row residuals, for `sweeps` sweeps or until the
 //! monitor MSE (a `holdout_frac` sample of observed cells withheld from the fit)
 //! stops improving.
 //!
 //! Output: `v = y - A_out - c - P` on observed cells only; nothing is imputed
 //! and no protein is dropped for having missing values. `A_out` is cross-fitted
-//! for datasets with `1 <= n_bridge < cf_max_nb`: a bridge profile's own
-//! residual offset `r` is estimated only from the other bridge-line folds
+//! for datasets with `1 <= n_anchor < cf_max_nb`: an anchor profile's own
+//! residual offset `r` is estimated only from the other anchor-sample folds
 //! against a leave-dataset-out `theta`, so a single-line dataset keeps its own
 //! signal (`r = 0`, `A = f`). `theta` is returned separately.
 //!
@@ -37,7 +43,7 @@
 //! plex effects are centred per dataset (the prototype centres across all
 //! plexes, identical when one dataset has plexes), and the cross-fit residual
 //! subtracts the profile's plex effect (the prototype omits it; it only matters
-//! for a plexed dataset with fewer than `cf_max_nb` bridge lines).
+//! for a plexed dataset with fewer than `cf_max_nb` anchor samples).
 //!
 //! Numerics: all matrices are stored gene-major and every block is a per-gene
 //! (or per-line / per-dataset) rayon loop whose reductions run in a fixed order,
@@ -72,7 +78,7 @@ const NOISE_BINS: usize = 10;
 pub enum PlexMode {
     /// No plex block.
     Off,
-    /// Use `LimData::plexes` (explicit, e.g. SDRF TMT mixture ids).
+    /// Use `BridleData::plexes` (explicit, e.g. SDRF TMT mixture ids).
     Explicit,
     /// Infer plexes by shared-missingness Jaccard clustering (prototype rule).
     Inferred,
@@ -80,10 +86,10 @@ pub enum PlexMode {
 
 /// Input profiles in long-to-wide form.
 #[derive(Debug, Clone)]
-pub struct LimData {
+pub struct BridleData {
     /// Dataset of each profile.
     pub datasets: Vec<String>,
-    /// Line (biological unit) of each profile.
+    /// Anchor / biological unit (e.g. cell line) of each profile.
     pub lines: Vec<String>,
     /// Lineage of each profile's line, when known.
     pub lineages: Vec<Option<String>>,
@@ -96,7 +102,7 @@ pub struct LimData {
     pub values: Vec<f64>,
 }
 
-impl LimData {
+impl BridleData {
     pub fn n_profiles(&self) -> usize {
         self.datasets.len()
     }
@@ -104,7 +110,7 @@ impl LimData {
 
 /// Model hyper-parameters (defaults = the benchmark `lim_lin` run).
 #[derive(Debug, Clone)]
-pub struct LimParams {
+pub struct BridleParams {
     /// Reference dataset (`A = 0`).
     pub reference: String,
     /// Rank of the biological low-rank term `U.V`.
@@ -122,7 +128,7 @@ pub struct LimParams {
     pub ridge_f: f64,
     /// Minimum number of informative genes to fit `f` for a dataset.
     pub min_f_genes: usize,
-    /// Cross-fit datasets with `1 <= n_bridge < cf_max_nb`.
+    /// Cross-fit datasets with `1 <= n_anchor < cf_max_nb`.
     pub cf_max_nb: usize,
     pub folds: usize,
     /// Fraction of observed cells withheld as a convergence monitor.
@@ -145,7 +151,7 @@ pub struct LimParams {
     pub converge_tol: f64,
 }
 
-impl Default for LimParams {
+impl Default for BridleParams {
     fn default() -> Self {
         Self {
             reference: String::new(),
@@ -182,8 +188,8 @@ impl Default for LimParams {
 pub struct DatasetReport {
     pub name: String,
     pub n_profiles: usize,
-    pub n_bridge_lines: usize,
-    pub bridged: bool,
+    pub n_anchor_samples: usize,
+    pub anchored: bool,
     pub cross_fitted: bool,
     pub n_plexes: usize,
     pub n_plexed_profiles: usize,
@@ -204,7 +210,7 @@ pub struct SweepStats {
 
 /// Fit summary.
 #[derive(Debug, Clone)]
-pub struct LimReport {
+pub struct BridleReport {
     pub reference: String,
     pub n_profiles: usize,
     pub n_genes: usize,
@@ -222,7 +228,7 @@ pub struct LimReport {
 
 /// Fit result.
 #[derive(Debug, Clone)]
-pub struct LimResult {
+pub struct BridleResult {
     /// Row-major `profiles x genes`: `v = y - A_out - c - P`, `NaN` exactly
     /// where the input is `NaN`.
     pub corrected: Vec<f64>,
@@ -243,12 +249,12 @@ pub struct LimResult {
     pub sample_loading: Vec<f64>,
     /// Plex index of each profile (`None` = no plex).
     pub profile_plex: Vec<Option<usize>>,
-    pub report: LimReport,
+    pub report: BridleReport,
 }
 
 /// Per-gene abundance axis: median of the reference dataset's observed values,
 /// falling back to the median over all profiles.
-pub fn reference_abundance(data: &LimData, reference: &str) -> Vec<f64> {
+pub fn reference_abundance(data: &BridleData, reference: &str) -> Vec<f64> {
     let g_n = data.genes.len();
     let n = data.n_profiles();
     let ref_rows: Vec<usize> = (0..n).filter(|&i| data.datasets[i] == reference).collect();
@@ -284,9 +290,9 @@ struct Layout {
     lin_of_line: Vec<usize>,
     prow: Vec<usize>,
     plex_ds: Vec<usize>,
-    bridge_row: Vec<bool>,
+    anchor_row: Vec<bool>,
     nb: Vec<usize>,
-    bridged: Vec<bool>,
+    anchored: Vec<bool>,
     uv_free: Vec<bool>,
     ref_s: usize,
     studies: Vec<String>,
@@ -295,14 +301,14 @@ struct Layout {
     n_lineages: usize,
 }
 
-fn build_layout(data: &LimData, params: &LimParams) -> Result<(Layout, Vec<String>)> {
+fn build_layout(data: &BridleData, params: &BridleParams) -> Result<(Layout, Vec<String>)> {
     let n = data.n_profiles();
     let g_n = data.genes.len();
     if n == 0 || g_n == 0 {
-        return Err(invalid("LIM needs at least one profile and one gene"));
+        return Err(invalid("BRIDLE needs at least one profile and one gene"));
     }
     if data.lines.len() != n || data.lineages.len() != n || data.values.len() != n * g_n {
-        return Err(invalid("LIM input arrays have inconsistent lengths"));
+        return Err(invalid("BRIDLE input arrays have inconsistent lengths"));
     }
     let studies: Vec<String> = data
         .datasets
@@ -353,10 +359,10 @@ fn build_layout(data: &LimData, params: &LimParams) -> Result<(Layout, Vec<Strin
         line_rows[li[i]].push(i);
     }
     let lcount: Vec<usize> = line_rows.iter().map(Vec::len).collect();
-    let bridge_row: Vec<bool> = (0..n).map(|i| lcount[li[i]] >= 2).collect();
+    let anchor_row: Vec<bool> = (0..n).map(|i| lcount[li[i]] >= 2).collect();
     let mut nb = vec![0_usize; s_n];
     for i in 0..n {
-        if bridge_row[i] {
+        if anchor_row[i] {
             nb[srow[i]] += 1;
         }
     }
@@ -379,12 +385,12 @@ fn build_layout(data: &LimData, params: &LimParams) -> Result<(Layout, Vec<Strin
         .iter()
         .map(|l| l.map_or(lins.len(), |s| lin_pos[s]))
         .collect();
-    let ds_bridged: Vec<bool> = nb.iter().map(|&b| b > 0).collect();
+    let ds_anchored: Vec<bool> = nb.iter().map(|&b| b > 0).collect();
     let uv_free: Vec<bool> = line_rows
         .iter()
-        .map(|rows| rows.iter().any(|&i| ds_bridged[srow[i]]))
+        .map(|rows| rows.iter().any(|&i| ds_anchored[srow[i]]))
         .collect();
-    let bridged: Vec<bool> = (0..s_n).map(|s| nb[s] > 0 && s != ref_s).collect();
+    let anchored: Vec<bool> = (0..s_n).map(|s| nb[s] > 0 && s != ref_s).collect();
 
     if data.plexes.as_ref().is_some_and(|p| p.len() != n) {
         return Err(invalid("plex ids must have one entry per profile"));
@@ -405,9 +411,9 @@ fn build_layout(data: &LimData, params: &LimParams) -> Result<(Layout, Vec<Strin
             lin_of_line,
             prow,
             plex_ds,
-            bridge_row,
+            anchor_row,
             nb,
-            bridged,
+            anchored,
             uv_free,
             ref_s,
             studies,
@@ -422,8 +428,8 @@ fn build_layout(data: &LimData, params: &LimParams) -> Result<(Layout, Vec<Strin
 type PlexAssignment = (Vec<Option<usize>>, Vec<usize>, Vec<String>);
 
 fn assign_plexes(
-    data: &LimData,
-    params: &LimParams,
+    data: &BridleData,
+    params: &BridleParams,
     srow: &[usize],
     studies: &[String],
     g_n: usize,
@@ -561,16 +567,16 @@ const UNOBSERVED: u8 = 0;
 const OBSERVED: u8 = 1;
 const HELD: u8 = 2;
 
-/// Fit LIM.
+/// Fit BRIDLE.
 ///
 /// `design` is `genes x p` (first column the intercept, see [`build_design`]);
 /// `abz` is the standardised abundance axis returned by [`build_design`].
-pub fn lim_fit(
-    data: &LimData,
+pub fn bridle_fit(
+    data: &BridleData,
     design: &[Vec<f64>],
     abz: &[f64],
-    params: &LimParams,
-) -> Result<LimResult> {
+    params: &BridleParams,
+) -> Result<BridleResult> {
     let (lay, plex_info) = build_layout(data, params)?;
     let (n, g_n, s_n, nl, nlin, k) = (lay.n, lay.g_n, lay.s_n, lay.nl, lay.nlin, lay.k);
     if design.len() != g_n || abz.len() != g_n {
@@ -590,7 +596,7 @@ pub fn lim_fit(
     let rank = params.rank;
     let kp = k + 1;
     for line in &plex_info {
-        tracing::info!("LIM plex: {line}");
+        tracing::info!("BRIDLE plex: {line}");
     }
 
     // ---- gene-major observations, monitor hold-out (row-major draw order)
@@ -612,9 +618,27 @@ pub fn lim_fit(
         }
     }
     tracing::info!(
-        "LIM: n={n} G={g_n} S={s_n} lines={nl} bridged datasets={} plexes={k} observed={n_obs} held={n_hold}",
-        lay.bridged.iter().filter(|&&b| b).count()
+        "BRIDLE: n={n} G={g_n} S={s_n} lines={nl} anchored datasets={} plexes={k} observed={n_obs} held={n_hold}",
+        lay.anchored.iter().filter(|&&b| b).count()
     );
+    // datasets that share no anchor sample with any other dataset get no
+    // residual offset `r`: their correction is the feature model `f` alone
+    for (s, name) in lay.studies.iter().enumerate() {
+        if lay.nb[s] > 0 {
+            continue;
+        }
+        if s == lay.ref_s {
+            tracing::warn!(
+                "BRIDLE: reference dataset '{name}' shares no anchor samples with the rest; \
+                 no other dataset can be anchored to it"
+            );
+        } else {
+            tracing::warn!(
+                "BRIDLE: dataset '{name}' shares no anchor samples with the rest; \
+                 only intrinsic-detectability correction applied"
+            );
+        }
+    }
 
     // ---- initial state (U, V from a second NumPy stream, like torch.randn)
     let mut init = NumpyRandomState::new(params.seed.wrapping_add(1));
@@ -659,8 +683,8 @@ pub fn lim_fit(
     for b in 0..NOISE_BINS {
         bin_x[b] /= bin_n[b].max(1) as f64;
     }
-    let ds_has_bridge: Vec<bool> = (0..s_n)
-        .map(|s| (0..n).any(|i| lay.srow[i] == s && lay.bridge_row[i]))
+    let ds_has_anchor: Vec<bool> = (0..s_n)
+        .map(|s| (0..n).any(|i| lay.srow[i] == s && lay.anchor_row[i]))
         .collect();
 
     let mut wl = vec![0.0_f64; g_n * nl];
@@ -833,7 +857,7 @@ pub fn lim_fit(
             &wl,
             &gbin,
             &bin_x,
-            &ds_has_bridge,
+            &ds_has_anchor,
             &mut st,
         );
         check_finite(&st)?;
@@ -844,7 +868,7 @@ pub fn lim_fit(
             tau_p: st.tau_p2.sqrt(),
         });
         tracing::debug!(
-            "LIM sweep {sweep}: hold_mse={hold_mse:.4} tauR={:.3} tauP={:.3}",
+            "BRIDLE sweep {sweep}: hold_mse={hold_mse:.4} tauR={:.3} tauP={:.3}",
             st.tau_r2.sqrt(),
             st.tau_p2.sqrt()
         );
@@ -892,8 +916,8 @@ pub fn lim_fit(
             DatasetReport {
                 name: lay.studies[s].clone(),
                 n_profiles: n_prof,
-                n_bridge_lines: lay.nb[s],
-                bridged: lay.bridged[s],
+                n_anchor_samples: lay.nb[s],
+                anchored: lay.anchored[s],
                 cross_fitted: cf[s],
                 n_plexes: lay.plex_ds.iter().filter(|&&d| d == s).count(),
                 n_plexed_profiles: plexed,
@@ -904,7 +928,7 @@ pub fn lim_fit(
             }
         })
         .collect();
-    Ok(LimResult {
+    Ok(BridleResult {
         corrected,
         line_names: lay.line_names.clone(),
         theta: theta_rows,
@@ -914,7 +938,7 @@ pub fn lim_fit(
         feature_offsets,
         sample_loading: st.c.clone(),
         profile_plex: lay.prow.iter().map(|&p| (p < k).then_some(p)).collect(),
-        report: LimReport {
+        report: BridleReport {
             reference: params.reference.clone(),
             n_profiles: n,
             n_genes: g_n,
@@ -934,7 +958,7 @@ pub fn lim_fit(
 
 /// Two weighted-ridge ALS rounds for `U` (lines) and `V` (genes) on the fixed
 /// working response `WZ = Wl * Z2` (`wz`, gene-major).
-fn als(lay: &Layout, params: &LimParams, wl: &[f64], wz: &[f64], u: &mut [f64], v: &mut [f64]) {
+fn als(lay: &Layout, params: &BridleParams, wl: &[f64], wz: &[f64], u: &mut [f64], v: &mut [f64]) {
     let (g_n, nl, rank) = (lay.g_n, lay.nl, params.rank);
     // line-major copies for the U step
     let mut wl_t = vec![0.0; nl * g_n];
@@ -1008,12 +1032,12 @@ fn weighted_ridge_rows(w: &[f64], wz: &[f64], factors: &[f64], rank: usize, lam:
     linalg::solve(&gm, &rhs, rank).unwrap_or_else(|| vec![0.0; rank])
 }
 
-/// `f` (per-dataset feature ridge), `r` (EB residual for bridged datasets),
+/// `f` (per-dataset feature ridge), `r` (EB residual for anchored datasets),
 /// `tau_s`, and `A = f + r` with `A[reference] = 0`.
 #[allow(clippy::too_many_arguments)]
 fn update_offsets(
     lay: &Layout,
-    params: &LimParams,
+    params: &BridleParams,
     design: &[Vec<f64>],
     abz: &[f64],
     y: &[f64],
@@ -1053,7 +1077,11 @@ fn update_offsets(
     let wf = |g: usize, s: usize| -> f64 {
         let prec = stats[g].0[s];
         if prec > 0.0 {
-            let tb = if lay.bridged[s] { st_ref.taus2[s] } else { 0.0 };
+            let tb = if lay.anchored[s] {
+                st_ref.taus2[s]
+            } else {
+                0.0
+            };
             1.0 / (tb + 1.0 / prec.max(1e-12))
         } else {
             0.0
@@ -1112,7 +1140,7 @@ fn update_offsets(
                 }
                 let prec = stats[g].0[s];
                 let mut r = 0.0;
-                if prec > 0.0 && lay.bridged[s] {
+                if prec > 0.0 && lay.anchored[s] {
                     r = (stats[g].1[s] - f_g[s]) * prec / (prec + 1.0 / taus2_old[s]);
                     e_g[s] = r * r + 1.0 / (prec + 1.0 / taus2_old[s]);
                 }
@@ -1134,7 +1162,7 @@ fn update_offsets(
         }
     }
     for s in 0..s_n {
-        if lay.bridged[s] && cnts[s] > 0 {
+        if lay.anchored[s] && cnts[s] > 0 {
             st.taus2[s] = sums[s] / cnts[s] as f64;
         }
         st.taus2[s] = st.taus2[s].clamp(TAUS2_RANGE.0, TAUS2_RANGE.1);
@@ -1246,7 +1274,7 @@ where
 }
 
 /// Per-dataset noise trend `log sig2[s,g] = a_s + b_s * abz_g` from
-/// leverage-corrected residuals of bridge rows; returns the monitor MSE.
+/// leverage-corrected residuals of anchor rows; returns the monitor MSE.
 #[allow(clippy::too_many_arguments)]
 fn update_noise(
     lay: &Layout,
@@ -1257,7 +1285,7 @@ fn update_noise(
     wl: &[f64],
     gbin: &[usize],
     bin_x: &[f64],
-    ds_has_bridge: &[bool],
+    ds_has_anchor: &[bool],
     st: &mut State,
 ) -> f64 {
     let (n, g_n, s_n, nl, kp) = (lay.n, lay.g_n, lay.s_n, lay.nl, lay.k + 1);
@@ -1288,7 +1316,7 @@ fn update_noise(
                         hc += 1;
                         continue;
                     }
-                    if !lay.bridge_row[i] {
+                    if !lay.anchor_row[i] {
                         continue;
                     }
                     let w = 1.0 / st_ref.sig2(abz[g], s);
@@ -1313,7 +1341,7 @@ fn update_noise(
         hc += h2;
     }
     for s in 0..s_n {
-        if !ds_has_bridge[s] {
+        if !ds_has_anchor[s] {
             continue;
         }
         let (mut xs, mut ys, mut ws) = (Vec::new(), Vec::new(), Vec::new());
@@ -1334,7 +1362,7 @@ fn update_noise(
             }
         }
     }
-    // datasets without bridge rows take the (lower) median of the others
+    // datasets without anchor rows take the (lower) median of the others
     let lower_median = |v: &mut Vec<f64>| -> Option<f64> {
         if v.is_empty() {
             return None;
@@ -1342,17 +1370,17 @@ fn update_noise(
         v.sort_by(f64::total_cmp);
         Some(v[(v.len() - 1) / 2])
     };
-    if ds_has_bridge.iter().any(|&b| !b) {
+    if ds_has_anchor.iter().any(|&b| !b) {
         let mut a: Vec<f64> = (0..s_n)
-            .filter(|&s| ds_has_bridge[s])
+            .filter(|&s| ds_has_anchor[s])
             .map(|s| st.sig2_s[s])
             .collect();
         let mut b: Vec<f64> = (0..s_n)
-            .filter(|&s| ds_has_bridge[s])
+            .filter(|&s| ds_has_anchor[s])
             .map(|s| st.sig_b[s])
             .collect();
         if let (Some(ma), Some(mb)) = (lower_median(&mut a), lower_median(&mut b)) {
-            for (s, &has) in ds_has_bridge.iter().enumerate() {
+            for (s, &has) in ds_has_anchor.iter().enumerate() {
                 if !has {
                     st.sig2_s[s] = ma;
                     st.sig_b[s] = mb;
@@ -1381,7 +1409,7 @@ fn check_finite(st: &State) -> Result<()> {
     for (name, v) in blocks {
         if v.iter().any(|x| !x.is_finite()) {
             return Err(invalid(format!(
-                "LIM fit diverged: non-finite values in {name}"
+                "BRIDLE fit diverged: non-finite values in {name}"
             )));
         }
     }
@@ -1389,10 +1417,10 @@ fn check_finite(st: &State) -> Result<()> {
 }
 
 /// `v = y - A_out - c - P` on observed cells (row-major `n x G`), with `A_out`
-/// cross-fitted for weakly bridged datasets. Returns `(values, cross_fitted)`.
+/// cross-fitted for weakly anchored datasets. Returns `(values, cross_fitted)`.
 fn output_values(
     lay: &Layout,
-    params: &LimParams,
+    params: &BridleParams,
     abz: &[f64],
     y: &[f64],
     obs: &[u8],
@@ -1400,11 +1428,11 @@ fn output_values(
 ) -> (Vec<f64>, Vec<bool>) {
     let (n, g_n, s_n, nlin, kp, rank) = (lay.n, lay.g_n, lay.s_n, lay.nlin, lay.k + 1, params.rank);
     let tau_r2 = st.tau_r2;
-    // cross-fit plan per dataset: bridge rows, folds of their lines
+    // cross-fit plan per dataset: anchor rows, folds of their lines
     struct Plan {
         s: usize,
         rows: Vec<usize>,
-        bridge_rows: Vec<usize>,
+        anchor_rows: Vec<usize>,
         lines: Vec<usize>,
         fold_of_line: HashMap<usize, usize>,
     }
@@ -1412,16 +1440,16 @@ fn output_values(
     let mut cf = vec![false; s_n];
     #[allow(clippy::needless_range_loop)] // s indexes several per-dataset arrays
     for s in 0..s_n {
-        if !lay.bridged[s] || lay.nb[s] >= params.cf_max_nb {
+        if !lay.anchored[s] || lay.nb[s] >= params.cf_max_nb {
             continue;
         }
         let rows: Vec<usize> = (0..n).filter(|&i| lay.srow[i] == s).collect();
-        let bridge_rows: Vec<usize> = rows
+        let anchor_rows: Vec<usize> = rows
             .iter()
             .copied()
-            .filter(|&i| lay.bridge_row[i])
+            .filter(|&i| lay.anchor_row[i])
             .collect();
-        let lines: Vec<usize> = bridge_rows
+        let lines: Vec<usize> = anchor_rows
             .iter()
             .map(|&i| lay.li[i])
             .collect::<BTreeSet<_>>()
@@ -1437,7 +1465,7 @@ fn output_values(
         plans.push(Plan {
             s,
             rows,
-            bridge_rows,
+            anchor_rows,
             lines,
             fold_of_line,
         });
@@ -1456,7 +1484,7 @@ fn output_values(
             let s = plan.s;
             let taus2 = st.taus2[s];
             let f_gs = st.f[g * s_n + s];
-            // leave-dataset-out theta for this dataset's bridge lines
+            // leave-dataset-out theta for this dataset's anchor samples
             let mut tloo: HashMap<usize, f64> = HashMap::with_capacity(plan.lines.len());
             for &l in &plan.lines {
                 let prior = st.m[g] + st.lin[g * nlin + lay.lin_of_line[l]] + st.uv(rank, g, l);
@@ -1477,10 +1505,10 @@ fn output_values(
                 }
                 tloo.insert(l, prior + num / (den + 1.0 / tau_r2));
             }
-            // per-fold EB sums of the bridge rows' residual offsets
+            // per-fold EB sums of the anchor rows' residual offsets
             let mut fold_num = vec![0.0; params.folds];
             let mut fold_den = vec![0.0; params.folds];
-            for &i in &plan.bridge_rows {
+            for &i in &plan.anchor_rows {
                 if obs[g * n + i] != OBSERVED {
                     continue;
                 }
@@ -1497,7 +1525,7 @@ fn output_values(
                 if obs[g * n + i] == UNOBSERVED {
                     continue;
                 }
-                let r = if lay.bridge_row[i] {
+                let r = if lay.anchor_row[i] {
                     let fold = plan.fold_of_line[&lay.li[i]];
                     (tot_num - fold_num[fold]) / (tot_den - fold_den[fold] + 1.0 / taus2)
                 } else {

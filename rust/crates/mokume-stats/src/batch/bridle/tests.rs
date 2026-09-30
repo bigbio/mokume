@@ -1,12 +1,12 @@
-//! Unit tests for LIM: ridge solves, EM updates, cross-fit, plexes and
+//! Unit tests for BRIDLE: ridge solves, EM updates, cross-fit, plexes and
 //! missing-value handling on small hand-built collections. The end-to-end
-//! comparison with the Python prototype lives in `tests/lim_golden.rs`.
+//! comparison with the Python prototype lives in `tests/bridle_golden.rs`.
 
 use super::*;
 
 /// Tiny collection: REF (6 lines), B (4 of the same lines, +1.0 offset),
-/// S (single line L0, +0.5 offset), U (unbridged, 3 own lines). 60 genes.
-fn toy(missing_every: usize) -> LimData {
+/// S (single line L0, +0.5 offset), U (unanchored, 3 own lines). 60 genes.
+fn toy(missing_every: usize) -> BridleData {
     let g_n = 60;
     let mut rs = NumpyRandomState::new(11);
     let base: Vec<f64> = (0..g_n).map(|_| 20.0 + 2.0 * rs.next_gauss()).collect();
@@ -19,7 +19,7 @@ fn toy(missing_every: usize) -> LimData {
         ("S", vec![0], 0.5),
         ("U", (6..9).collect(), -0.7),
     ];
-    let mut data = LimData {
+    let mut data = BridleData {
         datasets: Vec::new(),
         lines: Vec::new(),
         lineages: Vec::new(),
@@ -48,20 +48,20 @@ fn toy(missing_every: usize) -> LimData {
     data
 }
 
-fn toy_params() -> LimParams {
-    LimParams {
+fn toy_params() -> BridleParams {
+    BridleParams {
         reference: "REF".to_owned(),
         rank: 2,
         sweeps: 15,
         min_f_genes: 10,
-        ..LimParams::default()
+        ..BridleParams::default()
     }
 }
 
-fn fit(data: &LimData, params: &LimParams) -> LimResult {
+fn fit(data: &BridleData, params: &BridleParams) -> BridleResult {
     let ab = reference_abundance(data, &params.reference);
     let (design, _, abz) = build_design(&ab, None);
-    match lim_fit(data, &design, &abz, params) {
+    match bridle_fit(data, &design, &abz, params) {
         Ok(r) => r,
         Err(e) => panic!("fit failed: {e}"),
     }
@@ -100,7 +100,7 @@ fn missing_values_stay_missing_and_no_gene_is_dropped() {
 fn em_updates_stay_finite_and_monitor_improves() {
     let res = fit(
         &toy(0),
-        &LimParams {
+        &BridleParams {
             holdout_frac: 0.05,
             ..toy_params()
         },
@@ -135,7 +135,7 @@ fn offsets_are_recovered_relative_to_reference() {
     assert_eq!(mean_offset("REF"), 0.0);
     // the applied offset y - v = A_out + c, relative to REF's (a constant can
     // move between m_g and every profile's c), recovers B's +1.0. A_out is
-    // cross-fitted: B has 4 bridge lines < cf_max_nb.
+    // cross-fitted: B has 4 anchor samples < cf_max_nb.
     let applied = |name: &str| {
         let rows: Vec<usize> = (0..data.n_profiles())
             .filter(|&i| data.datasets[i] == name)
@@ -171,8 +171,8 @@ fn cross_fit_keeps_single_line_signal() {
     let g_n = data.genes.len();
     let s = res.dataset_names.iter().position(|d| d == "S").unwrap_or(0);
     let rep = &res.report.datasets[s];
-    assert!(rep.bridged && rep.cross_fitted && rep.n_bridge_lines == 1);
-    // one bridge line -> the fold-excluded r is 0: A_out = f exactly
+    assert!(rep.anchored && rep.cross_fitted && rep.n_anchor_samples == 1);
+    // one anchor sample -> the fold-excluded r is 0: A_out = f exactly
     let i = (0..data.n_profiles())
         .find(|&i| data.datasets[i] == "S")
         .unwrap_or(0);
@@ -180,7 +180,7 @@ fn cross_fit_keeps_single_line_signal() {
         let a_out = data.values[i * g_n + g] - res.corrected[i * g_n + g] - res.sample_loading[i];
         assert!((a_out - res.feature_offsets[s * g_n + g]).abs() < 1e-9);
     }
-    // B has 4 bridge lines (< cf_max_nb) and is cross-fitted too; REF is not
+    // B has 4 anchor samples (< cf_max_nb) and is cross-fitted too; REF is not
     let b = res.dataset_names.iter().position(|d| d == "B").unwrap_or(0);
     assert!(res.report.datasets[b].cross_fitted);
     let r = res
@@ -188,10 +188,10 @@ fn cross_fit_keeps_single_line_signal() {
         .iter()
         .position(|d| d == "REF")
         .unwrap_or(0);
-    assert!(!res.report.datasets[r].cross_fitted && !res.report.datasets[r].bridged);
-    // unbridged dataset: A = f (no residual offset)
+    assert!(!res.report.datasets[r].cross_fitted && !res.report.datasets[r].anchored);
+    // unanchored dataset: A = f (no residual offset)
     let u = res.dataset_names.iter().position(|d| d == "U").unwrap_or(0);
-    assert!(!res.report.datasets[u].bridged);
+    assert!(!res.report.datasets[u].anchored);
     for g in 0..g_n {
         assert_eq!(res.offsets[u * g_n + g], res.feature_offsets[u * g_n + g]);
     }
@@ -210,7 +210,7 @@ fn explicit_plex_ids_are_scoped_per_dataset() {
     data.plexes = Some(plex);
     let res = fit(
         &data,
-        &LimParams {
+        &BridleParams {
             plex_mode: PlexMode::Explicit,
             ..toy_params()
         },
@@ -251,13 +251,13 @@ fn input_errors_are_reported() {
     let data = toy(0);
     let ab = reference_abundance(&data, "REF");
     let (design, _, abz) = build_design(&ab, None);
-    let bad_ref = LimParams {
+    let bad_ref = BridleParams {
         reference: "NOPE".to_owned(),
         ..toy_params()
     };
-    assert!(lim_fit(&data, &design, &abz, &bad_ref).is_err());
+    assert!(bridle_fit(&data, &design, &abz, &bad_ref).is_err());
     let mut dup = data.clone();
     dup.lines[1] = dup.lines[0].clone();
-    assert!(lim_fit(&dup, &design, &abz, &toy_params()).is_err());
-    assert!(lim_fit(&data, &design[1..], &abz[1..], &toy_params()).is_err());
+    assert!(bridle_fit(&dup, &design, &abz, &toy_params()).is_err());
+    assert!(bridle_fit(&data, &design[1..], &abz[1..], &toy_params()).is_err());
 }

@@ -1,4 +1,4 @@
-//! TMT plex groups for LIM's plex block `P[k,g]`.
+//! TMT plex groups for BRIDLE's plex block `P[k,g]`.
 //!
 //! Preferred source: an explicit plex / mixture id per profile (from the SDRF),
 //! passed by the caller. When none is given, plexes are inferred as in the

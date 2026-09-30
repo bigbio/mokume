@@ -1,12 +1,12 @@
 //! NumPy `RandomState`-compatible MT19937 stream.
 //!
-//! LIM draws random numbers in exactly three places: the 1% monitor hold-out
+//! BRIDLE draws random numbers in exactly three places: the 1% monitor hold-out
 //! mask, the initial low-rank factors, and the cross-fit fold permutation. They
 //! are drawn from a Mersenne Twister seeded like `np.random.RandomState(seed)`
 //! so a fixed seed gives the same stream as the Python prototype. This keeps
 //! the Rust fit deterministic and lets the golden test compare it cell by cell
 //! against the prototype (whose torch initialisation is replaced by the same
-//! NumPy stream in `scripts/lim_golden_reference.py`).
+//! NumPy stream in `scripts/bridle_golden_reference.py`).
 //!
 //! Implemented draws (bit-identical to NumPy's legacy `RandomState`):
 //! `random_sample` (53-bit double), `standard_normal` (polar Box-Muller with a

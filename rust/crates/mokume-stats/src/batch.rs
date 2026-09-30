@@ -7,15 +7,17 @@
 //! backed by `pca` and `hdbscan`) cover the remaining detection-side ports
 //! of the same Python module.
 //!
-//! [`lim`] is the learned integration model (LIM, linear variant) for
-//! multi-dataset collections: per-dataset technical offsets from protein
-//! features plus bridge-line residuals, TMT plex effects and sample loadings,
-//! fitted jointly with shared per-line biology (`correct-batches --method lim`).
+//! [`bridle`] is BRIDLE (Batch Removal via Intrinsic Detectability and Latent
+//! Estimation, linear variant) for multi-dataset collections: per-dataset
+//! technical offsets from intrinsic protein features (detectability) plus
+//! anchor-sample residuals, TMT plex effects and sample loadings, fitted
+//! jointly with shared latent per-sample biology
+//! (`correct-batches --method bridle`).
 
+pub mod bridle;
 mod combat;
 mod detection;
 mod hdbscan;
-pub mod lim;
 mod outlier;
 mod pca;
 

@@ -1,6 +1,6 @@
-//! Small dense solves for LIM's closed-form ridge blocks.
+//! Small dense solves for BRIDLE's closed-form ridge blocks.
 //!
-//! Every solve LIM performs is a symmetric positive (semi-)definite normal
+//! Every solve BRIDLE performs is a symmetric positive (semi-)definite normal
 //! system of dimension <= ~40 (the feature ridge) or `rank` (the ALS factors),
 //! so a hand-written Cholesky with an LU fallback is enough and avoids pulling
 //! a linear-algebra dependency into `mokume-stats`.

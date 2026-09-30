@@ -1,11 +1,11 @@
-//! Golden test for LIM (`mokume_stats::batch::lim`).
+//! Golden test for BRIDLE (`mokume_stats::batch::bridle`).
 //!
 //! A synthetic collection with known biology, known technical offsets, TMT
-//! plexes, a cross-fitted weakly bridged dataset, a single-line dataset and an
-//! unbridged dataset. The generator mirrors `rust/scripts/lim_golden_reference.py`
+//! plexes, a cross-fitted weakly anchored dataset, a single-line dataset and an
+//! unanchored dataset. The generator mirrors `rust/scripts/bridle_golden_reference.py`
 //! draw for draw (NumPy `RandomState` stream), and that script's run of the
 //! Python prototype (`lim_lin/lim.py`) is stored in
-//! `tests/fixtures/lim_golden_expected.tsv`.
+//! `tests/fixtures/bridle_golden_expected.tsv`.
 //!
 //! Checks:
 //! 1. Rust matches the prototype cell by cell (tolerance [`PY_TOL`]).
@@ -14,9 +14,9 @@
 
 use std::collections::HashMap;
 
-use mokume_stats::batch::lim::{
-    build_design, lim_fit, reference_abundance, LimData, LimParams, LimResult, NumpyRandomState,
-    PlexMode, SequenceFeatures,
+use mokume_stats::batch::bridle::{
+    bridle_fit, build_design, reference_abundance, BridleData, BridleParams, BridleResult,
+    NumpyRandomState, PlexMode, SequenceFeatures,
 };
 
 const SEED: u32 = 20_260_927;
@@ -42,7 +42,7 @@ fn members(d: &str) -> Vec<usize> {
 }
 
 struct Fixture {
-    data: LimData,
+    data: BridleData,
     features: SequenceFeatures,
     /// true theta, lines x genes
     theta: Vec<Vec<f64>>,
@@ -148,7 +148,7 @@ fn fixture() -> Fixture {
     profiles.sort_by(|a, b| (&a.0, &a.1).cmp(&(&b.0, &b.1)));
     let lineage_of =
         |line: &str| -> Option<String> { line[1..].parse::<usize>().ok().and_then(lineage) };
-    let data = LimData {
+    let data = BridleData {
         datasets: profiles.iter().map(|p| p.0.clone()).collect(),
         lines: profiles.iter().map(|p| p.1.clone()).collect(),
         lineages: profiles.iter().map(|p| lineage_of(&p.1)).collect(),
@@ -169,22 +169,22 @@ fn fixture() -> Fixture {
     }
 }
 
-fn params(plex_mode: PlexMode) -> LimParams {
-    LimParams {
+fn params(plex_mode: PlexMode) -> BridleParams {
+    BridleParams {
         reference: "REF".to_owned(),
         rank: 4,
         sweeps: 30,
         plex_mode,
-        ..LimParams::default()
+        ..BridleParams::default()
     }
 }
 
-fn run(fx: &Fixture, plex_mode: PlexMode) -> LimResult {
+fn run(fx: &Fixture, plex_mode: PlexMode) -> BridleResult {
     let ab = reference_abundance(&fx.data, "REF");
     let (design, _, abz) = build_design(&ab, Some(&fx.features));
-    match lim_fit(&fx.data, &design, &abz, &params(plex_mode)) {
+    match bridle_fit(&fx.data, &design, &abz, &params(plex_mode)) {
         Ok(r) => r,
-        Err(e) => panic!("lim_fit failed: {e}"),
+        Err(e) => panic!("bridle_fit failed: {e}"),
     }
 }
 
@@ -210,7 +210,7 @@ fn row_index(fx: &Fixture, ds: &str, line: &str) -> usize {
 fn matches_python_prototype() {
     let fx = fixture();
     let res = run(&fx, PlexMode::Inferred);
-    let text = include_str!("fixtures/lim_golden_expected.tsv");
+    let text = include_str!("fixtures/bridle_golden_expected.tsv");
     let mut n_cells = 0;
     let mut max_diff: f64 = 0.0;
     for line in text.lines().filter(|l| !l.starts_with('#')).skip(1) {
@@ -259,7 +259,7 @@ fn matches_python_prototype() {
             _ => {}
         }
     }
-    eprintln!("LIM golden: max |rust - python| = {max_diff:.3e} over {n_cells} cells");
+    eprintln!("BRIDLE golden: max |rust - python| = {max_diff:.3e} over {n_cells} cells");
     assert!(n_cells > 1000, "expected cells missing ({n_cells})");
     assert!(
         max_diff < PY_TOL,
@@ -341,7 +341,7 @@ fn preserves_biology_and_single_line_signal() {
         .position(|d| d == "SINGLE")
         .unwrap_or(usize::MAX);
     let rep = &res.report.datasets[s];
-    assert!(rep.cross_fitted && rep.n_bridge_lines == 1);
+    assert!(rep.cross_fitted && rep.n_anchor_samples == 1);
     let i = row_index(&fx, "SINGLE", "L10");
     for g in (0..G).filter(|&g| fx.data.values[i * G + g].is_finite()) {
         let a_out = fx.data.values[i * G + g] - res.corrected[i * G + g] - res.sample_loading[i];

@@ -1,15 +1,20 @@
-//! `correct-batches --method lim`: LIM integration of a multi-dataset
-//! collection (see [`mokume_stats::batch::lim`] for the model).
+//! `correct-batches --method bridle`: BRIDLE (Batch Removal via Intrinsic
+//! Detectability and Latent Estimation) integration of a multi-dataset
+//! collection (see [`mokume_stats::batch::bridle`] for the model). `--method
+//! lim` is accepted as a hidden, deprecated alias.
 //!
 //! Input: one long-format table (`.parquet`, `.tsv` or `.csv`) with dataset,
-//! line, gene and log2 value columns (one row per observed cell; replicates
-//! already collapsed per (dataset, line)). Profiles are the (dataset, line)
-//! pairs, sorted by name; genes are sorted by name. Missing cells stay missing:
-//! no imputation, no protein filter.
+//! anchor, gene and log2 value columns (one row per observed cell; replicates
+//! already collapsed per (dataset, anchor)). The anchor column
+//! (`--anchor-column`, alias `--line-column`) names the biological unit that
+//! links datasets: a cell line, reference material, pooled QC or the same
+//! patient across cohorts. Profiles are the (dataset, anchor) pairs, sorted by
+//! name; genes are sorted by name. Missing cells stay missing: no imputation,
+//! no protein filter.
 //!
 //! Optional inputs:
 //! * `--lineage-table` (e.g. DepMap `Model.csv`, `RRID` -> `OncotreeLineage`):
-//!   lines without a match get no lineage effect.
+//!   anchors without a match get no lineage effect.
 //! * `--plex-column` (+ `--plex-table`): explicit TMT plex / mixture ids per
 //!   profile, e.g. derived from the SDRF. When absent, plexes are inferred from
 //!   shared missingness (Jaccard + average linkage, datasets with >= 20
@@ -17,10 +22,10 @@
 //! * `--fasta`: technical sequence features for the offset model.
 //!
 //! Output (`-o`, parquet when the extension is `.parquet`, else TSV/CSV):
-//! `<dataset>, <line>, <gene>, <value>, imputed` for every observed input cell,
-//! with `value = y - A - c - P` and `imputed = false`. `--theta-output` writes
-//! the pooled per-line biology for observed line/gene cells, `--report` a JSON
-//! fit summary.
+//! `<dataset>, <anchor>, <gene>, <value>, imputed` for every observed input
+//! cell, with `value = y - A - c - P` and `imputed = false`. `--theta-output`
+//! writes the pooled per-anchor biology for observed anchor/gene cells,
+//! `--report` a JSON fit summary.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
@@ -33,16 +38,16 @@ use arrow::compute::cast;
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use mokume_stats::batch::lim::{
-    build_design, lim_fit, reference_abundance, sequence_features, LimData, LimParams, LimResult,
-    PlexMode,
+use mokume_stats::batch::bridle::{
+    bridle_fit, build_design, reference_abundance, sequence_features, BridleData, BridleParams,
+    BridleResult, PlexMode,
 };
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ArrowWriter;
 use parquet::basic::Compression;
 use parquet::file::properties::WriterProperties;
 
-use crate::other_args::LimArgs;
+use crate::other_args::BridleArgs;
 use crate::CorrectBatchesArgs;
 
 /// Rows per written parquet batch.
@@ -61,11 +66,11 @@ fn io_err(path: &Path, source: std::io::Error) -> MokumeError {
     }
 }
 
-/// Default LIM options (as parsed by clap with no LIM flags).
-pub(crate) fn default_lim_args() -> LimArgs {
-    LimArgs {
+/// Default BRIDLE options (as parsed by clap with no BRIDLE flags).
+pub(crate) fn default_bridle_args() -> BridleArgs {
+    BridleArgs {
         dataset_column: "ds".to_owned(),
-        line_column: "cvcl".to_owned(),
+        anchor_column: "cvcl".to_owned(),
         gene_column: "gene".to_owned(),
         value_column: "v".to_owned(),
         reference: None,
@@ -85,38 +90,44 @@ pub(crate) fn default_lim_args() -> LimArgs {
     }
 }
 
-/// ComBat must not silently ignore LIM-only options.
-pub(crate) fn reject_lim_only_options(lim: &LimArgs) -> Result<()> {
-    let d = default_lim_args();
+/// ComBat must not silently ignore BRIDLE-only options.
+pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
+    let d = default_bridle_args();
     let set = [
-        ("--dataset-column", lim.dataset_column != d.dataset_column),
-        ("--line-column", lim.line_column != d.line_column),
-        ("--gene-column", lim.gene_column != d.gene_column),
-        ("--value-column", lim.value_column != d.value_column),
-        ("--reference", lim.reference.is_some()),
-        ("--lineage-table", lim.lineage_table.is_some()),
+        (
+            "--dataset-column",
+            bridle.dataset_column != d.dataset_column,
+        ),
+        ("--anchor-column", bridle.anchor_column != d.anchor_column),
+        ("--gene-column", bridle.gene_column != d.gene_column),
+        ("--value-column", bridle.value_column != d.value_column),
+        ("--reference", bridle.reference.is_some()),
+        ("--lineage-table", bridle.lineage_table.is_some()),
         (
             "--lineage-key-column",
-            lim.lineage_key_column != d.lineage_key_column,
+            bridle.lineage_key_column != d.lineage_key_column,
         ),
-        ("--lineage-column", lim.lineage_column != d.lineage_column),
-        ("--plex-column", lim.plex_column.is_some()),
-        ("--plex-table", lim.plex_table.is_some()),
-        ("--no-plex", lim.no_plex),
-        ("--fasta", lim.fasta.is_some()),
-        ("--fasta-organism", lim.fasta_organism.is_some()),
-        ("--rank", lim.rank != d.rank),
-        ("--sweeps", lim.sweeps != d.sweeps),
-        ("--seed", lim.seed != d.seed),
-        ("--theta-output", lim.theta_output.is_some()),
-        ("--report", lim.report.is_some()),
+        (
+            "--lineage-column",
+            bridle.lineage_column != d.lineage_column,
+        ),
+        ("--plex-column", bridle.plex_column.is_some()),
+        ("--plex-table", bridle.plex_table.is_some()),
+        ("--no-plex", bridle.no_plex),
+        ("--fasta", bridle.fasta.is_some()),
+        ("--fasta-organism", bridle.fasta_organism.is_some()),
+        ("--rank", bridle.rank != d.rank),
+        ("--sweeps", bridle.sweeps != d.sweeps),
+        ("--seed", bridle.seed != d.seed),
+        ("--theta-output", bridle.theta_output.is_some()),
+        ("--report", bridle.report.is_some()),
     ];
     let bad: Vec<&str> = set.iter().filter(|(_, on)| *on).map(|(n, _)| *n).collect();
     if bad.is_empty() {
         Ok(())
     } else {
         Err(invalid(format!(
-            "{} only apply to --method lim",
+            "{} only apply to --method bridle",
             bad.join(", ")
         )))
     }
@@ -181,20 +192,20 @@ fn parse_float(raw: &str) -> Option<f64> {
     t.parse::<f64>().ok().filter(|v| v.is_finite())
 }
 
-fn read_long(path: &Path, lim: &LimArgs, plex_in_input: Option<&str>) -> Result<LongInput> {
+fn read_long(path: &Path, bridle: &BridleArgs, plex_in_input: Option<&str>) -> Result<LongInput> {
     let mut out = LongInput::default();
     let mut cols = vec![
-        lim.dataset_column.as_str(),
-        lim.line_column.as_str(),
-        lim.gene_column.as_str(),
-        lim.value_column.as_str(),
+        bridle.dataset_column.as_str(),
+        bridle.anchor_column.as_str(),
+        bridle.gene_column.as_str(),
+        bridle.value_column.as_str(),
     ];
     if let Some(p) = plex_in_input {
         cols.push(p);
     }
     let push = |out: &mut LongInput, fields: [Option<&str>; 4], value: Option<f64>| -> Result<()> {
         let (Some(d), Some(l), Some(g)) = (fields[0], fields[1], fields[2]) else {
-            return Err(invalid("null dataset / line / gene in the LIM input"));
+            return Err(invalid("null dataset / line / gene in the BRIDLE input"));
         };
         let Some(v) = value else {
             out.n_missing_value += 1;
@@ -327,9 +338,9 @@ fn read_map(
     Ok(out)
 }
 
-/// Entry point for `correct-batches --method lim`.
-pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
-    let lim = &args.lim;
+/// Entry point for `correct-batches --method bridle`.
+pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
+    let bridle = &args.bridle;
     if !args.input.is_file() {
         return Err(MokumeError::MissingInput {
             path: args.input.clone(),
@@ -337,12 +348,12 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
     }
     if args.export_anndata {
         return Err(invalid(
-            "--export-anndata is not supported with --method lim",
+            "--export-anndata is not supported with --method bridle",
         ));
     }
     for out in std::iter::once(&args.output)
-        .chain(lim.theta_output.iter())
-        .chain(lim.report.iter())
+        .chain(bridle.theta_output.iter())
+        .chain(bridle.report.iter())
     {
         if out == &args.input {
             return Err(invalid(format!(
@@ -351,21 +362,21 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
             )));
         }
     }
-    if lim.plex_table.is_some() && lim.plex_column.is_none() {
+    if bridle.plex_table.is_some() && bridle.plex_column.is_none() {
         return Err(invalid("--plex-table needs --plex-column"));
     }
-    if lim.no_plex && lim.plex_column.is_some() {
+    if bridle.no_plex && bridle.plex_column.is_some() {
         return Err(invalid("--no-plex conflicts with --plex-column"));
     }
     let t0 = std::time::Instant::now();
-    let plex_in_input = if lim.plex_table.is_none() {
-        lim.plex_column.as_deref()
+    let plex_in_input = if bridle.plex_table.is_none() {
+        bridle.plex_column.as_deref()
     } else {
         None
     };
-    let long = read_long(&args.input, lim, plex_in_input)?;
+    let long = read_long(&args.input, bridle, plex_in_input)?;
     tracing::info!(
-        "LIM input: {} observed cells, {} missing/non-finite values skipped",
+        "BRIDLE input: {} observed cells, {} missing/non-finite values skipped",
         long.rows.len(),
         long.n_missing_value
     );
@@ -414,7 +425,7 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
     }
     if dup > 0 {
         tracing::warn!(
-            "LIM input: {dup} duplicate (dataset, line, gene) rows; the first value was kept"
+            "BRIDLE input: {dup} duplicate (dataset, line, gene) rows; the first value was kept"
         );
     }
     let datasets: Vec<String> = profile_keys
@@ -430,12 +441,12 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
         .map(|&g| long.gene.names[g as usize].clone())
         .collect();
 
-    let lineages: Vec<Option<String>> = match &lim.lineage_table {
+    let lineages: Vec<Option<String>> = match &bridle.lineage_table {
         Some(path) => {
             let map = read_map(
                 path,
-                &[lim.lineage_key_column.as_str()],
-                &lim.lineage_column,
+                &[bridle.lineage_key_column.as_str()],
+                &bridle.lineage_column,
             )?;
             lines
                 .iter()
@@ -444,11 +455,14 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
         }
         None => vec![None; n],
     };
-    let plexes: Option<Vec<Option<String>>> = match (&lim.plex_column, &lim.plex_table) {
+    let plexes: Option<Vec<Option<String>>> = match (&bridle.plex_column, &bridle.plex_table) {
         (Some(col), Some(path)) => {
             let map = read_map(
                 path,
-                &[lim.dataset_column.as_str(), lim.line_column.as_str()],
+                &[
+                    bridle.dataset_column.as_str(),
+                    bridle.anchor_column.as_str(),
+                ],
                 col,
             )?;
             Some(
@@ -470,7 +484,7 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
     };
     drop(long);
 
-    let reference = match &lim.reference {
+    let reference = match &bridle.reference {
         Some(r) => r.clone(),
         None => {
             let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
@@ -481,7 +495,7 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
             best.map(|(d, _)| (*d).to_owned()).unwrap_or_default()
         }
     };
-    let plex_mode = if lim.no_plex {
+    let plex_mode = if bridle.no_plex {
         PlexMode::Off
     } else if plexes.is_some() {
         PlexMode::Explicit
@@ -490,9 +504,9 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
     };
     let n_lineage = lineages.iter().filter(|l| l.is_some()).count();
     tracing::info!(
-        "LIM: {n} profiles x {g_n} genes, reference={reference}, {n_lineage} profiles with lineage, plex mode={plex_mode:?}"
+        "BRIDLE: {n} profiles x {g_n} genes, reference={reference}, {n_lineage} profiles with lineage, plex mode={plex_mode:?}"
     );
-    let data = LimData {
+    let data = BridleData {
         datasets,
         lines,
         lineages,
@@ -501,12 +515,12 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
         values,
     };
 
-    let features = match &lim.fasta {
+    let features = match &bridle.fasta {
         Some(path) => {
             let text = std::fs::read_to_string(path).map_err(|e| io_err(path, e))?;
-            let f = sequence_features(&text, &data.genes, lim.fasta_organism.as_deref());
+            let f = sequence_features(&text, &data.genes, bridle.fasta_organism.as_deref());
             tracing::info!(
-                "LIM features: {} of {g_n} genes without a FASTA sequence",
+                "BRIDLE features: {} of {g_n} genes without a FASTA sequence",
                 f.n_missing
             );
             Some(f)
@@ -515,27 +529,27 @@ pub(crate) fn run_lim(args: &CorrectBatchesArgs) -> Result<()> {
     };
     let abundance = reference_abundance(&data, &reference);
     let (design, design_names, abz) = build_design(&abundance, features.as_ref());
-    let params = LimParams {
+    let params = BridleParams {
         reference,
-        rank: lim.rank,
-        sweeps: lim.sweeps,
-        seed: lim.seed,
+        rank: bridle.rank,
+        sweeps: bridle.sweeps,
+        seed: bridle.seed,
         plex_mode,
-        ..LimParams::default()
+        ..BridleParams::default()
     };
-    let res = lim_fit(&data, &design, &abz, &params)?;
+    let res = bridle_fit(&data, &design, &abz, &params)?;
     tracing::info!(
-        "LIM fit: {} sweeps (converged={}) in {:.1}s",
+        "BRIDLE fit: {} sweeps (converged={}) in {:.1}s",
         res.report.history.len(),
         res.report.converged,
         t0.elapsed().as_secs_f64()
     );
 
-    write_values(&args.output, lim, &data, &res)?;
-    if let Some(path) = &lim.theta_output {
-        write_theta(path, lim, &data, &res)?;
+    write_values(&args.output, bridle, &data, &res)?;
+    if let Some(path) = &bridle.theta_output {
+        write_theta(path, bridle, &data, &res)?;
     }
-    if let Some(path) = &lim.report {
+    if let Some(path) = &bridle.report {
         write_report(path, args, &design_names, &res, t0.elapsed().as_secs_f64())?;
     }
     Ok(())
@@ -613,14 +627,19 @@ fn write_table(path: &Path, t: &OutTable) -> Result<()> {
     Ok(())
 }
 
-fn write_values(path: &Path, lim: &LimArgs, data: &LimData, res: &LimResult) -> Result<()> {
+fn write_values(
+    path: &Path,
+    bridle: &BridleArgs,
+    data: &BridleData,
+    res: &BridleResult,
+) -> Result<()> {
     let g_n = data.genes.len();
     let mut t = OutTable {
         names: vec![
-            lim.dataset_column.clone(),
-            lim.line_column.clone(),
-            lim.gene_column.clone(),
-            lim.value_column.clone(),
+            bridle.dataset_column.clone(),
+            bridle.anchor_column.clone(),
+            bridle.gene_column.clone(),
+            bridle.value_column.clone(),
         ],
         strings: vec![Vec::new(), Vec::new(), Vec::new()],
         values: Vec::new(),
@@ -637,20 +656,25 @@ fn write_values(path: &Path, lim: &LimArgs, data: &LimData, res: &LimResult) -> 
         }
     }
     tracing::info!(
-        "LIM: writing {} corrected cells to {}",
+        "BRIDLE: writing {} corrected cells to {}",
         t.values.len(),
         path.display()
     );
     write_table(path, &t)
 }
 
-fn write_theta(path: &Path, lim: &LimArgs, data: &LimData, res: &LimResult) -> Result<()> {
+fn write_theta(
+    path: &Path,
+    bridle: &BridleArgs,
+    data: &BridleData,
+    res: &BridleResult,
+) -> Result<()> {
     let g_n = data.genes.len();
     let mut t = OutTable {
         names: vec![
-            lim.line_column.clone(),
-            lim.gene_column.clone(),
-            lim.value_column.clone(),
+            bridle.anchor_column.clone(),
+            bridle.gene_column.clone(),
+            bridle.value_column.clone(),
         ],
         strings: vec![Vec::new(), Vec::new()],
         values: Vec::new(),
@@ -671,7 +695,7 @@ fn write_report(
     path: &Path,
     args: &CorrectBatchesArgs,
     design_names: &[String],
-    res: &LimResult,
+    res: &BridleResult,
     runtime_s: f64,
 ) -> Result<()> {
     let r = &res.report;
@@ -680,8 +704,8 @@ fn write_report(
         .iter()
         .map(|d| {
             serde_json::json!({
-                "name": d.name, "n_profiles": d.n_profiles, "n_bridge_lines": d.n_bridge_lines,
-                "bridged": d.bridged, "cross_fitted": d.cross_fitted, "n_plexes": d.n_plexes,
+                "name": d.name, "n_profiles": d.n_profiles, "n_anchor_samples": d.n_anchor_samples,
+                "anchored": d.anchored, "cross_fitted": d.cross_fitted, "n_plexes": d.n_plexes,
                 "n_plexed_profiles": d.n_plexed_profiles, "tau_s": d.tau_s, "sig2": d.sig2,
                 "sig_slope": d.sig_slope, "f_fitted": d.f_fitted,
             })
@@ -692,18 +716,18 @@ fn write_report(
         .iter()
         .map(|h| serde_json::json!({"sweep": h.sweep, "hold_mse": h.hold_mse, "tau_r": h.tau_r, "tau_p": h.tau_p}))
         .collect();
-    let lim = &args.lim;
+    let bridle = &args.bridle;
     let doc = serde_json::json!({
-        "method": "lim-linear",
+        "method": "bridle-linear",
         "mokume_version": env!("CARGO_PKG_VERSION"),
         "input": args.input.display().to_string(),
         "params": {
-            "reference": r.reference, "rank": lim.rank, "sweeps": lim.sweeps, "seed": lim.seed,
-            "fasta": lim.fasta.as_ref().map(|p| p.display().to_string()),
-            "fasta_organism": lim.fasta_organism,
-            "lineage_table": lim.lineage_table.as_ref().map(|p| p.display().to_string()),
-            "plex_column": lim.plex_column, "plex_table": lim.plex_table.as_ref().map(|p| p.display().to_string()),
-            "no_plex": lim.no_plex,
+            "reference": r.reference, "rank": bridle.rank, "sweeps": bridle.sweeps, "seed": bridle.seed,
+            "fasta": bridle.fasta.as_ref().map(|p| p.display().to_string()),
+            "fasta_organism": bridle.fasta_organism,
+            "lineage_table": bridle.lineage_table.as_ref().map(|p| p.display().to_string()),
+            "plex_column": bridle.plex_column, "plex_table": bridle.plex_table.as_ref().map(|p| p.display().to_string()),
+            "no_plex": bridle.no_plex,
         },
         "n_profiles": r.n_profiles, "n_genes": r.n_genes, "n_lines": r.n_lines,
         "n_lineages": r.n_lineages, "n_plexes": r.n_plexes, "design_columns": design_names,
@@ -725,14 +749,14 @@ mod tests {
     type TestResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
     fn temp_dir(tag: &str) -> TestResult<PathBuf> {
-        let dir = std::env::temp_dir().join(format!("mokume-lim-{tag}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("mokume-bridle-{tag}-{}", std::process::id()));
         std::fs::create_dir_all(&dir)?;
         Ok(dir)
     }
 
     fn args(input: PathBuf, output: PathBuf) -> CorrectBatchesArgs {
         CorrectBatchesArgs {
-            method: CorrectBatchesMethod::Lim,
+            method: CorrectBatchesMethod::Bridle,
             input,
             pattern: "*pibaq.tsv".to_owned(),
             comment: "#".to_owned(),
@@ -743,10 +767,10 @@ mod tests {
             pibaq_raw_column: "PiBAQ".to_owned(),
             pibaq_corrected_column: "PiBAQBec".to_owned(),
             export_anndata: false,
-            lim: LimArgs {
+            bridle: BridleArgs {
                 rank: 2,
                 sweeps: 10,
-                ..default_lim_args()
+                ..default_bridle_args()
             },
         }
     }
@@ -779,15 +803,15 @@ mod tests {
     }
 
     #[test]
-    fn lim_cli_writes_observed_cells_only() -> TestResult<()> {
+    fn bridle_cli_writes_observed_cells_only() -> TestResult<()> {
         let dir = temp_dir("cli")?;
         let input = write_toy(&dir)?;
         let out = dir.join("values.parquet");
         let mut a = args(input.clone(), out.clone());
-        a.lim.theta_output = Some(dir.join("theta.tsv"));
-        a.lim.report = Some(dir.join("fit.json"));
-        a.lim.lineage_table = None;
-        run_lim(&a)?;
+        a.bridle.theta_output = Some(dir.join("theta.tsv"));
+        a.bridle.report = Some(dir.join("fit.json"));
+        a.bridle.lineage_table = None;
+        run_bridle(&a)?;
         let file = File::open(&out)?;
         let reader = ParquetRecordBatchReaderBuilder::try_new(file)?.build()?;
         let mut rows = 0;
@@ -812,7 +836,7 @@ mod tests {
     }
 
     #[test]
-    fn lim_cli_reads_explicit_plexes_from_table() -> TestResult<()> {
+    fn bridle_cli_reads_explicit_plexes_from_table() -> TestResult<()> {
         let dir = temp_dir("plex")?;
         let input = write_toy(&dir)?;
         let table = dir.join("plex.tsv");
@@ -821,11 +845,11 @@ mod tests {
             "ds\tcvcl\tmix\nB\tL0\tx\nB\tL1\tx\nB\tL2\ty\nB\tL3\ty\n",
         )?;
         let mut a = args(input, dir.join("v.tsv"));
-        a.lim.reference = Some("REF".to_owned());
-        a.lim.plex_column = Some("mix".to_owned());
-        a.lim.plex_table = Some(table);
-        a.lim.report = Some(dir.join("fit.json"));
-        run_lim(&a)?;
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.plex_column = Some("mix".to_owned());
+        a.bridle.plex_table = Some(table);
+        a.bridle.report = Some(dir.join("fit.json"));
+        run_bridle(&a)?;
         let report: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
         assert_eq!(report["n_plexes"], 2);
@@ -833,23 +857,57 @@ mod tests {
     }
 
     #[test]
-    fn lim_only_options_are_rejected_for_combat() {
-        let mut lim = default_lim_args();
-        assert!(reject_lim_only_options(&lim).is_ok());
-        lim.fasta = Some(PathBuf::from("x.fasta"));
-        lim.rank = 4;
-        let Err(e) = reject_lim_only_options(&lim) else {
-            panic!("combat accepted LIM options");
+    fn bridle_only_options_are_rejected_for_combat() {
+        let mut bridle = default_bridle_args();
+        assert!(reject_bridle_only_options(&bridle).is_ok());
+        bridle.fasta = Some(PathBuf::from("x.fasta"));
+        bridle.rank = 4;
+        let Err(e) = reject_bridle_only_options(&bridle) else {
+            panic!("combat accepted BRIDLE options");
         };
         assert!(e.to_string().contains("--fasta, --rank"));
     }
 
     #[test]
-    fn lim_cli_rejects_output_over_input() -> TestResult<()> {
+    fn bridle_cli_rejects_output_over_input() -> TestResult<()> {
         let dir = temp_dir("clash")?;
         let input = write_toy(&dir)?;
         let a = args(input.clone(), input);
-        assert!(run_lim(&a).is_err());
+        assert!(run_bridle(&a).is_err());
         Ok(())
+    }
+
+    fn parse_correct_batches(extra: &[&str]) -> CorrectBatchesArgs {
+        use clap::Parser;
+        let argv = ["mokume", "correct-batches", "-i", "in", "-o", "out"];
+        let cli = crate::Cli::parse_from(argv.iter().chain(extra.iter()));
+        let crate::Commands::CorrectBatches(a) = cli.command else {
+            panic!("expected the correct-batches subcommand");
+        };
+        *a
+    }
+
+    #[test]
+    fn deprecated_lim_and_line_column_aliases_still_parse() {
+        let a = parse_correct_batches(&["--method", "bridle", "--anchor-column", "sample"]);
+        assert_eq!(a.method, CorrectBatchesMethod::Bridle);
+        assert_eq!(a.bridle.anchor_column, "sample");
+        let a = parse_correct_batches(&["--method", "lim", "--line-column", "cvcl2"]);
+        assert_eq!(a.method, CorrectBatchesMethod::Lim);
+        assert_eq!(a.bridle.anchor_column, "cvcl2");
+    }
+
+    #[test]
+    fn help_shows_bridle_and_hides_deprecated_aliases() {
+        use clap::CommandFactory;
+        let mut cmd = crate::Cli::command();
+        let Some(sub) = cmd.find_subcommand_mut("correct-batches") else {
+            panic!("missing correct-batches subcommand");
+        };
+        let help = sub.render_long_help().to_string();
+        assert!(help.contains("bridle"), "{help}");
+        assert!(help.contains("--anchor-column"), "{help}");
+        assert!(!help.contains("--line-column"), "{help}");
+        assert!(!help.contains("lim:") && !help.contains("[possible values: combat, bridle, lim]"));
     }
 }

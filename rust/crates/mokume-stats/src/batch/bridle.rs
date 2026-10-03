@@ -341,6 +341,9 @@ pub struct BridleResult {
     pub offsets: Vec<f64>,
     /// Row-major `datasets x genes` feature-explained part `f`.
     pub feature_offsets: Vec<f64>,
+    /// Row-major `datasets x genes` graph prior of the offsets (`NaN` where
+    /// there is none and the prior is `f`; all `NaN` without `graph_prior`).
+    pub prior_offsets: Vec<f64>,
     /// Per-profile sample loading `c`.
     pub sample_loading: Vec<f64>,
     /// Plex index of each profile (`None` = no plex).
@@ -1131,10 +1134,12 @@ pub fn bridle_fit(
     }
     let mut offsets = vec![0.0; s_n * g_n];
     let mut feature_offsets = vec![0.0; s_n * g_n];
+    let mut prior_offsets = vec![0.0; s_n * g_n];
     for g in 0..g_n {
         for s in 0..s_n {
             offsets[s * g_n + g] = st.a[g * s_n + s];
             feature_offsets[s * g_n + g] = st.f[g * s_n + s];
+            prior_offsets[s * g_n + g] = st.prior_a[g * s_n + s];
         }
     }
     let c_mean = st.c.iter().sum::<f64>() / n as f64;
@@ -1172,6 +1177,7 @@ pub fn bridle_fit(
         dataset_names: lay.studies.clone(),
         offsets,
         feature_offsets,
+        prior_offsets,
         sample_loading: st.c.clone(),
         profile_plex: lay.prow.iter().map(|&p| (p < k).then_some(p)).collect(),
         report: BridleReport {

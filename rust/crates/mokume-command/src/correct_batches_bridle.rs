@@ -14,7 +14,8 @@
 //!
 //! Optional inputs:
 //! * `--lineage-table` (e.g. DepMap `Model.csv`, `RRID` -> `OncotreeLineage`):
-//!   anchors without a match get no lineage effect.
+//!   anchors without a match get no lineage effect. Off by default (no effect
+//!   in the benchmark; circular for lineage analyses of the output).
 //! * `--plex-column` (+ `--plex-table`): explicit TMT plex / mixture ids per
 //!   profile, e.g. derived from the SDRF. When absent, plexes are inferred from
 //!   shared missingness (Jaccard + average linkage, datasets with >= 20
@@ -1056,6 +1057,20 @@ mod tests {
         assert_eq!(on["anchor_scale"]["B"]["n_shared_anchors"], 4);
         assert_eq!(std::fs::read_to_string(dir.join("v.tsv"))?, off_values);
         Ok(())
+    }
+
+    #[test]
+    fn bridle_lineage_table_is_off_by_default() {
+        assert!(default_bridle_args().lineage_table.is_none());
+        let p = parse_correct_batches(&["--method", "bridle"]).bridle;
+        assert!(p.lineage_table.is_none());
+        // clap defaults = default_bridle_args (the benchmark configuration)
+        let d = default_bridle_args();
+        assert_eq!((p.sweeps, p.stop_rule), (d.sweeps, d.stop_rule));
+        assert_eq!((p.stop_tol, p.min_sweeps), (None, None));
+        assert!(!p.no_graph_prior && !p.remove_sample_loading && !p.no_plex_rescale);
+        assert!(!p.anchor_scale);
+        assert!(reject_bridle_only_options(&p).is_ok());
     }
 
     #[test]

@@ -212,7 +212,11 @@ pub(crate) struct BridleArgs {
     #[arg(long = "reference", value_name = "DATASET")]
     pub(crate) reference: Option<String>,
 
-    /// Optional lineage table (.csv/.tsv), e.g. DepMap Model.csv.
+    /// Optional lineage table (.csv/.tsv), e.g. DepMap Model.csv; off by
+    /// default. Adds a shared per-lineage effect to the biology term. Not
+    /// recommended: no measurable effect in the benchmark, and lineage-aware
+    /// integration risks circularity when the output is used to study
+    /// lineage differences.
     #[arg(long = "lineage-table", value_name = "FILE")]
     pub(crate) lineage_table: Option<PathBuf>,
 

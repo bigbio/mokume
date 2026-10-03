@@ -54,6 +54,8 @@ fn toy_params() -> BridleParams {
         rank: 2,
         sweeps: 15,
         min_f_genes: 10,
+        // the core tests check v = y - A - c - P; kept-c is tested separately
+        keep_sample_loading: false,
         ..BridleParams::default()
     }
 }
@@ -590,4 +592,32 @@ fn graph_prior_is_default_and_covers_linked_datasets_only() {
         .iter()
         .zip(&res.corrected)
         .any(|(x, y)| x.is_finite() && (x - y).abs() > 1e-9));
+}
+
+#[test]
+fn sample_loading_is_kept_in_the_output_by_default() {
+    assert!(BridleParams::default().keep_sample_loading);
+    assert!(!BridleParams::legacy().keep_sample_loading);
+    let data = toy(7);
+    let g_n = data.genes.len();
+    let removed = fit(&data, &toy_params());
+    let kept = fit(
+        &data,
+        &BridleParams {
+            keep_sample_loading: true,
+            ..toy_params()
+        },
+    );
+    // same fit; the output differs by exactly c on every observed cell
+    assert_eq!(removed.sample_loading, kept.sample_loading);
+    assert!(kept.sample_loading.iter().any(|c| c.abs() > 1e-6));
+    for i in 0..data.n_profiles() {
+        for g in 0..g_n {
+            let (x, y) = (removed.corrected[i * g_n + g], kept.corrected[i * g_n + g]);
+            assert_eq!(x.is_finite(), y.is_finite());
+            if x.is_finite() {
+                assert!((y - x - kept.sample_loading[i]).abs() < 1e-12);
+            }
+        }
+    }
 }

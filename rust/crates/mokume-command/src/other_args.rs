@@ -289,6 +289,12 @@ pub(crate) struct BridleArgs {
     #[arg(long = "no-graph-prior")]
     pub(crate) no_graph_prior: bool,
 
+    /// Remove the per-profile sample loading c from the output (v = y - A -
+    /// c - P). By default c is kept (v = y - A - P): removing it was slightly
+    /// more accurate on held-out lines but lost co-complex (CORUM) signal.
+    #[arg(long = "remove-sample-loading")]
+    pub(crate) remove_sample_loading: bool,
+
     /// Rescale each dataset sharing >= 20 anchor samples with the reference
     /// onto the reference's spread (per-dataset slope b_s from the anchors,
     /// e.g. TMT ratio compression); b_s is recorded in the --report.

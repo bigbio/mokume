@@ -38,7 +38,8 @@
 //! `converge_tol`, after `min_sweeps` sweeps; a `holdout_frac` sample of observed
 //! cells is withheld from the fit as an MSE monitor).
 //!
-//! Output: `v = y - A_out - c - P` on observed cells only; nothing is imputed
+//! Output: `v = y - A_out - P` (plus `- c` with `keep_sample_loading` off) on
+//! observed cells only; nothing is imputed
 //! and no protein is dropped for having missing values. `A_out` is cross-fitted
 //! for datasets with `1 <= n_anchor < cf_max_nb`: an anchor profile's own
 //! residual offset `r` is estimated only from the other anchor-sample folds
@@ -160,6 +161,11 @@ pub struct BridleParams {
     /// Fraction of observed cells withheld as a convergence monitor.
     pub holdout_frac: f64,
     pub sample_loading: bool,
+    /// Keep the per-profile sample loading `c` in the output (`v = y - A -
+    /// P`). Benchmark (graph prior on): removing `c` is 0.011 more accurate
+    /// on held-out lines (median |error|) but loses 0.010 CORUM AUROC and
+    /// some cis/deletion signal, i.e. `c` carries biology as well as loading.
+    pub keep_sample_loading: bool,
     pub plex_mode: PlexMode,
     /// Inferred plexes: Jaccard-distance cut, minimum cluster size, minimum
     /// profiles in a dataset, minimum assigned fraction and minimum #plexes.
@@ -209,6 +215,7 @@ impl BridleParams {
     pub fn legacy() -> Self {
         Self {
             graph_prior: false,
+            keep_sample_loading: false,
             ..Self::default().monitor_stop()
         }
     }
@@ -233,6 +240,7 @@ impl Default for BridleParams {
             folds: 5,
             holdout_frac: 0.01,
             sample_loading: true,
+            keep_sample_loading: true,
             plex_mode: PlexMode::Inferred,
             plex_cut: 0.05,
             plex_min_size: 4,
@@ -305,8 +313,8 @@ pub struct BridleReport {
 /// Fit result.
 #[derive(Debug, Clone)]
 pub struct BridleResult {
-    /// Row-major `profiles x genes`: `v = y - A_out - c - P`, `NaN` exactly
-    /// where the input is `NaN`.
+    /// Row-major `profiles x genes`: `v = y - A_out - P` (`- c` unless
+    /// `keep_sample_loading`), `NaN` exactly where the input is `NaN`.
     pub corrected: Vec<f64>,
     /// Line names (sorted), the rows of `theta`.
     pub line_names: Vec<String>,
@@ -1033,6 +1041,13 @@ pub fn bridle_fit(
 
     // ============ stage 2: cross-fitted output offsets
     let (mut corrected, cf) = output_values(&lay, params, abz, &y, &obs, &st);
+    if params.keep_sample_loading {
+        for (row, &c) in corrected.chunks_mut(g_n).zip(&st.c) {
+            for v in row.iter_mut().filter(|v| v.is_finite()) {
+                *v += c;
+            }
+        }
+    }
     let scales = if params.anchor_scale {
         anchor_scale(
             data,

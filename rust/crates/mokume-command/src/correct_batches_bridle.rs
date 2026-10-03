@@ -23,7 +23,8 @@
 //!
 //! Output (`-o`, parquet when the extension is `.parquet`, else TSV/CSV):
 //! `<dataset>, <anchor>, <gene>, <value>, imputed` for every observed input
-//! cell, with `value = y - A - c - P` and `imputed = false`. `--theta-output`
+//! cell, with `value = y - A - P` (`- c` with `--remove-sample-loading`) and
+//! `imputed = false`. `--theta-output`
 //! writes the pooled per-anchor biology for observed anchor/gene cells,
 //! `--report` a JSON fit summary.
 
@@ -89,6 +90,7 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         min_sweeps: None,
         seed: 0,
         no_graph_prior: false,
+        remove_sample_loading: false,
         anchor_scale: false,
         theta_output: None,
         report: None,
@@ -128,6 +130,7 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--min-sweeps", bridle.min_sweeps.is_some()),
         ("--seed", bridle.seed != d.seed),
         ("--no-graph-prior", bridle.no_graph_prior),
+        ("--remove-sample-loading", bridle.remove_sample_loading),
         ("--anchor-scale", bridle.anchor_scale),
         ("--theta-output", bridle.theta_output.is_some()),
         ("--report", bridle.report.is_some()),
@@ -548,6 +551,7 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
         plex_mode,
         anchor_scale: bridle.anchor_scale,
         graph_prior: !bridle.no_graph_prior,
+        keep_sample_loading: !bridle.remove_sample_loading,
         stop_rule,
         min_sweeps,
         converge_tol,
@@ -776,6 +780,7 @@ fn write_report(
             "plex_column": bridle.plex_column, "plex_table": bridle.plex_table.as_ref().map(|p| p.display().to_string()),
             "no_plex": bridle.no_plex, "anchor_scale": bridle.anchor_scale,
             "graph_prior": !bridle.no_graph_prior,
+            "keep_sample_loading": !bridle.remove_sample_loading,
         },
         "n_profiles": r.n_profiles, "n_genes": r.n_genes, "n_lines": r.n_lines,
         "n_lineages": r.n_lineages, "n_plexes": r.n_plexes, "design_columns": design_names,
@@ -958,6 +963,26 @@ mod tests {
             serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
         assert_eq!(off["params"]["graph_prior"], false);
         assert_eq!(b(&off), Some(serde_json::json!(0)));
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_keeps_sample_loading_unless_removed() -> TestResult<()> {
+        let dir = temp_dir("keepc")?;
+        let input = write_toy(&dir)?;
+        let mut a = args(input, dir.join("v.tsv"));
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.report = Some(dir.join("fit.json"));
+        run_bridle(&a)?;
+        let kept = std::fs::read_to_string(dir.join("v.tsv"))?;
+        let report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(report["params"]["keep_sample_loading"], true);
+        a.bridle.remove_sample_loading = true;
+        run_bridle(&a)?;
+        let removed = std::fs::read_to_string(dir.join("v.tsv"))?;
+        assert_eq!(kept.lines().count(), removed.lines().count());
+        assert_ne!(kept, removed);
         Ok(())
     }
 

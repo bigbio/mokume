@@ -867,7 +867,7 @@ pub fn bridle_fit(
     let mut theta = vec![0.0_f64; g_n * nl];
     let mut history: Vec<SweepStats> = Vec::new();
     let mut converged = false;
-    let mut prev_offset: Option<Vec<f64>> = None;
+    let mut prev_offset: Option<(Vec<f64>, Vec<f64>, Vec<f64>)> = None;
 
     for sweep in 0..params.sweeps {
         // ============ theta blocks on line-level aggregates
@@ -1036,11 +1036,10 @@ pub fn bridle_fit(
             &mut st,
         );
         check_finite(&st)?;
-        let offset = output_offsets(&lay, &obs, &st);
         let out_change = prev_offset
             .as_ref()
-            .map_or(f64::NAN, |prev| mean_abs_change(prev, &offset, &obs));
-        prev_offset = Some(offset);
+            .map_or(f64::NAN, |prev| output_change(&lay, &obs, &st, prev));
+        prev_offset = Some((st.a.clone(), st.c.clone(), st.p.clone()));
         history.push(SweepStats {
             sweep,
             hold_mse,
@@ -1642,33 +1641,30 @@ fn update_noise(
     }
 }
 
-/// Gene-major `A[s,g] + c[i] + P[k,g]` on observed cells (0 elsewhere): the
-/// part of the output `v = y - A - c - P` that changes between sweeps.
-fn output_offsets(lay: &Layout, obs: &[u8], st: &State) -> Vec<f64> {
+/// Mean |change| of `A[s,g] + c[i] + P[k,g]` (the part of the output that
+/// moves between sweeps) over observed cells, from the previous `(A, c, P)`.
+/// Per-gene sums are added in gene order (deterministic).
+fn output_change(
+    lay: &Layout,
+    obs: &[u8],
+    st: &State,
+    prev: &(Vec<f64>, Vec<f64>, Vec<f64>),
+) -> f64 {
     let (n, s_n, kp) = (lay.n, lay.s_n, lay.k + 1);
-    let mut out = vec![0.0; lay.g_n * n];
-    out.par_chunks_mut(n).enumerate().for_each(|(g, o)| {
-        for i in 0..n {
-            if obs[g * n + i] != UNOBSERVED {
-                o[i] = st.a[g * s_n + lay.srow[i]] + st.c[i] + st.p[g * kp + lay.prow[i]];
+    let (pa, pc, pp) = prev;
+    let parts: Vec<(f64, usize)> = (0..lay.g_n)
+        .into_par_iter()
+        .map(|g| {
+            let (mut sum, mut cnt) = (0.0, 0_usize);
+            for i in 0..n {
+                if obs[g * n + i] == UNOBSERVED {
+                    continue;
+                }
+                let (a, k) = (g * s_n + lay.srow[i], g * kp + lay.prow[i]);
+                sum += ((st.a[a] - pa[a]) + (st.c[i] - pc[i]) + (st.p[k] - pp[k])).abs();
+                cnt += 1;
             }
-        }
-    });
-    out
-}
-
-/// Mean |a - b| over observed cells (fixed-size block sums, added in order).
-fn mean_abs_change(a: &[f64], b: &[f64], obs: &[u8]) -> f64 {
-    let parts: Vec<(f64, usize)> = obs
-        .par_chunks(GENE_BLOCK)
-        .zip(a.par_chunks(GENE_BLOCK).zip(b.par_chunks(GENE_BLOCK)))
-        .map(|(o, (x, y))| {
-            o.iter()
-                .zip(x.iter().zip(y))
-                .filter(|(&o, _)| o != UNOBSERVED)
-                .fold((0.0, 0_usize), |(s, c), (_, (x, y))| {
-                    (s + (x - y).abs(), c + 1)
-                })
+            (sum, cnt)
         })
         .collect();
     let (s, c) = parts.iter().fold((0.0, 0), |(s, c), (a, b)| (s + a, c + b));

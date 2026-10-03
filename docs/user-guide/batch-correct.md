@@ -127,45 +127,81 @@ same patient across cohorts. Each dataset's offset is predicted from intrinsic
 protein detectability features and refined on its anchor samples, while the
 shared biology is a latent low-rank estimate. Unlike ComBat it does not need a
 complete matrix: missing values stay missing, nothing is imputed and no protein
-is dropped. It is the Rust port of the `lim_lin` prototype that won the Cell
-Line Collection integration benchmark. `--method lim` is still accepted as a
-deprecated alias of `--method bridle` (it logs a warning).
+is dropped. The model is the Rust port of the `lim_lin` prototype of the Cell
+Line Collection integration benchmark; the defaults are the configuration that
+won the follow-up benchmark (2026-10, 21 cell-line datasets, arm
+`A3gnc_phdelta_all`, see [Defaults and benchmark](#defaults-and-benchmark)).
+`--method lim` is still accepted as a deprecated alias of `--method bridle`
+(it logs a warning).
 
 ```text
 y[i,g]     = theta[anchor,g] + A[dataset,g] + c[i] + P[plex,g] + eps
 theta[l,g] = m_g + Lin[lineage(l),g] + U_l . V_g + R[l,g]     (shared biology, rank --rank)
-A[s,g]     = f(s, x_g) + r[s,g]                               (A[--reference] = 0)
+A[s,g]     = a0[s,g] + r[s,g]                                 (A[--reference] = 0)
+a0[s,g]    = graph prior offset where one exists, else f(s, x_g)
 ```
 
 * `f` is a per-dataset ridge regression on technical protein features `x_g`
   (reference-abundance spline plus sequence features from `--fasta`: length,
   tryptic peptides, uniqueness, GRAVY, pI, charge, missed-cleavage context,
   amino-acid composition). No functional annotation is used.
-* `r` is an empirical-Bayes gene-specific offset learned from *anchor samples*
-  (units measured in >= 2 datasets). Datasets with 1 to 19 anchor samples are
-  cross-fitted, so a single-sample dataset keeps its own signal. A dataset that
-  shares no anchor sample with the rest gets only the intrinsic-detectability
-  correction `f` (a warning is logged).
+* The **graph prior** (default; `--no-graph-prior` disables it) gives `A` a
+  starting value and prior mean from the anchors themselves. Per gene, batches
+  (datasets, split by plex where there are plexes) are fitted by alternating
+  means on anchor cells (values of anchors observed in >= 2 profiles); two
+  batches are linked when they share >= 3 anchor samples, and a batch linked,
+  possibly through other batches, to the reference gets the offset relative to
+  it. A batch that is not linked falls back to centring onto the reference's
+  gene mean when it has >= 5 profiles and >= 3 values of the gene. The prior
+  of a dataset is the mean over its profiles; where neither applies (e.g. a
+  single-sample dataset) the prior stays the feature model `f`. The report
+  gives `graph_prior_genes` per dataset.
+* `r` is an empirical-Bayes gene-specific offset around `a0` learned from
+  *anchor samples* (units measured in >= 2 datasets). Datasets with 1 to 19
+  anchor samples are cross-fitted, so a single-sample dataset keeps its own
+  signal. A dataset that shares no anchor sample with the rest gets only
+  `a0` (a warning is logged).
 * `P` are TMT plex effects, `c` a per-profile loading; noise variance is
   modelled per dataset as a function of abundance.
-* The output is `v = y - A - c - P` for every observed input cell
-  (`imputed = false`). `--theta-output` writes the pooled per-anchor biology.
-* `--anchor-scale` (opt-in) then rescales each dataset that shares >= 20
-  anchor samples with the reference onto the reference's spread:
+* The fit runs up to `--sweeps` (400) sweeps and, after `--min-sweeps` (200),
+  stops when the mean |change| of the output between two sweeps falls below
+  `--stop-tol` (1e-5); the per-sweep change is in the report's `history`
+  (`out_change`). `--stop-rule monitor --sweeps 60` restores the previous
+  rule (hold-out MSE change < 2e-4 over 3 sweeps after 8 sweeps), `--stop-rule
+  none` always runs `--sweeps`.
+* The output is `v = y - A - P` for every observed input cell (`imputed =
+  false`): the sample loading `c` is **kept** by default;
+  `--remove-sample-loading` outputs `v = y - A - c - P`.
+  `--theta-output` writes the pooled per-anchor biology.
+* **Plex rescale** (default; `--no-plex-rescale` disables it). Additive
+  offsets cannot fix a batch whose spread is compressed or inflated (TMT ratio
+  compression), so each (dataset x plex, gene) - or (dataset, gene) without
+  plexes - is finally rescaled around its own mean: `v' = mean_b + (v -
+  mean_b) / delta`. `delta` is an empirical-Bayes ComBat scale estimated from
+  **all** values of the batch, never from anchor identity: the log ratio of the
+  batch's variance to the pooled within-batch variance of the gene (chi-square
+  bias corrected, >= 5 values), shrunk towards a per-batch mean that is itself
+  shrunk to 0 (prior sd 0.5), `delta = exp(l / 2)` clipped to [0.25, 4].
+  Batches with < 50 estimable genes take the median of their dataset's other
+  plexes (else no rescale). Per-batch `mu` (log variance ratio) and median
+  `delta` are written to the `--report` under `plex_rescale`.
+* `--anchor-scale` (opt-in, not recommended) rescales each dataset that shares
+  >= 20 anchor samples with the reference onto the reference's spread:
   `v' = refmean_g + (v - studymean_g) / b_s`, where `b_s` is the median over
   genes of `sd(dataset) / sd(reference)` on the shared anchors (genes observed
-  on >= 10 of them, reference SD > 0.3, Pearson r > 0.5). This corrects TMT
-  ratio compression, which additive offsets cannot. Genes without an anchor
-  mean on one side are scaled around the dataset's own mean, so no value is
-  lost. Datasets below the threshold keep `b_s = 1`; `b_s` per dataset is
-  written to the `--report` under `anchor_scale`.
+  on >= 10 of them, reference SD > 0.3, Pearson r > 0.5). Genes without an
+  anchor mean on one side are scaled around the dataset's own mean, so no
+  value is lost. Datasets below the threshold keep `b_s = 1`; `b_s` per
+  dataset is written to the `--report` under `anchor_scale`. It runs before
+  the plex rescale; the combination was not benchmarked.
+* `--lineage-table` (opt-in, not recommended) adds a shared per-lineage
+  effect `Lin` to the biology.
 
 ```bash
 mokume correct-batches --method bridle \
     -i raw_long.parquet -o values.parquet \
     --reference ProCan \
     --fasta Homo-sapiens-uniprot-reviewed-contaminants.fasta --fasta-organism HUMAN \
-    --lineage-table DepMap/Model.csv \
     --plex-column plex --plex-table ccle_plexes.tsv \
     --theta-output integrated.parquet --report fit_info.json
 ```
@@ -179,20 +215,65 @@ plex = one set of fraction files sharing a TMT mixture). Profiles without an id
 in a plexed dataset are attached to the nearest plex by their own missingness
 pattern. Without `--plex-column`, plexes are inferred from shared missingness
 (Jaccard distance, average linkage, cut 0.05; datasets with >= 20 profiles),
-exactly as the prototype. `--no-plex` disables the block.
+exactly as the prototype. `--no-plex` disables the block. The same plexes
+define the batches of the graph prior and of the plex rescale (the reference
+dataset is one batch in the graph prior).
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--dataset-column` / `--anchor-column` / `--gene-column` / `--value-column` | `ds` / `cvcl` / `gene` / `v` | Input columns (also used for the output); `--line-column` is a deprecated alias of `--anchor-column` |
 | `--reference` | largest dataset | Dataset with `A = 0` |
-| `--lineage-table` | none | Lineage per anchor, e.g. DepMap `Model.csv` |
+| `--lineage-table` | off | Lineage per anchor, e.g. DepMap `Model.csv` (not recommended, see below) |
 | `--lineage-key-column` / `--lineage-column` | `RRID` / `OncotreeLineage` | Columns of the lineage table |
 | `--plex-column` / `--plex-table` / `--no-plex` | inferred | Plex handling (see above) |
 | `--fasta` / `--fasta-organism` | none | Sequence features; gene names from `GN=` of Swiss-Prot entries |
 | `--rank` | `16` | Rank of the shared biological low-rank term |
-| `--sweeps` / `--seed` | `60` / `0` | Fit sweeps (early stop on a 1% monitor hold-out) and seed |
+| `--sweeps` / `--seed` | `400` / `0` | Maximum fit sweeps and seed |
+| `--stop-rule` | `output` | `output` (mean output change < `--stop-tol`), `monitor` (previous rule), `none` |
+| `--stop-tol` / `--min-sweeps` | `1e-5` / `200` (`monitor`: `2e-4` / `8`) | Early-stop tolerance and minimum sweeps |
+| `--no-graph-prior` | prior on | Use the feature model `f` alone as the prior of `A` |
+| `--remove-sample-loading` | `c` kept | Output `y - A - c - P` |
+| `--no-plex-rescale` | rescale on | Skip the post-fit (dataset x plex, gene) rescale |
 | `--anchor-scale` | off | Per-dataset scale `b_s` from anchor samples shared with the reference (see above) |
-| `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, ...) |
+| `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, `graph_prior_genes`, ...; `history`, `plex_rescale`) |
+
+### Defaults and benchmark
+
+Measured on 21 cell-line datasets (5-fold leave-lines-out, held-out lines
+relabelled per dataset; accuracy = median |error| of a held-out line's
+cross-dataset difference, lower is better; biology guards = cis RNA / copy
+number correlation, deletion AUCs, CORUM co-complex AUROC, proliferation and
+EMT signatures):
+
+| Step | Default | Measured effect |
+|------|---------|-----------------|
+| 400 sweeps / output-change stop | on | 60 sweeps were not converged: accuracy -0.027 [-0.034, -0.021] at 400 sweeps, better agreement, no biology lost. The benchmark arms ran a fixed 400 sweeps; the `1e-5` tolerance is a safeguard, not a tuned value |
+| Graph prior | on | Leave-one-dataset-out accuracy 1.062 -> 0.797 (ahead of graph offsets alone, 0.804); leave-lines-out equivalent (+0.005) |
+| Keep `c` | on | 0.011 less accurate than removing `c`, but CORUM +0.010 and better deletion / cis signal: `c` carries biology |
+| Plex rescale | on | Accuracy 0.786 vs 0.799 for BERT (-0.013 [-0.021, -0.007]), better on cis RNA, EMT and proliferation; 0.007 less accurate than without the rescale but better on 7 biology guards |
+| Lineage table | off | No measurable effect |
+| `--anchor-scale` | off | Hurts accuracy (about +0.08, like other monotone rescalings) |
+
+Caveats:
+
+* **Post-hoc selection.** The plex rescale (and its "all rows of the batch"
+  variant) was chosen after a diagnostic on fold 1 of the same benchmark, so
+  its margin over BERT is optimistic; the spec was fixed before scoring the
+  other folds.
+* **Rescale and outliers.** A few hundred cells with absurd values (near-zero
+  TMT reporter intensities, |v| up to ~47 log2) are stretched further by the
+  rescale; medians are unaffected but RMSE-type summaries inflate. Filter such
+  values upstream.
+* **Datasets without anchors.** Offsets predicted from features (`f`) were
+  validated only for single-sample datasets. For a whole multi-line dataset
+  without anchors (leave-one-dataset-out) BRIDLE was 0.005-0.015 less accurate
+  than BERT / per-batch centring, so do not rely on predicted offsets alone
+  for such datasets.
+* **Lineage table.** Integrating with lineage labels and then studying
+  lineage differences in the output is circular; it had no effect on accuracy.
+* `BridleParams::legacy()` (Rust API) reproduces the pre-benchmark
+  configuration: 60 sweeps with the monitor rule, no graph prior, `c` removed,
+  no rescale.
 
 The fit is deterministic (fixed seed, results independent of the thread
 count) and multi-threaded; set `RAYON_NUM_THREADS` to limit cores.

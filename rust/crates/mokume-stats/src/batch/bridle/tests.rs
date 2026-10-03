@@ -261,3 +261,184 @@ fn input_errors_are_reported() {
     assert!(bridle_fit(&dup, &design, &abz, &toy_params()).is_err());
     assert!(bridle_fit(&data, &design[1..], &abz[1..], &toy_params()).is_err());
 }
+
+/// REF and B share 30 lines, B is compressed by 0.7 and shifted by +1; B has 5
+/// own lines. Gene 0 is never observed by B on a shared line, gene 1 never by
+/// REF. C shares only 10 lines with REF (below the threshold).
+fn compressed(b_true: f64) -> BridleData {
+    let g_n = 80;
+    let mut rs = NumpyRandomState::new(5);
+    let base: Vec<f64> = (0..g_n).map(|_| 20.0 + 2.0 * rs.next_gauss()).collect();
+    let z: Vec<Vec<f64>> = (0..35)
+        .map(|_| (0..g_n).map(|_| rs.next_gauss()).collect())
+        .collect();
+    let mut data = BridleData {
+        datasets: Vec::new(),
+        lines: Vec::new(),
+        lineages: Vec::new(),
+        plexes: None,
+        genes: (0..g_n).map(|g| format!("G{g:02}")).collect(),
+        values: Vec::new(),
+    };
+    let plan: [(&str, Vec<usize>); 3] = [
+        ("B", (0..35).collect()),
+        ("C", (20..30).collect()),
+        ("REF", (0..30).collect()),
+    ];
+    for (d, lines) in plan {
+        for l in lines {
+            data.datasets.push(d.to_owned());
+            data.lines.push(format!("L{l:02}"));
+            data.lineages.push(None);
+            for g in 0..g_n {
+                let v = match d {
+                    "REF" if g == 1 => f64::NAN,
+                    "REF" => base[g] + z[l][g],
+                    "B" if g == 0 && l < 30 => f64::NAN,
+                    "B" => base[g] + 1.0 + b_true * z[l][g] + 0.05 * rs.next_gauss(),
+                    _ => base[g] + 0.5 * z[l][g],
+                };
+                data.values.push(v);
+            }
+        }
+    }
+    data
+}
+
+#[test]
+fn anchor_scale_recovers_compression() {
+    let data = compressed(0.7);
+    let g_n = data.genes.len();
+    let mut v = data.values.clone();
+    let rep = anchor_scale(&data, &mut v, "REF", 20);
+    let by = |name: &str| rep.iter().find(|r| r.name == name).cloned();
+    let b = by("B").map_or(f64::NAN, |r| r.b);
+    assert!((b - 0.7).abs() < 0.02, "b = {b}");
+    assert!(by("B").is_some_and(|r| r.applied && r.n_shared == 30));
+    // below the threshold and the reference: b = 1, values untouched
+    for name in ["C", "REF"] {
+        let r = by(name).map(|r| (r.b, r.applied));
+        assert_eq!(r, Some((1.0, false)), "{name}");
+    }
+    for i in (0..data.n_profiles()).filter(|&i| data.datasets[i] != "B") {
+        for g in 0..g_n {
+            let (x, y) = (data.values[i * g_n + g], v[i * g_n + g]);
+            assert!(x.to_bits() == y.to_bits() || (x.is_nan() && y.is_nan()));
+        }
+    }
+    // B's copy of a shared line now matches REF's (offset and spread)
+    let row = |d: &str, l: &str| {
+        (0..data.n_profiles())
+            .find(|&i| data.datasets[i] == d && data.lines[i] == l)
+            .unwrap_or(usize::MAX)
+    };
+    let (i, j) = (row("B", "L03"), row("REF", "L03"));
+    for g in 2..g_n {
+        let d = (v[i * g_n + g] - v[j * g_n + g]).abs();
+        assert!(d < 0.25, "gene {g}: |B - REF| = {d}");
+    }
+    // gene 0 (no B anchor mean): scaled around B's own mean over its 5 lines
+    let own: Vec<usize> = (30..35).map(|l| row("B", &format!("L{l}"))).collect();
+    let m = own.iter().map(|&i| data.values[i * g_n]).sum::<f64>() / 5.0;
+    for &i in &own {
+        let want = m + (data.values[i * g_n] - m) / b;
+        assert!((v[i * g_n] - want).abs() < 1e-12);
+    }
+    // gene 1 (no REF anchor mean): scaled around B's anchor mean
+    let anc: Vec<usize> = (0..30).map(|l| row("B", &format!("L{l:02}"))).collect();
+    let am = anc.iter().map(|&i| data.values[i * g_n + 1]).sum::<f64>() / 30.0;
+    for &i in anc.iter().chain(&own) {
+        let want = am + (data.values[i * g_n + 1] - am) / b;
+        assert!((v[i * g_n + 1] - want).abs() < 1e-12);
+    }
+}
+
+#[test]
+fn anchor_scale_loses_no_value() {
+    let data = compressed(0.7);
+    let mut v = data.values.clone();
+    anchor_scale(&data, &mut v, "REF", 20);
+    assert_eq!(v.len(), data.values.len());
+    let n_in = data.values.iter().filter(|x| x.is_finite()).count();
+    assert_eq!(v.iter().filter(|x| x.is_finite()).count(), n_in);
+    for (x, y) in data.values.iter().zip(&v) {
+        assert_eq!(x.is_finite(), y.is_finite());
+    }
+}
+
+#[test]
+fn anchor_scale_without_passing_genes_keeps_b_one() {
+    // B is pure noise: no gene correlates with REF
+    let mut data = compressed(0.7);
+    let mut rs = NumpyRandomState::new(9);
+    for i in (0..data.n_profiles()).filter(|&i| data.datasets[i] == "B") {
+        let g_n = data.genes.len();
+        for x in &mut data.values[i * g_n..(i + 1) * g_n] {
+            if x.is_finite() {
+                *x = 20.0 + 1e-3 * rs.next_gauss();
+            }
+        }
+    }
+    let mut v = data.values.clone();
+    let rep = anchor_scale(&data, &mut v, "REF", 20);
+    let b = rep.iter().find(|r| r.name == "B").map(|r| (r.b, r.applied));
+    assert_eq!(b, Some((1.0, false)));
+    assert!(data
+        .values
+        .iter()
+        .zip(&v)
+        .all(|(x, y)| x.to_bits() == y.to_bits() || (x.is_nan() && y.is_nan())));
+}
+
+#[test]
+fn anchor_scale_in_fit_is_opt_in_and_keeps_every_value() {
+    let data = toy(7);
+    let off = fit(&data, &toy_params());
+    assert!(!toy_params().anchor_scale && off.report.anchor_scale.is_empty());
+    // default threshold: B has 4 shared anchors < 20 -> b = 1, output identical
+    let on = fit(
+        &data,
+        &BridleParams {
+            anchor_scale: true,
+            ..toy_params()
+        },
+    );
+    assert!(on.report.anchor_scale.iter().all(|r| r.b == 1.0));
+    for (x, y) in off.corrected.iter().zip(&on.corrected) {
+        assert!(x.to_bits() == y.to_bits() || (x.is_nan() && y.is_nan()));
+    }
+    // compressed collection: B (30 shared anchors) is rescaled, C (10) and REF
+    // are untouched, and every observed cell keeps a value
+    let data = compressed(0.7);
+    let params = BridleParams {
+        rank: 2,
+        ..toy_params()
+    };
+    let off = fit(&data, &params);
+    let on = fit(
+        &data,
+        &BridleParams {
+            anchor_scale: true,
+            ..params
+        },
+    );
+    let b = on.report.anchor_scale.iter().find(|r| r.name == "B");
+    assert!(
+        b.is_some_and(|r| r.applied && (r.b - 0.7).abs() < 0.1),
+        "{b:?}"
+    );
+    let g_n = data.genes.len();
+    for i in 0..data.n_profiles() {
+        for g in 0..g_n {
+            let (x, y, v) = (
+                off.corrected[i * g_n + g],
+                on.corrected[i * g_n + g],
+                data.values[i * g_n + g],
+            );
+            assert_eq!(y.is_finite(), v.is_finite());
+            if data.datasets[i] != "B" {
+                assert!(x.to_bits() == y.to_bits() || (x.is_nan() && y.is_nan()));
+            }
+        }
+    }
+}

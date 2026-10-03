@@ -85,6 +85,7 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         rank: 16,
         sweeps: 60,
         seed: 0,
+        anchor_scale: false,
         theta_output: None,
         report: None,
     }
@@ -119,6 +120,7 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--rank", bridle.rank != d.rank),
         ("--sweeps", bridle.sweeps != d.sweeps),
         ("--seed", bridle.seed != d.seed),
+        ("--anchor-scale", bridle.anchor_scale),
         ("--theta-output", bridle.theta_output.is_some()),
         ("--report", bridle.report.is_some()),
     ];
@@ -535,6 +537,7 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
         sweeps: bridle.sweeps,
         seed: bridle.seed,
         plex_mode,
+        anchor_scale: bridle.anchor_scale,
         ..BridleParams::default()
     };
     let res = bridle_fit(&data, &design, &abz, &params)?;
@@ -711,13 +714,23 @@ fn write_report(
             })
         })
         .collect();
+    let anchor_scale: serde_json::Map<String, serde_json::Value> = r
+        .anchor_scale
+        .iter()
+        .map(|a| {
+            (
+                a.name.clone(),
+                serde_json::json!({"b": a.b, "applied": a.applied, "n_shared_anchors": a.n_shared, "n_genes": a.n_genes}),
+            )
+        })
+        .collect();
     let history: Vec<serde_json::Value> = r
         .history
         .iter()
         .map(|h| serde_json::json!({"sweep": h.sweep, "hold_mse": h.hold_mse, "tau_r": h.tau_r, "tau_p": h.tau_p}))
         .collect();
     let bridle = &args.bridle;
-    let doc = serde_json::json!({
+    let mut doc = serde_json::json!({
         "method": "bridle-linear",
         "mokume_version": env!("CARGO_PKG_VERSION"),
         "input": args.input.display().to_string(),
@@ -727,7 +740,7 @@ fn write_report(
             "fasta_organism": bridle.fasta_organism,
             "lineage_table": bridle.lineage_table.as_ref().map(|p| p.display().to_string()),
             "plex_column": bridle.plex_column, "plex_table": bridle.plex_table.as_ref().map(|p| p.display().to_string()),
-            "no_plex": bridle.no_plex,
+            "no_plex": bridle.no_plex, "anchor_scale": bridle.anchor_scale,
         },
         "n_profiles": r.n_profiles, "n_genes": r.n_genes, "n_lines": r.n_lines,
         "n_lineages": r.n_lineages, "n_plexes": r.n_plexes, "design_columns": design_names,
@@ -735,6 +748,9 @@ fn write_report(
         "converged": r.converged, "sample_loading_sd": r.sample_loading_sd,
         "runtime_s": runtime_s, "datasets": datasets, "history": history,
     });
+    if bridle.anchor_scale {
+        doc["anchor_scale"] = serde_json::Value::Object(anchor_scale);
+    }
     let text = serde_json::to_string_pretty(&doc).map_err(|e| invalid(e.to_string()))?;
     std::fs::write(path, text).map_err(|e| io_err(path, e))
 }
@@ -853,6 +869,31 @@ mod tests {
         let report: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
         assert_eq!(report["n_plexes"], 2);
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_anchor_scale_is_reported() -> TestResult<()> {
+        let dir = temp_dir("scale")?;
+        let input = write_toy(&dir)?;
+        let mut a = args(input.clone(), dir.join("v.tsv"));
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.report = Some(dir.join("fit.json"));
+        run_bridle(&a)?;
+        let off: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert!(off.get("anchor_scale").is_none());
+        let off_values = std::fs::read_to_string(dir.join("v.tsv"))?;
+        a.bridle.anchor_scale = true;
+        run_bridle(&a)?;
+        let on: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(on["params"]["anchor_scale"], true);
+        // B shares 4 anchors with REF (< 20): b = 1, not applied, same output
+        assert_eq!(on["anchor_scale"]["B"]["b"], 1.0);
+        assert_eq!(on["anchor_scale"]["B"]["applied"], false);
+        assert_eq!(on["anchor_scale"]["B"]["n_shared_anchors"], 4);
+        assert_eq!(std::fs::read_to_string(dir.join("v.tsv"))?, off_values);
         Ok(())
     }
 

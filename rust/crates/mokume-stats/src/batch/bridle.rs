@@ -37,7 +37,9 @@
 //! for datasets with `1 <= n_anchor < cf_max_nb`: an anchor profile's own
 //! residual offset `r` is estimated only from the other anchor-sample folds
 //! against a leave-dataset-out `theta`, so a single-line dataset keeps its own
-//! signal (`r = 0`, `A = f`). `theta` is returned separately.
+//! signal (`r = 0`, `A = f`). `theta` is returned separately. With
+//! `anchor_scale`, each dataset's corrected values are then rescaled onto the
+//! reference's spread by a slope estimated on shared anchors ([`anchor_scale`]).
 //!
 //! Deviations from the prototype (no-ops on the benchmark, see the PR):
 //! plex effects are centred per dataset (the prototype centres across all
@@ -54,6 +56,7 @@ mod features;
 mod linalg;
 mod plex;
 mod rng;
+mod scale;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -63,6 +66,7 @@ use rayon::prelude::*;
 pub use features::{build_design, sequence_features, SequenceFeatures, FEATURE_NAMES};
 pub use plex::{attach_to_nearest_plex, jaccard_plex_groups, NO_PLEX};
 pub use rng::NumpyRandomState;
+pub use scale::{anchor_scale, AnchorScale};
 
 /// Genes per work block for row reductions (fixed, so sums are deterministic).
 const GENE_BLOCK: usize = 256;
@@ -149,6 +153,11 @@ pub struct BridleParams {
     /// than `converge_tol` over the last 3 sweeps.
     pub min_sweeps: usize,
     pub converge_tol: f64,
+    /// Post-fit per-dataset scale from anchor samples shared with the
+    /// reference (see [`anchor_scale`]); off by default.
+    pub anchor_scale: bool,
+    /// Minimum anchor samples shared with the reference for the scale step.
+    pub anchor_scale_min_anchors: usize,
 }
 
 impl Default for BridleParams {
@@ -179,6 +188,8 @@ impl Default for BridleParams {
             plex_attach_unlabelled: true,
             min_sweeps: 8,
             converge_tol: 2e-4,
+            anchor_scale: false,
+            anchor_scale_min_anchors: 20,
         }
     }
 }
@@ -224,6 +235,8 @@ pub struct BridleReport {
     pub datasets: Vec<DatasetReport>,
     pub history: Vec<SweepStats>,
     pub sample_loading_sd: f64,
+    /// Per-dataset anchor scale (empty unless `BridleParams::anchor_scale`).
+    pub anchor_scale: Vec<AnchorScale>,
 }
 
 /// Fit result.
@@ -883,7 +896,17 @@ pub fn bridle_fit(
     }
 
     // ============ stage 2: cross-fitted output offsets
-    let (corrected, cf) = output_values(&lay, params, abz, &y, &obs, &st);
+    let (mut corrected, cf) = output_values(&lay, params, abz, &y, &obs, &st);
+    let scales = if params.anchor_scale {
+        anchor_scale(
+            data,
+            &mut corrected,
+            &params.reference,
+            params.anchor_scale_min_anchors,
+        )
+    } else {
+        Vec::new()
+    };
     let mut theta_rows = vec![0.0; nl * g_n];
     let mut theta_obs = vec![false; nl * g_n];
     for g in 0..g_n {
@@ -952,6 +975,7 @@ pub fn bridle_fit(
             datasets,
             history,
             sample_loading_sd: c_sd,
+            anchor_scale: scales,
         },
     })
 }

@@ -365,3 +365,42 @@ fn explicit_plexes_match_inferred_on_clean_fixture() {
         .fold(0.0, f64::max);
     assert!(max < 1e-9, "explicit vs inferred plexes differ by {max}");
 }
+
+#[test]
+fn anchor_scale_is_opt_in_and_only_touches_well_anchored_datasets() {
+    let fx = fixture();
+    // off by default: `matches_python_prototype` checks the golden numbers
+    assert!(!params(PlexMode::Inferred).anchor_scale);
+    let off = run(&fx, PlexMode::Inferred);
+    assert!(off.report.anchor_scale.is_empty());
+    let ab = reference_abundance(&fx.data, "REF");
+    let (design, _, abz) = build_design(&ab, Some(&fx.features));
+    let p = BridleParams {
+        anchor_scale: true,
+        ..params(PlexMode::Inferred)
+    };
+    let on = match bridle_fit(&fx.data, &design, &abz, &p) {
+        Ok(r) => r,
+        Err(e) => panic!("bridle_fit failed: {e}"),
+    };
+    // DSB shares 20 lines with REF (the threshold) and has no compression
+    for r in &on.report.anchor_scale {
+        if r.name == "DSB" {
+            assert!(
+                r.applied && r.n_shared == 20 && (r.b - 1.0).abs() < 0.1,
+                "{r:?}"
+            );
+        } else {
+            assert!(!r.applied && r.b == 1.0, "{r:?}");
+        }
+    }
+    for (i, ds) in fx.data.datasets.iter().enumerate() {
+        for g in 0..G {
+            let (x, y) = (off.corrected[i * G + g], on.corrected[i * G + g]);
+            assert_eq!(x.is_finite(), y.is_finite());
+            if ds != "DSB" {
+                assert!(x.to_bits() == y.to_bits() || (x.is_nan() && y.is_nan()));
+            }
+        }
+    }
+}

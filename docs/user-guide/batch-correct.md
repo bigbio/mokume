@@ -150,6 +150,15 @@ A[s,g]     = f(s, x_g) + r[s,g]                               (A[--reference] = 
   modelled per dataset as a function of abundance.
 * The output is `v = y - A - c - P` for every observed input cell
   (`imputed = false`). `--theta-output` writes the pooled per-anchor biology.
+* `--anchor-scale` (opt-in) then rescales each dataset that shares >= 20
+  anchor samples with the reference onto the reference's spread:
+  `v' = refmean_g + (v - studymean_g) / b_s`, where `b_s` is the median over
+  genes of `sd(dataset) / sd(reference)` on the shared anchors (genes observed
+  on >= 10 of them, reference SD > 0.3, Pearson r > 0.5). This corrects TMT
+  ratio compression, which additive offsets cannot. Genes without an anchor
+  mean on one side are scaled around the dataset's own mean, so no value is
+  lost. Datasets below the threshold keep `b_s = 1`; `b_s` per dataset is
+  written to the `--report` under `anchor_scale`.
 
 ```bash
 mokume correct-batches --method bridle \
@@ -182,6 +191,7 @@ exactly as the prototype. `--no-plex` disables the block.
 | `--fasta` / `--fasta-organism` | none | Sequence features; gene names from `GN=` of Swiss-Prot entries |
 | `--rank` | `16` | Rank of the shared biological low-rank term |
 | `--sweeps` / `--seed` | `60` / `0` | Fit sweeps (early stop on a 1% monitor hold-out) and seed |
+| `--anchor-scale` | off | Per-dataset scale `b_s` from anchor samples shared with the reference (see above) |
 | `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, ...) |
 
 The fit is deterministic (fixed seed, results independent of the thread

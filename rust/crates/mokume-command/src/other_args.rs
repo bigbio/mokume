@@ -253,6 +253,12 @@ pub(crate) struct BridleArgs {
     #[arg(long = "seed", value_name = "N", default_value_t = 0)]
     pub(crate) seed: u32,
 
+    /// Rescale each dataset sharing >= 20 anchor samples with the reference
+    /// onto the reference's spread (per-dataset slope b_s from the anchors,
+    /// e.g. TMT ratio compression); b_s is recorded in the --report.
+    #[arg(long = "anchor-scale")]
+    pub(crate) anchor_scale: bool,
+
     /// Optional pooled per-line biology (theta) for observed line/gene cells.
     #[arg(long = "theta-output", value_name = "FILE")]
     pub(crate) theta_output: Option<PathBuf>,

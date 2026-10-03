@@ -442,3 +442,103 @@ fn anchor_scale_in_fit_is_opt_in_and_keeps_every_value() {
         }
     }
 }
+
+#[test]
+fn default_convergence_is_output_change_with_long_runs() {
+    let p = BridleParams::default();
+    assert_eq!(p.stop_rule, StopRule::OutputChange);
+    assert_eq!((p.sweeps, p.min_sweeps), (400, 200));
+    assert!((p.converge_tol - 1e-5).abs() < 1e-18);
+    // the previous rule stays reachable
+    let m = BridleParams::default().monitor_stop();
+    assert_eq!(m.stop_rule, StopRule::MonitorMse);
+    assert_eq!((m.sweeps, m.min_sweeps), (60, 8));
+}
+
+#[test]
+fn output_change_rule_stops_after_min_sweeps_below_tol() {
+    let data = toy(7);
+    let base = BridleParams {
+        sweeps: 12,
+        min_sweeps: 5,
+        ..toy_params()
+    };
+    // a huge tolerance stops at the first eligible sweep (5 sweeps run)
+    let res = fit(
+        &data,
+        &BridleParams {
+            converge_tol: 1e9,
+            ..base.clone()
+        },
+    );
+    assert!(res.report.converged);
+    assert_eq!(res.report.history.len(), 5);
+    let h = &res.report.history;
+    assert!(h[0].out_change.is_nan());
+    assert!(h[1..]
+        .iter()
+        .all(|s| s.out_change.is_finite() && s.out_change >= 0.0));
+    // tolerance 0 never fires: all sweeps run, not converged
+    let res = fit(
+        &data,
+        &BridleParams {
+            converge_tol: 0.0,
+            ..base.clone()
+        },
+    );
+    assert!(!res.report.converged);
+    assert_eq!(res.report.history.len(), 12);
+    // the change shrinks as the fit settles
+    let h = &res.report.history;
+    assert!(h[11].out_change < h[1].out_change);
+    // StopRule::Never ignores the tolerance
+    let res = fit(
+        &data,
+        &BridleParams {
+            converge_tol: 1e9,
+            stop_rule: StopRule::Never,
+            ..base
+        },
+    );
+    assert!(!res.report.converged && res.report.history.len() == 12);
+}
+
+#[test]
+fn out_change_is_the_mean_change_of_the_output() {
+    // two fits of 3 and 4 sweeps share their first 3 sweeps; the 4th sweep's
+    // out_change is the mean |v4 - v3| of the (uncross-fitted) output on a
+    // collection without cross-fitted datasets (REF + U, unanchored)
+    let mut data = toy(0);
+    let keep: Vec<usize> = (0..data.n_profiles())
+        .filter(|&i| data.datasets[i] == "REF" || data.datasets[i] == "U")
+        .collect();
+    let g_n = data.genes.len();
+    data = BridleData {
+        datasets: keep.iter().map(|&i| data.datasets[i].clone()).collect(),
+        lines: keep.iter().map(|&i| data.lines[i].clone()).collect(),
+        lineages: keep.iter().map(|&i| data.lineages[i].clone()).collect(),
+        plexes: None,
+        genes: data.genes.clone(),
+        values: keep
+            .iter()
+            .flat_map(|&i| data.values[i * g_n..(i + 1) * g_n].to_vec())
+            .collect(),
+    };
+    let p = |sweeps| BridleParams {
+        sweeps,
+        stop_rule: StopRule::Never,
+        holdout_frac: 0.0,
+        ..toy_params()
+    };
+    let a = fit(&data, &p(3));
+    let b = fit(&data, &p(4));
+    let (s, c) = a
+        .corrected
+        .iter()
+        .zip(&b.corrected)
+        .filter(|(x, _)| x.is_finite())
+        .fold((0.0, 0_usize), |(s, c), (x, y)| (s + (x - y).abs(), c + 1));
+    let want = s / c as f64;
+    let got = b.report.history[3].out_change;
+    assert!((got - want).abs() < 1e-12, "out_change {got} vs {want}");
+}

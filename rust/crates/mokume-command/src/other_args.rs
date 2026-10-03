@@ -167,6 +167,18 @@ pub(crate) struct CorrectBatchesArgs {
     pub(crate) bridle: BridleArgs,
 }
 
+/// Early stop rule of the BRIDLE fit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
+pub(crate) enum BridleStopRule {
+    /// Mean |output change| between sweeps below --stop-tol (default).
+    #[default]
+    Output,
+    /// Hold-out monitor MSE change over 3 sweeps (previous default).
+    Monitor,
+    /// Run all --sweeps.
+    None,
+}
+
 /// Options of `correct-batches --method bridle`.
 #[derive(Debug, Clone, Args)]
 #[command(next_help_heading = "BRIDLE options (--method bridle)")]
@@ -247,8 +259,24 @@ pub(crate) struct BridleArgs {
     pub(crate) rank: usize,
 
     /// Maximum number of fitting sweeps.
-    #[arg(long = "sweeps", value_name = "N", default_value_t = 60)]
+    #[arg(long = "sweeps", value_name = "N", default_value_t = 400)]
     pub(crate) sweeps: usize,
+
+    /// Early stop rule: `output` stops when the mean |change| of the output
+    /// between two sweeps is below --stop-tol (after --min-sweeps); `monitor`
+    /// is the previous rule (hold-out MSE change over 3 sweeps; use with
+    /// --sweeps 60 for the old behaviour); `none` runs all --sweeps.
+    #[arg(long = "stop-rule", value_name = "RULE", value_enum, default_value_t = BridleStopRule::Output)]
+    pub(crate) stop_rule: BridleStopRule,
+
+    /// Tolerance of --stop-rule [default: 1e-5 for `output`, 2e-4 for `monitor`].
+    #[arg(long = "stop-tol", value_name = "TOL")]
+    pub(crate) stop_tol: Option<f64>,
+
+    /// Sweeps before --stop-rule may stop the fit [default: 200 for `output`,
+    /// 8 for `monitor`].
+    #[arg(long = "min-sweeps", value_name = "N")]
+    pub(crate) min_sweeps: Option<usize>,
 
     #[arg(long = "seed", value_name = "N", default_value_t = 0)]
     pub(crate) seed: u32,

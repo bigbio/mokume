@@ -28,9 +28,11 @@
 //! Fit: block-coordinate closed-form weighted ridge (`m`, `Lin`, ALS for
 //! `U`/`V`, `R`, `f`, `r`, `P`, `c`) with EM moment updates for the variance
 //! components (`tauR`, `tau_s`, `tauP`) and a per-dataset noise trend estimated
-//! from leverage-corrected anchor-row residuals, for `sweeps` sweeps or until the
-//! monitor MSE (a `holdout_frac` sample of observed cells withheld from the fit)
-//! stops improving.
+//! from leverage-corrected anchor-row residuals, for at most `sweeps` sweeps
+//! ([`StopRule`]: by default until the output stops changing, i.e. the mean
+//! |change| of `A + c + P` over observed cells between two sweeps falls below
+//! `converge_tol`, after `min_sweeps` sweeps; a `holdout_frac` sample of observed
+//! cells is withheld from the fit as an MSE monitor).
 //!
 //! Output: `v = y - A_out - c - P` on observed cells only; nothing is imputed
 //! and no protein is dropped for having missing values. `A_out` is cross-fitted
@@ -88,6 +90,21 @@ pub enum PlexMode {
     Inferred,
 }
 
+/// When the fit stops before `sweeps`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StopRule {
+    /// After `min_sweeps` sweeps, stop when the mean |change| of the output
+    /// offsets `A + c + P` over observed cells since the previous sweep is
+    /// below `converge_tol` (benchmark: 60 sweeps were not converged; 200-400
+    /// sweeps improved every metric).
+    OutputChange,
+    /// Previous default: after `min_sweeps` sweeps, stop when the monitor MSE
+    /// changed less than `converge_tol` over the last 3 sweeps.
+    MonitorMse,
+    /// Always run `sweeps` sweeps.
+    Never,
+}
+
 /// Input profiles in long-to-wide form.
 #[derive(Debug, Clone)]
 pub struct BridleData {
@@ -112,7 +129,7 @@ impl BridleData {
     }
 }
 
-/// Model hyper-parameters (defaults = the benchmark `lim_lin` run).
+/// Model hyper-parameters (defaults = the benchmark-winning configuration).
 #[derive(Debug, Clone)]
 pub struct BridleParams {
     /// Reference dataset (`A = 0`).
@@ -149,8 +166,8 @@ pub struct BridleParams {
     /// Explicit plexes: attach profiles without a plex id to the nearest
     /// explicit plex of their dataset by missingness (Jaccard <= `plex_cut`).
     pub plex_attach_unlabelled: bool,
-    /// Early stop: after `min_sweeps`, stop when the monitor MSE changed less
-    /// than `converge_tol` over the last 3 sweeps.
+    /// Early stop rule, its minimum number of sweeps and its tolerance.
+    pub stop_rule: StopRule,
     pub min_sweeps: usize,
     pub converge_tol: f64,
     /// Post-fit per-dataset scale from anchor samples shared with the
@@ -160,12 +177,26 @@ pub struct BridleParams {
     pub anchor_scale_min_anchors: usize,
 }
 
+impl BridleParams {
+    /// The previous convergence defaults: at most 60 sweeps, stop on the
+    /// monitor MSE (2e-4 over 3 sweeps, after 8 sweeps).
+    pub fn monitor_stop(self) -> Self {
+        Self {
+            sweeps: 60,
+            stop_rule: StopRule::MonitorMse,
+            min_sweeps: 8,
+            converge_tol: 2e-4,
+            ..self
+        }
+    }
+}
+
 impl Default for BridleParams {
     fn default() -> Self {
         Self {
             reference: String::new(),
             rank: 16,
-            sweeps: 60,
+            sweeps: 400,
             seed: 0,
             tau_r: 0.8,
             tau_s: 0.3,
@@ -186,8 +217,9 @@ impl Default for BridleParams {
             plex_min_assigned: 0.5,
             plex_min_groups: 5,
             plex_attach_unlabelled: true,
-            min_sweeps: 8,
-            converge_tol: 2e-4,
+            stop_rule: StopRule::OutputChange,
+            min_sweeps: 200,
+            converge_tol: 1e-5,
             anchor_scale: false,
             anchor_scale_min_anchors: 20,
         }
@@ -215,6 +247,9 @@ pub struct DatasetReport {
 pub struct SweepStats {
     pub sweep: usize,
     pub hold_mse: f64,
+    /// Mean |change| of `A + c + P` over observed cells since the previous
+    /// sweep (`NaN` on the first sweep).
+    pub out_change: f64,
     pub tau_r: f64,
     pub tau_p: f64,
 }
@@ -706,6 +741,7 @@ pub fn bridle_fit(
     let mut theta = vec![0.0_f64; g_n * nl];
     let mut history: Vec<SweepStats> = Vec::new();
     let mut converged = false;
+    let mut prev_offset: Option<Vec<f64>> = None;
 
     for sweep in 0..params.sweeps {
         // ============ theta blocks on line-level aggregates
@@ -874,22 +910,36 @@ pub fn bridle_fit(
             &mut st,
         );
         check_finite(&st)?;
+        let offset = output_offsets(&lay, &obs, &st);
+        let out_change = prev_offset
+            .as_ref()
+            .map_or(f64::NAN, |prev| mean_abs_change(prev, &offset, &obs));
+        prev_offset = Some(offset);
         history.push(SweepStats {
             sweep,
             hold_mse,
+            out_change,
             tau_r: st.tau_r2.sqrt(),
             tau_p: st.tau_p2.sqrt(),
         });
         tracing::debug!(
-            "BRIDLE sweep {sweep}: hold_mse={hold_mse:.4} tauR={:.3} tauP={:.3}",
+            "BRIDLE sweep {sweep}: hold_mse={hold_mse:.4} out_change={out_change:.2e} tauR={:.3} tauP={:.3}",
             st.tau_r2.sqrt(),
             st.tau_p2.sqrt()
         );
         let h = history.len();
-        if sweep >= params.min_sweeps
-            && h > 3
-            && (history[h - 4].hold_mse - hold_mse).abs() < params.converge_tol
-        {
+        let stop = match params.stop_rule {
+            StopRule::OutputChange => {
+                sweep + 1 >= params.min_sweeps && out_change < params.converge_tol
+            }
+            StopRule::MonitorMse => {
+                sweep >= params.min_sweeps
+                    && h > 3
+                    && (history[h - 4].hold_mse - hold_mse).abs() < params.converge_tol
+            }
+            StopRule::Never => false,
+        };
+        if stop {
             converged = true;
             break;
         }
@@ -1416,6 +1466,43 @@ fn update_noise(
         hs / hc as f64
     } else {
         f64::NAN
+    }
+}
+
+/// Gene-major `A[s,g] + c[i] + P[k,g]` on observed cells (0 elsewhere): the
+/// part of the output `v = y - A - c - P` that changes between sweeps.
+fn output_offsets(lay: &Layout, obs: &[u8], st: &State) -> Vec<f64> {
+    let (n, s_n, kp) = (lay.n, lay.s_n, lay.k + 1);
+    let mut out = vec![0.0; lay.g_n * n];
+    out.par_chunks_mut(n).enumerate().for_each(|(g, o)| {
+        for i in 0..n {
+            if obs[g * n + i] != UNOBSERVED {
+                o[i] = st.a[g * s_n + lay.srow[i]] + st.c[i] + st.p[g * kp + lay.prow[i]];
+            }
+        }
+    });
+    out
+}
+
+/// Mean |a - b| over observed cells (fixed-size block sums, added in order).
+fn mean_abs_change(a: &[f64], b: &[f64], obs: &[u8]) -> f64 {
+    let parts: Vec<(f64, usize)> = obs
+        .par_chunks(GENE_BLOCK)
+        .zip(a.par_chunks(GENE_BLOCK).zip(b.par_chunks(GENE_BLOCK)))
+        .map(|(o, (x, y))| {
+            o.iter()
+                .zip(x.iter().zip(y))
+                .filter(|(&o, _)| o != UNOBSERVED)
+                .fold((0.0, 0_usize), |(s, c), (_, (x, y))| {
+                    (s + (x - y).abs(), c + 1)
+                })
+        })
+        .collect();
+    let (s, c) = parts.iter().fold((0.0, 0), |(s, c), (a, b)| (s + a, c + b));
+    if c == 0 {
+        f64::NAN
+    } else {
+        s / c as f64
     }
 }
 

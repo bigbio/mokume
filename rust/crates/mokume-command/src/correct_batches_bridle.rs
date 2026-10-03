@@ -40,14 +40,14 @@ use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
 use mokume_stats::batch::bridle::{
     bridle_fit, build_design, reference_abundance, sequence_features, BridleData, BridleParams,
-    BridleResult, PlexMode,
+    BridleResult, PlexMode, StopRule,
 };
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ArrowWriter;
 use parquet::basic::Compression;
 use parquet::file::properties::WriterProperties;
 
-use crate::other_args::BridleArgs;
+use crate::other_args::{BridleArgs, BridleStopRule};
 use crate::CorrectBatchesArgs;
 
 /// Rows per written parquet batch.
@@ -83,7 +83,10 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         fasta: None,
         fasta_organism: None,
         rank: 16,
-        sweeps: 60,
+        sweeps: 400,
+        stop_rule: BridleStopRule::Output,
+        stop_tol: None,
+        min_sweeps: None,
         seed: 0,
         anchor_scale: false,
         theta_output: None,
@@ -119,6 +122,9 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--fasta-organism", bridle.fasta_organism.is_some()),
         ("--rank", bridle.rank != d.rank),
         ("--sweeps", bridle.sweeps != d.sweeps),
+        ("--stop-rule", bridle.stop_rule != d.stop_rule),
+        ("--stop-tol", bridle.stop_tol.is_some()),
+        ("--min-sweeps", bridle.min_sweeps.is_some()),
         ("--seed", bridle.seed != d.seed),
         ("--anchor-scale", bridle.anchor_scale),
         ("--theta-output", bridle.theta_output.is_some()),
@@ -531,6 +537,7 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
     };
     let abundance = reference_abundance(&data, &reference);
     let (design, design_names, abz) = build_design(&abundance, features.as_ref());
+    let (stop_rule, min_sweeps, converge_tol) = stop_settings(bridle);
     let params = BridleParams {
         reference,
         rank: bridle.rank,
@@ -538,6 +545,9 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
         seed: bridle.seed,
         plex_mode,
         anchor_scale: bridle.anchor_scale,
+        stop_rule,
+        min_sweeps,
+        converge_tol,
         ..BridleParams::default()
     };
     let res = bridle_fit(&data, &design, &abz, &params)?;
@@ -556,6 +566,24 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
         write_report(path, args, &design_names, &res, t0.elapsed().as_secs_f64())?;
     }
     Ok(())
+}
+
+/// Effective stop rule, minimum sweeps and tolerance (rule-specific defaults).
+fn stop_settings(bridle: &BridleArgs) -> (StopRule, usize, f64) {
+    let defaults = match bridle.stop_rule {
+        BridleStopRule::Monitor => BridleParams::default().monitor_stop(),
+        _ => BridleParams::default(),
+    };
+    let rule = match bridle.stop_rule {
+        BridleStopRule::Output => StopRule::OutputChange,
+        BridleStopRule::Monitor => StopRule::MonitorMse,
+        BridleStopRule::None => StopRule::Never,
+    };
+    (
+        rule,
+        bridle.min_sweeps.unwrap_or(defaults.min_sweeps),
+        bridle.stop_tol.unwrap_or(defaults.converge_tol),
+    )
 }
 
 /// Column-oriented output table.
@@ -727,15 +755,17 @@ fn write_report(
     let history: Vec<serde_json::Value> = r
         .history
         .iter()
-        .map(|h| serde_json::json!({"sweep": h.sweep, "hold_mse": h.hold_mse, "tau_r": h.tau_r, "tau_p": h.tau_p}))
+        .map(|h| serde_json::json!({"sweep": h.sweep, "hold_mse": h.hold_mse, "out_change": h.out_change, "tau_r": h.tau_r, "tau_p": h.tau_p}))
         .collect();
     let bridle = &args.bridle;
+    let stop = stop_settings(bridle);
     let mut doc = serde_json::json!({
         "method": "bridle-linear",
         "mokume_version": env!("CARGO_PKG_VERSION"),
         "input": args.input.display().to_string(),
         "params": {
             "reference": r.reference, "rank": bridle.rank, "sweeps": bridle.sweeps, "seed": bridle.seed,
+            "stop_rule": format!("{:?}", stop.0), "min_sweeps": stop.1, "stop_tol": stop.2,
             "fasta": bridle.fasta.as_ref().map(|p| p.display().to_string()),
             "fasta_organism": bridle.fasta_organism,
             "lineage_table": bridle.lineage_table.as_ref().map(|p| p.display().to_string()),
@@ -869,6 +899,32 @@ mod tests {
         let report: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
         assert_eq!(report["n_plexes"], 2);
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_stop_rule_defaults_and_overrides() -> TestResult<()> {
+        let d = default_bridle_args();
+        assert_eq!((d.sweeps, d.stop_rule), (400, BridleStopRule::Output));
+        assert_eq!(stop_settings(&d), (StopRule::OutputChange, 200, 1e-5));
+        let monitor = BridleArgs {
+            stop_rule: BridleStopRule::Monitor,
+            ..default_bridle_args()
+        };
+        assert_eq!(stop_settings(&monitor), (StopRule::MonitorMse, 8, 2e-4));
+        let dir = temp_dir("stop")?;
+        let input = write_toy(&dir)?;
+        let mut a = args(input, dir.join("v.tsv"));
+        a.bridle.report = Some(dir.join("fit.json"));
+        a.bridle.min_sweeps = Some(3);
+        a.bridle.stop_tol = Some(1e9);
+        run_bridle(&a)?;
+        let report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(report["params"]["stop_rule"], "OutputChange");
+        assert_eq!(report["converged"], true);
+        assert_eq!(report["history"].as_array().map(Vec::len), Some(3));
+        assert!(report["history"][2]["out_change"].is_number());
         Ok(())
     }
 

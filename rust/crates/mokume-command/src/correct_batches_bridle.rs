@@ -88,6 +88,7 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         stop_tol: None,
         min_sweeps: None,
         seed: 0,
+        no_graph_prior: false,
         anchor_scale: false,
         theta_output: None,
         report: None,
@@ -126,6 +127,7 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--stop-tol", bridle.stop_tol.is_some()),
         ("--min-sweeps", bridle.min_sweeps.is_some()),
         ("--seed", bridle.seed != d.seed),
+        ("--no-graph-prior", bridle.no_graph_prior),
         ("--anchor-scale", bridle.anchor_scale),
         ("--theta-output", bridle.theta_output.is_some()),
         ("--report", bridle.report.is_some()),
@@ -545,6 +547,7 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
         seed: bridle.seed,
         plex_mode,
         anchor_scale: bridle.anchor_scale,
+        graph_prior: !bridle.no_graph_prior,
         stop_rule,
         min_sweeps,
         converge_tol,
@@ -739,6 +742,7 @@ fn write_report(
                 "anchored": d.anchored, "cross_fitted": d.cross_fitted, "n_plexes": d.n_plexes,
                 "n_plexed_profiles": d.n_plexed_profiles, "tau_s": d.tau_s, "sig2": d.sig2,
                 "sig_slope": d.sig_slope, "f_fitted": d.f_fitted,
+                "graph_prior_genes": d.graph_prior_genes,
             })
         })
         .collect();
@@ -771,6 +775,7 @@ fn write_report(
             "lineage_table": bridle.lineage_table.as_ref().map(|p| p.display().to_string()),
             "plex_column": bridle.plex_column, "plex_table": bridle.plex_table.as_ref().map(|p| p.display().to_string()),
             "no_plex": bridle.no_plex, "anchor_scale": bridle.anchor_scale,
+            "graph_prior": !bridle.no_graph_prior,
         },
         "n_profiles": r.n_profiles, "n_genes": r.n_genes, "n_lines": r.n_lines,
         "n_lineages": r.n_lineages, "n_plexes": r.n_plexes, "design_columns": design_names,
@@ -925,6 +930,34 @@ mod tests {
         assert_eq!(report["converged"], true);
         assert_eq!(report["history"].as_array().map(Vec::len), Some(3));
         assert!(report["history"][2]["out_change"].is_number());
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_graph_prior_is_default_and_can_be_disabled() -> TestResult<()> {
+        let dir = temp_dir("gprior")?;
+        let input = write_toy(&dir)?;
+        let mut a = args(input, dir.join("v.tsv"));
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.report = Some(dir.join("fit.json"));
+        run_bridle(&a)?;
+        let on: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(on["params"]["graph_prior"], true);
+        let b = |r: &serde_json::Value| {
+            r["datasets"]
+                .as_array()
+                .and_then(|d| d.iter().find(|x| x["name"] == "B").cloned())
+                .map(|x| x["graph_prior_genes"].clone())
+        };
+        // B shares its 4 lines with REF: every gene has a graph offset
+        assert_eq!(b(&on), Some(serde_json::json!(30)));
+        a.bridle.no_graph_prior = true;
+        run_bridle(&a)?;
+        let off: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(off["params"]["graph_prior"], false);
+        assert_eq!(b(&off), Some(serde_json::json!(0)));
         Ok(())
     }
 

@@ -281,6 +281,14 @@ pub(crate) struct BridleArgs {
     #[arg(long = "seed", value_name = "N", default_value_t = 0)]
     pub(crate) seed: u32,
 
+    /// Disable the graph prior: by default plex-aware anchor offsets chained
+    /// to the reference (batches linked by >= 3 shared anchors; centring for
+    /// unlinked batches with >= 5 profiles) are the initial value and prior
+    /// mean of each dataset's offsets, and the feature model only where no
+    /// such offset exists.
+    #[arg(long = "no-graph-prior")]
+    pub(crate) no_graph_prior: bool,
+
     /// Rescale each dataset sharing >= 20 anchor samples with the reference
     /// onto the reference's spread (per-dataset slope b_s from the anchors,
     /// e.g. TMT ratio compression); b_s is recorded in the --report.

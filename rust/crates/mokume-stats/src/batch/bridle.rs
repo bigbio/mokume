@@ -18,9 +18,13 @@
 //! y[i,g]     = theta[l,g] + A[s,g] + c[i] + P[k,g] + eps,  eps ~ N(0, sig2[s,g])
 //! log sig2   = a_s + b_s * abund_g                          (per-dataset noise trend)
 //! theta[l,g] = m_g + Lin[lineage(l),g] + U_l . V_g + R[l,g] (biology; rank-`rank` U.V)
-//! A[s,g]     = f(s, x_g) + r[s,g]                          (A[reference] = 0)
+//! A[s,g]     = a0[s,g] + r[s,g]                            (A[reference] = 0)
+//!   a0       = graph prior offset where one exists (`graph_prior`, see
+//!              [`graph`]: plex-aware anchor offsets chained to the reference),
+//!              else f(s, x_g)
 //!   f        = per-dataset weighted ridge on [1, x_g] (technical protein features)
-//!   r        ~ N(0, tau_s^2), empirical-Bayes residual, only for anchored datasets
+//!   r        ~ N(0, tau_s^2), empirical-Bayes residual around a0, only for
+//!              anchored datasets
 //! P[k,g]     ~ N(0, tauP^2), TMT plex effects, centred within each dataset
 //! c[i]       ~ N(0, sd_c^2), per-profile sample loading
 //! ```
@@ -39,7 +43,7 @@
 //! for datasets with `1 <= n_anchor < cf_max_nb`: an anchor profile's own
 //! residual offset `r` is estimated only from the other anchor-sample folds
 //! against a leave-dataset-out `theta`, so a single-line dataset keeps its own
-//! signal (`r = 0`, `A = f`). `theta` is returned separately. With
+//! signal (`r = 0`, `A = a0`). `theta` is returned separately. With
 //! `anchor_scale`, each dataset's corrected values are then rescaled onto the
 //! reference's spread by a slope estimated on shared anchors ([`anchor_scale`]).
 //!
@@ -55,6 +59,7 @@
 //! `RandomState`-compatible stream ([`NumpyRandomState`]).
 
 mod features;
+mod graph;
 mod linalg;
 mod plex;
 mod rng;
@@ -175,6 +180,13 @@ pub struct BridleParams {
     pub anchor_scale: bool,
     /// Minimum anchor samples shared with the reference for the scale step.
     pub anchor_scale_min_anchors: usize,
+    /// Graph prior: plex-aware anchor offsets chained to the reference are
+    /// the initial value and prior mean of `A` where they exist (else `f`).
+    pub graph_prior: bool,
+    /// Graph prior: anchor lines two batches must share to be linked, and
+    /// alternating-means iterations.
+    pub graph_min_shared: usize,
+    pub graph_iters: usize,
 }
 
 impl BridleParams {
@@ -187,6 +199,17 @@ impl BridleParams {
             min_sweeps: 8,
             converge_tol: 2e-4,
             ..self
+        }
+    }
+}
+
+impl BridleParams {
+    /// The configuration before the 2026-10 benchmark (the `lim_lin`
+    /// prototype): [`Self::monitor_stop`] convergence and no graph prior.
+    pub fn legacy() -> Self {
+        Self {
+            graph_prior: false,
+            ..Self::default().monitor_stop()
         }
     }
 }
@@ -222,6 +245,9 @@ impl Default for BridleParams {
             converge_tol: 1e-5,
             anchor_scale: false,
             anchor_scale_min_anchors: 20,
+            graph_prior: true,
+            graph_min_shared: 3,
+            graph_iters: 400,
         }
     }
 }
@@ -240,6 +266,8 @@ pub struct DatasetReport {
     pub sig2: f64,
     pub sig_slope: f64,
     pub f_fitted: bool,
+    /// Genes whose offset prior is the graph prior (else `f`).
+    pub graph_prior_genes: usize,
 }
 
 /// Per-sweep monitor.
@@ -594,12 +622,25 @@ struct State {
     tau_p2: f64,
     taus2: Vec<f64>,
     f_fitted: Vec<bool>,
+    /// Gene-major graph prior of `A` (`NaN` = none, the prior mean is `f`).
+    prior_a: Vec<f64>,
 }
 
 impl State {
     #[inline]
     fn sig2(&self, abz: f64, s: usize) -> f64 {
         (self.sig2_s[s] * (self.sig_b[s] * abz).exp()).clamp(SIG2_RANGE.0, SIG2_RANGE.1)
+    }
+
+    /// Prior mean of `A[s,g]`: the graph prior where it exists, else `f`.
+    #[inline]
+    fn prior_mean(&self, s_n: usize, g: usize, s: usize) -> f64 {
+        let p = self.prior_a[g * s_n + s];
+        if p.is_finite() {
+            p
+        } else {
+            self.f[g * s_n + s]
+        }
     }
 
     #[inline]
@@ -688,6 +729,50 @@ pub fn bridle_fit(
         }
     }
 
+    // ---- graph prior of the offsets (gene-major), also their initial value
+    let prior_a = if params.graph_prior {
+        let batch: Vec<usize> = (0..n)
+            .map(|i| {
+                let s = lay.srow[i];
+                if s != lay.ref_s && lay.prow[i] < k {
+                    s_n + lay.prow[i]
+                } else {
+                    s
+                }
+            })
+            .collect();
+        let rm = graph::graph_prior(&graph::GraphInput {
+            values: &data.values,
+            g_n,
+            s_n,
+            srow: &lay.srow,
+            li: &lay.li,
+            batch: &batch,
+            n_batch: s_n + k,
+            ref_s: lay.ref_s,
+            min_shared: params.graph_min_shared,
+            iters: params.graph_iters,
+        });
+        let mut gm = vec![f64::NAN; g_n * s_n];
+        for s in 0..s_n {
+            for g in 0..g_n {
+                gm[g * s_n + s] = rm[s * g_n + g];
+            }
+        }
+        tracing::info!(
+            "BRIDLE graph prior: {} of {} dataset x gene offsets",
+            gm.iter().filter(|x| x.is_finite()).count(),
+            (s_n - 1) * g_n
+        );
+        gm
+    } else {
+        vec![f64::NAN; g_n * s_n]
+    };
+    let a0: Vec<f64> = prior_a
+        .iter()
+        .map(|&p| if p.is_finite() { p } else { 0.0 })
+        .collect();
+
     // ---- initial state (U, V from a second NumPy stream, like torch.randn)
     let mut init = NumpyRandomState::new(params.seed.wrapping_add(1));
     let u0: Vec<f64> = (0..nl * rank).map(|_| 0.01 * init.next_gauss()).collect();
@@ -698,7 +783,7 @@ pub fn bridle_fit(
         u: u0,
         v: v0,
         r_line: vec![0.0; g_n * nl],
-        a: vec![0.0; g_n * s_n],
+        a: a0,
         f: vec![0.0; g_n * s_n],
         p: vec![0.0; g_n * kp],
         c: vec![0.0; n],
@@ -708,6 +793,7 @@ pub fn bridle_fit(
         tau_p2: params.tau_p * params.tau_p,
         taus2: vec![params.tau_s * params.tau_s; s_n],
         f_fitted: vec![false; s_n],
+        prior_a,
     };
     let tau_l2 = params.tau_l * params.tau_l;
     let lam_c = 1.0 / (params.sd_c * params.sd_c);
@@ -998,6 +1084,9 @@ pub fn bridle_fit(
                 sig2: st.sig2_s[s],
                 sig_slope: st.sig_b[s],
                 f_fitted: st.f_fitted[s],
+                graph_prior_genes: (0..g_n)
+                    .filter(|&g| st.prior_a[g * s_n + s].is_finite())
+                    .count(),
             }
         })
         .collect();
@@ -1106,8 +1195,9 @@ fn weighted_ridge_rows(w: &[f64], wz: &[f64], factors: &[f64], rank: usize, lam:
     linalg::solve(&gm, &rhs, rank).unwrap_or_else(|| vec![0.0; rank])
 }
 
-/// `f` (per-dataset feature ridge), `r` (EB residual for anchored datasets),
-/// `tau_s`, and `A = f + r` with `A[reference] = 0`.
+/// `f` (per-dataset feature ridge), `r` (EB residual for anchored datasets
+/// around the prior mean: the graph prior where it exists, else `f`), `tau_s`,
+/// and `A = prior + r` with `A[reference] = 0`.
 #[allow(clippy::too_many_arguments)]
 fn update_offsets(
     lay: &Layout,
@@ -1213,12 +1303,14 @@ fn update_offsets(
                     f_g[s] = design[g].iter().zip(beta).map(|(d, b)| d * b).sum();
                 }
                 let prec = stats[g].0[s];
+                let pa = st_ref.prior_a[g * s_n + s];
+                let pm = if pa.is_finite() { pa } else { f_g[s] };
                 let mut r = 0.0;
                 if prec > 0.0 && lay.anchored[s] {
-                    r = (stats[g].1[s] - f_g[s]) * prec / (prec + 1.0 / taus2_old[s]);
+                    r = (stats[g].1[s] - pm) * prec / (prec + 1.0 / taus2_old[s]);
                     e_g[s] = r * r + 1.0 / (prec + 1.0 / taus2_old[s]);
                 }
-                a_g[s] = if s == lay.ref_s { 0.0 } else { f_g[s] + r };
+                a_g[s] = if s == lay.ref_s { 0.0 } else { pm + r };
             }
             (f_g, a_g, e_g)
         })
@@ -1594,7 +1686,7 @@ fn output_values(
         for plan in &plans {
             let s = plan.s;
             let taus2 = st.taus2[s];
-            let f_gs = st.f[g * s_n + s];
+            let pm_gs = st.prior_mean(s_n, g, s);
             // leave-dataset-out theta for this dataset's anchor samples
             let mut tloo: HashMap<usize, f64> = HashMap::with_capacity(plan.lines.len());
             for &l in &plan.lines {
@@ -1625,7 +1717,7 @@ fn output_values(
                 }
                 let l = lay.li[i];
                 let w = 1.0 / st.sig2(abz[g], s);
-                let res = y[g * n + i] - tloo[&l] - st.c[i] - f_gs - st.p[g * kp + lay.prow[i]];
+                let res = y[g * n + i] - tloo[&l] - st.c[i] - pm_gs - st.p[g * kp + lay.prow[i]];
                 let fold = plan.fold_of_line[&l];
                 fold_num[fold] += w * res;
                 fold_den[fold] += w;
@@ -1642,7 +1734,7 @@ fn output_values(
                 } else {
                     tot_num / (tot_den + 1.0 / taus2)
                 };
-                out[i] = y[g * n + i] - (f_gs + r) - st.c[i] - st.p[g * kp + lay.prow[i]];
+                out[i] = y[g * n + i] - (pm_gs + r) - st.c[i] - st.p[g * kp + lay.prow[i]];
             }
         }
     });

@@ -175,8 +175,8 @@ fn params(plex_mode: PlexMode) -> BridleParams {
         rank: 4,
         sweeps: 30,
         plex_mode,
-        // the prototype's stop rule; the defaults added after it are off here
-        ..BridleParams::default().monitor_stop()
+        // the prototype's configuration; the later defaults are off here
+        ..BridleParams::legacy()
     }
 }
 

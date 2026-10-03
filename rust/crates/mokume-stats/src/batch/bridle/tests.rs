@@ -102,6 +102,8 @@ fn em_updates_stay_finite_and_monitor_improves() {
         &toy(0),
         &BridleParams {
             holdout_frac: 0.05,
+            // cold start: the graph prior already places A near its optimum
+            graph_prior: false,
             ..toy_params()
         },
     );
@@ -541,4 +543,51 @@ fn out_change_is_the_mean_change_of_the_output() {
     let want = s / c as f64;
     let got = b.report.history[3].out_change;
     assert!((got - want).abs() < 1e-12, "out_change {got} vs {want}");
+}
+
+#[test]
+fn graph_prior_is_default_and_covers_linked_datasets_only() {
+    assert!(BridleParams::default().graph_prior && !BridleParams::legacy().graph_prior);
+    let data = toy(0);
+    let g_n = data.genes.len();
+    let res = fit(&data, &toy_params());
+    let genes = |name: &str| {
+        res.report
+            .datasets
+            .iter()
+            .find(|d| d.name == name)
+            .map_or(usize::MAX, |d| d.graph_prior_genes)
+    };
+    // B shares 4 lines with REF (>= 3): linked on every gene; S (1 line) and
+    // U (3 own lines, < 5 profiles) get neither a graph nor a centring prior
+    assert_eq!(
+        (genes("REF"), genes("B"), genes("S"), genes("U")),
+        (0, g_n, 0, 0)
+    );
+    // B's offsets start at, and are shrunk towards, the graph prior (+1.0)
+    let b = res.dataset_names.iter().position(|d| d == "B").unwrap_or(0);
+    let mean_a = res.offsets[b * g_n..(b + 1) * g_n].iter().sum::<f64>() / g_n as f64;
+    let mean_c_b: f64 = (0..data.n_profiles())
+        .filter(|&i| data.datasets[i] == "B")
+        .map(|i| res.sample_loading[i])
+        .sum::<f64>()
+        / 4.0;
+    assert!(
+        (mean_a + mean_c_b - 1.0).abs() < 0.1,
+        "A_B {mean_a} c_B {mean_c_b}"
+    );
+    let off = fit(
+        &data,
+        &BridleParams {
+            graph_prior: false,
+            ..toy_params()
+        },
+    );
+    assert!(off.report.datasets.iter().all(|d| d.graph_prior_genes == 0));
+    // the prior changes the fit
+    assert!(off
+        .corrected
+        .iter()
+        .zip(&res.corrected)
+        .any(|(x, y)| x.is_finite() && (x - y).abs() > 1e-9));
 }

@@ -23,7 +23,8 @@
 //!
 //! Output (`-o`, parquet when the extension is `.parquet`, else TSV/CSV):
 //! `<dataset>, <anchor>, <gene>, <value>, imputed` for every observed input
-//! cell, with `value = y - A - P` (`- c` with `--remove-sample-loading`) and
+//! cell, with `value = y - A - P` (`- c` with `--remove-sample-loading`),
+//! then rescaled per (dataset x plex, gene) unless `--no-plex-rescale`, and
 //! `imputed = false`. `--theta-output`
 //! writes the pooled per-anchor biology for observed anchor/gene cells,
 //! `--report` a JSON fit summary.
@@ -91,6 +92,7 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         seed: 0,
         no_graph_prior: false,
         remove_sample_loading: false,
+        no_plex_rescale: false,
         anchor_scale: false,
         theta_output: None,
         report: None,
@@ -131,6 +133,7 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--seed", bridle.seed != d.seed),
         ("--no-graph-prior", bridle.no_graph_prior),
         ("--remove-sample-loading", bridle.remove_sample_loading),
+        ("--no-plex-rescale", bridle.no_plex_rescale),
         ("--anchor-scale", bridle.anchor_scale),
         ("--theta-output", bridle.theta_output.is_some()),
         ("--report", bridle.report.is_some()),
@@ -552,6 +555,7 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
         anchor_scale: bridle.anchor_scale,
         graph_prior: !bridle.no_graph_prior,
         keep_sample_loading: !bridle.remove_sample_loading,
+        plex_rescale: !bridle.no_plex_rescale,
         stop_rule,
         min_sweeps,
         converge_tol,
@@ -781,6 +785,7 @@ fn write_report(
             "no_plex": bridle.no_plex, "anchor_scale": bridle.anchor_scale,
             "graph_prior": !bridle.no_graph_prior,
             "keep_sample_loading": !bridle.remove_sample_loading,
+            "plex_rescale": !bridle.no_plex_rescale,
         },
         "n_profiles": r.n_profiles, "n_genes": r.n_genes, "n_lines": r.n_lines,
         "n_lineages": r.n_lineages, "n_plexes": r.n_plexes, "design_columns": design_names,
@@ -790,6 +795,18 @@ fn write_report(
     });
     if bridle.anchor_scale {
         doc["anchor_scale"] = serde_json::Value::Object(anchor_scale);
+    }
+    if !r.plex_rescale.is_empty() {
+        doc["plex_rescale"] = r
+            .plex_rescale
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "batch": p.batch, "n_profiles": p.n_profiles, "n_genes": p.n_genes,
+                    "mu": p.mu, "fallback": p.fallback, "median_delta": p.median_delta,
+                })
+            })
+            .collect();
     }
     let text = serde_json::to_string_pretty(&doc).map_err(|e| invalid(e.to_string()))?;
     std::fs::write(path, text).map_err(|e| io_err(path, e))
@@ -983,6 +1000,36 @@ mod tests {
         let removed = std::fs::read_to_string(dir.join("v.tsv"))?;
         assert_eq!(kept.lines().count(), removed.lines().count());
         assert_ne!(kept, removed);
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_plex_rescale_is_reported_and_can_be_disabled() -> TestResult<()> {
+        let dir = temp_dir("rescale")?;
+        let input = write_toy(&dir)?;
+        let mut a = args(input, dir.join("v.tsv"));
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.plex_column = Some("plex".to_owned());
+        a.bridle.report = Some(dir.join("fit.json"));
+        run_bridle(&a)?;
+        let on: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(on["params"]["plex_rescale"], true);
+        let batches: Vec<String> = on["plex_rescale"]
+            .as_array()
+            .map(|v| {
+                v.iter()
+                    .map(|b| b["batch"].as_str().unwrap_or("").to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        assert_eq!(batches, ["B|m0", "B|m1", "REF"]);
+        a.bridle.no_plex_rescale = true;
+        run_bridle(&a)?;
+        let off: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(off["params"]["plex_rescale"], false);
+        assert!(off.get("plex_rescale").is_none());
         Ok(())
     }
 

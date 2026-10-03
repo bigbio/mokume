@@ -54,8 +54,10 @@ fn toy_params() -> BridleParams {
         rank: 2,
         sweeps: 15,
         min_f_genes: 10,
-        // the core tests check v = y - A - c - P; kept-c is tested separately
+        // the core tests check v = y - A - c - P; kept-c and the post-fit
+        // rescale are tested separately
         keep_sample_loading: false,
+        plex_rescale: false,
         ..BridleParams::default()
     }
 }
@@ -620,4 +622,75 @@ fn sample_loading_is_kept_in_the_output_by_default() {
             }
         }
     }
+}
+
+#[test]
+fn plex_rescale_is_default_and_runs_after_the_fit() {
+    assert!(BridleParams::default().plex_rescale && !BridleParams::legacy().plex_rescale);
+    let data = toy(7);
+    let g_n = data.genes.len();
+    let off = fit(&data, &toy_params());
+    let on = fit(
+        &data,
+        &BridleParams {
+            plex_rescale: true,
+            ..toy_params()
+        },
+    );
+    assert!(off.report.plex_rescale.is_empty());
+    // no plexes: one batch per dataset, in name order
+    let names: Vec<&str> = on
+        .report
+        .plex_rescale
+        .iter()
+        .map(|r| r.batch.as_str())
+        .collect();
+    assert_eq!(names, ["B", "REF", "S", "U"]);
+    // same fit, only the output is rescaled; small batches (< 5 profiles,
+    // here every dataset but REF) fall back to delta = 1
+    assert_eq!(off.offsets, on.offsets);
+    for r in &on.report.plex_rescale {
+        assert_eq!(r.fallback, r.batch != "REF", "{r:?}");
+    }
+    for i in 0..data.n_profiles() {
+        for g in 0..g_n {
+            let (x, y) = (off.corrected[i * g_n + g], on.corrected[i * g_n + g]);
+            assert_eq!(x.is_finite(), y.is_finite());
+            if data.datasets[i] != "REF" && x.is_finite() {
+                assert!((x - y).abs() < 1e-12);
+            }
+        }
+    }
+}
+
+#[test]
+fn plex_rescale_batches_are_dataset_by_plex() {
+    let mut data = toy(0);
+    data.plexes = Some(
+        (0..data.n_profiles())
+            .map(|i| (data.datasets[i] == "REF").then(|| format!("m{}", i % 2)))
+            .collect(),
+    );
+    let res = fit(
+        &data,
+        &BridleParams {
+            plex_mode: PlexMode::Explicit,
+            plex_rescale: true,
+            ..toy_params()
+        },
+    );
+    let names: Vec<&str> = res
+        .report
+        .plex_rescale
+        .iter()
+        .map(|r| r.batch.as_str())
+        .collect();
+    assert_eq!(names, ["B", "REF|m0", "REF|m1", "S", "U"]);
+    let n: Vec<usize> = res
+        .report
+        .plex_rescale
+        .iter()
+        .map(|r| r.n_profiles)
+        .collect();
+    assert_eq!(n, [4, 3, 3, 1, 3]);
 }

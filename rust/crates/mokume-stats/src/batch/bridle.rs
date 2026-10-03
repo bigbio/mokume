@@ -47,6 +47,9 @@
 //! signal (`r = 0`, `A = a0`). `theta` is returned separately. With
 //! `anchor_scale`, each dataset's corrected values are then rescaled onto the
 //! reference's spread by a slope estimated on shared anchors ([`anchor_scale`]).
+//! With `plex_rescale` (default), every (dataset x plex, gene) is finally
+//! rescaled around its own mean by an empirical-Bayes ComBat-style scale
+//! estimated label-blind from all its values ([`rescale`]).
 //!
 //! Deviations from the prototype (no-ops on the benchmark, see the PR):
 //! plex effects are centred per dataset (the prototype centres across all
@@ -63,6 +66,7 @@ mod features;
 mod graph;
 mod linalg;
 mod plex;
+mod rescale;
 mod rng;
 mod scale;
 
@@ -73,6 +77,7 @@ use rayon::prelude::*;
 
 pub use features::{build_design, sequence_features, SequenceFeatures, FEATURE_NAMES};
 pub use plex::{attach_to_nearest_plex, jaccard_plex_groups, NO_PLEX};
+pub use rescale::PlexRescale;
 pub use rng::NumpyRandomState;
 pub use scale::{anchor_scale, AnchorScale};
 
@@ -193,6 +198,9 @@ pub struct BridleParams {
     /// alternating-means iterations.
     pub graph_min_shared: usize,
     pub graph_iters: usize,
+    /// Post-fit label-blind ComBat-style scale per (dataset x plex, gene),
+    /// see [`rescale`].
+    pub plex_rescale: bool,
 }
 
 impl BridleParams {
@@ -216,6 +224,7 @@ impl BridleParams {
         Self {
             graph_prior: false,
             keep_sample_loading: false,
+            plex_rescale: false,
             ..Self::default().monitor_stop()
         }
     }
@@ -256,6 +265,7 @@ impl Default for BridleParams {
             graph_prior: true,
             graph_min_shared: 3,
             graph_iters: 400,
+            plex_rescale: true,
         }
     }
 }
@@ -308,6 +318,8 @@ pub struct BridleReport {
     pub sample_loading_sd: f64,
     /// Per-dataset anchor scale (empty unless `BridleParams::anchor_scale`).
     pub anchor_scale: Vec<AnchorScale>,
+    /// Per-batch plex rescale (empty unless `BridleParams::plex_rescale`).
+    pub plex_rescale: Vec<PlexRescale>,
 }
 
 /// Fit result.
@@ -374,6 +386,8 @@ struct Layout {
     lin_of_line: Vec<usize>,
     prow: Vec<usize>,
     plex_ds: Vec<usize>,
+    /// Plex id (explicit) or cluster number (inferred) of each plex.
+    plex_names: Vec<String>,
     anchor_row: Vec<bool>,
     nb: Vec<usize>,
     anchored: Vec<bool>,
@@ -479,7 +493,7 @@ fn build_layout(data: &BridleData, params: &BridleParams) -> Result<(Layout, Vec
     if data.plexes.as_ref().is_some_and(|p| p.len() != n) {
         return Err(invalid("plex ids must have one entry per profile"));
     }
-    let (prow, plex_ds, plex_info) = assign_plexes(data, params, &srow, &studies, g_n)?;
+    let (prow, plex_ds, plex_names, plex_info) = assign_plexes(data, params, &srow, &studies, g_n)?;
     let k = plex_ds.len();
     let prow: Vec<usize> = prow.into_iter().map(|p| p.unwrap_or(k)).collect();
     Ok((
@@ -495,6 +509,7 @@ fn build_layout(data: &BridleData, params: &BridleParams) -> Result<(Layout, Vec
             lin_of_line,
             prow,
             plex_ds,
+            plex_names,
             anchor_row,
             nb,
             anchored,
@@ -509,7 +524,7 @@ fn build_layout(data: &BridleData, params: &BridleParams) -> Result<(Layout, Vec
     ))
 }
 
-type PlexAssignment = (Vec<Option<usize>>, Vec<usize>, Vec<String>);
+type PlexAssignment = (Vec<Option<usize>>, Vec<usize>, Vec<String>, Vec<String>);
 
 fn assign_plexes(
     data: &BridleData,
@@ -521,9 +536,11 @@ fn assign_plexes(
     let n = srow.len();
     let mut prow: Vec<Option<usize>> = vec![None; n];
     let mut plex_ds = Vec::new();
+    let mut plex_names: Vec<String> = Vec::new();
     let mut info = Vec::new();
     for (s, name) in studies.iter().enumerate() {
         let rows: Vec<usize> = (0..n).filter(|&i| srow[i] == s).collect();
+        let mut names: Vec<String> = Vec::new();
         let labels: Vec<i64> = match params.plex_mode {
             PlexMode::Off => continue,
             PlexMode::Explicit => {
@@ -542,6 +559,11 @@ fn assign_plexes(
                 if groups.len() < 2 {
                     continue;
                 }
+                names = ids
+                    .iter()
+                    .filter(|(_, m)| m.len() >= 2)
+                    .map(|(id, _)| (*id).to_owned())
+                    .collect();
                 for (kk, m) in groups.iter().enumerate() {
                     for &pos in *m {
                         labels[pos] = kk as i64;
@@ -598,6 +620,13 @@ fn assign_plexes(
             .map_or(0, |m| (m + 1).max(0) as usize);
         let base = plex_ds.len();
         plex_ds.extend(std::iter::repeat_n(s, groups));
+        names.resize_with(groups, String::new);
+        for (kk, nm) in names.iter_mut().enumerate() {
+            if nm.is_empty() {
+                *nm = kk.to_string();
+            }
+        }
+        plex_names.extend(names);
         let mut assigned = 0;
         for (pos, &lab) in labels.iter().enumerate() {
             if lab >= 0 {
@@ -610,7 +639,7 @@ fn assign_plexes(
             rows.len()
         ));
     }
-    Ok((prow, plex_ds, info))
+    Ok((prow, plex_ds, plex_names, info))
 }
 
 /// Mutable model state (gene-major matrices).
@@ -1058,6 +1087,36 @@ pub fn bridle_fit(
     } else {
         Vec::new()
     };
+    let rescales = if params.plex_rescale {
+        // batches: datasets (unplexed profiles), then dataset x plex
+        let mut names = lay.studies.clone();
+        names.extend(
+            (0..k).map(|kk| format!("{}|{}", lay.studies[lay.plex_ds[kk]], lay.plex_names[kk])),
+        );
+        let dataset: Vec<usize> = (0..s_n).chain(lay.plex_ds.iter().copied()).collect();
+        let plexed: Vec<bool> = (0..s_n + k).map(|b| b >= s_n).collect();
+        let batch: Vec<usize> = (0..n)
+            .map(|i| {
+                if lay.prow[i] < k {
+                    s_n + lay.prow[i]
+                } else {
+                    lay.srow[i]
+                }
+            })
+            .collect();
+        rescale::plex_rescale(
+            &mut corrected,
+            g_n,
+            &rescale::RescaleBatches {
+                batch: &batch,
+                names: &names,
+                dataset: &dataset,
+                plexed: &plexed,
+            },
+        )
+    } else {
+        Vec::new()
+    };
     let mut theta_rows = vec![0.0; nl * g_n];
     let mut theta_obs = vec![false; nl * g_n];
     for g in 0..g_n {
@@ -1130,6 +1189,7 @@ pub fn bridle_fit(
             history,
             sample_loading_sd: c_sd,
             anchor_scale: scales,
+            plex_rescale: rescales,
         },
     })
 }

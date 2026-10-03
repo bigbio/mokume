@@ -295,6 +295,13 @@ pub(crate) struct BridleArgs {
     #[arg(long = "remove-sample-loading")]
     pub(crate) remove_sample_loading: bool,
 
+    /// Disable the post-fit plex rescale: by default every (dataset x plex,
+    /// or dataset, gene) is rescaled around its own mean by an empirical-Bayes
+    /// ComBat-style scale estimated from all its values, never from anchor
+    /// identity (TMT plex compression); per-batch scales go to the --report.
+    #[arg(long = "no-plex-rescale")]
+    pub(crate) no_plex_rescale: bool,
+
     /// Rescale each dataset sharing >= 20 anchor samples with the reference
     /// onto the reference's spread (per-dataset slope b_s from the anchors,
     /// e.g. TMT ratio compression); b_s is recorded in the --report.

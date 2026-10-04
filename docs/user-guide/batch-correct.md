@@ -235,7 +235,49 @@ dataset is one batch in the graph prior).
 | `--remove-sample-loading` | `c` kept | Output `y - A - c - P` |
 | `--no-plex-rescale` | rescale on | Skip the post-fit (dataset x plex, gene) rescale |
 | `--anchor-scale` | off | Per-dataset scale `b_s` from anchor samples shared with the reference (see above) |
-| `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, `graph_prior_genes`, ...; `history`, `plex_rescale`) |
+| `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, `graph_prior_genes`, `delta_median`, ...; `history`, `plex_rescale`, `dataset_value`) |
+| `--dataset-report` / `--profile-report` | none | Per-dataset / per-profile value report (TSV), see [Per-dataset value report](#per-dataset-value-report) |
+| `--identity-reference` | none | Per-anchor reference profiles (e.g. DepMap RNA) for the identity check |
+
+### Per-dataset value report
+
+What does each dataset contribute, and does it agree with the rest? With
+`--report`, `--dataset-report` or `--profile-report`, the same fit (no refits)
+is summarised per dataset (JSON `dataset_value`, TSV `--dataset-report`) and
+per profile (`--profile-report`). A *shared* anchor is measured by >= 2
+datasets; `v` is the corrected output.
+
+| Group | Columns | Definition |
+|-------|---------|------------|
+| Coverage | `n_lines`, `n_cells`, `n_genes`, `genes_per_profile` | Size of the dataset |
+| | `uniq_lines` | Anchors only this dataset measures |
+| | `anchor_lines` / `bridge_lines` | Shared anchors / anchors shared with exactly one other dataset (single-source without this one) |
+| | `anchor_partners` / `partners_any` | Datasets sharing >= 3 / >= 1 anchors |
+| | `uniq_genes` / `uniq_gene_cells` | Genes / (anchor, gene) cells observed in no other dataset |
+| Fit | `noise_var` | Median fitted noise variance `sig2[s,g]` over its genes |
+| | `c_abs` / `offset_sd` | Median \|sample loading\|; SD of the offset `A[s,g]` over its genes (0 for the reference) |
+| | `delta_median` / `delta_extreme` | Plex rescale `delta` over its (batch, gene) cells: median, fraction outside [0.67, 1.5] |
+| | `agree_med` / `disagree_var` | Over cross-dataset differences `e = v_a - v_b` (same anchor and gene) involving the dataset: median \|e\|, median(e^2)/0.4549 |
+| | `excess_var` | The dataset's share `d_s` of that variance: non-negative least squares of median(e^2)/0.4549 = `d_a + d_b` over dataset pairs with >= 200 cells. No replicate-noise floor is subtracted, so it includes the dataset's own noise |
+| Identity | `abund_rho` / `abund_rho_min` | Spearman of each raw profile with the gene's median level in the *other* datasets (fit-free); median / min over profiles. Low = distorted abundance shape (enrichment, wrong unit) |
+| | `id_self_r`, `id_rank`, `id_top1`, `id_best_is_self` | On gene-centred `v`, Pearson with every profile of the other datasets (>= 200 shared genes): mean r with the same anchor, rank of the own anchor (1 = best), fraction ranked 1st, fraction whose best match is the own anchor |
+| | `id_r_max_any` / `id_r_med_any` | Best / median r with any other-dataset profile |
+| | `id_rna_self`, `id_rna_rank`, `id_rna_top1`, `id_rna_top5` | Only with `--identity-reference`: Pearson of the gene-centred profile with each reference anchor (reference gene-centred across anchors), own-anchor r and rank |
+| Redundancy | `marg_shift`, `marg_se_gain`, `wshare` | Per shared anchor and gene with >= 2 sources, consensus `sum(w v)/sum(w)`, `w = 1/sig2[s,g]`: \|consensus - consensus without this dataset\|, `1 - SE_with/SE_without`, weight share; medians over genes, then over its shared profiles |
+| | `redund_ge3` / `other_src_med` | Fraction of its shared profiles whose anchor has >= 3 other sources / median other sources |
+| Flag | `no_anchors_cannot_audit` | No shared anchor: identity, agreement and redundancy do not exist, and problems such as an enrichment artefact are invisible here (also logged as a warning) |
+
+The definitions are the single-fit ("cheap") metrics of the 2026-10 dataset
+value analysis. Differences from that analysis: values are the in-sample
+corrected output (not leave-lines-out predictions), disagreement uses plain
+cross-dataset differences instead of the benchmark scorer, no replicate-noise
+floor is available, and redundancy weights are the fit's per-cell noise
+variances. The per-profile table (`self_rank`, `best_line`, `abund_rho`, ...)
+points at the individual profiles behind a poor dataset summary.
+
+Not implemented yet: leave-one-dataset-out refits that measure each dataset's
+influence on the others (planned as an opt-in `--influence`; about one full
+fit per dataset with >= 2 anchors, plus a placebo).
 
 ### Defaults and benchmark
 

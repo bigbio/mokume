@@ -71,6 +71,18 @@ pub struct PlexRescale {
     pub median_delta: f64,
 }
 
+/// `delta` outside this range counts as extreme in [`DeltaSummary`].
+pub const DELTA_EXTREME: (f64, f64) = (0.67, 1.5);
+
+/// Per-dataset summary of the rescale `delta` over all its (batch, gene)
+/// cells with >= 1 observed value.
+#[derive(Debug, Clone, Copy)]
+pub struct DeltaSummary {
+    pub median: f64,
+    /// Fraction of cells with `delta` outside [`DELTA_EXTREME`].
+    pub extreme_frac: f64,
+}
+
 /// Per (batch, gene) moments.
 #[derive(Clone, Copy)]
 struct Cell {
@@ -120,8 +132,13 @@ fn eb_prior(x: &[f64], v: &[f64]) -> (f64, f64) {
 }
 
 /// Rescale `values` (row-major `profiles x genes`) in place; see the module
-/// doc. Returns one entry per batch with >= 1 profile, in batch-name order.
-pub(super) fn plex_rescale(values: &mut [f64], g_n: usize, b: &RescaleBatches) -> Vec<PlexRescale> {
+/// doc. Returns one entry per batch with >= 1 profile, in batch-name order,
+/// and the `delta` summary of each dataset (indexed by `RescaleBatches::dataset`).
+pub(super) fn plex_rescale(
+    values: &mut [f64],
+    g_n: usize,
+    b: &RescaleBatches,
+) -> (Vec<PlexRescale>, Vec<DeltaSummary>) {
     let n_b = b.names.len();
     let mut rows_of: Vec<Vec<usize>> = vec![Vec::new(); n_b];
     for (i, &bb) in b.batch.iter().enumerate() {
@@ -260,7 +277,33 @@ pub(super) fn plex_rescale(values: &mut [f64], g_n: usize, b: &RescaleBatches) -
             r.median_delta
         );
     }
-    report
+    let n_ds = b.dataset.iter().max().map_or(0, |m| m + 1);
+    let mut per_ds: Vec<Vec<f64>> = vec![Vec::new(); n_ds];
+    for (k, rows) in rows_of.iter().enumerate() {
+        if rows.is_empty() {
+            continue;
+        }
+        per_ds[b.dataset[k]].extend((0..g_n).filter(|&g| cells[g][k].n > 0).map(|g| delta[g][k]));
+    }
+    let summary = per_ds
+        .into_iter()
+        .map(|d| {
+            let extreme = d
+                .iter()
+                .filter(|&&x| x < DELTA_EXTREME.0 || x > DELTA_EXTREME.1)
+                .count();
+            let frac = if d.is_empty() {
+                f64::NAN
+            } else {
+                extreme as f64 / d.len() as f64
+            };
+            DeltaSummary {
+                median: median(d),
+                extreme_frac: frac,
+            }
+        })
+        .collect();
+    (report, summary)
 }
 
 #[cfg(test)]
@@ -298,6 +341,14 @@ mod tests {
         values: &mut [f64],
         batch: &[usize],
     ) -> Vec<PlexRescale> {
+        run_with_summary(plan, values, batch).0
+    }
+
+    fn run_with_summary(
+        plan: &[(&str, usize, bool, usize, f64)],
+        values: &mut [f64],
+        batch: &[usize],
+    ) -> (Vec<PlexRescale>, Vec<DeltaSummary>) {
         let names: Vec<String> = plan.iter().map(|p| p.0.to_owned()).collect();
         let dataset: Vec<usize> = plan.iter().map(|p| p.1).collect();
         let plexed: Vec<bool> = plan.iter().map(|p| p.2).collect();
@@ -422,5 +473,23 @@ mod tests {
                 assert!((x.is_nan() && y.is_nan()) || (x - y).abs() < 1e-12);
             }
         }
+    }
+
+    #[test]
+    fn delta_summary_pools_the_plexes_of_a_dataset() {
+        let plan = [
+            ("A", 0, false, 12, 1.0),
+            ("B|p1", 1, true, 10, 3.0),
+            ("B|p2", 1, true, 10, 1.0),
+        ];
+        let (mut v, batch) = collection(&plan);
+        let (rep, sum) = run_with_summary(&plan, &mut v, &batch);
+        assert_eq!(sum.len(), 2);
+        // pooled sd ~1.9: A and B|p2 delta ~0.5, B|p1 ~1.6 (all extreme)
+        assert!((sum[0].median - rep[0].median_delta).abs() < 1e-12);
+        assert!(sum[1].median > rep[2].median_delta && sum[1].median < rep[1].median_delta);
+        assert!(sum[1].extreme_frac > 0.8, "{:?}", sum[1]);
+        assert!(sum[0].extreme_frac > 0.8, "{:?}", sum[0]);
+        assert!((0.0..=1.0).contains(&sum[0].extreme_frac));
     }
 }

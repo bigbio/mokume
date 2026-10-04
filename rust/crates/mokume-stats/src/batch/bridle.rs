@@ -69,6 +69,7 @@ mod plex;
 mod rescale;
 mod rng;
 mod scale;
+mod value;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -77,9 +78,12 @@ use rayon::prelude::*;
 
 pub use features::{build_design, sequence_features, SequenceFeatures, FEATURE_NAMES};
 pub use plex::{attach_to_nearest_plex, jaccard_plex_groups, NO_PLEX};
-pub use rescale::PlexRescale;
+pub use rescale::{DeltaSummary, PlexRescale, DELTA_EXTREME};
 pub use rng::NumpyRandomState;
 pub use scale::{anchor_scale, AnchorScale};
+pub use value::{
+    dataset_value, DatasetValue, ProfileValue, RnaReference, ValueParams, ValueReport,
+};
 
 /// Genes per work block for row reductions (fixed, so sums are deterministic).
 const GENE_BLOCK: usize = 256;
@@ -286,6 +290,10 @@ pub struct DatasetReport {
     pub f_fitted: bool,
     /// Genes whose offset prior is the graph prior (else `f`).
     pub graph_prior_genes: usize,
+    /// Plex rescale `delta` over the dataset's (batch, gene) cells: median and
+    /// fraction outside [`DELTA_EXTREME`] (`NaN` without `plex_rescale`).
+    pub delta_median: f64,
+    pub delta_extreme: f64,
 }
 
 /// Per-sweep monitor.
@@ -344,6 +352,9 @@ pub struct BridleResult {
     /// Row-major `datasets x genes` graph prior of the offsets (`NaN` where
     /// there is none and the prior is `f`; all `NaN` without `graph_prior`).
     pub prior_offsets: Vec<f64>,
+    /// Row-major `datasets x genes` fitted noise variance `sig2[s,g]` (the
+    /// per-cell variance of the model, before the post-fit rescales).
+    pub noise_var: Vec<f64>,
     /// Per-profile sample loading `c`.
     pub sample_loading: Vec<f64>,
     /// Plex index of each profile (`None` = no plex).
@@ -1089,7 +1100,7 @@ pub fn bridle_fit(
     } else {
         Vec::new()
     };
-    let rescales = if params.plex_rescale {
+    let (rescales, delta_summary) = if params.plex_rescale {
         // batches: datasets (unplexed profiles), then dataset x plex
         let mut names = lay.studies.clone();
         names.extend(
@@ -1117,7 +1128,7 @@ pub fn bridle_fit(
             },
         )
     } else {
-        Vec::new()
+        (Vec::new(), Vec::new())
     };
     let mut theta_rows = vec![0.0; nl * g_n];
     let mut theta_obs = vec![false; nl * g_n];
@@ -1134,8 +1145,10 @@ pub fn bridle_fit(
     let mut offsets = vec![0.0; s_n * g_n];
     let mut feature_offsets = vec![0.0; s_n * g_n];
     let mut prior_offsets = vec![0.0; s_n * g_n];
+    let mut noise_var = vec![0.0; s_n * g_n];
     for g in 0..g_n {
         for s in 0..s_n {
+            noise_var[s * g_n + g] = st.sig2(abz[g], s);
             offsets[s * g_n + g] = st.a[g * s_n + s];
             feature_offsets[s * g_n + g] = st.f[g * s_n + s];
             prior_offsets[s * g_n + g] = st.prior_a[g * s_n + s];
@@ -1165,6 +1178,8 @@ pub fn bridle_fit(
                 graph_prior_genes: (0..g_n)
                     .filter(|&g| st.prior_a[g * s_n + s].is_finite())
                     .count(),
+                delta_median: delta_summary.get(s).map_or(f64::NAN, |d| d.median),
+                delta_extreme: delta_summary.get(s).map_or(f64::NAN, |d| d.extreme_frac),
             }
         })
         .collect();
@@ -1177,6 +1192,7 @@ pub fn bridle_fit(
         offsets,
         feature_offsets,
         prior_offsets,
+        noise_var,
         sample_loading: st.c.clone(),
         profile_plex: lay.prow.iter().map(|&p| (p < k).then_some(p)).collect(),
         report: BridleReport {

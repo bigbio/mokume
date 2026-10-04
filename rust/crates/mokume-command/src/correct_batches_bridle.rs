@@ -28,7 +28,12 @@
 //! then rescaled per (dataset x plex, gene) unless `--no-plex-rescale`, and
 //! `imputed = false`. `--theta-output`
 //! writes the pooled per-anchor biology for observed anchor/gene cells,
-//! `--report` a JSON fit summary.
+//! `--report` a JSON fit summary. The per-dataset value report (coverage,
+//! fit diagnostics, identity, redundancy; see
+//! [`mokume_stats::batch::bridle::dataset_value`]) goes to the JSON report
+//! under `dataset_value` and, as TSV, to `--dataset-report` (per dataset) and
+//! `--profile-report` (per profile); `--identity-reference` adds an identity
+//! check against per-anchor reference profiles (e.g. DepMap RNA).
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
@@ -42,8 +47,8 @@ use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
 use mokume_stats::batch::bridle::{
-    bridle_fit, build_design, reference_abundance, sequence_features, BridleData, BridleParams,
-    BridleResult, PlexMode, StopRule,
+    bridle_fit, build_design, dataset_value, reference_abundance, sequence_features, BridleData,
+    BridleParams, BridleResult, PlexMode, RnaReference, StopRule, ValueParams, ValueReport,
 };
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ArrowWriter;
@@ -97,6 +102,9 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         anchor_scale: false,
         theta_output: None,
         report: None,
+        dataset_report: None,
+        profile_report: None,
+        identity_reference: None,
     }
 }
 
@@ -138,6 +146,9 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--anchor-scale", bridle.anchor_scale),
         ("--theta-output", bridle.theta_output.is_some()),
         ("--report", bridle.report.is_some()),
+        ("--dataset-report", bridle.dataset_report.is_some()),
+        ("--profile-report", bridle.profile_report.is_some()),
+        ("--identity-reference", bridle.identity_reference.is_some()),
     ];
     let bad: Vec<&str> = set.iter().filter(|(_, on)| *on).map(|(n, _)| *n).collect();
     if bad.is_empty() {
@@ -355,6 +366,14 @@ fn read_map(
     Ok(out)
 }
 
+fn finite_or_null(x: f64) -> serde_json::Value {
+    if x.is_finite() {
+        serde_json::json!(x)
+    } else {
+        serde_json::Value::Null
+    }
+}
+
 /// Entry point for `correct-batches --method bridle`.
 pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
     let bridle = &args.bridle;
@@ -371,6 +390,8 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
     for out in std::iter::once(&args.output)
         .chain(bridle.theta_output.iter())
         .chain(bridle.report.iter())
+        .chain(bridle.dataset_report.iter())
+        .chain(bridle.profile_report.iter())
     {
         if out == &args.input {
             return Err(invalid(format!(
@@ -574,10 +595,217 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
     if let Some(path) = &bridle.theta_output {
         write_theta(path, bridle, &data, &res)?;
     }
+    let wants_value = bridle.report.is_some()
+        || bridle.dataset_report.is_some()
+        || bridle.profile_report.is_some();
+    let value = if wants_value {
+        let rna = match &bridle.identity_reference {
+            Some(path) => Some(read_identity_reference(path, bridle, &data.genes)?),
+            None => None,
+        };
+        let t1 = std::time::Instant::now();
+        let v = dataset_value(&data, &res, rna.as_ref(), &ValueParams::default());
+        tracing::info!(
+            "BRIDLE value report: {} datasets, {} profiles in {:.1}s",
+            v.datasets.len(),
+            v.profiles.len(),
+            t1.elapsed().as_secs_f64()
+        );
+        for d in v.datasets.iter().filter(|d| d.no_anchors_cannot_audit) {
+            tracing::warn!(
+                "BRIDLE value report: dataset '{}' shares no anchors: identity, agreement and redundancy cannot be audited",
+                d.name
+            );
+        }
+        Some(v)
+    } else {
+        None
+    };
+    if let (Some(path), Some(v)) = (&bridle.dataset_report, &value) {
+        write_dataset_value(path, v)?;
+    }
+    if let (Some(path), Some(v)) = (&bridle.profile_report, &value) {
+        write_profile_value(path, v)?;
+    }
     if let Some(path) = &bridle.report {
-        write_report(path, args, &design_names, &res, t0.elapsed().as_secs_f64())?;
+        write_report(
+            path,
+            args,
+            &design_names,
+            &res,
+            value.as_ref(),
+            t0.elapsed().as_secs_f64(),
+        )?;
     }
     Ok(())
+}
+
+/// Per-anchor reference profiles, aligned to `genes` (`NaN` where missing).
+fn read_identity_reference(
+    path: &Path,
+    bridle: &BridleArgs,
+    genes: &[String],
+) -> Result<RnaReference> {
+    // a long table keyed by anchor only: the anchor column doubles as dataset
+    let keyed = BridleArgs {
+        dataset_column: bridle.anchor_column.clone(),
+        ..bridle.clone()
+    };
+    let long = read_long(path, &keyed, None)?;
+    let gpos: HashMap<&str, usize> = genes
+        .iter()
+        .enumerate()
+        .map(|(i, g)| (g.as_str(), i))
+        .collect();
+    let g_n = genes.len();
+    let lines = long.line.names.clone();
+    let mut values = vec![f64::NAN; lines.len() * g_n];
+    let mut matched = 0_usize;
+    for &(_, l, g, v, _) in &long.rows {
+        if let Some(&gi) = gpos.get(long.gene.names[g as usize].as_str()) {
+            values[l as usize * g_n + gi] = v;
+            matched += 1;
+        }
+    }
+    tracing::info!(
+        "BRIDLE identity reference: {} anchors, {matched} of {} values on input genes",
+        lines.len(),
+        long.rows.len()
+    );
+    Ok(RnaReference { lines, values })
+}
+
+fn fmt_f(x: f64) -> String {
+    if x.is_finite() {
+        format!("{x}")
+    } else {
+        "NaN".to_owned()
+    }
+}
+
+fn write_tsv(path: &Path, header: &[&str], rows: &[Vec<String>]) -> Result<()> {
+    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent).map_err(|e| io_err(parent, e))?;
+    }
+    let file = File::create(path).map_err(|e| io_err(path, e))?;
+    let mut w = csv::WriterBuilder::new()
+        .delimiter(delimiter_for(path))
+        .from_writer(BufWriter::new(file));
+    w.write_record(header)
+        .map_err(|e| invalid(format!("{}: {e}", path.display())))?;
+    for r in rows {
+        w.write_record(r)
+            .map_err(|e| invalid(format!("{}: {e}", path.display())))?;
+    }
+    w.flush().map_err(|e| io_err(path, e))
+}
+
+/// Column names and values of one dataset row of the value report.
+fn dataset_value_fields(
+    d: &mokume_stats::batch::bridle::DatasetValue,
+) -> Vec<(&'static str, String)> {
+    let u = |x: usize| x.to_string();
+    vec![
+        ("dataset", d.name.clone()),
+        ("n_lines", u(d.n_lines)),
+        ("n_cells", u(d.n_cells)),
+        ("n_genes", u(d.n_genes)),
+        ("genes_per_profile", fmt_f(d.genes_per_profile)),
+        ("uniq_lines", u(d.uniq_lines)),
+        ("anchor_lines", u(d.anchor_lines)),
+        ("bridge_lines", u(d.bridge_lines)),
+        ("anchor_partners", u(d.anchor_partners)),
+        ("partners_any", u(d.partners_any)),
+        ("uniq_genes", u(d.uniq_genes)),
+        ("uniq_gene_cells", u(d.uniq_gene_cells)),
+        ("noise_var", fmt_f(d.noise_var)),
+        ("c_abs", fmt_f(d.c_abs)),
+        ("offset_sd", fmt_f(d.offset_sd)),
+        ("delta_median", fmt_f(d.delta_median)),
+        ("delta_extreme", fmt_f(d.delta_extreme)),
+        ("pair_cells", u(d.pair_cells)),
+        ("agree_med", fmt_f(d.agree_med)),
+        ("disagree_var", fmt_f(d.disagree_var)),
+        ("excess_var", fmt_f(d.excess_var)),
+        ("abund_rho", fmt_f(d.abund_rho)),
+        ("abund_rho_min", fmt_f(d.abund_rho_min)),
+        ("id_self_r", fmt_f(d.id_self_r)),
+        ("id_rank", fmt_f(d.id_rank)),
+        ("id_top1", fmt_f(d.id_top1)),
+        ("id_best_is_self", fmt_f(d.id_best_is_self)),
+        ("id_r_max_any", fmt_f(d.id_r_max_any)),
+        ("id_r_med_any", fmt_f(d.id_r_med_any)),
+        ("id_rna_self", fmt_f(d.id_rna_self)),
+        ("id_rna_rank", fmt_f(d.id_rna_rank)),
+        ("id_rna_top1", fmt_f(d.id_rna_top1)),
+        ("id_rna_top5", fmt_f(d.id_rna_top5)),
+        ("marg_shift", fmt_f(d.marg_shift)),
+        ("marg_se_gain", fmt_f(d.marg_se_gain)),
+        ("wshare", fmt_f(d.wshare)),
+        ("redund_ge3", fmt_f(d.redund_ge3)),
+        ("other_src_med", fmt_f(d.other_src_med)),
+        (
+            "no_anchors_cannot_audit",
+            d.no_anchors_cannot_audit.to_string(),
+        ),
+    ]
+}
+
+fn write_dataset_value(path: &Path, v: &ValueReport) -> Result<()> {
+    let rows: Vec<Vec<(&str, String)>> = v.datasets.iter().map(dataset_value_fields).collect();
+    let header: Vec<&str> = rows
+        .first()
+        .map(|r| r.iter().map(|f| f.0).collect())
+        .unwrap_or_default();
+    let body: Vec<Vec<String>> = rows
+        .into_iter()
+        .map(|r| r.into_iter().map(|f| f.1).collect())
+        .collect();
+    write_tsv(path, &header, &body)
+}
+
+fn write_profile_value(path: &Path, v: &ValueReport) -> Result<()> {
+    let header = [
+        "dataset",
+        "anchor",
+        "n_genes",
+        "n_other_sources",
+        "abund_rho",
+        "self_r",
+        "self_rank",
+        "best_line",
+        "best_r",
+        "med_r_any",
+        "rna_r_self",
+        "rna_rank",
+        "marg_shift",
+        "marg_se_gain",
+        "wshare",
+    ];
+    let body: Vec<Vec<String>> = v
+        .profiles
+        .iter()
+        .map(|p| {
+            vec![
+                p.dataset.clone(),
+                p.line.clone(),
+                p.n_genes.to_string(),
+                p.n_other_sources.to_string(),
+                fmt_f(p.abund_rho),
+                fmt_f(p.self_r),
+                fmt_f(p.self_rank),
+                p.best_line.clone(),
+                fmt_f(p.best_r),
+                fmt_f(p.med_r_any),
+                fmt_f(p.rna_r_self),
+                fmt_f(p.rna_rank),
+                fmt_f(p.marg_shift),
+                fmt_f(p.marg_se_gain),
+                fmt_f(p.wshare),
+            ]
+        })
+        .collect();
+    write_tsv(path, &header, &body)
 }
 
 /// Effective stop rule, minimum sweeps and tolerance (rule-specific defaults).
@@ -739,6 +967,7 @@ fn write_report(
     args: &CorrectBatchesArgs,
     design_names: &[String],
     res: &BridleResult,
+    value: Option<&ValueReport>,
     runtime_s: f64,
 ) -> Result<()> {
     let r = &res.report;
@@ -752,6 +981,8 @@ fn write_report(
                 "n_plexed_profiles": d.n_plexed_profiles, "tau_s": d.tau_s, "sig2": d.sig2,
                 "sig_slope": d.sig_slope, "f_fitted": d.f_fitted,
                 "graph_prior_genes": d.graph_prior_genes,
+                "delta_median": finite_or_null(d.delta_median),
+                "delta_extreme": finite_or_null(d.delta_extreme),
             })
         })
         .collect();
@@ -806,6 +1037,33 @@ fn write_report(
                     "batch": p.batch, "n_profiles": p.n_profiles, "n_genes": p.n_genes,
                     "mu": p.mu, "fallback": p.fallback, "median_delta": p.median_delta,
                 })
+            })
+            .collect();
+    }
+    if let Some(v) = value {
+        doc["dataset_value"] = v
+            .datasets
+            .iter()
+            .map(|d| {
+                let obj: serde_json::Map<String, serde_json::Value> = dataset_value_fields(d)
+                    .into_iter()
+                    .map(|(k, s)| {
+                        let val = match k {
+                            "dataset" => serde_json::Value::String(s),
+                            "no_anchors_cannot_audit" => serde_json::Value::Bool(s == "true"),
+                            _ if s.parse::<u64>().is_ok() => {
+                                serde_json::json!(s.parse::<u64>().unwrap_or(0))
+                            }
+                            _ => s
+                                .parse::<f64>()
+                                .ok()
+                                .filter(|x| x.is_finite())
+                                .map_or(serde_json::Value::Null, |x| serde_json::json!(x)),
+                        };
+                        (k.to_owned(), val)
+                    })
+                    .collect();
+                serde_json::Value::Object(obj)
             })
             .collect();
     }
@@ -1056,6 +1314,57 @@ mod tests {
         assert_eq!(on["anchor_scale"]["B"]["applied"], false);
         assert_eq!(on["anchor_scale"]["B"]["n_shared_anchors"], 4);
         assert_eq!(std::fs::read_to_string(dir.join("v.tsv"))?, off_values);
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_writes_the_dataset_value_report() -> TestResult<()> {
+        let dir = temp_dir("value")?;
+        let input = write_toy(&dir)?;
+        // S: a single-line dataset whose line no other dataset has
+        let mut text = std::fs::read_to_string(&input)?;
+        for g in 0..30 {
+            text.push_str(&format!("S\tLX\tG{g:02}\t{}\t\n", 21.0 + g as f64 * 0.1));
+        }
+        std::fs::write(&input, text)?;
+        let refp = dir.join("rna.tsv");
+        let mut r = String::from("cvcl\tgene\tv\n");
+        for l in 0..4 {
+            for g in 0..30 {
+                r.push_str(&format!("L{l}\tG{g:02}\t{}\n", (l * g % 7) as f64));
+            }
+        }
+        std::fs::write(&refp, r)?;
+        let mut a = args(input, dir.join("v.tsv"));
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.report = Some(dir.join("fit.json"));
+        a.bridle.dataset_report = Some(dir.join("value.tsv"));
+        a.bridle.profile_report = Some(dir.join("profiles.tsv"));
+        a.bridle.identity_reference = Some(refp);
+        run_bridle(&a)?;
+        let tsv = std::fs::read_to_string(dir.join("value.tsv"))?;
+        let lines: Vec<&str> = tsv.lines().collect();
+        assert_eq!(lines.len(), 4, "{tsv}");
+        let header: Vec<&str> = lines[0].split('\t').collect();
+        let col = |name: &str| header.iter().position(|h| *h == name);
+        let flag = col("no_anchors_cannot_audit").ok_or("no flag column")?;
+        let s_row: Vec<&str> = lines[3].split('\t').collect();
+        assert_eq!((s_row[0], s_row[flag]), ("S", "true"));
+        let b_row: Vec<&str> = lines[1].split('\t').collect();
+        assert_eq!((b_row[0], b_row[flag]), ("B", "false"));
+        let partners = col("anchor_partners").ok_or("no partners column")?;
+        assert_eq!(b_row[partners], "1");
+        let profiles = std::fs::read_to_string(dir.join("profiles.tsv"))?;
+        assert_eq!(profiles.lines().count(), 10);
+        let report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        let dv = report["dataset_value"]
+            .as_array()
+            .ok_or("no dataset_value")?;
+        assert_eq!(dv.len(), 3);
+        assert_eq!(dv[2]["no_anchors_cannot_audit"], true);
+        assert_eq!(dv[0]["anchor_lines"], 4);
+        assert!(report["datasets"][0]["delta_median"].is_number());
         Ok(())
     }
 

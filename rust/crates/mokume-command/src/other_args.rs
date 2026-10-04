@@ -316,7 +316,23 @@ pub(crate) struct BridleArgs {
     #[arg(long = "theta-output", value_name = "FILE")]
     pub(crate) theta_output: Option<PathBuf>,
 
-    /// Optional JSON fit report.
+    /// Optional JSON fit report (includes the per-dataset value section).
     #[arg(long = "report", value_name = "FILE")]
     pub(crate) report: Option<PathBuf>,
+
+    /// Per-dataset value report (TSV): coverage, fit diagnostics, identity,
+    /// redundancy and the no_anchors_cannot_audit flag, from this fit.
+    #[arg(long = "dataset-report", value_name = "FILE")]
+    pub(crate) dataset_report: Option<PathBuf>,
+
+    /// Per-profile rows of the value report (TSV): abundance rho, identity
+    /// vs other datasets, best-matching anchor, redundancy.
+    #[arg(long = "profile-report", value_name = "FILE")]
+    pub(crate) profile_report: Option<PathBuf>,
+
+    /// Optional per-anchor reference (e.g. DepMap RNA) for the identity
+    /// check: long table (.parquet/.tsv/.csv) with the --anchor-column,
+    /// --gene-column and --value-column columns.
+    #[arg(long = "identity-reference", value_name = "FILE")]
+    pub(crate) identity_reference: Option<PathBuf>,
 }

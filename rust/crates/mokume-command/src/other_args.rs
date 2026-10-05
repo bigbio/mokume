@@ -266,8 +266,10 @@ pub(crate) struct BridleArgs {
     #[arg(long = "sweeps", value_name = "N", default_value_t = 400)]
     pub(crate) sweeps: usize,
 
-    /// Early stop rule: `output` stops when the mean |change| of the output
-    /// between two sweeps is below --stop-tol (after --min-sweeps); `monitor`
+    /// Early stop rule: `output` stops when the mean |change| of the fitted
+    /// offsets A + c + P over observed cells between two sweeps is below
+    /// --stop-tol (after --min-sweeps; c counts even when it is kept in the
+    /// output, the post-fit plex rescale does not); `monitor`
     /// is the previous rule (hold-out MSE change over 3 sweeps; use with
     /// --sweeps 60 for the old behaviour); `none` runs all --sweeps.
     #[arg(long = "stop-rule", value_name = "RULE", value_enum, default_value_t = BridleStopRule::Output)]
@@ -351,7 +353,8 @@ pub(crate) struct BridleArgs {
 
     /// Optional per-anchor reference (e.g. DepMap RNA) for the identity
     /// check (implies --identity): long table (.parquet/.tsv/.csv) with the
-    /// --anchor-column, --gene-column and --value-column columns.
+    /// --anchor-column, --gene-column and --value-column columns. Also
+    /// quadratic: every profile against every reference anchor.
     #[arg(long = "identity-reference", value_name = "FILE")]
     pub(crate) identity_reference: Option<PathBuf>,
 }

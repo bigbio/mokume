@@ -164,11 +164,13 @@ a0[s,g]    = graph prior offset where one exists, else f(s, x_g)
 * `P` are TMT plex effects, `c` a per-profile loading; noise variance is
   modelled per dataset as a function of abundance.
 * The fit runs up to `--sweeps` (400) sweeps and, after `--min-sweeps` (200),
-  stops when the mean |change| of the output between two sweeps falls below
-  `--stop-tol` (1e-5); the per-sweep change is in the report's `history`
-  (`out_change`). `--stop-rule monitor --sweeps 60` restores the previous
-  rule (hold-out MSE change < 2e-4 over 3 sweeps after 8 sweeps), `--stop-rule
-  none` always runs `--sweeps`.
+  stops when the mean |change| between two sweeps of the fitted offsets
+  `A + c + P` over observed cells falls below `--stop-tol` (1e-5). `c` counts
+  even though it is kept in the output by default, and the post-fit plex
+  rescale is not part of it. The per-sweep change is in the report's
+  `history` (`out_change`). `--stop-rule monitor --sweeps 60` restores the
+  previous rule (hold-out MSE change < 2e-4 over 3 sweeps after 8 sweeps),
+  `--stop-rule none` always runs `--sweeps`.
 * The output is `v = y - A - P` for every observed input cell (`imputed =
   false`): the sample loading `c` is **kept** by default;
   `--remove-sample-loading` outputs `v = y - A - c - P`.
@@ -229,7 +231,7 @@ dataset is one batch in the graph prior).
 | `--fasta` / `--fasta-organism` | none | Sequence features; gene names from `GN=` of Swiss-Prot entries |
 | `--rank` | `16` | Rank of the shared biological low-rank term |
 | `--sweeps` / `--seed` | `400` / `0` | Maximum fit sweeps and seed |
-| `--stop-rule` | `output` | `output` (mean output change < `--stop-tol`), `monitor` (previous rule), `none` |
+| `--stop-rule` | `output` | `output` (mean change of `A + c + P` < `--stop-tol`), `monitor` (previous rule), `none`; the report records the value as given (`params.stop_rule`) |
 | `--stop-tol` / `--min-sweeps` | `1e-5` / `200` (`monitor`: `2e-4` / `8`) | Early-stop tolerance and minimum sweeps |
 | `--no-graph-prior` | prior on | Use the feature model `f` alone as the prior of `A` |
 | `--remove-sample-loading` | `c` kept | Output `y - A - c - P` |
@@ -306,7 +308,7 @@ EMT signatures):
 
 | Step | Default | Measured effect |
 |------|---------|-----------------|
-| 400 sweeps / output-change stop | on | 60 sweeps were not converged: accuracy -0.027 [-0.034, -0.021] at 400 sweeps, better agreement, no biology lost. The benchmark arms ran a fixed 400 sweeps; the `1e-5` tolerance is a safeguard, not a tuned value |
+| 400 sweeps / output-change stop | on | 60 sweeps were not converged: accuracy -0.027 [-0.034, -0.021] at 400 sweeps, better agreement, no biology lost. The benchmark arms ran a fixed 400 sweeps, while the defaults may stop from sweep 200 once the change is below `1e-5`; the output differs negligibly from a fixed 400 (measured median |difference| 1.7e-6). The tolerance is a safeguard, not a tuned value |
 | Graph prior | on | Leave-one-dataset-out accuracy 1.062 -> 0.797 (ahead of graph offsets alone, 0.804); leave-lines-out equivalent (+0.005) |
 | Keep `c` | on | 0.011 less accurate than removing `c`, but CORUM +0.010 and better deletion / cis signal: `c` carries biology |
 | Plex rescale | on | Accuracy 0.786 vs 0.799 for BERT (-0.013 [-0.021, -0.007]), better on cis RNA, EMT and proliferation; 0.007 less accurate than without the rescale but better on 7 biology guards |
@@ -332,7 +334,9 @@ Caveats:
   lineage differences in the output is circular; it had no effect on accuracy.
 * `BridleParams::legacy()` (Rust API) reproduces the pre-benchmark
   configuration: 60 sweeps with the monitor rule, no graph prior, `c` removed,
-  no rescale.
+  no rescale. On the command line that takes all five flags:
+  `--stop-rule monitor --sweeps 60 --no-graph-prior --remove-sample-loading
+  --no-plex-rescale`.
 
 The fit is deterministic (fixed seed, results independent of the thread
 count) and multi-threaded; set `RAYON_NUM_THREADS` to limit cores.

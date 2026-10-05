@@ -44,7 +44,8 @@
 //!   profile, `best_line` / `best_r` the best-matching profile's anchor.
 //! * Optional RNA (or any per-anchor reference): Pearson of the gene-centred
 //!   profile with each reference anchor (reference gene-centred by its mean
-//!   over anchors), `rna_r_self` and `rna_rank` (1 = own anchor best).
+//!   over anchors), `rna_r_self` and `rna_rank` (1 = own anchor best). Also
+//!   quadratic: profiles x reference anchors correlations.
 //!
 //! Redundancy (closed form): per shared anchor and gene with >= 2 observed
 //! sources, inverse-variance consensus `sum(w v) / sum(w)` with

@@ -725,66 +725,95 @@ fn write_tsv(path: &Path, header: &[&str], rows: &[Vec<String>]) -> Result<()> {
     w.flush().map_err(|e| io_err(path, e))
 }
 
-/// Column names and values of one dataset row of the value report.
+/// One typed value of a dataset row of the value report.
+enum ValueField {
+    Str(String),
+    Count(usize),
+    Float(f64),
+    Flag(bool),
+}
+
+impl ValueField {
+    /// TSV cell (`NaN` for non-finite floats).
+    fn text(&self) -> String {
+        match self {
+            ValueField::Str(s) => s.clone(),
+            ValueField::Count(n) => n.to_string(),
+            ValueField::Float(x) => fmt_f(*x),
+            ValueField::Flag(b) => b.to_string(),
+        }
+    }
+
+    /// JSON value (`null` for non-finite floats).
+    fn json(&self) -> serde_json::Value {
+        match self {
+            ValueField::Str(s) => serde_json::Value::String(s.clone()),
+            ValueField::Count(n) => serde_json::json!(n),
+            ValueField::Float(x) => finite_or_null(*x),
+            ValueField::Flag(b) => serde_json::Value::Bool(*b),
+        }
+    }
+}
+
+/// Column names and typed values of one dataset row of the value report.
 fn dataset_value_fields(
     d: &mokume_stats::batch::bridle::DatasetValue,
-) -> Vec<(&'static str, String)> {
-    let u = |x: usize| x.to_string();
+) -> Vec<(&'static str, ValueField)> {
     vec![
-        ("dataset", d.name.clone()),
-        ("n_lines", u(d.n_lines)),
-        ("n_cells", u(d.n_cells)),
-        ("n_genes", u(d.n_genes)),
-        ("genes_per_profile", fmt_f(d.genes_per_profile)),
-        ("uniq_lines", u(d.uniq_lines)),
-        ("anchor_lines", u(d.anchor_lines)),
-        ("bridge_lines", u(d.bridge_lines)),
-        ("anchor_partners", u(d.anchor_partners)),
-        ("partners_any", u(d.partners_any)),
-        ("uniq_genes", u(d.uniq_genes)),
-        ("uniq_gene_cells", u(d.uniq_gene_cells)),
-        ("noise_var", fmt_f(d.noise_var)),
-        ("c_abs", fmt_f(d.c_abs)),
-        ("offset_sd", fmt_f(d.offset_sd)),
-        ("delta_median", fmt_f(d.delta_median)),
-        ("delta_extreme", fmt_f(d.delta_extreme)),
-        ("pair_cells", u(d.pair_cells)),
-        ("agree_med", fmt_f(d.agree_med)),
-        ("disagree_var", fmt_f(d.disagree_var)),
-        ("excess_var", fmt_f(d.excess_var)),
-        ("abund_rho", fmt_f(d.abund_rho)),
-        ("abund_rho_min", fmt_f(d.abund_rho_min)),
-        ("id_self_r", fmt_f(d.id_self_r)),
-        ("id_rank", fmt_f(d.id_rank)),
-        ("id_top1", fmt_f(d.id_top1)),
-        ("id_best_is_self", fmt_f(d.id_best_is_self)),
-        ("id_r_max_any", fmt_f(d.id_r_max_any)),
-        ("id_r_med_any", fmt_f(d.id_r_med_any)),
-        ("id_rna_self", fmt_f(d.id_rna_self)),
-        ("id_rna_rank", fmt_f(d.id_rna_rank)),
-        ("id_rna_top1", fmt_f(d.id_rna_top1)),
-        ("id_rna_top5", fmt_f(d.id_rna_top5)),
-        ("marg_shift", fmt_f(d.marg_shift)),
-        ("marg_se_gain", fmt_f(d.marg_se_gain)),
-        ("wshare", fmt_f(d.wshare)),
-        ("redund_ge3", fmt_f(d.redund_ge3)),
-        ("other_src_med", fmt_f(d.other_src_med)),
+        ("dataset", ValueField::Str(d.name.clone())),
+        ("n_lines", ValueField::Count(d.n_lines)),
+        ("n_cells", ValueField::Count(d.n_cells)),
+        ("n_genes", ValueField::Count(d.n_genes)),
+        ("genes_per_profile", ValueField::Float(d.genes_per_profile)),
+        ("uniq_lines", ValueField::Count(d.uniq_lines)),
+        ("anchor_lines", ValueField::Count(d.anchor_lines)),
+        ("bridge_lines", ValueField::Count(d.bridge_lines)),
+        ("anchor_partners", ValueField::Count(d.anchor_partners)),
+        ("partners_any", ValueField::Count(d.partners_any)),
+        ("uniq_genes", ValueField::Count(d.uniq_genes)),
+        ("uniq_gene_cells", ValueField::Count(d.uniq_gene_cells)),
+        ("noise_var", ValueField::Float(d.noise_var)),
+        ("c_abs", ValueField::Float(d.c_abs)),
+        ("offset_sd", ValueField::Float(d.offset_sd)),
+        ("delta_median", ValueField::Float(d.delta_median)),
+        ("delta_extreme", ValueField::Float(d.delta_extreme)),
+        ("pair_cells", ValueField::Count(d.pair_cells)),
+        ("agree_med", ValueField::Float(d.agree_med)),
+        ("disagree_var", ValueField::Float(d.disagree_var)),
+        ("excess_var", ValueField::Float(d.excess_var)),
+        ("abund_rho", ValueField::Float(d.abund_rho)),
+        ("abund_rho_min", ValueField::Float(d.abund_rho_min)),
+        ("id_self_r", ValueField::Float(d.id_self_r)),
+        ("id_rank", ValueField::Float(d.id_rank)),
+        ("id_top1", ValueField::Float(d.id_top1)),
+        ("id_best_is_self", ValueField::Float(d.id_best_is_self)),
+        ("id_r_max_any", ValueField::Float(d.id_r_max_any)),
+        ("id_r_med_any", ValueField::Float(d.id_r_med_any)),
+        ("id_rna_self", ValueField::Float(d.id_rna_self)),
+        ("id_rna_rank", ValueField::Float(d.id_rna_rank)),
+        ("id_rna_top1", ValueField::Float(d.id_rna_top1)),
+        ("id_rna_top5", ValueField::Float(d.id_rna_top5)),
+        ("marg_shift", ValueField::Float(d.marg_shift)),
+        ("marg_se_gain", ValueField::Float(d.marg_se_gain)),
+        ("wshare", ValueField::Float(d.wshare)),
+        ("redund_ge3", ValueField::Float(d.redund_ge3)),
+        ("other_src_med", ValueField::Float(d.other_src_med)),
         (
             "no_anchors_cannot_audit",
-            d.no_anchors_cannot_audit.to_string(),
+            ValueField::Flag(d.no_anchors_cannot_audit),
         ),
     ]
 }
 
 fn write_dataset_value(path: &Path, v: &ValueReport) -> Result<()> {
-    let rows: Vec<Vec<(&str, String)>> = v.datasets.iter().map(dataset_value_fields).collect();
+    let rows: Vec<Vec<(&str, ValueField)>> = v.datasets.iter().map(dataset_value_fields).collect();
     let header: Vec<&str> = rows
         .first()
         .map(|r| r.iter().map(|f| f.0).collect())
         .unwrap_or_default();
     let body: Vec<Vec<String>> = rows
         .into_iter()
-        .map(|r| r.into_iter().map(|f| f.1).collect())
+        .map(|r| r.iter().map(|f| f.1.text()).collect())
         .collect();
     write_tsv(path, &header, &body)
 }
@@ -831,6 +860,13 @@ fn write_profile_value(path: &Path, v: &ValueReport) -> Result<()> {
         })
         .collect();
     write_tsv(path, &header, &body)
+}
+
+/// The `--stop-rule` value as typed on the command line (`output`, ...).
+fn stop_rule_name(rule: BridleStopRule) -> String {
+    use clap::ValueEnum;
+    rule.to_possible_value()
+        .map_or_else(|| format!("{rule:?}"), |v| v.get_name().to_owned())
 }
 
 /// Effective stop rule, minimum sweeps and tolerance (rule-specific defaults).
@@ -1034,7 +1070,7 @@ fn write_report(
         "input": args.input.display().to_string(),
         "params": {
             "reference": r.reference, "rank": bridle.rank, "sweeps": bridle.sweeps, "seed": bridle.seed,
-            "stop_rule": format!("{:?}", stop.0), "min_sweeps": stop.1, "stop_tol": stop.2,
+            "stop_rule": stop_rule_name(bridle.stop_rule), "min_sweeps": stop.1, "stop_tol": stop.2,
             "fasta": bridle.fasta.as_ref().map(|p| p.display().to_string()),
             "fasta_organism": bridle.fasta_organism,
             "lineage_table": bridle.lineage_table.as_ref().map(|p| p.display().to_string()),
@@ -1072,22 +1108,8 @@ fn write_report(
             .iter()
             .map(|d| {
                 let obj: serde_json::Map<String, serde_json::Value> = dataset_value_fields(d)
-                    .into_iter()
-                    .map(|(k, s)| {
-                        let val = match k {
-                            "dataset" => serde_json::Value::String(s),
-                            "no_anchors_cannot_audit" => serde_json::Value::Bool(s == "true"),
-                            _ if s.parse::<u64>().is_ok() => {
-                                serde_json::json!(s.parse::<u64>().unwrap_or(0))
-                            }
-                            _ => s
-                                .parse::<f64>()
-                                .ok()
-                                .filter(|x| x.is_finite())
-                                .map_or(serde_json::Value::Null, |x| serde_json::json!(x)),
-                        };
-                        (k.to_owned(), val)
-                    })
+                    .iter()
+                    .map(|(k, f)| ((*k).to_owned(), f.json()))
                     .collect();
                 serde_json::Value::Object(obj)
             })
@@ -1233,7 +1255,9 @@ mod tests {
         run_bridle(&a)?;
         let report: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
-        assert_eq!(report["params"]["stop_rule"], "OutputChange");
+        assert_eq!(report["params"]["stop_rule"], "output");
+        assert_eq!(stop_rule_name(BridleStopRule::Monitor), "monitor");
+        assert_eq!(stop_rule_name(BridleStopRule::None), "none");
         assert_eq!(report["converged"], true);
         assert_eq!(report["history"].as_array().map(Vec::len), Some(3));
         assert!(report["history"][2]["out_change"].is_number());

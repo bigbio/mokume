@@ -49,7 +49,7 @@
 //! reference's spread by a slope estimated on shared anchors ([`anchor_scale`]).
 //! With `plex_rescale` (default), every (dataset x plex, gene) is finally
 //! rescaled around its own mean by an empirical-Bayes ComBat-style scale
-//! estimated label-blind from all its values ([`rescale`]).
+//! estimated label-blind from all its values (`rescale`).
 //!
 //! Deviations from the prototype (no-ops on the benchmark, see the PR):
 //! plex effects are centred per dataset (the prototype centres across all
@@ -203,7 +203,7 @@ pub struct BridleParams {
     pub graph_min_shared: usize,
     pub graph_iters: usize,
     /// Post-fit label-blind ComBat-style scale per (dataset x plex, gene),
-    /// see [`rescale`].
+    /// see `rescale`.
     pub plex_rescale: bool,
 }
 

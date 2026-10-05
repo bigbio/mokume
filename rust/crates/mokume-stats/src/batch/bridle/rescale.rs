@@ -44,7 +44,7 @@ const EB_ITERS: usize = 5;
 const T2_FLOOR: f64 = 1e-4;
 const VAR_FLOOR: f64 = 1e-8;
 
-/// Batches of [`plex_rescale`]; `batch` is indexed by profile.
+/// Batches of `plex_rescale`; `batch` is indexed by profile.
 pub(super) struct RescaleBatches<'a> {
     pub batch: &'a [usize],
     /// `dataset` or `dataset|plex`, per batch.
@@ -55,7 +55,7 @@ pub(super) struct RescaleBatches<'a> {
     pub plexed: &'a [bool],
 }
 
-/// Per-batch outcome of [`plex_rescale`].
+/// Per-batch outcome of `plex_rescale`.
 #[derive(Debug, Clone)]
 pub struct PlexRescale {
     /// `dataset` or `dataset|plex`.

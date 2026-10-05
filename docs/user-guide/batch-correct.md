@@ -308,7 +308,7 @@ EMT signatures):
 
 | Step | Default | Measured effect |
 |------|---------|-----------------|
-| 400 sweeps / output-change stop | on | 60 sweeps were not converged: accuracy -0.027 [-0.034, -0.021] at 400 sweeps, better agreement, no biology lost. The benchmark arms ran a fixed 400 sweeps, while the defaults may stop from sweep 200 once the change is below `1e-5`; the output differs negligibly from a fixed 400 (measured median |difference| 1.7e-6). The tolerance is a safeguard, not a tuned value |
+| 400 sweeps / output-change stop | on | 60 sweeps were not converged: accuracy -0.027 [-0.034, -0.021] at 400 sweeps, better agreement, no biology lost. The benchmark arms ran a fixed 400 sweeps, while the defaults may stop from sweep 200 once the change is below `1e-5`; the output differs negligibly from a fixed 400 (measured median absolute difference 1.7e-6). The tolerance is a safeguard, not a tuned value |
 | Graph prior | on | Leave-one-dataset-out accuracy 1.062 -> 0.797 (ahead of graph offsets alone, 0.804); leave-lines-out equivalent (+0.005) |
 | Keep `c` | on | 0.011 less accurate than removing `c`, but CORUM +0.010 and better deletion / cis signal: `c` carries biology |
 | Plex rescale | on | Accuracy 0.786 vs 0.799 for BERT (-0.013 [-0.021, -0.007]), better on cis RNA, EMT and proliferation; 0.007 less accurate than without the rescale but better on 7 biology guards |

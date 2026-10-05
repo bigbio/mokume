@@ -30,9 +30,10 @@
 //! * `abund_rho`: per profile, Spearman over its observed genes of `raw` vs
 //!   the gene's median level in the OTHER datasets (median over datasets of
 //!   each dataset's median); fit-free.
-//! * Against other datasets, on gene-centred `v` (minus the per-gene median
-//!   over all profiles), pairwise-complete Pearson between profiles of
-//!   different datasets (NaN below `min_overlap_genes` shared genes):
+//! * Opt-in (`ValueParams::identity`; quadratic in profiles): against other
+//!   datasets, on gene-centred `v` (minus the per-gene median over all
+//!   profiles), pairwise-complete Pearson between profiles of different
+//!   datasets (NaN below `min_overlap_genes` shared genes):
 //!   `self_r` = mean r with the same anchor elsewhere, `self_rank` = 1 + number
 //!   of other anchors' profiles correlating better than the best same-anchor
 //!   profile, `best_line` / `best_r` the best-matching profile's anchor.
@@ -75,6 +76,10 @@ pub struct ValueParams {
     pub min_overlap_genes: usize,
     /// Shared cells for a dataset pair to enter the excess-variance fit.
     pub min_pair_cells: usize,
+    /// Profile-vs-profile identity check (`self_r`, `self_rank`, `best_line`,
+    /// ...): every profile against every profile of the other datasets, so
+    /// off by default; the `id_*` / identity columns are `NaN` when off.
+    pub identity: bool,
 }
 
 impl Default for ValueParams {
@@ -83,6 +88,7 @@ impl Default for ValueParams {
             min_shared_lines: 3,
             min_overlap_genes: 200,
             min_pair_cells: 200,
+            identity: false,
         }
     }
 }
@@ -416,10 +422,14 @@ pub(super) fn value_report(
         .collect();
 
     // ---------- identity on gene-centred corrected values
-    let gcen: Vec<f64> = (0..g_n)
-        .map(|g| median((0..n).map(|i| v[i * g_n + g]).collect()))
-        .collect();
-    let w: Vec<f64> = (0..n * g_n).map(|c| v[c] - gcen[c % g_n]).collect();
+    let w: Vec<f64> = if params.identity || rna.is_some() {
+        let gcen: Vec<f64> = (0..g_n)
+            .map(|g| median((0..n).map(|i| v[i * g_n + g]).collect()))
+            .collect();
+        (0..n * g_n).map(|c| v[c] - gcen[c % g_n]).collect()
+    } else {
+        Vec::new()
+    };
     let row = |i: usize| &w[i * g_n..(i + 1) * g_n];
     struct Ident {
         self_r: f64,
@@ -428,53 +438,64 @@ pub(super) fn value_report(
         best_r: f64,
         med_r: f64,
     }
-    let ident: Vec<Ident> = (0..n)
-        .into_par_iter()
-        .map(|i| {
-            let mut best: Option<(f64, usize)> = None;
-            let mut all = Vec::new();
-            let mut same = Vec::new();
-            let mut other = Vec::new();
-            for j in 0..n {
-                if srow[j] == srow[i] {
-                    continue;
-                }
-                let r = pearson(row(i), row(j), params.min_overlap_genes);
-                let is_same = data.lines[j] == data.lines[i];
-                if is_same {
-                    same.push(r);
-                } else {
-                    other.push(r);
-                }
-                if r.is_finite() {
-                    all.push(r);
-                    if best.is_none_or(|(b, _)| r > b) {
-                        best = Some((r, j));
+    let no_ident = || Ident {
+        self_r: f64::NAN,
+        self_rank: f64::NAN,
+        best_line: String::new(),
+        best_r: f64::NAN,
+        med_r: f64::NAN,
+    };
+    let ident: Vec<Ident> = if !params.identity {
+        (0..n).map(|_| no_ident()).collect()
+    } else {
+        (0..n)
+            .into_par_iter()
+            .map(|i| {
+                let mut best: Option<(f64, usize)> = None;
+                let mut all = Vec::new();
+                let mut same = Vec::new();
+                let mut other = Vec::new();
+                for j in 0..n {
+                    if srow[j] == srow[i] {
+                        continue;
+                    }
+                    let r = pearson(row(i), row(j), params.min_overlap_genes);
+                    let is_same = data.lines[j] == data.lines[i];
+                    if is_same {
+                        same.push(r);
+                    } else {
+                        other.push(r);
+                    }
+                    if r.is_finite() {
+                        all.push(r);
+                        if best.is_none_or(|(b, _)| r > b) {
+                            best = Some((r, j));
+                        }
                     }
                 }
-            }
-            let (best_r, best_line) = best.map_or((f64::NAN, String::new()), |(r, j)| {
-                (r, data.lines[j].clone())
-            });
-            let rs = same
-                .iter()
-                .copied()
-                .filter(|x| x.is_finite())
-                .fold(f64::NAN, f64::max);
-            let self_rank = if rs.is_finite() {
-                (other.iter().filter(|&&r| r > rs).count() + 1) as f64
-            } else {
-                f64::NAN
-            };
-            Ident {
-                self_r: mean_finite(same.into_iter()),
-                self_rank,
-                best_line,
-                best_r,
-                med_r: median(all),
-            }
-        })
-        .collect();
+                let (best_r, best_line) = best.map_or((f64::NAN, String::new()), |(r, j)| {
+                    (r, data.lines[j].clone())
+                });
+                let rs = same
+                    .iter()
+                    .copied()
+                    .filter(|x| x.is_finite())
+                    .fold(f64::NAN, f64::max);
+                let self_rank = if rs.is_finite() {
+                    (other.iter().filter(|&&r| r > rs).count() + 1) as f64
+                } else {
+                    f64::NAN
+                };
+                Ident {
+                    self_r: mean_finite(same.into_iter()),
+                    self_rank,
+                    best_line,
+                    best_r,
+                    med_r: median(all),
+                }
+            })
+            .collect()
+    };
 
     // ---------- optional reference (RNA) identity
     let rna_id: Vec<(f64, f64)> = match rna {

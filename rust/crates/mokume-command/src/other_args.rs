@@ -320,19 +320,27 @@ pub(crate) struct BridleArgs {
     #[arg(long = "report", value_name = "FILE")]
     pub(crate) report: Option<PathBuf>,
 
-    /// Per-dataset value report (TSV): coverage, fit diagnostics, identity,
-    /// redundancy and the no_anchors_cannot_audit flag, from this fit.
+    /// Per-dataset value report (TSV): coverage, fit diagnostics, redundancy
+    /// and the no_anchors_cannot_audit flag, from this fit (identity with
+    /// --identity).
     #[arg(long = "dataset-report", value_name = "FILE")]
     pub(crate) dataset_report: Option<PathBuf>,
 
-    /// Per-profile rows of the value report (TSV): abundance rho, identity
-    /// vs other datasets, best-matching anchor, redundancy.
+    /// Per-profile rows of the value report (TSV): abundance rho, redundancy
+    /// and, with --identity, identity vs other datasets and best-matching
+    /// anchor.
     #[arg(long = "profile-report", value_name = "FILE")]
     pub(crate) profile_report: Option<PathBuf>,
 
+    /// Add the profile-vs-profile identity check to the value report (every
+    /// profile against every profile of the other datasets: quadratic in
+    /// profiles, so off by default).
+    #[arg(long = "identity")]
+    pub(crate) identity: bool,
+
     /// Optional per-anchor reference (e.g. DepMap RNA) for the identity
-    /// check: long table (.parquet/.tsv/.csv) with the --anchor-column,
-    /// --gene-column and --value-column columns.
+    /// check (implies --identity): long table (.parquet/.tsv/.csv) with the
+    /// --anchor-column, --gene-column and --value-column columns.
     #[arg(long = "identity-reference", value_name = "FILE")]
     pub(crate) identity_reference: Option<PathBuf>,
 }

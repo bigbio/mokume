@@ -32,8 +32,10 @@
 //! fit diagnostics, identity, redundancy; see
 //! [`mokume_stats::batch::bridle::dataset_value`]) goes to the JSON report
 //! under `dataset_value` and, as TSV, to `--dataset-report` (per dataset) and
-//! `--profile-report` (per profile); `--identity-reference` adds an identity
-//! check against per-anchor reference profiles (e.g. DepMap RNA).
+//! `--profile-report` (per profile). The profile-vs-profile identity check is
+//! opt-in (`--identity`, quadratic in profiles); `--identity-reference` implies
+//! it and adds an identity check against per-anchor reference profiles (e.g.
+//! DepMap RNA).
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
@@ -104,6 +106,7 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         report: None,
         dataset_report: None,
         profile_report: None,
+        identity: false,
         identity_reference: None,
     }
 }
@@ -148,6 +151,7 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--report", bridle.report.is_some()),
         ("--dataset-report", bridle.dataset_report.is_some()),
         ("--profile-report", bridle.profile_report.is_some()),
+        ("--identity", bridle.identity),
         ("--identity-reference", bridle.identity_reference.is_some()),
     ];
     let bad: Vec<&str> = set.iter().filter(|(_, on)| *on).map(|(n, _)| *n).collect();
@@ -604,12 +608,17 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
             None => None,
         };
         let t1 = std::time::Instant::now();
-        let v = dataset_value(&data, &res, rna.as_ref(), &ValueParams::default());
+        let params = ValueParams {
+            identity: bridle.identity || rna.is_some(),
+            ..ValueParams::default()
+        };
+        let v = dataset_value(&data, &res, rna.as_ref(), &params);
         tracing::info!(
-            "BRIDLE value report: {} datasets, {} profiles in {:.1}s",
+            "BRIDLE value report: {} datasets, {} profiles in {:.1}s (identity {})",
             v.datasets.len(),
             v.profiles.len(),
-            t1.elapsed().as_secs_f64()
+            t1.elapsed().as_secs_f64(),
+            if params.identity { "on" } else { "off" }
         );
         for d in v.datasets.iter().filter(|d| d.no_anchors_cannot_audit) {
             tracing::warn!(
@@ -1018,6 +1027,7 @@ fn write_report(
             "graph_prior": !bridle.no_graph_prior,
             "keep_sample_loading": !bridle.remove_sample_loading,
             "plex_rescale": !bridle.no_plex_rescale,
+            "identity": bridle.identity || bridle.identity_reference.is_some(),
         },
         "n_profiles": r.n_profiles, "n_genes": r.n_genes, "n_lines": r.n_lines,
         "n_lineages": r.n_lineages, "n_plexes": r.n_plexes, "design_columns": design_names,
@@ -1365,6 +1375,66 @@ mod tests {
         assert_eq!(dv[2]["no_anchors_cannot_audit"], true);
         assert_eq!(dv[0]["anchor_lines"], 4);
         assert!(report["datasets"][0]["delta_median"].is_number());
+        // --identity-reference implies --identity
+        assert_eq!(report["params"]["identity"], true);
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_identity_check_is_opt_in() -> TestResult<()> {
+        let dir = temp_dir("identity")?;
+        // two datasets sharing 4 lines over 240 genes (>= 200 for a correlation)
+        let input = dir.join("long.tsv");
+        let mut text = String::from("ds\tcvcl\tgene\tv\n");
+        for (d, off) in [("REF", 0.0), ("B", 1.0)] {
+            for l in 0..4 {
+                for g in 0..240 {
+                    let x = (g * 7 + l * 13) as f64;
+                    let v = 20.0 + (g % 17) as f64 * 0.2 + x.sin() + off;
+                    text.push_str(&format!("{d}\tL{l}\tG{g:03}\t{v}\n"));
+                }
+            }
+        }
+        std::fs::write(&input, text)?;
+        let mut a = args(input, dir.join("v.tsv"));
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.report = Some(dir.join("fit.json"));
+        a.bridle.dataset_report = Some(dir.join("value.tsv"));
+        a.bridle.profile_report = Some(dir.join("profiles.tsv"));
+        run_bridle(&a)?;
+        let id_cols = |path: &Path| -> TestResult<Vec<String>> {
+            let tsv = std::fs::read_to_string(path)?;
+            let mut lines = tsv.lines();
+            let header: Vec<&str> = lines.next().ok_or("empty")?.split('\t').collect();
+            let cols: Vec<usize> = ["id_rank", "self_rank"]
+                .iter()
+                .filter_map(|c| header.iter().position(|h| h == c))
+                .collect();
+            Ok(lines
+                .flat_map(|l| {
+                    let f: Vec<&str> = l.split('\t').collect();
+                    cols.iter().map(|&c| f[c].to_owned()).collect::<Vec<_>>()
+                })
+                .collect())
+        };
+        let off = id_cols(&dir.join("value.tsv"))?;
+        assert!(!off.is_empty() && off.iter().all(|v| v == "NaN"), "{off:?}");
+        let off_p = id_cols(&dir.join("profiles.tsv"))?;
+        assert!(off_p.iter().all(|v| v == "NaN"), "{off_p:?}");
+        let report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fit.json"))?)?;
+        assert_eq!(report["params"]["identity"], false);
+        a.bridle.identity = true;
+        run_bridle(&a)?;
+        let on = id_cols(&dir.join("value.tsv"))?;
+        assert!(on.iter().any(|v| v != "NaN"), "{on:?}");
+        let on_p = id_cols(&dir.join("profiles.tsv"))?;
+        assert!(on_p.iter().any(|v| v != "NaN"), "{on_p:?}");
+        assert!(
+            parse_correct_batches(&["--method", "bridle", "--identity"])
+                .bridle
+                .identity
+        );
         Ok(())
     }
 

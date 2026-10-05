@@ -120,7 +120,19 @@ fn fixture() -> Fixture {
     }
 }
 
+/// Report with the opt-in identity check on.
 fn report(fx: &Fixture, rna: bool) -> ValueReport {
+    report_with(
+        fx,
+        rna,
+        &ValueParams {
+            identity: true,
+            ..ValueParams::default()
+        },
+    )
+}
+
+fn report_with(fx: &Fixture, rna: bool, params: &ValueParams) -> ValueReport {
     let n = fx.data.n_profiles();
     let s_n = fx.noise_var.len() / G;
     let view = FitView {
@@ -130,12 +142,7 @@ fn report(fx: &Fixture, rna: bool) -> ValueReport {
         offsets: &vec![0.0; s_n * G],
         delta: vec![(f64::NAN, f64::NAN); s_n],
     };
-    value_report(
-        &fx.data,
-        &view,
-        rna.then_some(&fx.rna),
-        &ValueParams::default(),
-    )
+    value_report(&fx.data, &view, rna.then_some(&fx.rna), params)
 }
 
 fn ds<'a>(r: &'a ValueReport, name: &str) -> &'a DatasetValue {
@@ -212,6 +219,38 @@ fn duplicated_study_is_redundant() {
     assert!(dup.marg_shift < ds(&r, "REF").marg_shift);
     // rna identity is skipped without a reference
     assert!(r.datasets.iter().all(|d| d.id_rna_self.is_nan()));
+}
+
+#[test]
+fn identity_check_is_opt_in_and_leaves_the_cheap_metrics_unchanged() {
+    let fx = fixture();
+    assert!(!ValueParams::default().identity);
+    let cheap = report_with(&fx, false, &ValueParams::default());
+    let full = report(&fx, false);
+    for (c, f) in cheap.datasets.iter().zip(&full.datasets) {
+        assert!(c.id_self_r.is_nan() && c.id_rank.is_nan() && c.id_top1.is_nan());
+        assert!(c.id_best_is_self.is_nan() && c.id_r_max_any.is_nan());
+        assert!(c.id_r_med_any.is_nan() && c.id_rna_self.is_nan());
+        let same = |a: f64, b: f64| a == b || (a.is_nan() && b.is_nan());
+        for (a, b) in [
+            (c.abund_rho, f.abund_rho),
+            (c.excess_var, f.excess_var),
+            (c.agree_med, f.agree_med),
+            (c.marg_shift, f.marg_shift),
+            (c.redund_ge3, f.redund_ge3),
+        ] {
+            assert!(same(a, b), "{}: {a} vs {b}", c.name);
+        }
+        assert_eq!(c.no_anchors_cannot_audit, f.no_anchors_cannot_audit);
+    }
+    assert!(cheap.profiles.iter().all(|p| p.best_line.is_empty()));
+    // a reference alone still gives the reference identity
+    let rna_only = report_with(&fx, true, &ValueParams::default());
+    let full_rna = report(&fx, true);
+    for (a, b) in rna_only.datasets.iter().zip(&full_rna.datasets) {
+        assert_eq!(a.id_rna_top1.to_bits(), b.id_rna_top1.to_bits());
+        assert!(a.id_self_r.is_nan());
+    }
 }
 
 #[test]
@@ -365,7 +404,11 @@ fn dataset_value_runs_on_a_fit() {
         Ok(r) => r,
         Err(e) => panic!("fit failed: {e}"),
     };
-    let r = dataset_value(&fx.data, &res, None, &ValueParams::default());
+    let vparams = ValueParams {
+        identity: true,
+        ..ValueParams::default()
+    };
+    let r = dataset_value(&fx.data, &res, None, &vparams);
     assert_eq!(r.datasets.len(), 6);
     assert_eq!(r.profiles.len(), fx.data.n_profiles());
     let refd = ds(&r, "REF");

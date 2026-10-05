@@ -237,7 +237,8 @@ dataset is one batch in the graph prior).
 | `--anchor-scale` | off | Per-dataset scale `b_s` from anchor samples shared with the reference (see above) |
 | `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, `graph_prior_genes`, `delta_median`, ...; `history`, `plex_rescale`, `dataset_value`) |
 | `--dataset-report` / `--profile-report` | none | Per-dataset / per-profile value report (TSV), see [Per-dataset value report](#per-dataset-value-report) |
-| `--identity-reference` | none | Per-anchor reference profiles (e.g. DepMap RNA) for the identity check |
+| `--identity` | off | Add the profile-vs-profile identity check to the value report (quadratic in profiles) |
+| `--identity-reference` | none | Per-anchor reference profiles (e.g. DepMap RNA) for the identity check; implies `--identity` |
 
 ### Per-dataset value report
 
@@ -245,7 +246,12 @@ What does each dataset contribute, and does it agree with the rest? With
 `--report`, `--dataset-report` or `--profile-report`, the same fit (no refits)
 is summarised per dataset (JSON `dataset_value`, TSV `--dataset-report`) and
 per profile (`--profile-report`). A *shared* anchor is measured by >= 2
-datasets; `v` is the corrected output.
+datasets; `v` is the corrected output. By default only the cheap metrics are
+computed; the identity check against other datasets (`id_self_r`, `id_rank`,
+..., per profile `self_r`, `self_rank`, `best_line`, ...) correlates every
+profile with every profile of the other datasets and is opt-in with
+`--identity` (implied by `--identity-reference`). Without it those columns are
+`NaN` (`best_line` empty); `abund_rho` is always computed.
 
 | Group | Columns | Definition |
 |-------|---------|------------|
@@ -260,8 +266,8 @@ datasets; `v` is the corrected output.
 | | `agree_med` / `disagree_var` | Over cross-dataset differences `e = v_a - v_b` (same anchor and gene) involving the dataset: median \|e\|, median(e^2)/0.4549 |
 | | `excess_var` | The dataset's share `d_s` of that variance: non-negative least squares of median(e^2)/0.4549 = `d_a + d_b` over dataset pairs with >= 200 cells. No replicate-noise floor is subtracted, so it includes the dataset's own noise |
 | Identity | `abund_rho` / `abund_rho_min` | Spearman of each raw profile with the gene's median level in the *other* datasets (fit-free); median / min over profiles. Low = distorted abundance shape (enrichment, wrong unit) |
-| | `id_self_r`, `id_rank`, `id_top1`, `id_best_is_self` | On gene-centred `v`, Pearson with every profile of the other datasets (>= 200 shared genes): mean r with the same anchor, rank of the own anchor (1 = best), fraction ranked 1st, fraction whose best match is the own anchor |
-| | `id_r_max_any` / `id_r_med_any` | Best / median r with any other-dataset profile |
+| | `id_self_r`, `id_rank`, `id_top1`, `id_best_is_self` | Only with `--identity`: on gene-centred `v`, Pearson with every profile of the other datasets (>= 200 shared genes): mean r with the same anchor, rank of the own anchor (1 = best), fraction ranked 1st, fraction whose best match is the own anchor |
+| | `id_r_max_any` / `id_r_med_any` | Only with `--identity`: best / median r with any other-dataset profile |
 | | `id_rna_self`, `id_rna_rank`, `id_rna_top1`, `id_rna_top5` | Only with `--identity-reference`: Pearson of the gene-centred profile with each reference anchor (reference gene-centred across anchors), own-anchor r and rank |
 | Redundancy | `marg_shift`, `marg_se_gain`, `wshare` | Per shared anchor and gene with >= 2 sources, consensus `sum(w v)/sum(w)`, `w = 1/sig2[s,g]`: \|consensus - consensus without this dataset\|, `1 - SE_with/SE_without`, weight share; medians over genes, then over its shared profiles |
 | | `redund_ge3` / `other_src_med` | Fraction of its shared profiles whose anchor has >= 3 other sources / median other sources |

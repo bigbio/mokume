@@ -4,9 +4,11 @@
 //! plexes, a cross-fitted weakly anchored dataset, a single-line dataset and an
 //! unanchored dataset, drawn from a NumPy `RandomState`-compatible stream. The
 //! expected values in `tests/fixtures/bridle_golden_expected.tsv` were
-//! generated once from the original BRIDLE (LIM) prototype on this collection
-//! and are now frozen: they are this crate's expected values, no Python is
-//! needed.
+//! generated once by the Python BRIDLE (LIM) prototype
+//! (`research/cellline-integration/lim_lin/lim.py`, the benchmark `lim_lin`
+//! variant) on this collection and are now frozen; running the test needs no
+//! Python. The generator lived at `rust/scripts/bridle_golden_reference.py`
+//! until 7091171 (`git show 4ca3608:rust/scripts/bridle_golden_reference.py`).
 //!
 //! Checks:
 //! 1. Rust matches the frozen expected values cell by cell (tolerance [`TOL`]).

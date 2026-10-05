@@ -5,8 +5,9 @@
 //! are drawn from a Mersenne Twister seeded like `np.random.RandomState(seed)`
 //! so a fixed seed gives the same stream as the Python prototype. This keeps
 //! the Rust fit deterministic and lets the golden test compare it cell by cell
-//! against the prototype's frozen expected values (generated with its torch
-//! initialisation replaced by the same NumPy stream).
+//! against expected values generated once by the Python prototype (its torch
+//! initialisation replaced by the same NumPy stream) and now frozen in
+//! `tests/fixtures/`.
 //!
 //! Implemented draws (bit-identical to NumPy's legacy `RandomState`):
 //! `random_sample` (53-bit double), `standard_normal` (polar Box-Muller with a

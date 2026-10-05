@@ -6,10 +6,16 @@
 //! with inflated spread), an LFQ dataset, a 4-line and a single-line dataset
 //! and a dataset linked by only 2 lines (centring prior), drawn from a NumPy
 //! `RandomState`-compatible stream. The expected values in
-//! `tests/fixtures/bridle_benchmark_expected.tsv` were generated once from the
-//! 2026-10 benchmark prototype on this collection (`graphp` prior + variance fit
-//! with graph prior and sample loading kept + post-fit plex rescale) and are
-//! now frozen: they are this crate's expected values, no Python is needed.
+//! `tests/fixtures/bridle_benchmark_expected.tsv` were generated once by the
+//! Python 2026-10 benchmark prototype on this collection (`graphp` prior +
+//! variance fit with graph prior and sample loading kept + post-fit plex
+//! rescale; `lecture-figures/2026-10-bridle-x/B1b-headtohead/scripts/`
+//! `bridle_var.py`, `bridle_py.py`, `bvar_run.py`,
+//! `B0-protocol/scripts/arms_simple.py` and
+//! `B1d-phdelta-allrows/scripts/posthoc_delta_all.py`) and are now frozen;
+//! running the test needs no Python. The generator lived at
+//! `rust/scripts/bridle_benchmark_reference.py` until 7091171
+//! (`git show 4ca3608:rust/scripts/bridle_benchmark_reference.py`).
 
 use std::collections::HashMap;
 

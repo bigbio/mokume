@@ -1,4 +1,6 @@
-# frozen expected values: generated once from the BRIDLE (LIM) prototype (seed=20260927, rank=4, sweeps=30, float64)
+# expected values generated once by the Python BRIDLE (LIM) prototype and now frozen (seed=20260927, rank=4, sweeps=30, float64)
+# prototype: research/cellline-integration/lim_lin/lim.py (benchmark lim_lin variant)
+# generator: git show 4ca3608:rust/scripts/bridle_golden_reference.py (removed in 7091171)
 kind	ds	line	gene	value
 cell	DSB	L20	G000	19.88552851107545
 cell	DSB	L20	G011	20.753252997947058

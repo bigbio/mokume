@@ -1,4 +1,6 @@
-# frozen expected values: generated once from the 2026-10 BRIDLE benchmark prototype (graph prior + sample loading kept + post-fit plex rescale; seed=20261003, rank=4, sweeps<=120, min_stop=40)
+# expected values generated once by the Python 2026-10 BRIDLE benchmark prototype and now frozen (graph prior + sample loading kept + post-fit plex rescale; seed=20261003, rank=4, sweeps<=120, min_stop=40)
+# prototype: lecture-figures/2026-10-bridle-x/B1b-headtohead/scripts/{bridle_var.py,bridle_py.py,bvar_run.py}, B0-protocol/scripts/arms_simple.py, B1d-phdelta-allrows/scripts/posthoc_delta_all.py
+# generator: git show 4ca3608:rust/scripts/bridle_benchmark_reference.py (removed in 7091171)
 kind	ds	line	gene	value
 prior	LFQ		G000	-1.106325764259747
 prior	LFQ		G001	0.599564777890091

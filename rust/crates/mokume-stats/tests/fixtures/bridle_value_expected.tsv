@@ -1,4 +1,6 @@
-# frozen expected values: generated once from the 2026-10 B4 value-report prototype definitions (seed=20261004, G=300)
+# expected values generated once by the Python 2026-10 B4 value-report prototype definitions and now frozen (seed=20261004, G=300)
+# prototype: lecture-figures/2026-10-bridle-x/B4-dataset-value/scripts/b4_desc.py (sections 1, 2d and 4)
+# generator: git show 4ca3608:rust/scripts/bridle_value_reference.py (removed in 7091171)
 kind	dataset	line	metric	value
 dataset	B		n_lines	14.0
 dataset	B		n_cells	3764.0

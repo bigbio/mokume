@@ -1,8 +1,12 @@
 //! Tests of the per-dataset value report: known answers on a synthetic
 //! collection and parity with the B4 prototype definitions. The expected
-//! values in `tests/fixtures/bridle_value_expected.tsv` were generated once
-//! from the 2026-10 B4 prototype on this fixture and are now frozen: they are
-//! this crate's expected values, no Python is needed.
+//! values in `tests/fixtures/bridle_value_expected.tsv` were generated once by
+//! the Python 2026-10 B4 prototype definitions
+//! (`lecture-figures/2026-10-bridle-x/B4-dataset-value/scripts/b4_desc.py`,
+//! sections 1, 2d and 4) on this fixture and are now frozen; running the tests
+//! needs no Python. The generator lived at
+//! `rust/scripts/bridle_value_reference.py` until 7091171
+//! (`git show 4ca3608:rust/scripts/bridle_value_reference.py`).
 
 use std::collections::HashMap;
 

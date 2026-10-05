@@ -25,6 +25,11 @@
 //!   non-negative least squares over dataset pairs with >= `min_pair_cells`
 //!   cells: `median(e^2) / 0.4549 = d_a + d_b`, weights sqrt(log1p(n)). There
 //!   is no replicate noise floor here, so `d_s` includes the dataset's noise.
+//!   The split is identifiable only in a connected component of the pair
+//!   graph with an odd cycle (e.g. a triangle); in a bipartite component (2
+//!   datasets, chains such as A-REF-C, even cycles) `excess_var` is `NaN` and a
+//!   warning is logged, instead of whichever dataset the solver visits first
+//!   absorbing the shared variance.
 //!
 //! Identity:
 //! * `abund_rho`: per profile, Spearman over its observed genes of `raw` vs
@@ -330,6 +335,53 @@ fn nnls(x: &[f64], y: &[f64], w: &[f64], k: usize) -> Vec<f64> {
     d
 }
 
+/// A connected component of the dataset-pair graph of the excess-variance fit.
+struct PairComponent {
+    nodes: Vec<usize>,
+    /// No odd cycle: the unsigned incidence matrix of a connected bipartite
+    /// graph has rank `nodes - 1`, so `d_a + d_b = y` fixes the split only up
+    /// to `+t` on one side and `-t` on the other (2 datasets, chains such as
+    /// A-REF-C, even cycles). With an odd cycle the rank is full.
+    bipartite: bool,
+}
+
+/// Connected components of the graph on `n` nodes with edges `pairs`, each
+/// with a bipartiteness flag (BFS two-colouring). Isolated nodes are skipped.
+fn pair_components(n: usize, pairs: &[(usize, usize)]) -> Vec<PairComponent> {
+    let mut adj = vec![Vec::new(); n];
+    for &(a, b) in pairs {
+        adj[a].push(b);
+        adj[b].push(a);
+    }
+    let mut colour: Vec<Option<bool>> = vec![None; n];
+    let mut out = Vec::new();
+    for start in 0..n {
+        if colour[start].is_some() || adj[start].is_empty() {
+            continue;
+        }
+        colour[start] = Some(false);
+        let mut queue = std::collections::VecDeque::from([start]);
+        let mut nodes = Vec::new();
+        let mut bipartite = true;
+        while let Some(u) = queue.pop_front() {
+            nodes.push(u);
+            let cu = colour[u] == Some(true);
+            for &v in &adj[u] {
+                match colour[v] {
+                    None => {
+                        colour[v] = Some(!cu);
+                        queue.push_back(v);
+                    }
+                    Some(cv) => bipartite &= cv != cu,
+                }
+            }
+        }
+        nodes.sort_unstable();
+        out.push(PairComponent { nodes, bipartite });
+    }
+    out
+}
+
 /// Core of [`dataset_value`] on explicit fitted quantities.
 pub(super) fn value_report(
     data: &BridleData,
@@ -587,7 +639,6 @@ pub(super) fn value_report(
         .filter(|(_, e)| e.len() >= params.min_pair_cells)
         .map(|(k, e)| (k, median(e.clone()) / CHI2_MEDIAN, e.len()))
         .collect();
-    let in_fit: BTreeSet<usize> = fitted.iter().flat_map(|(k, _, _)| [k.0, k.1]).collect();
     let mut excess = vec![f64::NAN; s_n];
     if !fitted.is_empty() {
         let mut xm = vec![0.0; fitted.len() * s_n];
@@ -598,8 +649,21 @@ pub(super) fn value_report(
         let y: Vec<f64> = fitted.iter().map(|f| f.1).collect();
         let wt: Vec<f64> = fitted.iter().map(|f| (f.2 as f64).ln_1p().sqrt()).collect();
         let d = nnls(&xm, &y, &wt, s_n);
-        for &s in &in_fit {
-            excess[s] = d[s];
+        let pairs: Vec<(usize, usize)> = fitted.iter().map(|(k, _, _)| **k).collect();
+        for comp in pair_components(s_n, &pairs) {
+            if comp.bipartite {
+                let members: Vec<&str> = comp.nodes.iter().map(|&s| names[s].as_str()).collect();
+                tracing::warn!(
+                    "BRIDLE value report: excess_var is not identifiable for datasets [{}] \
+                     (their dataset-pair graph has no odd cycle, so d_a + d_b = y has no \
+                     unique split); reported as NaN",
+                    members.join(", ")
+                );
+                continue;
+            }
+            for &s in &comp.nodes {
+                excess[s] = d[s];
+            }
         }
     }
 

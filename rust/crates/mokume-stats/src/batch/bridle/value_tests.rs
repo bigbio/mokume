@@ -421,3 +421,80 @@ fn dataset_value_runs_on_a_fit() {
     assert!(bad.id_self_r < 0.2 && bad.abund_rho < 0.3, "{bad:?}");
     assert!(bad.excess_var > ds(&r, "C").excess_var);
 }
+
+/// Datasets observing `lines` x `G` genes with corrected value = truth + noise
+/// of the given SD (no offsets, nothing missing).
+fn noisy(studies: &[(&str, std::ops::Range<usize>, f64)]) -> (BridleData, Vec<f64>) {
+    let mut rs = NumpyRandomState::new(7);
+    let truth: Vec<f64> = (0..NL * G).map(|_| 20.0 + rs.next_gauss()).collect();
+    let mut data = BridleData {
+        datasets: Vec::new(),
+        lines: Vec::new(),
+        lineages: Vec::new(),
+        plexes: None,
+        genes: (0..G).map(|g| format!("G{g:03}")).collect(),
+        values: Vec::new(),
+    };
+    for (name, lines, sd) in studies {
+        for l in lines.clone() {
+            data.datasets.push((*name).to_owned());
+            data.lines.push(format!("L{l:02}"));
+            data.lineages.push(None);
+            for g in 0..G {
+                data.values.push(truth[l * G + g] + sd * rs.next_gauss());
+            }
+        }
+    }
+    let corrected = data.values.clone();
+    (data, corrected)
+}
+
+fn excess_of(studies: &[(&str, std::ops::Range<usize>, f64)]) -> HashMap<String, f64> {
+    let (data, corrected) = noisy(studies);
+    let s_n = studies.len();
+    let view = FitView {
+        corrected: &corrected,
+        noise_var: &vec![1.0; s_n * G],
+        sample_loading: &vec![0.0; data.n_profiles()],
+        offsets: &vec![0.0; s_n * G],
+        delta: vec![(f64::NAN, f64::NAN); s_n],
+    };
+    value_report(&data, &view, None, &ValueParams::default())
+        .datasets
+        .into_iter()
+        .map(|d| (d.name, d.excess_var))
+        .collect()
+}
+
+#[test]
+fn excess_var_is_nan_for_two_datasets() {
+    // review probe: the noisy REF used to be cleared and B (sd 0.1) blamed
+    let ex = excess_of(&[("REF", 0..4, 1.0), ("B", 0..4, 0.1)]);
+    assert!(ex["REF"].is_nan() && ex["B"].is_nan(), "{ex:?}");
+}
+
+#[test]
+fn excess_var_is_nan_for_a_chain() {
+    // A-REF-C: A and C share no anchor, so the pair graph is bipartite
+    let ex = excess_of(&[("A", 0..3, 0.1), ("REF", 0..6, 1.0), ("C", 3..6, 0.1)]);
+    assert!(ex.values().all(|x| x.is_nan()), "{ex:?}");
+}
+
+#[test]
+fn excess_var_is_split_on_a_triangle() {
+    // pair variances 1.01, 1.01, 0.02 -> d = (1, 0.01, 0.01)
+    let ex = excess_of(&[("A", 0..4, 1.0), ("B", 0..4, 0.1), ("C", 0..4, 0.1)]);
+    assert!((ex["A"] - 1.0).abs() < 0.25, "{ex:?}");
+    assert!(ex["B"] < 0.05 && ex["C"] < 0.05, "{ex:?}");
+}
+
+#[test]
+fn pair_components_flag_bipartite_graphs() {
+    let c = pair_components(5, &[(0, 1), (1, 2), (3, 4)]);
+    assert_eq!(c.len(), 2);
+    assert!(c.iter().all(|c| c.bipartite));
+    let c = pair_components(4, &[(0, 1), (1, 2), (2, 0), (2, 3)]);
+    assert_eq!((c.len(), c[0].nodes.len(), c[0].bipartite), (1, 4, false));
+    // an even cycle is still bipartite
+    assert!(pair_components(4, &[(0, 1), (1, 2), (2, 3), (3, 0)])[0].bipartite);
+}

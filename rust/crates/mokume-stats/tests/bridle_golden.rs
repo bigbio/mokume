@@ -2,13 +2,14 @@
 //!
 //! A synthetic collection with known biology, known technical offsets, TMT
 //! plexes, a cross-fitted weakly anchored dataset, a single-line dataset and an
-//! unanchored dataset. The generator mirrors `rust/scripts/bridle_golden_reference.py`
-//! draw for draw (NumPy `RandomState` stream), and that script's run of the
-//! Python prototype (`lim_lin/lim.py`) is stored in
-//! `tests/fixtures/bridle_golden_expected.tsv`.
+//! unanchored dataset, drawn from a NumPy `RandomState`-compatible stream. The
+//! expected values in `tests/fixtures/bridle_golden_expected.tsv` were
+//! generated once from the original BRIDLE (LIM) prototype on this collection
+//! and are now frozen: they are this crate's expected values, no Python is
+//! needed.
 //!
 //! Checks:
-//! 1. Rust matches the prototype cell by cell (tolerance [`PY_TOL`]).
+//! 1. Rust matches the frozen expected values cell by cell (tolerance [`TOL`]).
 //! 2. Technical offsets are recovered, biology is preserved, the single-line
 //!    dataset keeps its own signal, and nothing is imputed.
 
@@ -24,9 +25,9 @@ const G: usize = 240;
 const NF: usize = 6;
 const NL: usize = 80;
 const N_PLEX: usize = 6;
-/// Max |v_rust - v_python| over the stored cells. Both sides run in float64;
+/// Max |v_rust - v_expected| over the stored cells. Both sides run in float64;
 /// the residual difference is summation order in the ridge / ALS solves.
-const PY_TOL: f64 = 1e-6;
+const TOL: f64 = 1e-6;
 
 const ORDER: [&str; 6] = ["REF", "DSB", "DSC", "DSD", "SINGLE", "UNB"];
 
@@ -208,7 +209,7 @@ fn row_index(fx: &Fixture, ds: &str, line: &str) -> usize {
 }
 
 #[test]
-fn matches_python_prototype() {
+fn matches_frozen_reference() {
     let fx = fixture();
     let res = run(&fx, PlexMode::Inferred);
     let text = include_str!("fixtures/bridle_golden_expected.tsv");
@@ -239,8 +240,8 @@ fn matches_python_prototype() {
                         .sqrt()
                 };
                 assert!(
-                    (got - want).abs() < PY_TOL,
-                    "{} {}: rust {got} python {want}",
+                    (got - want).abs() < TOL,
+                    "{} {}: rust {got} expected {want}",
                     f[0],
                     f[1]
                 );
@@ -249,22 +250,22 @@ fn matches_python_prototype() {
             "hold_mse_last" => {
                 let got = res.report.history.last().map_or(f64::NAN, |h| h.hold_mse);
                 assert!(
-                    (got - want).abs() < PY_TOL,
-                    "hold mse rust {got} python {want}"
+                    (got - want).abs() < TOL,
+                    "hold mse rust {got} expected {want}"
                 );
             }
             "tauR" => {
                 let got = res.report.history.last().map_or(f64::NAN, |h| h.tau_r);
-                assert!((got - want).abs() < PY_TOL, "tauR rust {got} python {want}");
+                assert!((got - want).abs() < TOL, "tauR rust {got} expected {want}");
             }
             _ => {}
         }
     }
-    eprintln!("BRIDLE golden: max |rust - python| = {max_diff:.3e} over {n_cells} cells");
+    eprintln!("BRIDLE golden: max |rust - expected| = {max_diff:.3e} over {n_cells} cells");
     assert!(n_cells > 1000, "expected cells missing ({n_cells})");
     assert!(
-        max_diff < PY_TOL,
-        "max |rust - python| = {max_diff} over {n_cells} cells"
+        max_diff < TOL,
+        "max |rust - expected| = {max_diff} over {n_cells} cells"
     );
 }
 
@@ -370,7 +371,7 @@ fn explicit_plexes_match_inferred_on_clean_fixture() {
 #[test]
 fn anchor_scale_is_opt_in_and_only_touches_well_anchored_datasets() {
     let fx = fixture();
-    // off by default: `matches_python_prototype` checks the golden numbers
+    // off by default: `matches_frozen_reference` checks the golden numbers
     assert!(!params(PlexMode::Inferred).anchor_scale);
     let off = run(&fx, PlexMode::Inferred);
     assert!(off.report.anchor_scale.is_empty());

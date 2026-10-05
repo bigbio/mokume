@@ -4,12 +4,12 @@
 //!
 //! A synthetic collection with a reference, a TMT dataset of 3 plexes (one
 //! with inflated spread), an LFQ dataset, a 4-line and a single-line dataset
-//! and a dataset linked by only 2 lines (centring prior). The generator mirrors
-//! `rust/scripts/bridle_benchmark_reference.py` draw for draw (NumPy
-//! `RandomState` stream); that script runs the benchmark's Python reference
-//! (`graphp` prior + `bridle_var.fit_var` with `gprior`/`addc` +
-//! `posthoc_delta_all.py`) and its numbers are stored in
-//! `tests/fixtures/bridle_benchmark_expected.tsv`.
+//! and a dataset linked by only 2 lines (centring prior), drawn from a NumPy
+//! `RandomState`-compatible stream. The expected values in
+//! `tests/fixtures/bridle_benchmark_expected.tsv` were generated once from the
+//! 2026-10 benchmark prototype on this collection (`graphp` prior + variance fit
+//! with graph prior and sample loading kept + post-fit plex rescale) and are
+//! now frozen: they are this crate's expected values, no Python is needed.
 
 use std::collections::HashMap;
 
@@ -23,11 +23,11 @@ const G: usize = 200;
 const NF: usize = 6;
 const NL: usize = 44;
 const N_PLEX: usize = 3;
-/// Max |rust - python| over the stored prior offsets, fitted values (before
+/// Max |rust - expected| over the stored prior offsets, fitted values (before
 /// and after the rescale) and batch scales. Both sides run in float64; the
 /// residual difference is summation order (ridge / ALS solves, alternating
 /// means of the graph prior, grouped means of the rescale).
-const PY_TOL: f64 = 1e-10;
+const TOL: f64 = 1e-10;
 
 const ORDER: [&str; 6] = ["REF", "TMT", "LFQ", "SMALL", "SINGLE", "UNL"];
 
@@ -222,7 +222,7 @@ fn max_cell_diff(fx: &Fixture, exp: &Expected, kind: &str, values: &[f64]) -> (f
 }
 
 #[test]
-fn matches_python_reference() {
+fn matches_frozen_reference() {
     let fx = fixture();
     let exp = Expected::load();
     let tol = exp.scalar("stop_tol");
@@ -244,7 +244,7 @@ fn matches_python_reference() {
     let n_rust = res.prior_offsets.iter().filter(|x| x.is_finite()).count();
     assert_eq!(
         n_rust, n_prior,
-        "graph prior cells rust {n_rust} python {n_prior}"
+        "graph prior cells rust {n_rust} expected {n_prior}"
     );
 
     // stop rule: same sweep, same output change
@@ -284,7 +284,7 @@ fn matches_python_reference() {
     }
     assert_eq!(n_mu, res.report.plex_rescale.len());
     eprintln!(
-        "BRIDLE benchmark golden: max |rust - python| prior {prior_max:.3e} ({n_prior}), \
+        "BRIDLE benchmark golden: max |rust - expected| prior {prior_max:.3e} ({n_prior}), \
          fit {fit_max:.3e} ({n_fit}), final {cell_max:.3e} ({n_cell}), mu {mu_max:.3e} ({n_mu}), \
          out_change {dout_diff:.3e}"
     );
@@ -296,7 +296,7 @@ fn matches_python_reference() {
         ("mu", mu_max),
         ("out_change", dout_diff),
     ] {
-        assert!(d < PY_TOL, "{what}: max |rust - python| = {d}");
+        assert!(d < TOL, "{what}: max |rust - expected| = {d}");
     }
 }
 

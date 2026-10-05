@@ -1,7 +1,8 @@
 //! Tests of the per-dataset value report: known answers on a synthetic
-//! collection and parity with the B4 prototype definitions
-//! (`rust/scripts/bridle_value_reference.py`, stored in
-//! `tests/fixtures/bridle_value_expected.tsv`).
+//! collection and parity with the B4 prototype definitions. The expected
+//! values in `tests/fixtures/bridle_value_expected.tsv` were generated once
+//! from the 2026-10 B4 prototype on this fixture and are now frozen: they are
+//! this crate's expected values, no Python is needed.
 
 use std::collections::HashMap;
 
@@ -12,8 +13,8 @@ const SEED: u32 = 20_261_004;
 const G: usize = 300;
 const NL: usize = 20;
 const MISS: f64 = 0.1;
-/// Max |rust - python| (both float64; summation order differs).
-const PY_TOL: f64 = 1e-9;
+/// Max |rust - expected| (both float64; summation order differs).
+const TOL: f64 = 1e-9;
 
 struct Study {
     name: &'static str,
@@ -46,7 +47,7 @@ fn plan() -> Vec<Study> {
 
 /// Raw input, corrected values (truth + noise), per-cell variance
 /// (`datasets x genes`, sorted names) and the RNA reference; same draws as
-/// the Python generator.
+/// the generator of the frozen fixture.
 struct Fixture {
     data: BridleData,
     corrected: Vec<f64>,
@@ -293,8 +294,8 @@ fn close(name: &str, got: f64, want: &str) {
         Err(e) => panic!("{name}: bad expected value {want}: {e}"),
     };
     assert!(
-        (got.is_nan() && want.is_nan()) || (got - want).abs() <= PY_TOL * want.abs().max(1.0),
-        "{name}: rust {got} vs python {want}"
+        (got.is_nan() && want.is_nan()) || (got - want).abs() <= TOL * want.abs().max(1.0),
+        "{name}: rust {got} vs expected {want}"
     );
 }
 

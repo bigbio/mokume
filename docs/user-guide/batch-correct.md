@@ -235,7 +235,8 @@ dataset is one batch in the graph prior).
 | `--remove-sample-loading` | `c` kept | Output `y - A - c - P` |
 | `--no-plex-rescale` | rescale on | Skip the post-fit (dataset x plex, gene) rescale |
 | `--anchor-scale` | off | Per-dataset scale `b_s` from anchor samples shared with the reference (see above) |
-| `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, `graph_prior_genes`, `delta_median`, ...; `history`, `plex_rescale`, `dataset_value`) |
+| `--theta-output` / `--report` | none | Pooled biology and JSON fit report (per dataset: `n_anchor_samples`, `anchored`, `cross_fitted`, `graph_prior_genes`, `delta_median`, ...; `history`, `plex_rescale`; `dataset_value` only when the value report is computed) |
+| `--value-report` | off | Compute the value report and add it to the `--report` JSON (`dataset_value`); implied by the four options below |
 | `--dataset-report` / `--profile-report` | none | Per-dataset / per-profile value report (TSV), see [Per-dataset value report](#per-dataset-value-report) |
 | `--identity` | off | Add the profile-vs-profile identity check to the value report (quadratic in profiles) |
 | `--identity-reference` | none | Per-anchor reference profiles (e.g. DepMap RNA) for the identity check; implies `--identity` |
@@ -243,9 +244,19 @@ dataset is one batch in the graph prior).
 ### Per-dataset value report
 
 What does each dataset contribute, and does it agree with the rest? With
-`--report`, `--dataset-report` or `--profile-report`, the same fit (no refits)
-is summarised per dataset (JSON `dataset_value`, TSV `--dataset-report`) and
-per profile (`--profile-report`). A *shared* anchor is measured by >= 2
+`--value-report`, `--dataset-report`, `--profile-report`, `--identity` or
+`--identity-reference`, the same fit (no refits) is summarised per dataset
+(JSON `dataset_value` in `--report`, TSV `--dataset-report`) and per profile
+(`--profile-report`). `--report` alone does not compute it.
+
+**Memory.** The disagreement and redundancy metrics keep every cross-dataset
+cell pair (same anchor and gene), so the report's memory grows with
+sum over anchors of C(m, 2) x genes (m = datasets measuring the anchor; 5
+floats per pair), on top of the fit. It can exceed the fit itself: on the
+review probe the fit peaked at 586 MB and fit + report at 1.47 GB. The
+identity checks are also quadratic, in time: `--identity` correlates every
+profile with every profile of the other datasets, and `--identity-reference`
+every profile with every reference anchor. A *shared* anchor is measured by >= 2
 datasets; `v` is the corrected output. By default only the cheap metrics are
 computed; the identity check against other datasets (`id_self_r`, `id_rank`,
 ..., per profile `self_r`, `self_rank`, `best_line`, ...) correlates every

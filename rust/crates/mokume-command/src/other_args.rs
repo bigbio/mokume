@@ -316,9 +316,20 @@ pub(crate) struct BridleArgs {
     #[arg(long = "theta-output", value_name = "FILE")]
     pub(crate) theta_output: Option<PathBuf>,
 
-    /// Optional JSON fit report (includes the per-dataset value section).
+    /// Optional JSON fit report. It includes the per-dataset value section
+    /// (`dataset_value`) only when the value report is computed (see
+    /// --value-report).
     #[arg(long = "report", value_name = "FILE")]
     pub(crate) report: Option<PathBuf>,
+
+    /// Compute the per-dataset value report and add it to the --report JSON
+    /// (`dataset_value`). Implied by --dataset-report, --profile-report,
+    /// --identity and --identity-reference. Its memory grows with the
+    /// cross-dataset cell pairs (sum over anchors of C(m, 2) x genes, m =
+    /// datasets measuring the anchor), so it is not computed by --report
+    /// alone.
+    #[arg(long = "value-report")]
+    pub(crate) value_report: bool,
 
     /// Per-dataset value report (TSV): coverage, fit diagnostics, redundancy
     /// and the no_anchors_cannot_audit flag, from this fit (identity with

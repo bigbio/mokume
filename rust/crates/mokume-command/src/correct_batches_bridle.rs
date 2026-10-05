@@ -30,9 +30,13 @@
 //! writes the pooled per-anchor biology for observed anchor/gene cells,
 //! `--report` a JSON fit summary. The per-dataset value report (coverage,
 //! fit diagnostics, identity, redundancy; see
-//! [`mokume_stats::batch::bridle::dataset_value`]) goes to the JSON report
-//! under `dataset_value` and, as TSV, to `--dataset-report` (per dataset) and
-//! `--profile-report` (per profile). The profile-vs-profile identity check is
+//! [`mokume_stats::batch::bridle::dataset_value`]) is computed only when
+//! asked for (`--value-report`, `--dataset-report`, `--profile-report`,
+//! `--identity` or `--identity-reference`; its memory grows with the
+//! cross-dataset cell pairs, sum over anchors of C(m, 2) x genes); it then
+//! goes to the JSON report under `dataset_value` and, as TSV, to
+//! `--dataset-report` (per dataset) and `--profile-report` (per profile). The
+//! profile-vs-profile identity check is
 //! opt-in (`--identity`, quadratic in profiles); `--identity-reference` implies
 //! it and adds an identity check against per-anchor reference profiles (e.g.
 //! DepMap RNA).
@@ -104,6 +108,7 @@ pub(crate) fn default_bridle_args() -> BridleArgs {
         anchor_scale: false,
         theta_output: None,
         report: None,
+        value_report: false,
         dataset_report: None,
         profile_report: None,
         identity: false,
@@ -149,6 +154,7 @@ pub(crate) fn reject_bridle_only_options(bridle: &BridleArgs) -> Result<()> {
         ("--anchor-scale", bridle.anchor_scale),
         ("--theta-output", bridle.theta_output.is_some()),
         ("--report", bridle.report.is_some()),
+        ("--value-report", bridle.value_report),
         ("--dataset-report", bridle.dataset_report.is_some()),
         ("--profile-report", bridle.profile_report.is_some()),
         ("--identity", bridle.identity),
@@ -599,10 +605,7 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
     if let Some(path) = &bridle.theta_output {
         write_theta(path, bridle, &data, &res)?;
     }
-    let wants_value = bridle.report.is_some()
-        || bridle.dataset_report.is_some()
-        || bridle.profile_report.is_some();
-    let value = if wants_value {
+    let value = if wants_value_report(bridle) {
         let rna = match &bridle.identity_reference {
             Some(path) => Some(read_identity_reference(path, bridle, &data.genes)?),
             None => None,
@@ -647,6 +650,19 @@ pub(crate) fn run_bridle(args: &CorrectBatchesArgs) -> Result<()> {
         )?;
     }
     Ok(())
+}
+
+/// Whether the value report is computed: only when asked for. Its memory
+/// grows with the cross-dataset cell pairs (sum over anchors of C(m, 2) x
+/// genes for m datasets measuring the anchor; 5 floats each), which can exceed
+/// the fit itself (review probe: 586 MB for the fit, 1.47 GB with the report),
+/// so `--report` alone does not compute it.
+fn wants_value_report(bridle: &BridleArgs) -> bool {
+    bridle.value_report
+        || bridle.dataset_report.is_some()
+        || bridle.profile_report.is_some()
+        || bridle.identity
+        || bridle.identity_reference.is_some()
 }
 
 /// Per-anchor reference profiles, aligned to `genes` (`NaN` where missing).
@@ -1377,6 +1393,42 @@ mod tests {
         assert!(report["datasets"][0]["delta_median"].is_number());
         // --identity-reference implies --identity
         assert_eq!(report["params"]["identity"], true);
+        Ok(())
+    }
+
+    #[test]
+    fn bridle_cli_value_report_is_computed_only_when_asked_for() -> TestResult<()> {
+        let dir = temp_dir("value-gate")?;
+        let input = write_toy(&dir)?;
+        let mut a = args(input, dir.join("v.tsv"));
+        a.bridle.reference = Some("REF".to_owned());
+        a.bridle.report = Some(dir.join("fit.json"));
+        let read = || -> TestResult<serde_json::Value> {
+            Ok(serde_json::from_str(&std::fs::read_to_string(
+                dir.join("fit.json"),
+            )?)?)
+        };
+        assert!(!wants_value_report(&a.bridle));
+        run_bridle(&a)?;
+        assert!(read()?.get("dataset_value").is_none());
+        a.bridle.value_report = true;
+        run_bridle(&a)?;
+        assert!(read()?["dataset_value"].is_array());
+        for set in [
+            |b: &mut BridleArgs| b.dataset_report = Some(PathBuf::from("d.tsv")),
+            |b: &mut BridleArgs| b.profile_report = Some(PathBuf::from("p.tsv")),
+            |b: &mut BridleArgs| b.identity = true,
+            |b: &mut BridleArgs| b.identity_reference = Some(PathBuf::from("r.tsv")),
+        ] {
+            let mut b = default_bridle_args();
+            set(&mut b);
+            assert!(wants_value_report(&b));
+        }
+        assert!(
+            parse_correct_batches(&["--method", "bridle", "--value-report"])
+                .bridle
+                .value_report
+        );
         Ok(())
     }
 

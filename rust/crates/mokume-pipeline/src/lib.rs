@@ -226,6 +226,7 @@ impl FeatureToProteinState {
             .as_ref()
             .map_or(&[], |config| &config.protein.contaminant_patterns);
         if self.rejects_protein_group(
+            feature,
             &protein_group,
             filtering.remove_contaminants,
             contaminant_patterns,
@@ -368,15 +369,28 @@ impl FeatureToProteinState {
 
     fn rejects_protein_group(
         &self,
+        feature: &QpxFeatureRecord,
         protein_group: &str,
         remove_contaminants: bool,
         contaminant_patterns: &[String],
     ) -> bool {
         (remove_contaminants && matches_protein_contaminant(protein_group, contaminant_patterns))
-            || self
-                .protein_fdr_allowed
-                .as_ref()
-                .is_some_and(|allowed| !allowed.contains(protein_group))
+            || self.fails_protein_fdr(feature, protein_group)
+    }
+
+    /// `--filter-protein-fdr`: reject a row whose protein group is not in the
+    /// passing set. The set is keyed by the full parsed protein group, which is
+    /// the aggregation name for every method except Ratio (first accession), so
+    /// Ratio re-derives the group name before the lookup.
+    fn fails_protein_fdr(&self, feature: &QpxFeatureRecord, protein_group: &str) -> bool {
+        let Some(allowed) = &self.protein_fdr_allowed else {
+            return false;
+        };
+        if matches!(self.aggregation, FeatureAggregation::Ratio(_)) {
+            return protein_group_name(&feature.protein_accessions)
+                .is_none_or(|group| !allowed.contains(&group));
+        }
+        !allowed.contains(protein_group)
     }
 
     /// Apply the opt-in `features2peptides` per-row preprocessing filters
@@ -5245,6 +5259,7 @@ fn pibaq_only_config(params: &PibaqFromPeptidesParams) -> FeatureToProteinsConfi
         irs: IrsConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
+        protein_fdr_threshold: None,
         ratio: RatioConfig::default(),
         imputation: ImputationConfig::default(),
         differential_expression: DifferentialExpressionConfig::default(),
@@ -5339,6 +5354,19 @@ fn run_features_to_proteins_inner(
     // makes the median pre-pass fall back to the default `is_contaminant` path.
     // The median pre-pass keeps shared peptides only for piBAQ (Python
     // `stages.py:325`: `keep_shared_peptides = method == "pibaq"`).
+    // `--filter-protein-fdr`: resolve the passing protein groups (and fail on a
+    // missing q-value column) before any other pre-pass or output is produced.
+    // Like `features2peptides`, the filter applies at ingest only; the
+    // normalization median pre-pass is unaffected.
+    let protein_fdr_allowed = match config.protein_fdr_threshold {
+        Some(threshold) => collect_fdr_filter_state(
+            required_parquet(&config.input)?,
+            None,
+            Some(threshold),
+            None,
+        )?,
+        None => None,
+    };
     let intensity_factors = collect_intensity_factors(
         config,
         sdrf.as_ref(),
@@ -5352,6 +5380,7 @@ fn run_features_to_proteins_inner(
     let dataset_normalization = dataset_sample_normalization_method(config)?;
     let mut state =
         FeatureToProteinState::new(config, sdrf.as_ref(), raw_sdrf.as_ref(), pibaq_digest)?;
+    state.protein_fdr_allowed = protein_fdr_allowed;
     stream_input_features(&config.input, sdrf.as_ref(), &memory, |feature| {
         state.ingest(&feature, sdrf.as_ref(), config.filtering, intensity_factors)
     })?;
@@ -5984,6 +6013,10 @@ fn configure_fdr_and_sequence_filters(
 /// and collect the protein groups passing the group-minimum protein FDR rule.
 /// The pre-pass happens before output creation, so an unavailable q-value cannot
 /// turn a requested filter into a successful no-op or a misleading empty file.
+///
+/// When a protein threshold is requested, the same pass records which
+/// (non-decoy) protein groups each run observes, so the removal can be reported
+/// per run and for the whole experiment (see [`log_protein_fdr_report`]).
 fn collect_fdr_filter_state(
     parquet: &Path,
     peptide_threshold: Option<f64>,
@@ -5997,6 +6030,8 @@ fn collect_fdr_filter_state(
     let mut peptide_values = 0_usize;
     let mut protein_values = 0_usize;
     let mut protein_min_qvalue: HashMap<String, f64> = HashMap::new();
+    let mut group_ids: HashMap<String, u32> = HashMap::new();
+    let mut run_groups: BTreeMap<String, HashSet<u32>> = BTreeMap::new();
     let reader = QpxParquetReader::open(parquet, DEFAULT_QPX_BATCH_SIZE)?;
     stream_qpx_features_maybe_score(reader, named_score, |feature| {
         if peptide_threshold.is_some()
@@ -6006,17 +6041,34 @@ fn collect_fdr_filter_state(
         {
             peptide_values += 1;
         }
-        if protein_threshold.is_some() {
-            if let (Some(qvalue), Some(protein)) = (
-                feature.pg_global_qvalue.filter(|qvalue| qvalue.is_finite()),
-                protein_group_name(&feature.protein_accessions),
-            ) {
-                protein_values += 1;
-                protein_min_qvalue
-                    .entry(protein)
-                    .and_modify(|known| *known = known.min(qvalue))
-                    .or_insert(qvalue);
+        if protein_threshold.is_none() {
+            return Ok(());
+        }
+        let Some(protein) = protein_group_name(&feature.protein_accessions) else {
+            return Ok(());
+        };
+        if !feature.is_decoy.unwrap_or(false) {
+            let id = match group_ids.get(&protein) {
+                Some(&id) => id,
+                None => {
+                    let id = u32::try_from(group_ids.len())
+                        .map_err(|_| invalid_input("protein FDR report id overflow"))?;
+                    group_ids.insert(protein.clone(), id);
+                    id
+                }
+            };
+            if let Some(groups) = run_groups.get_mut(&feature.run_file_name) {
+                groups.insert(id);
+            } else {
+                run_groups.insert(feature.run_file_name.clone(), HashSet::from([id]));
             }
+        }
+        if let Some(qvalue) = feature.pg_global_qvalue.filter(|qvalue| qvalue.is_finite()) {
+            protein_values += 1;
+            protein_min_qvalue
+                .entry(protein)
+                .and_modify(|known| *known = known.min(qvalue))
+                .or_insert(qvalue);
         }
         Ok(())
     })?;
@@ -6034,12 +6086,88 @@ fn collect_fdr_filter_state(
             "--filter-protein-fdr requires a populated QPX `pg_global_qvalue` column",
         ));
     }
-    Ok(Some(
-        protein_min_qvalue
-            .into_iter()
-            .filter_map(|(protein, qvalue)| (qvalue <= threshold).then_some(protein))
-            .collect(),
-    ))
+    let allowed: HashSet<String> = protein_min_qvalue
+        .iter()
+        .filter_map(|(protein, &qvalue)| (qvalue <= threshold).then(|| protein.clone()))
+        .collect();
+    let report = ProteinFdrReport::new(&group_ids, &protein_min_qvalue, &run_groups, threshold);
+    log_protein_fdr_report(&report);
+    Ok(Some(allowed))
+}
+
+/// Protein groups before/after `--filter-protein-fdr`, per run and for the
+/// whole experiment. Counts are distinct non-decoy protein groups observed in
+/// the QPX input before any other filter; a group without a finite
+/// `pg_global_qvalue` counts as removed (it can never satisfy the cutoff).
+#[derive(Debug, Clone, PartialEq)]
+struct ProteinFdrReport {
+    threshold: f64,
+    groups_before: usize,
+    groups_after: usize,
+    groups_without_qvalue: usize,
+    runs: Vec<ProteinFdrRunCount>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProteinFdrRunCount {
+    run: String,
+    before: usize,
+    after: usize,
+}
+
+impl ProteinFdrReport {
+    fn new(
+        group_ids: &HashMap<String, u32>,
+        protein_min_qvalue: &HashMap<String, f64>,
+        run_groups: &BTreeMap<String, HashSet<u32>>,
+        threshold: f64,
+    ) -> Self {
+        let mut passes = vec![false; group_ids.len()];
+        let mut groups_without_qvalue = 0_usize;
+        for (protein, &id) in group_ids {
+            match protein_min_qvalue.get(protein) {
+                Some(&qvalue) => passes[id as usize] = qvalue <= threshold,
+                None => groups_without_qvalue += 1,
+            }
+        }
+        let runs = run_groups
+            .iter()
+            .map(|(run, groups)| ProteinFdrRunCount {
+                run: run.clone(),
+                before: groups.len(),
+                after: groups.iter().filter(|&&id| passes[id as usize]).count(),
+            })
+            .collect();
+        Self {
+            threshold,
+            groups_before: group_ids.len(),
+            groups_after: passes.iter().filter(|&&pass| pass).count(),
+            groups_without_qvalue,
+            runs,
+        }
+    }
+}
+
+fn log_protein_fdr_report(report: &ProteinFdrReport) {
+    for run in &report.runs {
+        info!(
+            run = %run.run,
+            protein_groups_before = run.before,
+            protein_groups_after = run.after,
+            protein_groups_removed = run.before - run.after,
+            threshold = report.threshold,
+            "protein FDR filter (run)"
+        );
+    }
+    info!(
+        runs = report.runs.len(),
+        protein_groups_before = report.groups_before,
+        protein_groups_after = report.groups_after,
+        protein_groups_removed = report.groups_before - report.groups_after,
+        protein_groups_without_qvalue = report.groups_without_qvalue,
+        threshold = report.threshold,
+        "protein FDR filter (experiment): kept groups whose best pg_global_qvalue <= threshold"
+    );
 }
 
 /// Build the internal `FeatureToProteinsConfig` that drives the peptide export.
@@ -6079,6 +6207,7 @@ fn peptide_export_config(config: &FeatureToPeptidesConfig) -> FeatureToProteinsC
         irs: IrsConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
+        protein_fdr_threshold: None,
         ratio: RatioConfig::default(),
         imputation: ImputationConfig::default(),
         differential_expression: DifferentialExpressionConfig::default(),
@@ -6385,8 +6514,35 @@ fn dataset_sample_normalization_method(
     )
 }
 
+/// `--filter-protein-fdr` needs QPX feature input with `pg_global_qvalue`; the
+/// MSstats table carries no protein q-values and spectral-count builds its
+/// matrix outside the feature ingest, so both are rejected rather than silently
+/// ignoring the requested filter.
+fn validate_protein_fdr_request(config: &FeatureToProteinsConfig) -> Result<()> {
+    let Some(threshold) = config.protein_fdr_threshold else {
+        return Ok(());
+    };
+    if !(threshold.is_finite() && (0.0..=1.0).contains(&threshold)) {
+        return Err(invalid_input(format!(
+            "--filter-protein-fdr must be between 0 and 1, got {threshold}"
+        )));
+    }
+    if config.input.msstats.is_some() {
+        return Err(invalid_input(
+            "--filter-protein-fdr requires QPX --parquet input with a populated `pg_global_qvalue` column; MSstats input carries no protein q-values",
+        ));
+    }
+    if config.quantification == QuantMethod::SpectralCount {
+        return Err(invalid_input(
+            "--filter-protein-fdr is not supported with --quant-method spectral-count",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_features_to_proteins(config: &FeatureToProteinsConfig) -> Result<()> {
     validate_feature_input(config)?;
+    validate_protein_fdr_request(config)?;
     if let Some(sdrf) = &config.input.sdrf {
         if !sdrf.exists() {
             return Err(MokumeError::MissingInput { path: sdrf.clone() });
@@ -11126,6 +11282,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
             irs: IrsConfig::default(),
             coverage_threshold: None,
             sample_correlation_threshold: None,
+            protein_fdr_threshold: None,
             ratio: RatioConfig::default(),
             imputation: ImputationConfig::default(),
             differential_expression: DifferentialExpressionConfig::default(),
@@ -11287,5 +11444,45 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 "{sequence}: got {got}, expected {expected}"
             );
         }
+    }
+
+    #[test]
+    fn protein_fdr_report_counts_groups_per_run_and_experiment() {
+        let group_ids: HashMap<String, u32> = [("P1", 0), ("P2", 1), ("P3", 2)]
+            .into_iter()
+            .map(|(name, id)| (name.to_owned(), id))
+            .collect();
+        // P3 has no protein q-value, so it counts as removed and as missing.
+        let min_qvalue: HashMap<String, f64> = [("P1", 0.004), ("P2", 0.03)]
+            .into_iter()
+            .map(|(name, q)| (name.to_owned(), q))
+            .collect();
+        let run_groups: std::collections::BTreeMap<String, HashSet<u32>> = [
+            ("run1".to_owned(), HashSet::from([0, 1, 2])),
+            ("run2".to_owned(), HashSet::from([0])),
+        ]
+        .into_iter()
+        .collect();
+
+        let report = super::ProteinFdrReport::new(&group_ids, &min_qvalue, &run_groups, 0.01);
+
+        assert_eq!(report.groups_before, 3);
+        assert_eq!(report.groups_after, 1);
+        assert_eq!(report.groups_without_qvalue, 1);
+        assert_eq!(
+            report.runs,
+            vec![
+                super::ProteinFdrRunCount {
+                    run: "run1".to_owned(),
+                    before: 3,
+                    after: 1,
+                },
+                super::ProteinFdrRunCount {
+                    run: "run2".to_owned(),
+                    before: 1,
+                    after: 1,
+                },
+            ]
+        );
     }
 }

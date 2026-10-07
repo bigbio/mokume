@@ -16,7 +16,7 @@ _ALLOWED = {
     ),
     "features2proteins": set(
         "parquet msstats psm output sdrf quant_method min_aa "
-        "min_unique keep_contaminants "
+        "min_unique filter_protein_fdr keep_contaminants "
         "run_normalization sample_normalization normalization_proteins "
         "fasta pibaq_enzyme pibaq_max_aa "
         "pibaq_min_shared pibaq_families pibaq_min_anchors "

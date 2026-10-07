@@ -152,6 +152,32 @@ Windows Job Object, or container limit when a hard ceiling is required.
 Runtime pyOpenMS FASTA digestion for piBAQ occurs before the Rust pipeline
 starts, so it is not covered by `--memory`.
 
+## Protein FDR Filter
+
+QPX feature tables are not always filtered at the same protein FDR: DIA-NN
+exports typically keep protein groups up to a 5% global q-value, while OpenMS
+DDA exports are usually 1%. To put every experiment on the same footing before
+quantification (for example when building atlases from many datasets), pass
+`--filter-protein-fdr`:
+
+```bash
+mokume quantify features2proteins \
+    -p features.parquet \
+    -o proteins.csv \
+    -s experiment.sdrf.tsv \
+    --quant-method maxlfq \
+    --filter-protein-fdr 0.01
+```
+
+A protein group is kept when its best (minimum) `pg_global_qvalue` across all
+of its rows is `<=` the threshold; every row of a failing group, and every
+group without a protein q-value, is dropped before the `--min-unique` gate.
+The semantics match `features2peptides --filter-protein-fdr`. The filter is
+off by default. The command fails with a clear error when the QPX input has
+no populated `pg_global_qvalue` column, and it is rejected for MSstats input
+and `spectral-count`. The log reports the protein groups before/after the
+filter for every run and for the whole experiment.
+
 ## Normalization Options
 
 ### Run-Level Normalization

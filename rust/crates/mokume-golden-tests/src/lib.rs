@@ -2037,14 +2037,15 @@ fn features2proteins_filter_protein_fdr_applies_to_maxlfq() -> Result<(), Box<dy
     config.protein_fdr_threshold = Some(0.01);
     run_features_to_proteins(&config)?;
     let names = protein_names(&read_csv(&output)?);
-    assert!(names.iter().all(|name| ["P1", "P3", "P5"].contains(&name.as_str())));
+    assert!(names
+        .iter()
+        .all(|name| ["P1", "P3", "P5"].contains(&name.as_str())));
     assert!(names.iter().any(|name| name == "P1"));
     Ok(())
 }
 
 #[test]
-fn features2proteins_filter_protein_fdr_rejects_unpopulated_qvalue() -> Result<(), Box<dyn Error>>
-{
+fn features2proteins_filter_protein_fdr_rejects_unpopulated_qvalue() -> Result<(), Box<dyn Error>> {
     let root = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("proteins.missing-fdr.features.parquet");
@@ -2090,7 +2091,9 @@ fn features2proteins_filter_protein_fdr_rejects_spectral_count() -> Result<(), B
         Ok(()) => return Err("spectral-count accepted --filter-protein-fdr".into()),
         Err(error) => error,
     };
-    assert!(error.to_string().contains("not supported with --quant-method spectral-count"));
+    assert!(error
+        .to_string()
+        .contains("not supported with --quant-method spectral-count"));
     assert!(!output.exists());
     Ok(())
 }

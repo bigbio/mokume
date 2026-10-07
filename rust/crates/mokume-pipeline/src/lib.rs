@@ -6088,7 +6088,8 @@ fn collect_fdr_filter_state(
     }
     let allowed: HashSet<String> = protein_min_qvalue
         .iter()
-        .filter_map(|(protein, &qvalue)| (qvalue <= threshold).then(|| protein.clone()))
+        .filter(|&(_, &qvalue)| qvalue <= threshold)
+        .map(|(protein, _)| protein.clone())
         .collect();
     let report = ProteinFdrReport::new(&group_ids, &protein_min_qvalue, &run_groups, threshold);
     log_protein_fdr_report(&report);

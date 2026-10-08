@@ -50,7 +50,17 @@ Default regex: `pool|powder|ref|reference|bridge`
 
 ## Plex Detection
 
-Plexes are detected from quantms-style source names in the SDRF:
+In the Rust `features2proteins` path, plexes are resolved in this order:
+
+1. `--irs-plex-column <SDRF column>`: each sample's plex is the value in that column.
+2. Shared data files: channels (samples) that appear in exactly the same set of
+   `comment[data file]` entries form one plex. This covers fractionated TMT sets and
+   any source-name style (`PXD011896-Set1-126`, `Sample-1`, ...).
+3. Legacy fallback, used only when no data file holds more than one sample: the
+   quantms-style source name below.
+
+The log reports the number of plexes and the channels per plex. IRS fails if one plex
+is found while the data files split the channels into several groups.
 
 | Source Name | Detected Plex |
 |-------------|:-------------:|

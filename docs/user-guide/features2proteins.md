@@ -244,6 +244,7 @@ mokume quantify features2proteins \
 | `--irs-reference-regex` | `pool\|powder\|ref\|reference\|bridge` | Regex for auto-detection |
 | `--irs-stat` | `median` | Statistic for plex reference: median or mean |
 | `--irs-remove-reference` | off | Remove reference samples from output |
+| `--irs-plex-column` | auto | SDRF column naming each channel's plex (default: channels sharing data files) |
 
 Every IRS sub-option requires `--irs` and an SDRF. If reference detection finds
 no usable sample/plex mapping or no finite scale, the command fails rather than

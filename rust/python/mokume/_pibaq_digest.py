@@ -53,10 +53,8 @@ def build_pibaq_digest(
 ) -> Tuple[Dict[str, Set[str]], Dict[str, object]]:
     """Digest a FASTA with the installed catalog and return Rust-ready payloads."""
     fasta, requested_enzyme, min_aa, max_aa, missed_cleavages = request
-    if missed_cleavages != 0:
-        raise ValueError(
-            "runtime piBAQ digestion currently requires zero missed cleavages"
-        )
+    if missed_cleavages < 0:
+        raise ValueError("piBAQ missed cleavages must be non-negative")
     digestion = ProteaseDigestion()
     digestion.setEnzyme(requested_enzyme)
     digestion.setMissedCleavages(missed_cleavages)
@@ -69,6 +67,7 @@ def build_pibaq_digest(
         max_aa,
         canonicalize_isoforms=True,
         compute_mw=False,
+        missed_cleavages=missed_cleavages,
     )
     catalog = installed_protease_catalog()
     provenance = {

@@ -32,7 +32,7 @@ class TestSQLFilterBuilder:
         # Should include unique peptide filter
         assert '"unique" = 1' in where_clause
         # Should include contaminant filters (parameterized with ? placeholders)
-        assert "strpos(pg_accessions::text, ?) = 0" in where_clause
+        assert "list_bool_and(list_transform(pg_accessions" in where_clause
         assert "CONTAMINANT" in params
         assert "CONTAM_" in params
         assert "DECOY" in params
@@ -57,7 +57,7 @@ class TestSQLFilterBuilder:
         builder = SQLFilterBuilder(remove_contaminants=False)
         where_clause, _params = builder.build_where_clause()
 
-        assert "strpos(pg_accessions::text, ?) = 0" not in where_clause
+        assert "pg_accessions" not in where_clause
         # Other filters should still be present
         assert "intensity > 0" in where_clause
 

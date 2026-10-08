@@ -225,6 +225,13 @@ impl FeatureToProteinState {
             .peptide_filters
             .as_ref()
             .map_or(&[], |config| &config.protein.contaminant_patterns);
+        let protein_group = if filtering.remove_contaminants {
+            self.aggregation
+                .resolve_contaminant_twins(&protein_group)
+                .unwrap_or(protein_group)
+        } else {
+            protein_group
+        };
         if self.rejects_protein_group(
             &protein_group,
             filtering.remove_contaminants,
@@ -232,6 +239,11 @@ impl FeatureToProteinState {
         ) {
             return Ok(());
         }
+        let protein_group = if filtering.remove_contaminants {
+            strip_contaminant_members(&protein_group, contaminant_patterns).unwrap_or(protein_group)
+        } else {
+            protein_group
+        };
         if has_removed_accession(&feature.protein_accessions, &self.remove_protein_ids) {
             return Ok(());
         }
@@ -1136,6 +1148,9 @@ struct PibaqAggregation {
     /// caller requests TPA (`peptides2protein --tpa`). `None` leaves the piBAQ
     /// path untouched for every other consumer.
     mw_map: Option<HashMap<String, f64>>,
+    /// Digest `max_aa`, used only to classify dropped observed peptides.
+    digest_max_aa: Option<usize>,
+    contaminant_twins: HashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -1477,6 +1492,14 @@ impl FeatureAggregation {
         *cached_directlfq_values =
             Some(remap_directlfq_values(result.protein_quantities, &prepared));
         Ok(())
+    }
+
+    /// piBAQ only: rename `CONTAM_` twins of digest accessions to the non-contaminant entry.
+    fn resolve_contaminant_twins(&self, protein_group: &str) -> Option<String> {
+        let Self::Pibaq(pibaq) = self else {
+            return None;
+        };
+        rename_contaminant_twins(protein_group, &pibaq.core.contaminant_twins)
     }
 
     fn keeps_shared_peptides(&self) -> bool {
@@ -1865,6 +1888,16 @@ impl PibaqAggregation {
         );
         let mut accession_peptides = digest.accession_peptides;
         accession_peptides.retain(|_, peptides| !peptides.is_empty());
+        let mut contaminant_twins = HashMap::new();
+        if config.filtering.remove_contaminants {
+            contaminant_twins = find_contaminant_twins(&accession_peptides);
+            let removed = drop_contaminant_accessions(&mut accession_peptides);
+            info!(
+                removed,
+                twins = contaminant_twins.len(),
+                "piBAQ digest: contaminant accessions excluded from families"
+            );
+        }
         if accession_peptides.is_empty() {
             return Err(invalid_input(
                 "FASTA did not produce theoretical peptides for piBAQ",
@@ -1890,6 +1923,8 @@ impl PibaqAggregation {
             min_anchors: config.pibaq.min_anchors,
             high_anchor_threshold: config.pibaq.high_anchor_threshold,
             mw_map: None,
+            digest_max_aa: Some(digest.provenance.max_aa),
+            contaminant_twins,
         })
     }
 
@@ -1960,6 +1995,22 @@ impl PibaqAggregation {
             &self.families,
             &self.peptide_accessions,
             &anchor_counts,
+        );
+        let misses = summarize_digest_misses(
+            &observations,
+            &peptide_owner,
+            &self.peptide_accessions,
+            self.digest_max_aa,
+        );
+        info!(
+            observed_peptides = misses.observed_peptides,
+            dropped_peptides = misses.dropped_peptides,
+            dropped_intensity_fraction = misses.dropped_intensity_fraction(),
+            missed_cleavage = misses.missed_cleavage,
+            too_long = misses.too_long,
+            met_removed_n_term = misses.met_removed_n_term,
+            other = misses.other,
+            "piBAQ: observed peptides outside the theoretical digest are dropped"
         );
         let family_to_peptides = invert_peptide_ownership(&peptide_owner);
         let mut observations_by_family = HashMap::<String, Vec<(String, SampleId, f64)>>::new();
@@ -2042,6 +2093,66 @@ impl PibaqAggregation {
     }
 }
 
+/// Observed peptides (and intensity) that piBAQ drops because the digest lacks them.
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+struct DigestMissSummary {
+    observed_peptides: usize,
+    dropped_peptides: usize,
+    observed_intensity: f64,
+    dropped_intensity: f64,
+    missed_cleavage: usize,
+    too_long: usize,
+    met_removed_n_term: usize,
+    other: usize,
+}
+
+impl DigestMissSummary {
+    fn dropped_intensity_fraction(&self) -> f64 {
+        if self.observed_intensity > 0.0 {
+            self.dropped_intensity / self.observed_intensity
+        } else {
+            0.0
+        }
+    }
+}
+
+fn summarize_digest_misses(
+    observations: &[(String, SampleId, f64)],
+    peptide_owner: &HashMap<String, String>,
+    peptide_accessions: &HashMap<String, HashSet<String>>,
+    max_aa: Option<usize>,
+) -> DigestMissSummary {
+    let mut summary = DigestMissSummary::default();
+    let mut seen = HashSet::<&str>::new();
+    for (peptide, _, intensity) in observations {
+        let in_digest = peptide_owner.contains_key(peptide);
+        if intensity.is_finite() {
+            summary.observed_intensity += intensity;
+            if !in_digest {
+                summary.dropped_intensity += intensity;
+            }
+        }
+        if !seen.insert(peptide.as_str()) {
+            continue;
+        }
+        summary.observed_peptides += 1;
+        if in_digest {
+            continue;
+        }
+        summary.dropped_peptides += 1;
+        if peptide_accessions.contains_key(&format!("M{peptide}")) {
+            summary.met_removed_n_term += 1;
+        } else if max_aa.is_some_and(|max_aa| peptide.chars().count() > max_aa) {
+            summary.too_long += 1;
+        } else if filters::trypsin_missed_cleavages(peptide) > 0 {
+            summary.missed_cleavage += 1;
+        } else {
+            summary.other += 1;
+        }
+    }
+    summary
+}
+
 /// Evidence buckets mirroring the Python `_classify_evidence` helper.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PibaqEvidence {
@@ -2115,7 +2226,12 @@ impl RatioAggregation {
             records: Vec::new(),
             sample_names: HashMap::new(),
             reference_samples: reference_samples.into_iter().collect(),
-            sample_to_plex: sample_to_plex(sdrf),
+            sample_to_plex: derive_sample_plexes(
+                sdrf,
+                Some(raw_sdrf),
+                config.irs.plex_column.as_deref(),
+            )?
+            .0,
             fraction_merge: parse_ratio_fraction_merge(&config.ratio.fraction_merge)?,
             min_unique_peptides: config.filtering.min_unique_peptides,
         })
@@ -4198,7 +4314,8 @@ impl ProteinMatrix {
             ));
         }
 
-        let sample_to_plex = sample_to_plex(sdrf);
+        let (sample_to_plex, plex_source) =
+            derive_sample_plexes(sdrf, Some(raw_sdrf), config.plex_column.as_deref())?;
         let mut plexes = sample_to_plex.values().cloned().collect::<Vec<_>>();
         plexes.sort();
         plexes.dedup();
@@ -4206,6 +4323,15 @@ impl ProteinMatrix {
             return Err(invalid_input(
                 "IRS normalization found no plex assignments in the SDRF",
             ));
+        }
+        if plexes.len() == 1 {
+            let partitions = data_file_partitions(sdrf);
+            if partitions > 1 {
+                return Err(invalid_input(format!(
+                    "IRS found one plex ({plex_source:?}) but the SDRF data files split the channels into {partitions} groups"
+                )));
+            }
+            warn!("IRS found a single plex: scaling factors are 1, only reference removal applies");
         }
 
         let sample_by_name = self
@@ -5160,6 +5286,8 @@ pub fn run_pibaq_from_mapping(
         min_anchors,
         high_anchor_threshold,
         mw_map,
+        digest_max_aa: None,
+        contaminant_twins: HashMap::new(),
     };
     finalize_pibaq_observations(observations, aggregation, false)
 }
@@ -5239,6 +5367,7 @@ fn pibaq_only_config(params: &PibaqFromPeptidesParams) -> FeatureToProteinsConfi
             families_yaml: params.families_yaml.clone(),
             min_anchors: params.min_anchors,
             high_anchor_threshold: params.high_anchor_threshold,
+            missed_cleavages: 0,
         },
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
@@ -6449,7 +6578,8 @@ fn validate_features_to_proteins(config: &FeatureToProteinsConfig) -> Result<()>
             || config.pibaq.min_shared != 2
             || config.pibaq.families_yaml.is_some()
             || config.pibaq.min_anchors != 1
-            || config.pibaq.high_anchor_threshold != 3)
+            || config.pibaq.high_anchor_threshold != 3
+            || config.pibaq.missed_cleavages != 0)
     {
         return Err(invalid_input(
             "piBAQ FASTA/digestion options require --quant-method pibaq",
@@ -8353,6 +8483,37 @@ fn is_contaminant(accession: &str) -> bool {
         || upper.contains("DECOY")
 }
 
+fn is_decoy_accession(accession: &str) -> bool {
+    accession.to_ascii_uppercase().contains("DECOY")
+}
+
+/// A group is removed when any member is a decoy or all members are contaminants.
+fn is_contaminant_group<'a, I, F, D>(accessions: I, is_contam: F, is_decoy: D) -> bool
+where
+    I: IntoIterator<Item = &'a str>,
+    F: Fn(&str) -> bool,
+    D: Fn(&str) -> bool,
+{
+    let mut any = false;
+    let mut all_contaminant = true;
+    for accession in accessions {
+        let accession = accession.trim();
+        if accession.is_empty() {
+            continue;
+        }
+        any = true;
+        if is_decoy(accession) {
+            return true;
+        }
+        all_contaminant &= is_contam(accession);
+    }
+    any && all_contaminant
+}
+
+fn is_decoy_pattern(pattern: &str) -> bool {
+    pattern.eq_ignore_ascii_case("DECOY")
+}
+
 /// The default contaminant patterns.
 /// When the configured patterns are empty or equal this list, the two custom
 /// matchers below are bypassed in favour of [`is_contaminant`].
@@ -8365,38 +8526,108 @@ fn is_default_contaminant_patterns(patterns: &[String]) -> bool {
             && patterns[3] == "DECOY")
 }
 
-/// Median / Run-QC pre-pass contaminant match. Replicates Python's
-/// `SQLFilterBuilder._build_contaminant_filter`: each pattern is matched as a
-/// case-sensitive literal substring against the raw `pg_accessions` (Rust's
-/// unparsed `feature.protein_accessions`). A feature is a contaminant when ANY
-/// pattern matches ANY accession. When the parquet carries an `is_decoy`
-/// column, the load-time `passes_feature_filter` independently handles that
-/// structured flag; the accession check remains necessary for incomplete
-/// upstream annotations.
+/// Pre-pass group rule on raw `pg_accessions` (case-sensitive, as Python's SQL filter).
 fn matches_sql_contaminant(accessions: &[String], patterns: &[String]) -> bool {
+    let members = accessions.iter().flat_map(|value| value.split(';'));
     if is_default_contaminant_patterns(patterns) {
-        return accessions.iter().any(|accession| is_contaminant(accession));
+        return is_contaminant_group(members, is_contaminant, is_decoy_accession);
     }
-    patterns.iter().any(|pattern| {
-        accessions
-            .iter()
-            .any(|accession| accession.contains(pattern.as_str()))
-    })
+    is_contaminant_group(
+        members,
+        |accession| {
+            patterns
+                .iter()
+                .any(|pattern| accession.contains(pattern.as_str()))
+        },
+        |accession| {
+            patterns
+                .iter()
+                .any(|pattern| is_decoy_pattern(pattern) && accession.contains(pattern.as_str()))
+        },
+    )
 }
 
-/// Ingest-time contaminant match. Replicates Python's `ContaminantFilter.apply`
-/// (`protein.py:64-67`): the parsed `protein_group` (Rust `protein_group_name`
-/// output) is uppercased and tested against each uppercased pattern as a literal
-/// substring (`re.escape`d in Python, so equivalent to a plain `contains` on the
-/// uppercased text). A feature is a contaminant when ANY pattern matches.
+/// Ingest group rule on the parsed `;`-joined group (case-insensitive).
 fn matches_protein_contaminant(protein_group: &str, patterns: &[String]) -> bool {
+    let members = protein_group.split(';');
     if is_default_contaminant_patterns(patterns) {
-        return is_contaminant(protein_group);
+        return is_contaminant_group(members, is_contaminant, is_decoy_accession);
     }
-    let upper = protein_group.to_ascii_uppercase();
-    patterns
+    let upper_patterns = patterns
         .iter()
-        .any(|pattern| upper.contains(pattern.to_ascii_uppercase().as_str()))
+        .map(|pattern| pattern.to_ascii_uppercase())
+        .collect::<Vec<_>>();
+    let matches = |accession: &str, decoy_only: bool| {
+        let upper = accession.to_ascii_uppercase();
+        upper_patterns
+            .iter()
+            .any(|pattern| (!decoy_only || is_decoy_pattern(pattern)) && upper.contains(pattern))
+    };
+    is_contaminant_group(
+        members,
+        |accession| matches(accession, false),
+        |accession| matches(accession, true),
+    )
+}
+
+/// Drop contaminant members from a mixed group; `None` if nothing changes.
+fn strip_contaminant_members(protein_group: &str, patterns: &[String]) -> Option<String> {
+    let members = protein_group.split(';').collect::<Vec<_>>();
+    if members.len() < 2 {
+        return None;
+    }
+    let kept = members
+        .iter()
+        .copied()
+        .filter(|member| !matches_protein_contaminant(member, patterns))
+        .collect::<Vec<_>>();
+    (!kept.is_empty() && kept.len() < members.len()).then(|| kept.join(";"))
+}
+
+/// `CONTAM_<ACC>` -> `<ACC>` when `<ACC>` is a non-contaminant entry covering all its peptides.
+fn find_contaminant_twins(
+    accession_peptides: &HashMap<String, HashSet<String>>,
+) -> HashMap<String, String> {
+    accession_peptides
+        .iter()
+        .filter(|(accession, _)| is_contaminant(accession))
+        .filter_map(|(accession, peptides)| {
+            let upper = accession.to_ascii_uppercase();
+            let start = upper.find("CONTAM_")? + "CONTAM_".len();
+            let target = accession.get(start..)?;
+            let target_peptides = accession_peptides.get(target)?;
+            (!is_contaminant(target) && peptides.is_subset(target_peptides))
+                .then(|| (accession.clone(), target.to_owned()))
+        })
+        .collect()
+}
+
+fn rename_contaminant_twins(
+    protein_group: &str,
+    twins: &HashMap<String, String>,
+) -> Option<String> {
+    if twins.is_empty() {
+        return None;
+    }
+    let mut changed = false;
+    let mut members = Vec::<&str>::new();
+    for member in protein_group.split(';') {
+        let resolved = twins.get(member).map_or(member, |target| {
+            changed = true;
+            target.as_str()
+        });
+        if !members.contains(&resolved) {
+            members.push(resolved);
+        }
+    }
+    changed.then(|| members.join(";"))
+}
+
+/// Remove contaminant accessions from a piBAQ digest; returns how many were dropped.
+fn drop_contaminant_accessions(accession_peptides: &mut HashMap<String, HashSet<String>>) -> usize {
+    let before = accession_peptides.len();
+    accession_peptides.retain(|accession, _| !is_contaminant(accession));
+    before - accession_peptides.len()
 }
 
 fn register_id<I>(registry: &mut StringIdRegistry<I>, value: &str, namespace: &str) -> Result<I>
@@ -9292,6 +9523,131 @@ fn sample_to_plex(sdrf: &SdrfTable) -> HashMap<String, String> {
             )
         })
         .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlexSource {
+    Column,
+    DataFiles,
+    SourceName,
+}
+
+/// Sample -> plex: SDRF column, else shared data files, else legacy source-name rule.
+fn derive_sample_plexes(
+    sdrf: &SdrfTable,
+    raw_sdrf: Option<&SdrfRawTable>,
+    plex_column: Option<&str>,
+) -> Result<(HashMap<String, String>, PlexSource)> {
+    let (plexes, source) = if let Some(column) = plex_column {
+        let raw = raw_sdrf.ok_or_else(|| {
+            invalid_input("--irs-plex-column requires readable raw SDRF metadata")
+        })?;
+        (plexes_from_column(raw, column)?, PlexSource::Column)
+    } else if let Some(plexes) = plexes_from_data_files(sdrf) {
+        (plexes, PlexSource::DataFiles)
+    } else {
+        (sample_to_plex(sdrf), PlexSource::SourceName)
+    };
+    let mut channels = BTreeMap::<&str, usize>::new();
+    for plex in plexes.values() {
+        *channels.entry(plex.as_str()).or_default() += 1;
+    }
+    info!(
+        plexes = channels.len(),
+        source = ?source,
+        channels_per_plex = ?channels,
+        "TMT plex assignment"
+    );
+    Ok((plexes, source))
+}
+
+fn plexes_from_column(raw: &SdrfRawTable, column: &str) -> Result<HashMap<String, String>> {
+    let requested = column.trim().to_ascii_lowercase();
+    let value_col = raw.column_index(&requested).ok_or_else(|| {
+        invalid_input(format!(
+            "IRS plex column `{column}` was not found; available columns: {}",
+            raw.headers().join(", ")
+        ))
+    })?;
+    let sample_col = raw
+        .column_index("source name")
+        .ok_or_else(|| invalid_input("--irs-plex-column requires a `source name` column"))?;
+    let mut plexes = HashMap::<String, String>::new();
+    for row in 0..raw.row_count() {
+        let sample = raw.cell(row, sample_col).trim();
+        let plex = raw.cell(row, value_col).trim();
+        if sample.is_empty() || plex.is_empty() {
+            continue;
+        }
+        if let Some(previous) = plexes.insert(sample.to_owned(), plex.to_owned()) {
+            if previous != plex {
+                return Err(invalid_input(format!(
+                    "sample `{sample}` has more than one value in plex column `{column}`"
+                )));
+            }
+        }
+    }
+    if plexes.is_empty() {
+        return Err(invalid_input(format!(
+            "IRS plex column `{column}` is empty"
+        )));
+    }
+    Ok(plexes)
+}
+
+/// Samples with the same data-file set share a plex; `None` if not multiplexed.
+fn plexes_from_data_files(sdrf: &SdrfTable) -> Option<HashMap<String, String>> {
+    let mut files_by_sample = BTreeMap::<&str, BTreeSet<String>>::new();
+    let mut samples_by_file = HashMap::<String, HashSet<&str>>::new();
+    for record in sdrf.records() {
+        let file = mokume_io::normalize_file_key(&record.data_file);
+        if file.is_empty() {
+            continue;
+        }
+        files_by_sample
+            .entry(record.sample_accession.as_str())
+            .or_default()
+            .insert(file.clone());
+        samples_by_file
+            .entry(file)
+            .or_default()
+            .insert(record.sample_accession.as_str());
+    }
+    if !samples_by_file.values().any(|samples| samples.len() > 1) {
+        return None;
+    }
+    let mut members = BTreeMap::<&BTreeSet<String>, Vec<&str>>::new();
+    for (sample, files) in &files_by_sample {
+        members.entry(files).or_default().push(sample);
+    }
+    // Keep the legacy source-name prefix as the plex id when it is unambiguous.
+    let legacy = members
+        .values()
+        .map(|samples| {
+            let prefixes = samples
+                .iter()
+                .map(|sample| sample_plex(sample))
+                .collect::<BTreeSet<_>>();
+            (prefixes.len() == 1).then(|| prefixes.into_iter().next().unwrap_or_default())
+        })
+        .collect::<Option<Vec<_>>>()
+        .filter(|names| names.iter().collect::<HashSet<_>>().len() == names.len());
+    let mut plexes = HashMap::new();
+    for (index, samples) in members.values().enumerate() {
+        let plex = legacy.as_ref().map_or_else(
+            || format!("plex{}", index + 1),
+            |names| names[index].clone(),
+        );
+        for sample in samples {
+            plexes.insert((*sample).to_owned(), plex.clone());
+        }
+    }
+    Some(plexes)
+}
+
+/// Number of distinct data-file sets across samples (an upper bound on plexes).
+fn data_file_partitions(sdrf: &SdrfTable) -> usize {
+    plexes_from_data_files(sdrf).map_or(1, |plexes| plexes.values().collect::<HashSet<_>>().len())
 }
 
 fn condition_by_sample(sdrf: &SdrfTable) -> HashMap<String, String> {
@@ -11287,5 +11643,268 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 "{sequence}: got {got}, expected {expected}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod contaminant_and_plex_tests {
+    use std::collections::{HashMap, HashSet};
+
+    use mokume_core::SampleId;
+    use mokume_io::{SdrfRawTable, SdrfTable};
+
+    use super::{
+        derive_sample_plexes, drop_contaminant_accessions, find_contaminant_twins,
+        matches_protein_contaminant, matches_sql_contaminant, rename_contaminant_twins,
+        strip_contaminant_members, summarize_digest_misses, PlexSource,
+    };
+
+    fn owned(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_owned()).collect()
+    }
+
+    #[test]
+    fn contaminant_twin_group_is_kept_with_human_accession() {
+        assert!(!matches_protein_contaminant("CONTAM_P05787;P05787", &[]));
+        assert_eq!(
+            strip_contaminant_members("CONTAM_P05787;P05787", &[]).as_deref(),
+            Some("P05787")
+        );
+        assert!(!matches_sql_contaminant(
+            &owned(&["sp|CONTAM_P04179|CONTAM_SODM_HUMAN", "sp|P04179|SODM_HUMAN"]),
+            &[]
+        ));
+    }
+
+    #[test]
+    fn all_contaminant_group_is_dropped() {
+        assert!(matches_protein_contaminant("CONTAM_P00761", &[]));
+        assert!(matches_protein_contaminant(
+            "CONTAM_P02769;CONTAM_P02768",
+            &[]
+        ));
+        assert_eq!(
+            strip_contaminant_members("CONTAM_P02769;CONTAM_P02768", &[]),
+            None
+        );
+        assert!(matches_sql_contaminant(
+            &owned(&["sp|CONTAM_P00761|TRYP_PIG"]),
+            &[]
+        ));
+    }
+
+    #[test]
+    fn mixed_group_keeps_non_contaminant_members() {
+        assert!(!matches_protein_contaminant(
+            "P02768;CONTAM_P02769;Q9XXXX",
+            &[]
+        ));
+        assert_eq!(
+            strip_contaminant_members("P02768;CONTAM_P02769;Q9XXXX", &[]).as_deref(),
+            Some("P02768;Q9XXXX")
+        );
+        assert_eq!(strip_contaminant_members("P02768;Q9XXXX", &[]), None);
+    }
+
+    #[test]
+    fn decoy_member_still_drops_group() {
+        assert!(matches_protein_contaminant("P12345;DECOY_P99999", &[]));
+        assert!(matches_sql_contaminant(
+            &owned(&["P12345", "DECOY_P99999"]),
+            &[]
+        ));
+        let custom = owned(&["CONTAM", "DECOY"]);
+        assert!(matches_protein_contaminant("P1;DECOY_P2", &custom));
+        assert!(!matches_protein_contaminant("CONTAM_P1;P1", &custom));
+        assert!(matches_protein_contaminant("contam_P1", &custom));
+        assert!(!matches_sql_contaminant(
+            &owned(&["CONTAM_P1", "P1"]),
+            &custom
+        ));
+    }
+
+    #[test]
+    fn digest_drops_contaminant_accessions() {
+        let mut digest = HashMap::<String, HashSet<String>>::new();
+        digest.insert(
+            "P05787".to_owned(),
+            HashSet::from(["LESGMQNMSIHTK".to_owned()]),
+        );
+        digest.insert(
+            "CONTAM_P05787".to_owned(),
+            HashSet::from(["LESGMQNMSIHTK".to_owned()]),
+        );
+        assert_eq!(drop_contaminant_accessions(&mut digest), 1);
+        assert!(digest.contains_key("P05787"));
+        assert!(!digest.contains_key("CONTAM_P05787"));
+    }
+
+    #[test]
+    fn contaminant_only_twin_group_is_renamed_to_human() {
+        let peptides = |values: &[&str]| values.iter().map(|v| (*v).to_owned()).collect();
+        let mut digest = HashMap::<String, HashSet<String>>::new();
+        digest.insert("P02533".to_owned(), peptides(&["AAAK", "BBBK"]));
+        digest.insert("CONTAM_P02533".to_owned(), peptides(&["AAAK", "BBBK"]));
+        digest.insert("CONTAM_P00761".to_owned(), peptides(&["TRYPK"]));
+        digest.insert("P11111".to_owned(), peptides(&["CCCK"]));
+        digest.insert("CONTAM_P11111".to_owned(), peptides(&["CCCK", "BOVINEK"]));
+        let twins = find_contaminant_twins(&digest);
+        assert_eq!(twins.len(), 1);
+        assert_eq!(twins["CONTAM_P02533"], "P02533");
+        assert_eq!(
+            rename_contaminant_twins("CONTAM_P02533", &twins).as_deref(),
+            Some("P02533")
+        );
+        assert_eq!(
+            rename_contaminant_twins("CONTAM_P02533;P02533", &twins).as_deref(),
+            Some("P02533")
+        );
+        assert_eq!(rename_contaminant_twins("CONTAM_P00761", &twins), None);
+    }
+
+    #[test]
+    fn digest_misses_are_counted_by_reason() {
+        let mut peptide_accessions = HashMap::<String, HashSet<String>>::new();
+        for peptide in ["PEPTIDEK", "MAEPTIDEK", "SECONDPEPK"] {
+            peptide_accessions.insert(peptide.to_owned(), HashSet::from(["P1".to_owned()]));
+        }
+        let owner = peptide_accessions
+            .keys()
+            .map(|peptide| (peptide.clone(), "F1".to_owned()))
+            .collect::<HashMap<_, _>>();
+        let sample = SampleId::from(0);
+        let observations = vec![
+            ("PEPTIDEK".to_owned(), sample, 100.0),
+            ("AEPTIDEK".to_owned(), sample, 10.0),
+            ("PEPTIDEKSECONDPEPK".to_owned(), sample, 20.0),
+            ("A".repeat(31) + "K", sample, 30.0),
+            ("SEMITYPTICPEPTIDE".to_owned(), sample, 40.0),
+            ("SEMITYPTICPEPTIDE".to_owned(), SampleId::from(1), 0.0),
+        ];
+        let summary = summarize_digest_misses(&observations, &owner, &peptide_accessions, Some(30));
+        assert_eq!(summary.observed_peptides, 5);
+        assert_eq!(summary.dropped_peptides, 4);
+        assert_eq!(summary.met_removed_n_term, 1);
+        assert_eq!(summary.missed_cleavage, 1);
+        assert_eq!(summary.too_long, 1);
+        assert_eq!(summary.other, 1);
+        assert!((summary.dropped_intensity_fraction() - 100.0 / 200.0).abs() < 1e-12);
+    }
+
+    const TMT_HEADER: &str = "source name\tcomment[data file]\tcomment[label]\tcomment[plex]\n";
+
+    type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
+    fn tmt_sdrf(rows: &[(&str, &str, &str, &str)]) -> TestResult<(SdrfTable, SdrfRawTable)> {
+        let mut text = TMT_HEADER.to_owned();
+        for (sample, file, label, plex) in rows {
+            text.push_str(&format!("{sample}\t{file}\t{label}\t{plex}\n"));
+        }
+        Ok((
+            SdrfTable::from_reader(text.as_bytes())?,
+            SdrfRawTable::from_reader(text.as_bytes())?,
+        ))
+    }
+
+    fn plex_sizes(plexes: &HashMap<String, String>) -> Vec<usize> {
+        let mut sizes = HashMap::<&str, usize>::new();
+        for plex in plexes.values() {
+            *sizes.entry(plex.as_str()).or_default() += 1;
+        }
+        let mut sizes = sizes.into_values().collect::<Vec<_>>();
+        sizes.sort_unstable();
+        sizes
+    }
+
+    #[test]
+    fn set_style_source_names_split_by_data_files() -> TestResult {
+        let mut rows = Vec::new();
+        for (set, files) in [
+            ("Set1", ["s1_f1.raw", "s1_f2.raw"]),
+            ("Set2", ["s2_f1.raw", "s2_f2.raw"]),
+        ] {
+            for label in ["TMT126", "TMT127C", "TMT131"] {
+                for file in files {
+                    rows.push((format!("PXD011896-{set}-{label}"), file, label));
+                }
+            }
+        }
+        let rows = rows
+            .iter()
+            .map(|(sample, file, label)| (sample.as_str(), *file, *label, ""))
+            .collect::<Vec<_>>();
+        let (sdrf, raw) = tmt_sdrf(&rows)?;
+        let (plexes, source) = derive_sample_plexes(&sdrf, Some(&raw), None)?;
+        assert_eq!(source, PlexSource::DataFiles);
+        assert_eq!(plex_sizes(&plexes), vec![3, 3]);
+        assert_eq!(
+            plexes["PXD011896-Set1-TMT126"],
+            plexes["PXD011896-Set1-TMT131"]
+        );
+        assert_ne!(
+            plexes["PXD011896-Set1-TMT126"],
+            plexes["PXD011896-Set2-TMT126"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn sample_style_source_names_split_by_data_files() -> TestResult {
+        let (sdrf, raw) = tmt_sdrf(&[
+            ("MSV000085836-Sample-1", "a.raw", "TMT126", ""),
+            ("MSV000085836-Sample-2", "a.raw", "TMT127N", ""),
+            ("MSV000085836-Sample-3", "b.raw", "TMT126", ""),
+            ("MSV000085836-Sample-4", "b.raw", "TMT127N", ""),
+        ])?;
+        let (plexes, source) = derive_sample_plexes(&sdrf, Some(&raw), None)?;
+        assert_eq!(source, PlexSource::DataFiles);
+        assert_eq!(plex_sizes(&plexes), vec![2, 2]);
+        assert_ne!(
+            plexes["MSV000085836-Sample-1"],
+            plexes["MSV000085836-Sample-3"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_plex_prefix_is_kept_as_plex_id() -> TestResult {
+        let (sdrf, raw) = tmt_sdrf(&[
+            ("p1_1", "a.raw", "TMT126", ""),
+            ("p1_2", "a.raw", "TMT127N", ""),
+            ("p2_1", "b.raw", "TMT126", ""),
+            ("p2_2", "b.raw", "TMT127N", ""),
+        ])?;
+        let (plexes, _) = derive_sample_plexes(&sdrf, Some(&raw), None)?;
+        assert_eq!(plexes["p1_2"], "p1");
+        assert_eq!(plexes["p2_1"], "p2");
+        Ok(())
+    }
+
+    #[test]
+    fn explicit_plex_column_overrides_data_files() -> TestResult {
+        let (sdrf, raw) = tmt_sdrf(&[
+            ("S1", "a.raw", "TMT126", "A"),
+            ("S2", "a.raw", "TMT127N", "A"),
+            ("S3", "b.raw", "TMT126", "B"),
+            ("S4", "b.raw", "TMT127N", "B"),
+        ])?;
+        let (plexes, source) = derive_sample_plexes(&sdrf, Some(&raw), Some("comment[plex]"))?;
+        assert_eq!(source, PlexSource::Column);
+        assert_eq!(plexes["S2"], "A");
+        assert_eq!(plexes["S3"], "B");
+        assert!(derive_sample_plexes(&sdrf, Some(&raw), Some("comment[missing]")).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn label_free_falls_back_to_source_name_rule() -> TestResult {
+        let (sdrf, raw) = tmt_sdrf(&[
+            ("p1_1", "a.raw", "label free sample", ""),
+            ("p1_2", "b.raw", "label free sample", ""),
+        ])?;
+        let (plexes, source) = derive_sample_plexes(&sdrf, Some(&raw), None)?;
+        assert_eq!(source, PlexSource::SourceName);
+        assert_eq!(plexes["p1_2"], "p1");
+        Ok(())
     }
 }

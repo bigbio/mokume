@@ -254,13 +254,26 @@ class SQLFilterBuilder:
         """Build contaminant/decoy filter conditions and params."""
         conditions: list[str] = []
         params: list = []
-        for pattern in self.contaminant_patterns:
-            # Respect the structured flag when present, while retaining the
-            # accession-name check for imperfect upstream annotations.
-            if pattern.upper() == "DECOY" and self.has_is_decoy:
-                conditions.append("is_decoy = false")
-            conditions.append("strpos(pg_accessions::text, ?) = 0")
-            params.append(pattern)
+
+        def any_member(patterns: list[str]) -> str:
+            params.extend(patterns)
+            tests = " OR ".join("strpos(a::text, ?) > 0" for _ in patterns)
+            return f"list_transform(pg_accessions, a -> {tests})"
+
+        decoys = [p for p in self.contaminant_patterns if p.upper() == "DECOY"]
+        contams = [p for p in self.contaminant_patterns if p.upper() != "DECOY"]
+        if decoys and self.has_is_decoy:
+            conditions.append("is_decoy = false")
+        if decoys:
+            conditions.append(
+                f"NOT coalesce(list_bool_or({any_member(decoys)}), false)"
+            )
+        # A group is a contaminant only when every member matches.
+        if contams:
+            conditions.append(
+                "NOT coalesce(len(pg_accessions) > 0 AND "
+                f"list_bool_and({any_member(contams)}), false)"
+            )
         return conditions, params
 
 

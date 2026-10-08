@@ -334,6 +334,7 @@ def digest_fasta_full(
     *,
     canonicalize_isoforms: bool = True,
     compute_mw: bool = False,
+    missed_cleavages: int = 0,
 ) -> Tuple[Dict[str, Set[str]], Dict[str, Set[str]], Dict[str, float]]:
     """Digest every protein in a FASTA and return the full peptide indices.
 
@@ -363,6 +364,8 @@ def digest_fasta_full(
         When ``True``, the third return value is populated with per-accession
         monoisotopic molecular weights. Defaults to ``False`` to save the
         digest cost when MW is not needed.
+    missed_cleavages : int, optional
+        Maximum missed cleavages in the theoretical digest (default ``0``).
 
     Returns
     -------
@@ -375,7 +378,7 @@ def digest_fasta_full(
     fasta_proteins = load_fasta(fasta)
     digestor = ProteaseDigestion()
     digestor.setEnzyme(enzyme)
-    digestor.setMissedCleavages(0)
+    digestor.setMissedCleavages(missed_cleavages)
 
     accession_to_peptides: Dict[str, Set[str]] = {}
     accession_to_mw: Dict[str, float] = {}

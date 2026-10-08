@@ -180,6 +180,7 @@ fn resolve_irs(
             .unwrap_or_else(|| "pool|powder|ref|reference|bridge".to_owned()),
         stat: args.irs_stat.clone().unwrap_or_else(|| "median".to_owned()),
         remove_reference: args.irs_remove_reference,
+        plex_column: args.irs_plex_column.clone(),
     })
 }
 
@@ -235,7 +236,10 @@ fn validate_irs_mode(
             });
         }
     } else if !args.irs
-        && (selector_count > 0 || args.irs_stat.is_some() || args.irs_remove_reference)
+        && (selector_count > 0
+            || args.irs_stat.is_some()
+            || args.irs_remove_reference
+            || args.irs_plex_column.is_some())
     {
         return Err(MokumeError::InvalidInput {
             message: "IRS options require --irs".to_owned(),
@@ -477,6 +481,7 @@ fn pibaq_config(args: &Features2ProteinsArgs) -> PibaqConfig {
         families_yaml: args.pibaq_families_yaml.clone(),
         min_anchors: args.pibaq_min_anchors,
         high_anchor_threshold: PibaqConfig::default().high_anchor_threshold,
+        missed_cleavages: args.pibaq_missed_cleavages,
     }
 }
 

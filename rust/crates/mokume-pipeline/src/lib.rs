@@ -225,6 +225,13 @@ impl FeatureToProteinState {
             .peptide_filters
             .as_ref()
             .map_or(&[], |config| &config.protein.contaminant_patterns);
+        let protein_group = if filtering.remove_contaminants {
+            self.aggregation
+                .resolve_contaminant_twins(&protein_group)
+                .unwrap_or(protein_group)
+        } else {
+            protein_group
+        };
         if self.rejects_protein_group(
             &protein_group,
             filtering.remove_contaminants,
@@ -1143,6 +1150,7 @@ struct PibaqAggregation {
     mw_map: Option<HashMap<String, f64>>,
     /// Digest `max_aa`, used only to classify dropped observed peptides.
     digest_max_aa: Option<usize>,
+    contaminant_twins: HashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -1484,6 +1492,14 @@ impl FeatureAggregation {
         *cached_directlfq_values =
             Some(remap_directlfq_values(result.protein_quantities, &prepared));
         Ok(())
+    }
+
+    /// piBAQ only: rename `CONTAM_` twins of digest accessions to the non-contaminant entry.
+    fn resolve_contaminant_twins(&self, protein_group: &str) -> Option<String> {
+        let Self::Pibaq(pibaq) = self else {
+            return None;
+        };
+        rename_contaminant_twins(protein_group, &pibaq.core.contaminant_twins)
     }
 
     fn keeps_shared_peptides(&self) -> bool {
@@ -1872,10 +1888,13 @@ impl PibaqAggregation {
         );
         let mut accession_peptides = digest.accession_peptides;
         accession_peptides.retain(|_, peptides| !peptides.is_empty());
+        let mut contaminant_twins = HashMap::new();
         if config.filtering.remove_contaminants {
+            contaminant_twins = find_contaminant_twins(&accession_peptides);
             let removed = drop_contaminant_accessions(&mut accession_peptides);
             info!(
                 removed,
+                twins = contaminant_twins.len(),
                 "piBAQ digest: contaminant accessions excluded from families"
             );
         }
@@ -1905,6 +1924,7 @@ impl PibaqAggregation {
             high_anchor_threshold: config.pibaq.high_anchor_threshold,
             mw_map: None,
             digest_max_aa: Some(digest.provenance.max_aa),
+            contaminant_twins,
         })
     }
 
@@ -5267,6 +5287,7 @@ pub fn run_pibaq_from_mapping(
         high_anchor_threshold,
         mw_map,
         digest_max_aa: None,
+        contaminant_twins: HashMap::new(),
     };
     finalize_pibaq_observations(observations, aggregation, false)
 }
@@ -8563,6 +8584,45 @@ fn strip_contaminant_members(protein_group: &str, patterns: &[String]) -> Option
     (!kept.is_empty() && kept.len() < members.len()).then(|| kept.join(";"))
 }
 
+/// `CONTAM_<ACC>` -> `<ACC>` when `<ACC>` is a non-contaminant entry covering all its peptides.
+fn find_contaminant_twins(
+    accession_peptides: &HashMap<String, HashSet<String>>,
+) -> HashMap<String, String> {
+    accession_peptides
+        .iter()
+        .filter(|(accession, _)| is_contaminant(accession))
+        .filter_map(|(accession, peptides)| {
+            let upper = accession.to_ascii_uppercase();
+            let start = upper.find("CONTAM_")? + "CONTAM_".len();
+            let target = accession.get(start..)?;
+            let target_peptides = accession_peptides.get(target)?;
+            (!is_contaminant(target) && peptides.is_subset(target_peptides))
+                .then(|| (accession.clone(), target.to_owned()))
+        })
+        .collect()
+}
+
+fn rename_contaminant_twins(
+    protein_group: &str,
+    twins: &HashMap<String, String>,
+) -> Option<String> {
+    if twins.is_empty() {
+        return None;
+    }
+    let mut changed = false;
+    let mut members = Vec::<&str>::new();
+    for member in protein_group.split(';') {
+        let resolved = twins.get(member).map_or(member, |target| {
+            changed = true;
+            target.as_str()
+        });
+        if !members.contains(&resolved) {
+            members.push(resolved);
+        }
+    }
+    changed.then(|| members.join(";"))
+}
+
 /// Remove contaminant accessions from a piBAQ digest; returns how many were dropped.
 fn drop_contaminant_accessions(accession_peptides: &mut HashMap<String, HashSet<String>>) -> usize {
     let before = accession_peptides.len();
@@ -11594,8 +11654,9 @@ mod contaminant_and_plex_tests {
     use mokume_io::{SdrfRawTable, SdrfTable};
 
     use super::{
-        derive_sample_plexes, drop_contaminant_accessions, matches_protein_contaminant,
-        matches_sql_contaminant, strip_contaminant_members, summarize_digest_misses, PlexSource,
+        derive_sample_plexes, drop_contaminant_accessions, find_contaminant_twins,
+        matches_protein_contaminant, matches_sql_contaminant, rename_contaminant_twins,
+        strip_contaminant_members, summarize_digest_misses, PlexSource,
     };
 
     fn owned(values: &[&str]) -> Vec<String> {
@@ -11676,6 +11737,29 @@ mod contaminant_and_plex_tests {
         assert_eq!(drop_contaminant_accessions(&mut digest), 1);
         assert!(digest.contains_key("P05787"));
         assert!(!digest.contains_key("CONTAM_P05787"));
+    }
+
+    #[test]
+    fn contaminant_only_twin_group_is_renamed_to_human() {
+        let peptides = |values: &[&str]| values.iter().map(|v| (*v).to_owned()).collect();
+        let mut digest = HashMap::<String, HashSet<String>>::new();
+        digest.insert("P02533".to_owned(), peptides(&["AAAK", "BBBK"]));
+        digest.insert("CONTAM_P02533".to_owned(), peptides(&["AAAK", "BBBK"]));
+        digest.insert("CONTAM_P00761".to_owned(), peptides(&["TRYPK"]));
+        digest.insert("P11111".to_owned(), peptides(&["CCCK"]));
+        digest.insert("CONTAM_P11111".to_owned(), peptides(&["CCCK", "BOVINEK"]));
+        let twins = find_contaminant_twins(&digest);
+        assert_eq!(twins.len(), 1);
+        assert_eq!(twins["CONTAM_P02533"], "P02533");
+        assert_eq!(
+            rename_contaminant_twins("CONTAM_P02533", &twins).as_deref(),
+            Some("P02533")
+        );
+        assert_eq!(
+            rename_contaminant_twins("CONTAM_P02533;P02533", &twins).as_deref(),
+            Some("P02533")
+        );
+        assert_eq!(rename_contaminant_twins("CONTAM_P00761", &twins), None);
     }
 
     #[test]

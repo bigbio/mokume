@@ -440,6 +440,7 @@ fn build_config(
         irs: resolved.irs,
         coverage_threshold: args.coverage_threshold,
         sample_correlation_threshold: args.min_sample_correlation,
+        protein_fdr_threshold: args.filter_protein_fdr,
         ratio: resolved.ratio,
         imputation: resolved.imputation,
         differential_expression: resolved.differential_expression,

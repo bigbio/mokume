@@ -10,6 +10,7 @@ const REQUIRED_FEATURES_TO_PROTEINS_OPTIONS: &[&str] = &[
     "--quant-method",
     "--min-aa",
     "--min-unique",
+    "--filter-protein-fdr",
     "--keep-contaminants",
     "--run-normalization",
     "--sample-normalization",

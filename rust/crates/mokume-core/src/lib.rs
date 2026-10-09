@@ -11,8 +11,9 @@ pub use config::{
     FeatureToPeptidesConfig, FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig,
     IntensityFilterConfig, IrsChannelConfig, IrsConfig, IrsMissingReference, IrsScope, IrsStat,
     MaxLfqConfig, NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat,
-    PeptideFilterConfig, PibaqConfig, PreprocessingFilterConfig, ProteinFilterConfig, RatioConfig,
-    RunQcFilterConfig, RuntimeConfig, TmtConfig, TmtInterferenceFloor, TmtRowMerge,
+    PeptideFilterConfig, PibaqConfig, PibaqFamilyRows, PibaqSharedMode, PreprocessingFilterConfig,
+    ProteinFilterConfig, RatioConfig, RunQcFilterConfig, RuntimeConfig, TmtConfig,
+    TmtInterferenceFloor, TmtRowMerge,
 };
 pub use error::{MokumeError, Result};
 pub use ids::{IonId, PeptideId, ProteinId, RunId, SampleId};

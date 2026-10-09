@@ -20,6 +20,7 @@ _ALLOWED = {
         "run_normalization sample_normalization normalization_proteins "
         "fasta pibaq_enzyme pibaq_max_aa pibaq_missed_cleavages "
         "pibaq_min_shared pibaq_families pibaq_min_anchors "
+        "pibaq_shared pibaq_family_rows pibaq_evidence "
         "directlfq_min_nonan directlfq_num_samples_quadratic "
         "export_peptides export_ions batch_correction batch_method batch_column "
         "batch_covariate batch_nonparametric batch_mean_only "

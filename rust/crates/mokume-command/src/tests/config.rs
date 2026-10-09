@@ -473,6 +473,7 @@ fn rejects_option_combinations_before_running() {
         ("-p in.parquet -s s.tsv --normalization-proteins np.txt --sample-normalization quantile", "--normalization-proteins requires globalmedian or conditionmedian"),
         ("-p in.parquet --quant-method pibaq", "piBAQ quantification requires --fasta option"),
         ("-p in.parquet --pibaq-max-aa 30", "piBAQ FASTA/digestion options require --quant-method pibaq"),
+        ("-p in.parquet -f db.fasta --quant-method pibaq --pibaq-shared proportional --pibaq-family-rows all", "--pibaq-family-rows requires --pibaq-shared unique or stable-ratio"),
         ("-p in.parquet --quant-method ratio", "Ratio quantification requires --sdrf option"),
         ("-p in.parquet --quant-method directlfq --run-normalization median", "directlfq manages normalization internally"),
         ("-p in.parquet -s s.tsv --batch-correction --batch-method column", "Batch correction with method 'column' requires --batch-column option"),

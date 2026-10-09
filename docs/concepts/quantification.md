@@ -73,6 +73,48 @@ the threshold is raised and no family member reaches it, piBAQ marks the family
 `family_only` and forces equal shared-peptide allocation rather than trusting
 sub-threshold anchors.
 
+### Shared peptides in `features2proteins` (`--pibaq-shared`)
+
+The rule above is the legacy `proportional` mode. It has two side effects in
+large multi-sample studies:
+
+- when no member of a family has a unique peptide (`family_only`), every
+  member receives the same equal split of the shared signal, so paralogs get
+  identical profiles across samples (perfect artificial co-expression);
+- when a member's unique peptides are missing in one sample, its siblings take
+  the whole shared signal in that sample (or an equal split if all are
+  missing), so values depend on detection rather than abundance.
+
+`features2proteins` therefore defaults to `--pibaq-shared unique`:
+
+- a member value is the sum of its family-unique peptides divided by its
+  number of theoretical family-unique peptides; shared peptides never create a
+  member value;
+- a multi-member family with no unique-peptide evidence is reported as one
+  family row, named by its members (`P1;P2;P3`), whose value is all owned
+  peptide intensity divided by all owned theoretical peptides
+  (`--pibaq-family-rows family-only`, the default; `all` adds a family row for
+  every multi-member family, `none` disables them);
+- single-member families are unchanged.
+
+`--pibaq-shared stable-ratio` adds shared intensity to members that have unique
+evidence in that sample, using one member ratio per shared-peptide member set
+estimated across samples (median per-sample share over samples where every
+member has unique peptides; otherwise each member's median unique level). A
+member without unique evidence in a sample still gets no value, and its share
+is not given to its siblings. The denominator is the member's owned
+theoretical peptides (unique plus shared), as in legacy piBAQ.
+
+`--pibaq-shared proportional` reproduces earlier releases exactly.
+`peptides2protein` always uses the legacy rule.
+
+`--pibaq-evidence FILE` writes one TSV row per member and family row:
+`row_type` (`member`, `family`, `member_not_quantified`), `family_id`,
+`family_members`, `evidence` (`family_only`, `medium`, `high`), the denominator
+used (`theoretical_peptides`), theoretical and observed unique/shared peptide
+counts, and the number of quantified samples. Rows describe the matrix before
+IRS, coverage or correlation filters.
+
 Family discovery proceeds in two layers:
 
 1. **UniProt isoform collapse** — accessions of the form `P05067-2`, `P70255-3` are folded onto their canonical entry (`P05067`, `P70255`). This matches the UniProt convention and absorbs the bulk of "non-canonical isoform with no unique peptide" cases.

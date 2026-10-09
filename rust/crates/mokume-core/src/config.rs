@@ -395,6 +395,71 @@ pub struct PibaqConfig {
     pub high_anchor_threshold: usize,
     #[serde(default)]
     pub missed_cleavages: usize,
+    #[serde(default)]
+    pub shared_mode: PibaqSharedMode,
+    /// `None` resolves to [`PibaqSharedMode::default_family_rows`].
+    #[serde(default)]
+    pub family_rows: Option<PibaqFamilyRows>,
+    /// Optional per-row evidence side-car (TSV).
+    #[serde(default)]
+    pub evidence_output: Option<PathBuf>,
+}
+
+/// How piBAQ assigns peptides shared by members of one family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum PibaqSharedMode {
+    /// Legacy: per-sample proportional split, equal split without anchors.
+    Proportional,
+    /// Member values from unique peptides only.
+    #[default]
+    Unique,
+    /// Unique peptides plus shared signal split by cross-sample member ratios.
+    StableRatio,
+}
+
+impl PibaqSharedMode {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Proportional => "proportional",
+            Self::Unique => "unique",
+            Self::StableRatio => "stable-ratio",
+        }
+    }
+
+    pub const fn default_family_rows(self) -> PibaqFamilyRows {
+        match self {
+            Self::Proportional => PibaqFamilyRows::None,
+            Self::Unique | Self::StableRatio => PibaqFamilyRows::FamilyOnly,
+        }
+    }
+}
+
+/// Which multi-member families also get one family-level output row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PibaqFamilyRows {
+    None,
+    /// Only families where no member has a unique peptide.
+    FamilyOnly,
+    All,
+}
+
+impl PibaqFamilyRows {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::FamilyOnly => "family-only",
+            Self::All => "all",
+        }
+    }
+}
+
+impl PibaqConfig {
+    pub fn resolved_family_rows(&self) -> PibaqFamilyRows {
+        self.family_rows
+            .unwrap_or_else(|| self.shared_mode.default_family_rows())
+    }
 }
 
 impl Default for PibaqConfig {
@@ -407,6 +472,9 @@ impl Default for PibaqConfig {
             min_anchors: 1,
             high_anchor_threshold: 3,
             missed_cleavages: 0,
+            shared_mode: PibaqSharedMode::default(),
+            family_rows: None,
+            evidence_output: None,
         }
     }
 }

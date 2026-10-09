@@ -127,6 +127,31 @@ mean-center, rlr, loess, tmm]"
     pibaq_min_anchors: usize,
 
     #[arg(
+        long = "pibaq-shared",
+        value_name = "MODE",
+        value_parser = ["unique", "stable-ratio", "proportional"],
+        ignore_case = true,
+        help = "Shared-peptide handling [default: unique; proportional = legacy piBAQ]"
+    )]
+    pibaq_shared: Option<String>,
+
+    #[arg(
+        long = "pibaq-family-rows",
+        value_name = "MODE",
+        value_parser = ["family-only", "all", "none"],
+        ignore_case = true,
+        help = "Family-level rows [default: family-only; none with proportional]"
+    )]
+    pibaq_family_rows: Option<String>,
+
+    #[arg(
+        long = "pibaq-evidence",
+        value_name = "FILE",
+        help = "Write per-row piBAQ evidence (family, class, peptide counts) as TSV"
+    )]
+    pibaq_evidence: Option<PathBuf>,
+
+    #[arg(
         long = "directlfq-min-nonan",
         value_name = "N",
         value_parser = parse_positive_usize

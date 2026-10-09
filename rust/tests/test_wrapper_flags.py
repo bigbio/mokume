@@ -65,3 +65,22 @@ def test_python_name_matches_real_families_flag() -> None:
         "--families",
         "families.yaml",
     ]
+
+
+def test_pibaq_shared_peptide_options_translate() -> None:
+    """piBAQ shared-peptide keywords map to their CLI flags."""
+    assert flags_for(
+        "features2proteins",
+        {
+            "pibaq_shared": "stable-ratio",
+            "pibaq_family_rows": "all",
+            "pibaq_evidence": "e.tsv",
+        },
+    ) == [
+        "--pibaq-shared",
+        "stable-ratio",
+        "--pibaq-family-rows",
+        "all",
+        "--pibaq-evidence",
+        "e.tsv",
+    ]

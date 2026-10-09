@@ -84,3 +84,11 @@ def test_pibaq_shared_peptide_options_translate() -> None:
         "--pibaq-evidence",
         "e.tsv",
     ]
+
+
+def test_pibaq_missed_cleavage_options_translate() -> None:
+    """piBAQ missed-cleavage keywords map to their CLI flags."""
+    assert flags_for(
+        "features2proteins",
+        {"pibaq_mc_mode": "parent", "pibaq_denominator_missed_cleavages": 0},
+    ) == ["--pibaq-mc-mode", "parent", "--pibaq-denominator-missed-cleavages", "0"]

@@ -69,7 +69,9 @@ feature tables.
 | `--directlfq-num-samples-quadratic` | 50 | Maximum samples in DirectLFQ's quadratic global-alignment subset |
 | `--pibaq-enzyme` | `Trypsin` | Protease name from the installed pyOpenMS catalog |
 | `--pibaq-max-aa` | 30 | Maximum theoretical peptide length |
-| `--pibaq-missed-cleavages` | 0 | Missed cleavages in the theoretical digest |
+| `--pibaq-missed-cleavages` | 0 | Missed cleavages in the theoretical digest (peptide-to-protein mapping and, by default, the denominator) |
+| `--pibaq-denominator-missed-cleavages` | `--pibaq-missed-cleavages` | Max missed cleavages of theoretical peptides counted in the denominator (Trypsin only) |
+| `--pibaq-mc-mode` | `drop` | Observed peptides not in the digest: `drop`, or `parent` (add the intensity, split equally, to the fully cleaved digest peptides it contains, or to its Met-retaining N-terminal form; Trypsin only) |
 | `--pibaq-min-shared` | 2 | Minimum shared peptides for automatic family discovery |
 | `--pibaq-families` | none | YAML file with explicit family overrides |
 | `--pibaq-min-anchors` | 1 | Minimum unique-peptide anchors (in the dataset) for a family to have member-level evidence |

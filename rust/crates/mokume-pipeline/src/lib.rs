@@ -8,8 +8,9 @@ use mokume_core::{
     FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig, IntensityFilterConfig,
     IrsChannelConfig, IrsConfig, IrsScope, IrsStat, MaxLfqConfig, MokumeError,
     NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat, PeptideId,
-    PibaqConfig, PibaqFamilyRows, PibaqSharedMode, PreprocessingFilterConfig, ProteinId,
-    QuantMethod, RatioConfig, Result, RunQcFilterConfig, RuntimeConfig, SampleId, StringIdRegistry,
+    PibaqConfig, PibaqFamilyRows, PibaqMissedCleavageMode, PibaqSharedMode,
+    PreprocessingFilterConfig, ProteinId, QuantMethod, RatioConfig, Result, RunQcFilterConfig,
+    RuntimeConfig, SampleId, StringIdRegistry,
 };
 use mokume_imputation::imputed_values;
 use mokume_io::{
@@ -1154,6 +1155,8 @@ struct PibaqAggregation {
     shared_mode: PibaqSharedMode,
     family_rows: PibaqFamilyRows,
     evidence_output: Option<PathBuf>,
+    missed_cleavage_mode: PibaqMissedCleavageMode,
+    denominator_missed_cleavages: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -1934,6 +1937,11 @@ impl PibaqAggregation {
             shared_mode: config.pibaq.shared_mode,
             family_rows: config.pibaq.resolved_family_rows(),
             evidence_output: config.pibaq.evidence_output.clone(),
+            missed_cleavage_mode: config.pibaq.missed_cleavage_mode,
+            denominator_missed_cleavages: config
+                .pibaq
+                .denominator_missed_cleavages
+                .filter(|value| *value < config.pibaq.missed_cleavages),
         })
     }
 
@@ -2013,19 +2021,9 @@ impl PibaqAggregation {
             return (HashMap::new(), Vec::new());
         }
 
-        let observed_peptides = observations
-            .iter()
-            .map(|(peptide, _, _)| peptide.clone())
-            .collect::<HashSet<_>>();
-        let anchor_counts = count_unique_anchors(&observed_peptides, &self.peptide_accessions);
-        let peptide_owner = assign_peptides_to_owning_family(
-            &self.families,
-            &self.peptide_accessions,
-            &anchor_counts,
-        );
         let misses = summarize_digest_misses(
             &observations,
-            &peptide_owner,
+            &self.peptide_accessions,
             &self.peptide_accessions,
             self.digest_max_aa,
         );
@@ -2037,7 +2035,40 @@ impl PibaqAggregation {
             too_long = misses.too_long,
             met_removed_n_term = misses.met_removed_n_term,
             other = misses.other,
-            "piBAQ: observed peptides outside the theoretical digest are dropped"
+            mc_mode = self.missed_cleavage_mode.label(),
+            "piBAQ: observed peptides outside the theoretical digest"
+        );
+        let observations = if self.missed_cleavage_mode == PibaqMissedCleavageMode::Parent {
+            let (remapped, recovery) =
+                map_to_parent_peptides(observations, &self.peptide_accessions);
+            info!(
+                recovered_peptides = recovery.recovered_peptides,
+                recovered_intensity_fraction = if misses.observed_intensity > 0.0 {
+                    recovery.recovered_intensity / misses.observed_intensity
+                } else {
+                    0.0
+                },
+                still_dropped_intensity_fraction = if misses.observed_intensity > 0.0 {
+                    (misses.dropped_intensity - recovery.recovered_intensity)
+                        / misses.observed_intensity
+                } else {
+                    0.0
+                },
+                "piBAQ: observed peptides outside the digest added to their parent peptides"
+            );
+            remapped
+        } else {
+            observations
+        };
+        let observed_peptides = observations
+            .iter()
+            .map(|(peptide, _, _)| peptide.clone())
+            .collect::<HashSet<_>>();
+        let anchor_counts = count_unique_anchors(&observed_peptides, &self.peptide_accessions);
+        let peptide_owner = assign_peptides_to_owning_family(
+            &self.families,
+            &self.peptide_accessions,
+            &anchor_counts,
         );
         let family_to_peptides = invert_peptide_ownership(&peptide_owner);
         let mut observations_by_family = HashMap::<String, Vec<(String, SampleId, f64)>>::new();
@@ -2063,6 +2094,13 @@ impl PibaqAggregation {
             if owned_peptides.is_empty() {
                 continue;
             }
+            let owned_peptides = match self.denominator_missed_cleavages {
+                Some(max) => owned_peptides
+                    .into_iter()
+                    .filter(|peptide| tryptic_pieces(peptide).len() <= max + 1)
+                    .collect::<HashSet<_>>(),
+                None => owned_peptides,
+            };
             let min_anchor = family
                 .members
                 .iter()
@@ -2173,9 +2211,9 @@ impl DigestMissSummary {
     }
 }
 
-fn summarize_digest_misses(
+fn summarize_digest_misses<V>(
     observations: &[(String, SampleId, f64)],
-    peptide_owner: &HashMap<String, String>,
+    peptide_owner: &HashMap<String, V>,
     peptide_accessions: &HashMap<String, HashSet<String>>,
     max_aa: Option<usize>,
 ) -> DigestMissSummary {
@@ -2208,6 +2246,89 @@ fn summarize_digest_misses(
         }
     }
     summary
+}
+
+/// Intensity moved from out-of-digest peptides to their parent digest peptides.
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+struct ParentRecovery {
+    recovered_peptides: usize,
+    recovered_intensity: f64,
+}
+
+/// Fully cleaved tryptic pieces (cut after K/R unless followed by P).
+fn tryptic_pieces(peptide: &str) -> Vec<&str> {
+    let bytes = peptide.as_bytes();
+    let mut pieces = Vec::new();
+    let mut start = 0;
+    for index in 0..bytes.len().saturating_sub(1) {
+        let residue = bytes[index].to_ascii_uppercase();
+        if (residue == b'K' || residue == b'R') && bytes[index + 1].to_ascii_uppercase() != b'P' {
+            pieces.push(&peptide[start..=index]);
+            start = index + 1;
+        }
+    }
+    if start < bytes.len() {
+        pieces.push(&peptide[start..]);
+    }
+    pieces
+}
+
+/// Digest peptides an out-of-digest observed peptide stands for: its Met-retaining
+/// N-terminal form, else its fully cleaved pieces that are in the digest.
+fn parent_peptides(
+    peptide: &str,
+    peptide_accessions: &HashMap<String, HashSet<String>>,
+) -> Vec<String> {
+    let with_met = format!("M{peptide}");
+    if peptide_accessions.contains_key(&with_met) {
+        return vec![with_met];
+    }
+    let mut parents = tryptic_pieces(peptide)
+        .into_iter()
+        .filter(|piece| *piece != peptide && peptide_accessions.contains_key(*piece))
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    parents.sort();
+    parents.dedup();
+    parents
+}
+
+/// Split each out-of-digest observation equally over its parent digest peptides.
+fn map_to_parent_peptides(
+    observations: Vec<(String, SampleId, f64)>,
+    peptide_accessions: &HashMap<String, HashSet<String>>,
+) -> (Vec<(String, SampleId, f64)>, ParentRecovery) {
+    let mut recovery = ParentRecovery::default();
+    let mut parents_of = HashMap::<String, Vec<String>>::new();
+    let mut merged = BTreeMap::<(String, SampleId), f64>::new();
+    for (peptide, sample, intensity) in observations {
+        if peptide_accessions.contains_key(&peptide) {
+            *merged.entry((peptide, sample)).or_insert(0.0) += intensity;
+            continue;
+        }
+        let parents = parents_of.entry(peptide.clone()).or_insert_with(|| {
+            let parents = parent_peptides(&peptide, peptide_accessions);
+            if !parents.is_empty() {
+                recovery.recovered_peptides += 1;
+            }
+            parents
+        });
+        if parents.is_empty() {
+            continue;
+        }
+        if intensity.is_finite() {
+            recovery.recovered_intensity += intensity;
+        }
+        let share = intensity / parents.len() as f64;
+        for parent in parents.iter() {
+            *merged.entry((parent.clone(), sample)).or_insert(0.0) += share;
+        }
+    }
+    let remapped = merged
+        .into_iter()
+        .map(|((peptide, sample), intensity)| (peptide, sample, intensity))
+        .collect();
+    (remapped, recovery)
 }
 
 /// Evidence buckets mirroring the Python `_classify_evidence` helper.
@@ -5348,6 +5469,8 @@ pub fn run_pibaq_from_mapping(
         shared_mode: PibaqSharedMode::Proportional,
         family_rows: PibaqFamilyRows::None,
         evidence_output: None,
+        missed_cleavage_mode: PibaqMissedCleavageMode::Drop,
+        denominator_missed_cleavages: None,
     };
     finalize_pibaq_observations(observations, aggregation, false)
 }
@@ -5431,6 +5554,8 @@ fn pibaq_only_config(params: &PibaqFromPeptidesParams) -> FeatureToProteinsConfi
             shared_mode: PibaqSharedMode::Proportional,
             family_rows: None,
             evidence_output: None,
+            missed_cleavage_mode: PibaqMissedCleavageMode::Drop,
+            denominator_missed_cleavages: None,
         },
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
@@ -6645,7 +6770,9 @@ fn validate_features_to_proteins(config: &FeatureToProteinsConfig) -> Result<()>
             || config.pibaq.missed_cleavages != 0
             || config.pibaq.shared_mode != PibaqSharedMode::default()
             || config.pibaq.family_rows.is_some()
-            || config.pibaq.evidence_output.is_some())
+            || config.pibaq.evidence_output.is_some()
+            || config.pibaq.missed_cleavage_mode != PibaqMissedCleavageMode::Drop
+            || config.pibaq.denominator_missed_cleavages.is_some())
     {
         return Err(invalid_input(
             "piBAQ FASTA/digestion options require --quant-method pibaq",
@@ -6656,6 +6783,24 @@ fn validate_features_to_proteins(config: &FeatureToProteinsConfig) -> Result<()>
     {
         return Err(invalid_input(
             "--pibaq-family-rows requires --pibaq-shared unique or stable-ratio",
+        ));
+    }
+    if config
+        .pibaq
+        .denominator_missed_cleavages
+        .is_some_and(|value| value > config.pibaq.missed_cleavages)
+    {
+        return Err(invalid_input(
+            "--pibaq-denominator-missed-cleavages cannot exceed --pibaq-missed-cleavages",
+        ));
+    }
+    if config.quantification == QuantMethod::Pibaq
+        && (config.pibaq.missed_cleavage_mode == PibaqMissedCleavageMode::Parent
+            || config.pibaq.denominator_missed_cleavages.is_some())
+        && !config.pibaq.enzyme.eq_ignore_ascii_case("Trypsin")
+    {
+        return Err(invalid_input(
+            "--pibaq-mc-mode parent and --pibaq-denominator-missed-cleavages support Trypsin only",
         ));
     }
     if config.quantification == QuantMethod::Ratio && config.input.sdrf.is_none() {
@@ -10340,6 +10485,64 @@ mod tests {
         };
         assert_eq!(norm_intensity(a, sample_anchored), Some(250.0));
         assert_eq!(norm_intensity(b, sample_anchored), Some(150.0));
+    }
+
+    #[test]
+    fn tryptic_pieces_cut_after_k_r_except_before_p() {
+        assert_eq!(
+            super::tryptic_pieces("AAAKBBBRPCCCK"),
+            vec!["AAAK", "BBBRPCCCK"]
+        );
+        assert_eq!(super::tryptic_pieces("AAAKBBBR"), vec!["AAAK", "BBBR"]);
+        assert_eq!(super::tryptic_pieces("AAAA"), vec!["AAAA"]);
+    }
+
+    #[test]
+    fn missed_cleavage_peptides_map_to_their_parents() {
+        let peptide_accessions = HashMap::from([
+            ("AAAAAAK".to_owned(), HashSet::from(["P1".to_owned()])),
+            ("BBBBBBR".to_owned(), HashSet::from(["P1".to_owned()])),
+            ("MCCCCCCK".to_owned(), HashSet::from(["P2".to_owned()])),
+        ]);
+        let observations = vec![
+            ("AAAAAAKBBBBBBR".to_owned(), SampleId::new(1), 100.0),
+            ("AAAAAAK".to_owned(), SampleId::new(1), 10.0),
+            ("CCCCCCK".to_owned(), SampleId::new(1), 30.0),
+            ("NOTHEREK".to_owned(), SampleId::new(1), 7.0),
+        ];
+        let (remapped, recovery) = super::map_to_parent_peptides(observations, &peptide_accessions);
+        let value = |peptide: &str| {
+            remapped
+                .iter()
+                .find(|(name, _, _)| name == peptide)
+                .map(|(_, _, intensity)| *intensity)
+        };
+        assert_eq!(value("AAAAAAK"), Some(60.0));
+        assert_eq!(value("BBBBBBR"), Some(50.0));
+        assert_eq!(value("MCCCCCCK"), Some(30.0));
+        assert_eq!(value("NOTHEREK"), None);
+        assert_eq!(recovery.recovered_peptides, 2);
+        assert_eq!(recovery.recovered_intensity, 130.0);
+    }
+
+    #[test]
+    fn denominator_missed_cleavages_cannot_exceed_digest() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parquet = existing_dummy_path("pibaq_denominator_mc")?;
+        let mut config = base_config(parquet);
+        config.quantification = QuantMethod::Pibaq;
+        config.input.fasta = Some(existing_dummy_path("pibaq_denominator_mc_fasta")?);
+        config.pibaq.denominator_missed_cleavages = Some(1);
+        let error = super::validate_features_to_proteins(&config)
+            .err()
+            .map(|error| error.to_string());
+        assert!(
+            error
+                .as_deref()
+                .is_some_and(|error| error.contains("cannot exceed")),
+            "{error:?}"
+        );
+        Ok(())
     }
 
     type FamilyFixture = (

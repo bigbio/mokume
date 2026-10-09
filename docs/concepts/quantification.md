@@ -115,6 +115,27 @@ used (`theoretical_peptides`), theoretical and observed unique/shared peptide
 counts, and the number of quantified samples. Rows describe the matrix before
 IRS, coverage or correlation filters.
 
+### Missed cleavages
+
+The theoretical digest uses `--pibaq-missed-cleavages` (default 0). Observed
+peptides that are not in the digest (missed cleavages, Met-removed protein
+N-termini, peptides longer than `--pibaq-max-aa`) are dropped by default; the
+log reports their number and their share of observed intensity
+(15–30% in DIA and TMT cell-line studies at 0 missed cleavages). Options:
+
+| Goal | Flags |
+|------|-------|
+| Drop them (default) | none |
+| Keep the 0-missed-cleavage denominator and add each missed-cleavage peptide's intensity to its fully cleaved parent peptides | `--pibaq-mc-mode parent` |
+| Count missed-cleavage peptides as extra observable peptides (numerator and denominator) | `--pibaq-missed-cleavages 1` |
+| Map missed-cleavage peptides directly, but keep the 0-missed-cleavage denominator | `--pibaq-missed-cleavages 1 --pibaq-denominator-missed-cleavages 0` |
+
+With `parent`, the intensity of a peptide such as `AAAKBBBR` is split equally
+between `AAAK` and `BBBR` when both are digest peptides (pieces shorter than
+`--min-aa` are not), so total intensity is conserved and iBAQ values stay on the
+0-missed-cleavage scale. The log reports the recovered and still-dropped
+intensity fractions.
+
 Family discovery proceeds in two layers:
 
 1. **UniProt isoform collapse** — accessions of the form `P05067-2`, `P70255-3` are folded onto their canonical entry (`P05067`, `P70255`). This matches the UniProt convention and absorbs the bulk of "non-canonical isoform with no unique peptide" cases.

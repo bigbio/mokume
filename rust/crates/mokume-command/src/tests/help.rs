@@ -18,6 +18,8 @@ const REQUIRED_FEATURES_TO_PROTEINS_OPTIONS: &[&str] = &[
     "--pibaq-enzyme",
     "--pibaq-max-aa",
     "--pibaq-missed-cleavages",
+    "--pibaq-mc-mode",
+    "--pibaq-denominator-missed-cleavages",
     "--pibaq-min-shared",
     "--pibaq-families",
     "--pibaq-min-anchors",

@@ -403,6 +403,32 @@ pub struct PibaqConfig {
     /// Optional per-row evidence side-car (TSV).
     #[serde(default)]
     pub evidence_output: Option<PathBuf>,
+    #[serde(default)]
+    pub missed_cleavage_mode: PibaqMissedCleavageMode,
+    /// Max missed cleavages of theoretical peptides counted in the denominator
+    /// (`None` = `missed_cleavages`).
+    #[serde(default)]
+    pub denominator_missed_cleavages: Option<usize>,
+}
+
+/// What piBAQ does with observed peptides that are not in the theoretical digest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum PibaqMissedCleavageMode {
+    #[default]
+    Drop,
+    /// Split into fully cleaved digest peptides (and Met-removed N-termini) and add
+    /// the intensity there.
+    Parent,
+}
+
+impl PibaqMissedCleavageMode {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Drop => "drop",
+            Self::Parent => "parent",
+        }
+    }
 }
 
 /// How piBAQ assigns peptides shared by members of one family.
@@ -475,6 +501,8 @@ impl Default for PibaqConfig {
             shared_mode: PibaqSharedMode::default(),
             family_rows: None,
             evidence_output: None,
+            missed_cleavage_mode: PibaqMissedCleavageMode::Drop,
+            denominator_missed_cleavages: None,
         }
     }
 }

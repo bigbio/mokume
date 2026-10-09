@@ -145,31 +145,36 @@ impl ImpurityMatrix {
 
     /// Non-negative least squares for the true channel intensities of one row.
     pub(crate) fn correct(&self, observed: &[Option<f64>]) -> Vec<f64> {
-        let size = self.fraction.len();
         let y = observed
             .iter()
             .map(|value| value.unwrap_or(0.0))
             .collect::<Vec<_>>();
-        let mut gram = vec![vec![0.0; size]; size];
-        let mut rhs = vec![0.0; size];
-        for i in 0..size {
-            for j in 0..size {
-                rhs[i] += self.fraction[i][j] * y[j];
-                for k in 0..size {
-                    gram[i][k] += self.fraction[i][j] * self.fraction[k][j];
-                }
-            }
-        }
+        let rhs = self
+            .fraction
+            .iter()
+            .map(|row| row.iter().zip(&y).map(|(a, b)| a * b).sum::<f64>())
+            .collect::<Vec<_>>();
+        let gram = self
+            .fraction
+            .iter()
+            .map(|left| {
+                self.fraction
+                    .iter()
+                    .map(|right| left.iter().zip(right).map(|(a, b)| a * b).sum::<f64>())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
         let scale = y.iter().copied().fold(0.0, f64::max).max(f64::MIN_POSITIVE);
         let mut x = y.clone();
         for _ in 0..500 {
             let mut change = 0.0_f64;
-            for i in 0..size {
-                if gram[i][i] <= 0.0 {
+            for (i, (row, target)) in gram.iter().zip(&rhs).enumerate() {
+                let diagonal = row[i];
+                if diagonal <= 0.0 {
                     continue;
                 }
-                let residual = rhs[i] - (0..size).map(|k| gram[i][k] * x[k]).sum::<f64>();
-                let updated = (x[i] + residual / gram[i][i]).max(0.0);
+                let residual = target - row.iter().zip(&x).map(|(g, v)| g * v).sum::<f64>();
+                let updated = (x[i] + residual / diagonal).max(0.0);
                 change = change.max((updated - x[i]).abs());
                 x[i] = updated;
             }

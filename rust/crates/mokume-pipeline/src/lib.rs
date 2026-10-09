@@ -2262,7 +2262,7 @@ fn tryptic_pieces(peptide: &str) -> Vec<&str> {
     let mut start = 0;
     for index in 0..bytes.len().saturating_sub(1) {
         let residue = bytes[index].to_ascii_uppercase();
-        if (residue == b'K' || residue == b'R') && bytes[index + 1].to_ascii_uppercase() != b'P' {
+        if (residue == b'K' || residue == b'R') && !bytes[index + 1].eq_ignore_ascii_case(&b'P') {
             pieces.push(&peptide[start..=index]);
             start = index + 1;
         }

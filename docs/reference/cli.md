@@ -72,7 +72,10 @@ feature tables.
 | `--pibaq-missed-cleavages` | 0 | Missed cleavages in the theoretical digest |
 | `--pibaq-min-shared` | 2 | Minimum shared peptides for automatic family discovery |
 | `--pibaq-families` | none | YAML file with explicit family overrides |
-| `--pibaq-min-anchors` | 1 | Minimum unique-peptide anchors required before proportional family allocation |
+| `--pibaq-min-anchors` | 1 | Minimum unique-peptide anchors (in the dataset) for a family to have member-level evidence |
+| `--pibaq-shared` | `unique` | Shared-peptide handling: `unique` (member values from unique peptides only), `stable-ratio` (unique peptides plus shared signal split by cross-sample member ratios), `proportional` (legacy per-sample split) |
+| `--pibaq-family-rows` | `family-only` | Family-level rows (`A;B;C`): `family-only` (families with no unique-peptide evidence), `all`, `none`; `none` with `proportional` |
+| `--pibaq-evidence` | none | Write a per-row TSV side-car: row type, family, evidence class, theoretical/observed unique and shared peptide counts |
 
 !!! note "Write the N in the method name: `--quant-method top<N>`"
     TopN quantification takes its N from the method name — `--quant-method top3`,

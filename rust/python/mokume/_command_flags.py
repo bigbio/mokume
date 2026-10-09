@@ -21,6 +21,7 @@ _ALLOWED = {
         "fasta pibaq_enzyme pibaq_max_aa pibaq_missed_cleavages "
         "pibaq_min_shared pibaq_families pibaq_min_anchors "
         "pibaq_shared pibaq_family_rows pibaq_evidence "
+        "pibaq_mc_mode pibaq_denominator_missed_cleavages "
         "directlfq_min_nonan directlfq_num_samples_quadratic "
         "export_peptides export_ions batch_correction batch_method batch_column "
         "batch_covariate batch_nonparametric batch_mean_only "

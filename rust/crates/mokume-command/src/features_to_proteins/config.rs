@@ -1,8 +1,8 @@
 use mokume_core::{
     BatchCorrectionConfig, DifferentialExpressionConfig, DirectLfqConfig, FeatureToProteinsConfig,
     FilterConfig, ImputationConfig, InputConfig, IrsConfig, MaxLfqConfig, MokumeError,
-    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, PibaqFamilyRows, PibaqSharedMode,
-    QuantMethod, RatioConfig, RuntimeConfig,
+    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, PibaqFamilyRows,
+    PibaqMissedCleavageMode, PibaqSharedMode, QuantMethod, RatioConfig, RuntimeConfig,
 };
 
 use super::Features2ProteinsArgs;
@@ -502,6 +502,16 @@ fn pibaq_config(args: &Features2ProteinsArgs) -> PibaqConfig {
                 _ => PibaqFamilyRows::FamilyOnly,
             }),
         evidence_output: args.pibaq_evidence.clone(),
+        missed_cleavage_mode: if args
+            .pibaq_mc_mode
+            .as_deref()
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("parent"))
+        {
+            PibaqMissedCleavageMode::Parent
+        } else {
+            PibaqMissedCleavageMode::Drop
+        },
+        denominator_missed_cleavages: args.pibaq_denominator_missed_cleavages,
     }
 }
 

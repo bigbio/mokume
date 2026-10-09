@@ -117,6 +117,22 @@ mean-center, rlr, loess, tmm]"
     #[arg(long = "pibaq-missed-cleavages", value_name = "N", default_value_t = 0)]
     pibaq_missed_cleavages: usize,
 
+    #[arg(
+        long = "pibaq-mc-mode",
+        value_name = "MODE",
+        value_parser = ["drop", "parent"],
+        ignore_case = true,
+        help = "Observed peptides outside the digest: drop, or add to their fully cleaved parents [default: drop]"
+    )]
+    pibaq_mc_mode: Option<String>,
+
+    #[arg(
+        long = "pibaq-denominator-missed-cleavages",
+        value_name = "N",
+        help = "Max missed cleavages counted in the piBAQ denominator [default: --pibaq-missed-cleavages]"
+    )]
+    pibaq_denominator_missed_cleavages: Option<usize>,
+
     #[arg(long = "pibaq-min-shared", value_name = "N", default_value_t = 2)]
     pibaq_min_shared: usize,
 

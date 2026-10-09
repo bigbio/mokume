@@ -104,6 +104,42 @@ passing a non-`none` value is rejected. Other methods default to `median` /
 | `--irs-stat` | `median` | Plex reference statistic: median or mean |
 | `--irs-remove-reference` | off | Remove reference samples from output |
 | `--irs-plex-column` | auto | SDRF column naming each channel's plex (default: channels sharing data files) |
+| `--irs-missing-reference` | `keep` | A protein with values but no reference value in a plex: `keep` (leave that plex unscaled), `drop` (remove those values), `plex-median` (scale by the plex's median IRS factor) |
+
+### TMT reporter corrections
+
+Applied to each QPX feature row (all reporter channels of one PSM/feature) before
+normalization and quantification. Label-free rows are untouched.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--tmt-row-merge` | `max` | Repeated rows of one peptidoform/charge in one plex (several PSMs, fractions): `max` takes the maximum per channel independently; `best-row` keeps the single row with the highest reporter sum, so all channels come from one spectrum |
+| `--tmt-impurity` | none | Isotope-impurity table for reporter correction (non-negative least squares per row) |
+| `--tmt-interference-floor` | none | Subtract an additive co-isolation floor: a fraction (e.g. `0.05`) or `auto` (estimated per plex) |
+| `--tmt-floor-quantile` | 0.01 | Ratio quantile used by `--tmt-interference-floor auto` |
+
+`max` picks the noisiest maximum in low channels when an ion is quantified in
+several spectra, which compresses ratios; `best-row` is the MSstatsTMT-style
+choice. The impurity table has one line per channel with the percentages
+leaking to the channels 2 and 1 Da lighter and 1 and 2 Da heavier (the lot's
+certificate of analysis), e.g.
+
+```
+channel	-2	-1	+1	+2
+126	0.0	0.0	5.09	0.0
+127N	0.0	0.25	5.27	0.0
+```
+
+Channel names may carry a `TMT` prefix; `N`/`C` channels leak into the next
+channel of the same type (126 counts as `C`). With
+`--tmt-interference-floor`, each channel `c` of a row becomes
+`(I_c - f * m * L_c) / (1 - f)`, where `m` is the loading-adjusted row mean and
+`L_c` the plex's median channel loading, and is kept at or above
+`0.01 * m * L_c`. This assumes co-isolated signal is spread over the channels
+like the plex loading and scales with the row's own intensity (a constant
+precursor purity of `1 - f`). `auto` sets `f` per plex to the
+`--tmt-floor-quantile` of loading-adjusted channel ratios in the more intense
+half of complete rows.
 
 IRS options require `--irs` and an SDRF. Reference detection must find usable
 reference samples and plex assignments; otherwise the command fails. IRS is

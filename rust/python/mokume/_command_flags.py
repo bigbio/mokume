@@ -25,6 +25,8 @@ _ALLOWED = {
         "batch_covariate batch_nonparametric batch_mean_only "
         "batch_ref irs irs_reference_sample irs_sdrf_column "
         "irs_sdrf_value irs_reference_regex irs_stat irs_remove_reference irs_plex_column "
+        "irs_missing_reference tmt_row_merge tmt_impurity tmt_interference_floor "
+        "tmt_floor_quantile "
         "coverage_threshold min_sample_correlation "
         "ratio_fraction_merge impute_method impute_quantile impute_shift "
         "impute_scale impute_n_neighbors de_contrast "

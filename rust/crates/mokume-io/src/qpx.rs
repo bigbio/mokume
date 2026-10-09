@@ -29,6 +29,8 @@ pub struct QpxFeatureRecord {
     pub selected_score: Option<QpxScoreValue>,
     pub label: Option<String>,
     pub intensity: f64,
+    /// First record flattened from one parquet row (rows of TMT channels follow it).
+    pub row_start: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -245,7 +247,10 @@ fn flatten_qpx_row(
         entries
             .into_iter()
             .filter(|entry| entry.intensity.is_finite())
-            .map(|entry| qpx_feature_record(&metadata, entry, labels_are_runs)),
+            .enumerate()
+            .map(|(index, entry)| {
+                qpx_feature_record(&metadata, entry, labels_are_runs, index == 0)
+            }),
     );
     Ok(())
 }
@@ -266,6 +271,7 @@ fn qpx_feature_record(
     metadata: &QpxRowMetadata,
     entry: QpxIntensityEntry,
     labels_are_runs: bool,
+    row_start: bool,
 ) -> QpxFeatureRecord {
     let (run_file_name, label) = if labels_are_runs {
         (
@@ -292,6 +298,7 @@ fn qpx_feature_record(
         selected_score: metadata.selected_score,
         label,
         intensity: entry.intensity,
+        row_start,
     }
 }
 

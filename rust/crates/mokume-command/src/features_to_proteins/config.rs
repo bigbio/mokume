@@ -1,8 +1,8 @@
 use mokume_core::{
     BatchCorrectionConfig, DifferentialExpressionConfig, DirectLfqConfig, FeatureToProteinsConfig,
-    FilterConfig, ImputationConfig, InputConfig, IrsConfig, MaxLfqConfig, MokumeError,
-    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, QuantMethod, RatioConfig,
-    RuntimeConfig,
+    FilterConfig, ImputationConfig, InputConfig, IrsConfig, IrsMissingReference, MaxLfqConfig,
+    MokumeError, NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, QuantMethod,
+    RatioConfig, RuntimeConfig, TmtConfig, TmtRowMerge,
 };
 
 use super::Features2ProteinsArgs;
@@ -181,6 +181,16 @@ fn resolve_irs(
         stat: args.irs_stat.clone().unwrap_or_else(|| "median".to_owned()),
         remove_reference: args.irs_remove_reference,
         plex_column: args.irs_plex_column.clone(),
+        missing_reference: match args
+            .irs_missing_reference
+            .as_deref()
+            .map(str::to_ascii_lowercase)
+            .as_deref()
+        {
+            Some("drop") => IrsMissingReference::Drop,
+            Some("plex-median") => IrsMissingReference::PlexMedian,
+            _ => IrsMissingReference::Keep,
+        },
     })
 }
 
@@ -239,7 +249,8 @@ fn validate_irs_mode(
         && (selector_count > 0
             || args.irs_stat.is_some()
             || args.irs_remove_reference
-            || args.irs_plex_column.is_some())
+            || args.irs_plex_column.is_some()
+            || args.irs_missing_reference.is_some())
     {
         return Err(MokumeError::InvalidInput {
             message: "IRS options require --irs".to_owned(),
@@ -442,6 +453,7 @@ fn build_config(
         directlfq: directlfq_config(args),
         batch: resolved.batch,
         irs: resolved.irs,
+        tmt: tmt_config(args),
         coverage_threshold: args.coverage_threshold,
         sample_correlation_threshold: args.min_sample_correlation,
         ratio: resolved.ratio,
@@ -482,6 +494,25 @@ fn pibaq_config(args: &Features2ProteinsArgs) -> PibaqConfig {
         min_anchors: args.pibaq_min_anchors,
         high_anchor_threshold: PibaqConfig::default().high_anchor_threshold,
         missed_cleavages: args.pibaq_missed_cleavages,
+    }
+}
+
+fn tmt_config(args: &Features2ProteinsArgs) -> TmtConfig {
+    TmtConfig {
+        row_merge: if args
+            .tmt_row_merge
+            .as_deref()
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("best-row"))
+        {
+            TmtRowMerge::BestRow
+        } else {
+            TmtRowMerge::MaxPerChannel
+        },
+        impurity_table: args.tmt_impurity.clone(),
+        interference_floor: args.tmt_interference_floor,
+        floor_quantile: args
+            .tmt_floor_quantile
+            .unwrap_or(TmtConfig::default().floor_quantile),
     }
 }
 

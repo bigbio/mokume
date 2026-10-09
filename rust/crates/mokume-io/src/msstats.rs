@@ -146,6 +146,7 @@ impl<'a> MsstatsReader<'a> {
             selected_score: None,
             label,
             intensity,
+            row_start: true,
         })
     }
 

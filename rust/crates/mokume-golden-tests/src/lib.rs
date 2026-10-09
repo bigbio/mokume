@@ -19,7 +19,7 @@ use mokume_core::{
     IntensityFilterConfig, IrsChannelConfig, IrsConfig, IrsScope, IrsStat, MaxLfqConfig,
     MokumeError, NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat,
     PeptideFilterConfig, PibaqConfig, PreprocessingFilterConfig, ProteinFilterConfig, QuantMethod,
-    RatioConfig, RunQcFilterConfig, RuntimeConfig,
+    RatioConfig, RunQcFilterConfig, RuntimeConfig, TmtConfig,
 };
 use mokume_pipeline::{
     run_features_to_peptides, run_features_to_proteins, run_features_to_proteins_with_pibaq_digest,
@@ -3499,6 +3499,7 @@ fn run_synthetic_quantification(
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         ratio: RatioConfig::default(),
@@ -3623,6 +3624,7 @@ fn run_ratio_quantification() -> Result<CsvTable, Box<dyn Error>> {
             reference_samples: Some(vec!["plexA_1".to_owned()]),
             ..IrsConfig::default()
         },
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         ratio: RatioConfig::default(),
@@ -3727,6 +3729,7 @@ fn run_family_pibaq_quantification() -> Result<CsvTable, Box<dyn Error>> {
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         ratio: RatioConfig::default(),
@@ -4412,6 +4415,7 @@ fn default_sum_config(parquet: PathBuf, sdrf: PathBuf, output: PathBuf) -> Featu
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         ratio: RatioConfig::default(),
@@ -4475,6 +4479,7 @@ fn run_coverage_quantification() -> Result<CsvTable, Box<dyn Error>> {
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: Some(1.0),
         sample_correlation_threshold: None,
         ratio: RatioConfig::default(),

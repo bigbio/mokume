@@ -17,6 +17,8 @@ pub struct FeatureToProteinsConfig {
     pub directlfq: DirectLfqConfig,
     pub batch: BatchCorrectionConfig,
     pub irs: IrsConfig,
+    #[serde(default)]
+    pub tmt: TmtConfig,
     pub coverage_threshold: Option<f64>,
     /// Minimum mean pairwise Pearson correlation to same-condition peers,
     /// computed on pairwise-complete log2 protein intensities.
@@ -467,6 +469,99 @@ pub struct IrsConfig {
     /// SDRF column naming each channel's plex; `None` derives plexes from shared data files.
     #[serde(default)]
     pub plex_column: Option<String>,
+    #[serde(default)]
+    pub missing_reference: IrsMissingReference,
+}
+
+/// What IRS does with a protein that has no reference value in a plex.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum IrsMissingReference {
+    /// Leave that plex unscaled (legacy).
+    #[default]
+    Keep,
+    /// Remove the protein's values in that plex.
+    Drop,
+    /// Scale by the plex's median factor over proteins with a reference.
+    PlexMedian,
+}
+
+impl IrsMissingReference {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Keep => "keep",
+            Self::Drop => "drop",
+            Self::PlexMedian => "plex-median",
+        }
+    }
+}
+
+/// Reporter-ion (TMT) feature corrections applied per QPX row before quantification.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TmtConfig {
+    #[serde(default)]
+    pub row_merge: TmtRowMerge,
+    /// Isotope-impurity table (channel, -2, -1, +1, +2 in percent).
+    #[serde(default)]
+    pub impurity_table: Option<PathBuf>,
+    #[serde(default)]
+    pub interference_floor: Option<TmtInterferenceFloor>,
+    /// Quantile of loading-adjusted channel ratios used by the `auto` floor.
+    #[serde(default = "default_floor_quantile")]
+    pub floor_quantile: f64,
+}
+
+fn default_floor_quantile() -> f64 {
+    0.01
+}
+
+impl Default for TmtConfig {
+    fn default() -> Self {
+        Self {
+            row_merge: TmtRowMerge::default(),
+            impurity_table: None,
+            interference_floor: None,
+            floor_quantile: default_floor_quantile(),
+        }
+    }
+}
+
+impl TmtConfig {
+    pub fn is_active(&self) -> bool {
+        self.row_merge != TmtRowMerge::MaxPerChannel
+            || self.impurity_table.is_some()
+            || self.interference_floor.is_some()
+    }
+}
+
+/// How repeated rows of one ion in one plex (PSMs, fractions) are combined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum TmtRowMerge {
+    /// Max per channel independently (legacy).
+    #[default]
+    MaxPerChannel,
+    /// Keep the whole row with the highest summed reporter intensity.
+    BestRow,
+}
+
+impl TmtRowMerge {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::MaxPerChannel => "max",
+            Self::BestRow => "best-row",
+        }
+    }
+}
+
+/// Additive co-isolation floor removed from every reporter channel.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TmtInterferenceFloor {
+    /// Fraction of the loading-adjusted row mean.
+    Fixed(f64),
+    /// Estimated per plex.
+    Auto,
 }
 
 impl Default for IrsConfig {
@@ -480,6 +575,7 @@ impl Default for IrsConfig {
             stat: "median".to_string(),
             remove_reference: false,
             plex_column: None,
+            missing_reference: IrsMissingReference::Keep,
         }
     }
 }

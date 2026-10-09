@@ -10342,12 +10342,14 @@ mod tests {
         assert_eq!(norm_intensity(b, sample_anchored), Some(150.0));
     }
 
-    fn two_member_family_fixture() -> (
+    type FamilyFixture = (
         super::ProteinFamily,
         HashSet<String>,
         HashMap<String, HashSet<String>>,
         HashMap<String, HashSet<String>>,
-    ) {
+    );
+
+    fn two_member_family_fixture() -> FamilyFixture {
         let family = super::ProteinFamily {
             family_id: "A".to_owned(),
             members: vec!["A".to_owned(), "B".to_owned()],

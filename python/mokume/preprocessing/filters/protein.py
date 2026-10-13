@@ -2,13 +2,13 @@
 Protein-level preprocessing filters.
 """
 
-import re
 from typing import Tuple, List
 
 import pandas as pd
 
 from mokume.core.logger import get_logger
 from mokume.core.constants import PROTEIN_NAME, PEPTIDE_CANONICAL
+from mokume.core.contaminants import contaminant_group_mask
 from mokume.preprocessing.filters.base import BaseFilter, FilterResult
 from mokume.preprocessing.filters.enums import FilterLevel, RazorPeptideHandling
 
@@ -73,10 +73,7 @@ class ContaminantFilter(BaseFilter):
                 {"patterns": [], "remove_decoys": self.remove_decoys},
             )
 
-        # Vectorized contaminant matching using regex OR pattern
-        upper_col = df[self.protein_column].fillna("").astype(str).str.upper()
-        pattern_regex = "|".join(re.escape(p.upper()) for p in active_patterns)
-        mask = ~upper_col.str.contains(pattern_regex, regex=True)
+        mask = ~contaminant_group_mask(df[self.protein_column], active_patterns)
         filtered_df = df[mask].copy()
 
         output_count = len(filtered_df)

@@ -393,6 +393,8 @@ pub struct PibaqConfig {
     pub families_yaml: Option<PathBuf>,
     pub min_anchors: usize,
     pub high_anchor_threshold: usize,
+    #[serde(default)]
+    pub missed_cleavages: usize,
 }
 
 impl Default for PibaqConfig {
@@ -404,6 +406,7 @@ impl Default for PibaqConfig {
             families_yaml: None,
             min_anchors: 1,
             high_anchor_threshold: 3,
+            missed_cleavages: 0,
         }
     }
 }
@@ -461,6 +464,9 @@ pub struct IrsConfig {
     pub reference_regex: String,
     pub stat: String,
     pub remove_reference: bool,
+    /// SDRF column naming each channel's plex; `None` derives plexes from shared data files.
+    #[serde(default)]
+    pub plex_column: Option<String>,
 }
 
 impl Default for IrsConfig {
@@ -473,6 +479,7 @@ impl Default for IrsConfig {
             reference_regex: "pool|powder|ref|reference|bridge".to_string(),
             stat: "median".to_string(),
             remove_reference: false,
+            plex_column: None,
         }
     }
 }

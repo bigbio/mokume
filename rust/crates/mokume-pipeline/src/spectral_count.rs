@@ -115,10 +115,7 @@ fn insert_feature_group(
 ) -> Result<()> {
     let group = FeatureProteinGroup {
         proteins: protein_set(&record.protein_accessions).unwrap_or_default(),
-        contaminant: record
-            .protein_accessions
-            .iter()
-            .any(|accession| super::is_contaminant(accession)),
+        contaminant: super::matches_sql_contaminant(&record.protein_accessions, &[]),
         is_decoy: record.is_decoy,
     };
     if let Some(existing) = groups.insert(record.feature_id, group.clone()) {
@@ -181,8 +178,19 @@ fn add_record(
     if filtering.remove_contaminants && group.contaminant {
         return Ok(false);
     }
+    let mut proteins = group.proteins.clone();
+    if filtering.remove_contaminants {
+        let kept = proteins
+            .iter()
+            .filter(|protein| !super::is_contaminant(protein))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if !kept.is_empty() {
+            proteins = kept;
+        }
+    }
     let sample = sample_for_run(sdrf, run_samples, &record.run_file_name)?;
-    insert_assignment(assignments, record, group.proteins.clone(), sample)?;
+    insert_assignment(assignments, record, proteins, sample)?;
     Ok(true)
 }
 

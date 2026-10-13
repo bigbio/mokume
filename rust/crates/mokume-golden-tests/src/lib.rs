@@ -2104,6 +2104,36 @@ fn features2peptides_default_patterns_drop_contam_prefix() -> Result<(), Box<dyn
     Ok(())
 }
 
+#[test]
+fn features2peptides_keeps_human_protein_with_contaminant_twin() -> Result<(), Box<dyn Error>> {
+    let root = temp_root()?;
+    create_dir_all(&root)?;
+    let parquet = root.join("peptides.twin.features.parquet");
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new("EPEPTIDEAK", "run1", 100.0, &["CONTAM_P05787", "P05787"]),
+            QpxRow::new("FPEPTIDECK", "run1", 200.0, &["P05787", "CONTAM_P05787"]),
+            QpxRow::new("CPEPTIDEAK", "run1", 300.0, &["CONTAM_P00761"]),
+            QpxRow::new("DPEPTIDECK", "run1", 400.0, &["CONTAM_P00761"]),
+        ],
+    )?;
+    let out = root.join("twin.csv");
+    let mut config = default_peptides_config(parquet, out.clone());
+    config.filter_pipeline = Some(PreprocessingFilterConfig::default());
+    run_features_to_peptides(&config)?;
+    let table = read_csv(&out)?;
+    assert_eq!(
+        table.rows.len(),
+        2,
+        "twin kept, trypsin dropped:\n{:#?}",
+        table.rows
+    );
+    assert_peptide_cell(&table, "P05787", "EPEPTIDEAK", "run1", 100.0)?;
+    assert_peptide_cell(&table, "P05787", "FPEPTIDECK", "run1", 200.0)?;
+    Ok(())
+}
+
 // Oracle (--skip_normalization --log2, no --sdrf): NormIntensity = log2(sum).
 //   P1,APEPTIDECK,run2 -> log2(400) = 8.643856...
 //   P1,PEPTIDEAK,run2  -> log2(300) = 8.228818...

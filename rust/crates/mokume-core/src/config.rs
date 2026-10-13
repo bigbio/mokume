@@ -22,6 +22,12 @@ pub struct FeatureToProteinsConfig {
     /// computed on pairwise-complete log2 protein intensities.
     #[serde(default)]
     pub sample_correlation_threshold: Option<f64>,
+    /// Maximum experiment-wide protein-group q-value (`--filter-protein-fdr`).
+    /// A protein group is kept when the best (minimum) QPX `pg_global_qvalue`
+    /// across all of its rows is `<= threshold`; every row of a failing group
+    /// is dropped before the unique-peptide gate. `None` disables the filter.
+    #[serde(default)]
+    pub protein_fdr_threshold: Option<f64>,
     pub ratio: RatioConfig,
     pub imputation: ImputationConfig,
     pub differential_expression: DifferentialExpressionConfig,

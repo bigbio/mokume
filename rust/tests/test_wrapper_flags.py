@@ -65,3 +65,11 @@ def test_python_name_matches_real_families_flag() -> None:
         "--families",
         "families.yaml",
     ]
+
+
+def test_features2proteins_protein_fdr_keyword_maps_to_flag() -> None:
+    """The protein FDR keyword reaches the features2proteins CLI flag."""
+    assert flags_for("features2proteins", {"filter_protein_fdr": 0.01}) == [
+        "--filter-protein-fdr",
+        "0.01",
+    ]

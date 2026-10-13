@@ -67,6 +67,14 @@ intensity, peptide-count, spectral-count, top<N> (e.g. top3)]"
     )]
     min_unique: Option<usize>,
 
+    #[arg(
+        long = "filter-protein-fdr",
+        value_name = "FRACTION",
+        value_parser = parse_fraction,
+        help = "Keep protein groups whose best QPX pg_global_qvalue is <= FRACTION (e.g. 0.01)"
+    )]
+    filter_protein_fdr: Option<f64>,
+
     #[arg(long = "keep-contaminants", help = "Decoys are always removed")]
     keep_contaminants: bool,
 

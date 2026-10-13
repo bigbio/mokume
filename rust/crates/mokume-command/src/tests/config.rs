@@ -308,6 +308,47 @@ fn native_msstats_input_requires_sdrf() {
 }
 
 #[test]
+fn filter_protein_fdr_is_off_by_default_and_parsed_when_given() {
+    let base = [
+        "mokume",
+        "quantify",
+        "features2proteins",
+        "--parquet",
+        "input.parquet",
+        "--output",
+        "protein.csv",
+    ];
+    let Ok(config) = features_to_proteins_args(Cli::parse_from(base)).into_config() else {
+        panic!("expected a valid features2proteins config");
+    };
+    assert_eq!(config.protein_fdr_threshold, None);
+
+    let cli = Cli::parse_from(base.iter().copied().chain(["--filter-protein-fdr", "0.01"]));
+    let Ok(config) = features_to_proteins_args(cli).into_config() else {
+        panic!("expected a valid protein FDR config");
+    };
+    assert_eq!(config.protein_fdr_threshold, Some(0.01));
+}
+
+#[test]
+fn filter_protein_fdr_rejects_values_outside_unit_interval() {
+    for value in ["1.5", "-0.1", "nan"] {
+        let result = Cli::try_parse_from([
+            "mokume",
+            "quantify",
+            "features2proteins",
+            "--parquet",
+            "input.parquet",
+            "--output",
+            "protein.csv",
+            "--filter-protein-fdr",
+            value,
+        ]);
+        assert!(result.is_err(), "`{value}` should be rejected");
+    }
+}
+
+#[test]
 fn zero_impute_method_enables_imputation() {
     let cli = Cli::parse_from([
         "mokume",

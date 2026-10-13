@@ -55,6 +55,7 @@ feature tables.
 |--------|---------|-------------|
 | `-s/--sdrf` | none | SDRF file for sample metadata |
 | `--min-aa` | 7 | Minimum amino acid length |
+| `--filter-protein-fdr` | none | Keep protein groups whose best QPX `pg_global_qvalue` is `<=` this value (e.g. `0.01`); requires QPX `--parquet` input with a populated `pg_global_qvalue`; not available for `spectral-count` |
 | `--min-unique` | 2 | Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option |
 | `--keep-contaminants` | off | Keep contaminants; rows marked `is_decoy=true` are always removed |
 

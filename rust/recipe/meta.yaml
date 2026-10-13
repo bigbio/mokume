@@ -41,6 +41,8 @@ requirements:
     - python
     # piBAQ reads this installation's complete ProteaseDB catalog at runtime.
     - pyopenms >=3.4,<4
+    # mokume.core.constants (imported by the piBAQ digest path) needs pandas.
+    - pandas
 
 test:
   imports:

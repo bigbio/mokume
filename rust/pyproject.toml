@@ -38,7 +38,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dynamic = ["version"]
-dependencies = ["pyopenms>=3.4,<4"]
+dependencies = ["pyopenms>=3.4,<4", "pandas"]
 
 # `pip install mokume` exposes the `mokume` command; it runs the compute
 # kernel in-process through the extension (no separate binary needed).
@@ -52,6 +52,8 @@ Issues = "https://github.com/bigbio/mokume/issues"
 # Third-party stacks the optional Python periphery commands need. pyOpenMS is a
 # base dependency because both Rust-backed piBAQ commands digest their FASTA
 # through the installed runtime catalog.
+# pandas is a base dependency because the piBAQ digest path imports
+# mokume.core.constants, which needs it (newer pyOpenMS no longer pulls it in).
 [project.optional-dependencies]
 plotting = ["numpy", "pandas", "scipy", "matplotlib", "seaborn", "scikit-learn"]
 reports = ["numpy", "pandas", "plotly"]

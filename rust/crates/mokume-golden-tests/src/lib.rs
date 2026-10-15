@@ -18,8 +18,8 @@ use mokume_core::{
     FeatureToPeptidesConfig, FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig,
     IntensityFilterConfig, IrsChannelConfig, IrsConfig, IrsScope, IrsStat, MaxLfqConfig,
     MokumeError, NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat,
-    PeptideFilterConfig, PibaqConfig, PreprocessingFilterConfig, ProteinFilterConfig, QuantMethod,
-    RatioConfig, RunQcFilterConfig, RuntimeConfig,
+    PeptideFilterConfig, PibaqConfig, PibaqSharedMode, PreprocessingFilterConfig,
+    ProteinFilterConfig, QuantMethod, RatioConfig, RunQcFilterConfig, RuntimeConfig,
 };
 use mokume_pipeline::{
     run_features_to_peptides, run_features_to_proteins, run_features_to_proteins_with_pibaq_digest,
@@ -2743,6 +2743,37 @@ fn features2proteins_pibaq_allocates_family_shared_peptides() -> Result<(), Box<
 }
 
 #[test]
+fn features2proteins_pibaq_default_uses_unique_peptides_and_family_rows(
+) -> Result<(), Box<dyn Error>> {
+    // P5A/P5B share two peptides; each member keeps only its own unique peptide.
+    let table = run_family_pibaq_quantification_with(PibaqConfig::default())?;
+    assert_numeric_cell_close(&table, "P5A", "sample-1", 300.0);
+    assert_numeric_cell_close(&table, "P5B", "sample-1", 100.0);
+
+    // P4A/P4B have no unique peptide: one family row instead of invented member values.
+    let synthetic =
+        run_synthetic_quantification_with(QuantMethod::Pibaq, 3, PibaqConfig::default())?;
+    assert_numeric_cell_close(&synthetic, "P4A;P4B", "sample-1", 15.0);
+    assert!(!synthetic.rows.iter().any(|row| row
+        .first()
+        .is_some_and(|name| name == "P4A" || name == "P4B")));
+    assert_numeric_cell_close(&synthetic, "P1", "sample-1", 3450.0);
+    Ok(())
+}
+
+#[test]
+fn features2proteins_pibaq_stable_ratio_matches_legacy_on_one_anchored_sample(
+) -> Result<(), Box<dyn Error>> {
+    let table = run_family_pibaq_quantification_with(PibaqConfig {
+        shared_mode: PibaqSharedMode::StableRatio,
+        ..PibaqConfig::default()
+    })?;
+    assert_numeric_cell_close(&table, "P5A", "sample-1", 250.0);
+    assert_numeric_cell_close(&table, "P5B", "sample-1", 250.0 / 3.0);
+    Ok(())
+}
+
+#[test]
 fn features2proteins_lfq_methods_match_synthetic_oracles() -> Result<(), Box<dyn Error>> {
     // DirectLFQ oracle from the Mann-Labs `directlfq` package on the same 2-ion
     // x 2-sample P6 matrix: sample normalization removes the global 2x factor
@@ -3452,6 +3483,19 @@ fn run_synthetic_quantification(
     quantification: QuantMethod,
     topn_peptides: usize,
 ) -> Result<CsvTable, Box<dyn Error>> {
+    let pibaq = if quantification == QuantMethod::Pibaq {
+        legacy_pibaq_config()
+    } else {
+        PibaqConfig::default()
+    };
+    run_synthetic_quantification_with(quantification, topn_peptides, pibaq)
+}
+
+fn run_synthetic_quantification_with(
+    quantification: QuantMethod,
+    topn_peptides: usize,
+    pibaq: PibaqConfig,
+) -> Result<CsvTable, Box<dyn Error>> {
     let root = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("features.parquet");
@@ -3495,7 +3539,7 @@ fn run_synthetic_quantification(
         quantification,
         topn_peptides,
         maxlfq: MaxLfqConfig::default(),
-        pibaq: PibaqConfig::default(),
+        pibaq,
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
@@ -3677,6 +3721,10 @@ fn run_ratio_multiplex_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_family_pibaq_quantification() -> Result<CsvTable, Box<dyn Error>> {
+    run_family_pibaq_quantification_with(legacy_pibaq_config())
+}
+
+fn run_family_pibaq_quantification_with(pibaq: PibaqConfig) -> Result<CsvTable, Box<dyn Error>> {
     let root = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("family.features.parquet");
@@ -3723,7 +3771,7 @@ fn run_family_pibaq_quantification() -> Result<CsvTable, Box<dyn Error>> {
         quantification: QuantMethod::Pibaq,
         topn_peptides: 3,
         maxlfq: MaxLfqConfig::default(),
-        pibaq: PibaqConfig::default(),
+        pibaq,
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
@@ -4920,6 +4968,14 @@ fn write_synthetic_fasta(path: &Path) -> Result<(), Box<dyn Error>> {
         ),
     )?;
     Ok(())
+}
+
+/// Legacy proportional piBAQ, which these Python-oracle fixtures were written for.
+fn legacy_pibaq_config() -> PibaqConfig {
+    PibaqConfig {
+        shared_mode: PibaqSharedMode::Proportional,
+        ..PibaqConfig::default()
+    }
 }
 
 fn test_pibaq_digest(entries: &[(&str, &[&str])]) -> PibaqDigest {

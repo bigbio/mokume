@@ -1,8 +1,8 @@
 use mokume_core::{
     BatchCorrectionConfig, DifferentialExpressionConfig, DirectLfqConfig, FeatureToProteinsConfig,
     FilterConfig, ImputationConfig, InputConfig, IrsConfig, MaxLfqConfig, MokumeError,
-    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, QuantMethod, RatioConfig,
-    RuntimeConfig,
+    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, PibaqFamilyRows, PibaqSharedMode,
+    QuantMethod, RatioConfig, RuntimeConfig,
 };
 
 use super::Features2ProteinsArgs;
@@ -482,6 +482,26 @@ fn pibaq_config(args: &Features2ProteinsArgs) -> PibaqConfig {
         min_anchors: args.pibaq_min_anchors,
         high_anchor_threshold: PibaqConfig::default().high_anchor_threshold,
         missed_cleavages: args.pibaq_missed_cleavages,
+        shared_mode: match args
+            .pibaq_shared
+            .as_deref()
+            .map(str::to_ascii_lowercase)
+            .as_deref()
+        {
+            Some("proportional") => PibaqSharedMode::Proportional,
+            Some("stable-ratio") => PibaqSharedMode::StableRatio,
+            _ => PibaqSharedMode::Unique,
+        },
+        family_rows: args
+            .pibaq_family_rows
+            .as_deref()
+            .map(str::to_ascii_lowercase)
+            .map(|value| match value.as_str() {
+                "all" => PibaqFamilyRows::All,
+                "none" => PibaqFamilyRows::None,
+                _ => PibaqFamilyRows::FamilyOnly,
+            }),
+        evidence_output: args.pibaq_evidence.clone(),
     }
 }
 

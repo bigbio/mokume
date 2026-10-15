@@ -6,10 +6,10 @@ use csv::WriterBuilder;
 use mokume_core::{
     BatchCorrectionConfig, DifferentialExpressionConfig, DirectLfqConfig, FeatureToPeptidesConfig,
     FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig, IntensityFilterConfig,
-    IrsChannelConfig, IrsConfig, IrsScope, IrsStat, MaxLfqConfig, MokumeError,
+    IrsChannelConfig, IrsConfig, IrsMissingReference, IrsScope, IrsStat, MaxLfqConfig, MokumeError,
     NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat, PeptideId,
     PibaqConfig, PreprocessingFilterConfig, ProteinId, QuantMethod, RatioConfig, Result,
-    RunQcFilterConfig, RuntimeConfig, SampleId, StringIdRegistry,
+    RunQcFilterConfig, RuntimeConfig, SampleId, StringIdRegistry, TmtConfig,
 };
 use mokume_imputation::imputed_values;
 use mokume_io::{
@@ -37,6 +37,7 @@ mod matrix;
 mod memory;
 mod spectral_count;
 mod threading;
+mod tmt;
 
 use memory::MemoryPlan;
 
@@ -4357,7 +4358,7 @@ impl ProteinMatrix {
             }
         }
 
-        let factors = irs_scaling_factors(
+        let mut factors = irs_scaling_factors(
             self.allowed_proteins.iter().copied(),
             &plexes,
             &refs_by_plex,
@@ -4369,7 +4370,27 @@ impl ProteinMatrix {
                 "IRS normalization could not compute any finite scaling factors",
             ));
         }
+        let missing = self.irs_unreferenced_pairs(&sample_to_plex, &factors);
+        info!(
+            protein_plex_pairs = missing.len(),
+            mode = config.missing_reference.label(),
+            "IRS: proteins with values but no reference value in a plex"
+        );
+        if config.missing_reference == IrsMissingReference::PlexMedian {
+            let medians = plex_median_factors(&factors);
+            for (protein, plex) in &missing {
+                if let Some(median) = medians.get(plex) {
+                    factors
+                        .entry(*protein)
+                        .or_default()
+                        .insert(plex.clone(), *median);
+                }
+            }
+        }
         self.scale_by_irs(&sample_to_plex, &factors);
+        if config.missing_reference == IrsMissingReference::Drop {
+            self.drop_protein_plex_values(&sample_to_plex, &missing);
+        }
 
         if config.remove_reference {
             for reference in reference_samples {
@@ -4379,6 +4400,81 @@ impl ProteinMatrix {
             }
         }
         Ok(())
+    }
+
+    /// (protein, plex) pairs that have values but no IRS factor.
+    fn irs_unreferenced_pairs(
+        &self,
+        sample_to_plex: &HashMap<String, String>,
+        factors: &HashMap<ProteinId, HashMap<String, f64>>,
+    ) -> BTreeSet<(ProteinId, String)> {
+        let plex_of = self.sample_plex_ids(sample_to_plex);
+        let mut missing = BTreeSet::new();
+        let mut visit = |protein: ProteinId, sample: SampleId, value: f64| {
+            if !value.is_finite() {
+                return;
+            }
+            let Some(plex) = plex_of.get(&sample) else {
+                return;
+            };
+            if !factors
+                .get(&protein)
+                .is_some_and(|by_plex| by_plex.contains_key(plex))
+            {
+                missing.insert((protein, plex.clone()));
+            }
+        };
+        match &self.values {
+            ProteinValues::Cells(values) => {
+                for (key, value) in values {
+                    visit(key.protein, key.sample, *value);
+                }
+            }
+            ProteinValues::Rows(rows) => {
+                for (protein, values) in rows {
+                    for (sample, value) in values {
+                        visit(*protein, *sample, *value);
+                    }
+                }
+            }
+        }
+        missing
+    }
+
+    fn sample_plex_ids(
+        &self,
+        sample_to_plex: &HashMap<String, String>,
+    ) -> HashMap<SampleId, String> {
+        self.samples
+            .iter()
+            .filter_map(|(sample, name)| {
+                sample_to_plex.get(name).map(|plex| (sample, plex.clone()))
+            })
+            .collect()
+    }
+
+    fn drop_protein_plex_values(
+        &mut self,
+        sample_to_plex: &HashMap<String, String>,
+        pairs: &BTreeSet<(ProteinId, String)>,
+    ) {
+        if pairs.is_empty() {
+            return;
+        }
+        let plex_of = self.sample_plex_ids(sample_to_plex);
+        let keep = |protein: ProteinId, sample: &SampleId| {
+            plex_of
+                .get(sample)
+                .is_none_or(|plex| !pairs.contains(&(protein, plex.clone())))
+        };
+        match &mut self.values {
+            ProteinValues::Cells(values) => values.retain(|key, _| keep(key.protein, &key.sample)),
+            ProteinValues::Rows(rows) => {
+                for (protein, values) in rows.iter_mut() {
+                    values.retain(|(sample, _)| keep(*protein, sample));
+                }
+            }
+        }
     }
 
     fn scale_by_irs(
@@ -5372,6 +5468,7 @@ fn pibaq_only_config(params: &PibaqFromPeptidesParams) -> FeatureToProteinsConfi
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         ratio: RatioConfig::default(),
@@ -5468,6 +5565,7 @@ fn run_features_to_proteins_inner(
     // makes the median pre-pass fall back to the default `is_contaminant` path.
     // The median pre-pass keeps shared peptides only for piBAQ (Python
     // `stages.py:325`: `keep_shared_peptides = method == "pibaq"`).
+    let mut tmt_processor = build_tmt_processor(config, sdrf.as_ref(), raw_sdrf.as_ref(), &memory)?;
     let intensity_factors = collect_intensity_factors(
         config,
         sdrf.as_ref(),
@@ -5475,15 +5573,26 @@ fn run_features_to_proteins_inner(
         config.quantification == QuantMethod::Pibaq,
         &memory,
         None,
+        tmt_processor.as_mut(),
     )?;
     memory.check("normalization pre-pass")?;
     let intensity_factors = (!intensity_factors.is_empty()).then_some(&intensity_factors);
     let dataset_normalization = dataset_sample_normalization_method(config)?;
     let mut state =
         FeatureToProteinState::new(config, sdrf.as_ref(), raw_sdrf.as_ref(), pibaq_digest)?;
-    stream_input_features(&config.input, sdrf.as_ref(), &memory, |feature| {
-        state.ingest(&feature, sdrf.as_ref(), config.filtering, intensity_factors)
-    })?;
+    if let Some(processor) = tmt_processor.as_mut() {
+        stream_feature_rows(&config.input, sdrf.as_ref(), &memory, |row| {
+            for feature in processor.process(row, sdrf.as_ref()) {
+                state.ingest(&feature, sdrf.as_ref(), config.filtering, intensity_factors)?;
+            }
+            Ok(())
+        })?;
+        processor.log_pass("quantification");
+    } else {
+        stream_input_features(&config.input, sdrf.as_ref(), &memory, |feature| {
+            state.ingest(&feature, sdrf.as_ref(), config.filtering, intensity_factors)
+        })?;
+    }
     memory.check("feature aggregation")?;
 
     info!(
@@ -5936,6 +6045,7 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
             config.keep_shared_peptides,
             &MemoryPlan::unlimited(),
             named_score,
+            None,
         )?
     };
     // The IRS pre-pass reuses the median pre-pass's contaminant settings.
@@ -6206,6 +6316,7 @@ fn peptide_export_config(config: &FeatureToPeptidesConfig) -> FeatureToProteinsC
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         ratio: RatioConfig::default(),
@@ -6421,6 +6532,56 @@ where
         }
     }
     Ok(())
+}
+
+/// Stream input features grouped by source row (all reporter channels of one row).
+fn stream_feature_rows<F>(
+    input: &InputConfig,
+    sdrf: Option<&SdrfTable>,
+    memory: &MemoryPlan,
+    mut consume_row: F,
+) -> Result<()>
+where
+    F: FnMut(Vec<QpxFeatureRecord>) -> Result<()>,
+{
+    let mut row = Vec::new();
+    stream_input_features(input, sdrf, memory, |feature| {
+        if feature.row_start && !row.is_empty() {
+            consume_row(std::mem::take(&mut row))?;
+        }
+        row.push(feature);
+        Ok(())
+    })?;
+    if !row.is_empty() {
+        consume_row(row)?;
+    }
+    Ok(())
+}
+
+/// Build the TMT row processor (and run its pre-pass) when any TMT option is set.
+fn build_tmt_processor(
+    config: &FeatureToProteinsConfig,
+    sdrf: Option<&SdrfTable>,
+    raw_sdrf: Option<&SdrfRawTable>,
+    memory: &MemoryPlan,
+) -> Result<Option<tmt::TmtRowProcessor>> {
+    if !config.tmt.is_active() {
+        return Ok(None);
+    }
+    let sample_plex = match sdrf {
+        Some(table) => derive_sample_plexes(table, raw_sdrf, config.irs.plex_column.as_deref())?.0,
+        None => HashMap::new(),
+    };
+    let mut processor = tmt::TmtRowProcessor::new(&config.tmt, sample_plex)?;
+    if processor.needs_prepass() {
+        stream_feature_rows(&config.input, sdrf, memory, |row| {
+            processor.observe(row, sdrf);
+            Ok(())
+        })?;
+        processor.finish_prepass();
+        memory.check("TMT pre-pass")?;
+    }
+    Ok(Some(processor))
 }
 
 fn stream_input_features<F>(
@@ -7861,6 +8022,7 @@ fn collect_intensity_factors(
     keep_shared_peptides: bool,
     memory: &MemoryPlan,
     named_score: Option<&NamedScoreFilterConfig>,
+    tmt: Option<&mut tmt::TmtRowProcessor>,
 ) -> Result<IntensityFactors> {
     if matches!(
         config.quantification,
@@ -7904,9 +8066,19 @@ fn collect_intensity_factors(
     // forwards the `--keep-shared-peptides` flag from `FeatureToPeptidesConfig`,
     // which `peptide_export_config` cannot represent (it pins quantification to
     // `Sum`, so the old in-function `== Pibaq` derivation always read `false`).
-    stream_normalization_features(config, sdrf, memory, named_score, &mut |feature| {
-        collector.push(feature, config.filtering, keep_shared_peptides)
-    })?;
+    if let Some(processor) = tmt {
+        stream_feature_rows(&config.input, sdrf, memory, |row| {
+            for feature in processor.process(row, sdrf) {
+                collector.push(feature, config.filtering, keep_shared_peptides)?;
+            }
+            Ok(())
+        })?;
+        processor.log_pass("normalization pre-pass");
+    } else {
+        stream_normalization_features(config, sdrf, memory, named_score, &mut |feature| {
+            collector.push(feature, config.filtering, keep_shared_peptides)
+        })?;
+    }
     if collector.normalization_proteins.is_some()
         && sample_uses_factors
         && !collector.has_sample_factor_values()
@@ -9206,6 +9378,22 @@ fn insert_pibaq_value(
     }
 }
 
+/// Median IRS factor per plex (geometric) over proteins that have a reference there.
+fn plex_median_factors(factors: &HashMap<ProteinId, HashMap<String, f64>>) -> HashMap<String, f64> {
+    let mut by_plex = HashMap::<String, Vec<f64>>::new();
+    for by_protein in factors.values() {
+        for (plex, factor) in by_protein {
+            if *factor > 0.0 && factor.is_finite() {
+                by_plex.entry(plex.clone()).or_default().push(factor.ln());
+            }
+        }
+    }
+    by_plex
+        .into_iter()
+        .filter_map(|(plex, mut logs)| median_finite(&mut logs).map(|median| (plex, median.exp())))
+        .collect()
+}
+
 fn parse_ratio_fraction_merge(value: &str) -> Result<RatioFractionMerge> {
     match value.trim().to_ascii_lowercase().as_str() {
         "mean" => Ok(RatioFractionMerge::Mean),
@@ -9711,7 +9899,7 @@ mod tests {
         FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig, IrsConfig,
         MaxLfqConfig, MokumeError, NormalizationConfig, OutputConfig, OutputFormat, PeptideId,
         PibaqConfig, ProteinId, QuantMethod, RatioConfig, RuntimeConfig, SampleId,
-        StringIdRegistry,
+        StringIdRegistry, TmtConfig,
     };
     use mokume_io::{QpxFeatureRecord, SdrfRawTable, SdrfTable};
     use mokume_normalization::SampleNormalizationMethod;
@@ -9839,6 +10027,25 @@ mod tests {
     }
 
     #[test]
+    fn plex_median_factor_is_geometric_median_per_plex() {
+        let factors = HashMap::from([
+            (
+                ProteinId::new(1),
+                HashMap::from([("p1".to_owned(), 2.0), ("p2".to_owned(), 0.5)]),
+            ),
+            (ProteinId::new(2), HashMap::from([("p1".to_owned(), 8.0)])),
+            (ProteinId::new(3), HashMap::from([("p1".to_owned(), 4.0)])),
+        ]);
+        let medians = super::plex_median_factors(&factors);
+        assert!(medians
+            .get("p1")
+            .is_some_and(|value| (value - 4.0).abs() < 1e-12));
+        assert!(medians
+            .get("p2")
+            .is_some_and(|value| (value - 0.5).abs() < 1e-12));
+    }
+
+    #[test]
     fn rejects_pibaq_without_fasta_before_loading() -> Result<(), Box<dyn std::error::Error>> {
         let parquet = existing_dummy_path("pibaq_without_fasta")?;
         let mut config = base_config(parquet);
@@ -9952,6 +10159,7 @@ mod tests {
                 selected_score: None,
                 label: None,
                 intensity: 100.0,
+                row_start: true,
             },
             FilterConfig::default(),
             false,
@@ -11480,6 +11688,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
             directlfq: DirectLfqConfig::default(),
             batch: BatchCorrectionConfig::default(),
             irs: IrsConfig::default(),
+            tmt: TmtConfig::default(),
             coverage_threshold: None,
             sample_correlation_threshold: None,
             ratio: RatioConfig::default(),

@@ -65,3 +65,25 @@ def test_python_name_matches_real_families_flag() -> None:
         "--families",
         "families.yaml",
     ]
+
+
+def test_tmt_correction_options_translate() -> None:
+    """TMT correction and IRS keywords map to their CLI flags."""
+    assert flags_for(
+        "features2proteins",
+        {
+            "tmt_row_merge": "best-row",
+            "tmt_impurity": "lot.tsv",
+            "tmt_interference_floor": "auto",
+            "irs_missing_reference": "plex-median",
+        },
+    ) == [
+        "--tmt-row-merge",
+        "best-row",
+        "--tmt-impurity",
+        "lot.tsv",
+        "--tmt-interference-floor",
+        "auto",
+        "--irs-missing-reference",
+        "plex-median",
+    ]

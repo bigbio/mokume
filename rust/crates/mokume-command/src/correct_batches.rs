@@ -34,6 +34,7 @@ use std::path::{Path, PathBuf};
 use mokume_core::{MokumeError, Result};
 use mokume_stats::batch::{combat_parametric, ComBatParams};
 
+use crate::other_args::CorrectBatchesMethod;
 use crate::CorrectBatchesArgs;
 
 /// A single parsed long-format input row, retaining every column so the output
@@ -53,6 +54,18 @@ struct LongTable {
 
 /// Entry point for the `correct-batches` command.
 pub fn run_correct_batches(args: &CorrectBatchesArgs) -> Result<()> {
+    match args.method {
+        CorrectBatchesMethod::Bridle => return crate::correct_batches_bridle::run_bridle(args),
+        CorrectBatchesMethod::Lim => {
+            tracing::warn!(
+                "--method lim is deprecated and will be removed; use --method bridle \
+                 (BRIDLE: Batch Removal via Intrinsic Detectability and Latent Estimation)"
+            );
+            return crate::correct_batches_bridle::run_bridle(args);
+        }
+        CorrectBatchesMethod::Combat => {}
+    }
+    crate::correct_batches_bridle::reject_bridle_only_options(&args.bridle)?;
     let separator = single_byte(&args.sep, "sep")?;
     let comment = optional_single_byte(&args.comment, "comment")?;
     let paths = matched_input_files(&args.input, &args.pattern, &args.output)?;
@@ -934,6 +947,8 @@ mod tests {
             pibaq_raw_column: "PiBAQ".to_string(),
             pibaq_corrected_column: "PiBAQBec".to_string(),
             export_anndata: false,
+            method: CorrectBatchesMethod::Combat,
+            bridle: crate::correct_batches_bridle::default_bridle_args(),
         }
     }
 

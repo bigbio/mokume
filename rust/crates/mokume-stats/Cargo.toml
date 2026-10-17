@@ -14,3 +14,4 @@ workspace = true
 mokume-core = { path = "../mokume-core" }
 libm = "0.2.16"
 rayon = "1.12.0"
+tracing = { workspace = true }

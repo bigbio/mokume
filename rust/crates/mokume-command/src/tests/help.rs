@@ -163,7 +163,7 @@ fn help_uses_concise_semantic_value_names() {
     );
 
     let correct_batches_help = render_subcommand_help_path(&["correct-batches"]);
-    for expected in ["--input <DIR>", "--pattern <GLOB>", "--output <FILE>"] {
+    for expected in ["--input <PATH>", "--pattern <GLOB>", "--output <FILE>"] {
         assert!(
             correct_batches_help.contains(expected),
             "missing semantic value name `{expected}` in help:\n{correct_batches_help}"

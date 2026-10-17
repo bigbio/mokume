@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 
 use crate::parsers::{
     parse_peptides2protein_method, parse_positive_f64, parse_positive_i32, parse_positive_usize,
@@ -85,9 +85,34 @@ pub(crate) struct Peptides2ProteinArgs {
     pub(crate) high_anchor_threshold: usize,
 }
 
+/// Batch-correction method of `correct-batches`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
+pub(crate) enum CorrectBatchesMethod {
+    /// Parametric ComBat on a complete protein x sample piBAQ matrix (default).
+    #[default]
+    Combat,
+    /// BRIDLE (Batch Removal via Intrinsic Detectability and Latent
+    /// Estimation) for multi-dataset collections (long input with dataset /
+    /// anchor / gene / value columns; missing values kept).
+    Bridle,
+    /// Deprecated alias of `bridle` (hidden; logs a deprecation warning).
+    #[value(hide = true)]
+    Lim,
+}
+
 #[derive(Debug, Args)]
 pub(crate) struct CorrectBatchesArgs {
-    #[arg(short = 'i', long = "input", value_name = "DIR")]
+    #[arg(
+        long = "method",
+        value_enum,
+        default_value_t = CorrectBatchesMethod::Combat,
+        value_name = "METHOD"
+    )]
+    pub(crate) method: CorrectBatchesMethod,
+
+    /// ComBat: folder of long TSV files. BRIDLE: one long-format file
+    /// (.parquet, .tsv or .csv).
+    #[arg(short = 'i', long = "input", value_name = "PATH")]
     pub(crate) input: PathBuf,
 
     #[arg(
@@ -137,4 +162,199 @@ pub(crate) struct CorrectBatchesArgs {
 
     #[arg(long = "export-anndata")]
     pub(crate) export_anndata: bool,
+
+    #[command(flatten)]
+    pub(crate) bridle: BridleArgs,
+}
+
+/// Early stop rule of the BRIDLE fit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
+pub(crate) enum BridleStopRule {
+    /// Mean |output change| between sweeps below --stop-tol (default).
+    #[default]
+    Output,
+    /// Hold-out monitor MSE change over 3 sweeps (previous default).
+    Monitor,
+    /// Run all --sweeps.
+    None,
+}
+
+/// Options of `correct-batches --method bridle`.
+#[derive(Debug, Clone, Args)]
+#[command(next_help_heading = "BRIDLE options (--method bridle)")]
+pub(crate) struct BridleArgs {
+    /// Dataset column of the long input (and of --plex-table).
+    #[arg(long = "dataset-column", value_name = "COLUMN", default_value = "ds")]
+    pub(crate) dataset_column: String,
+
+    /// Anchor-sample column: the biological unit that links datasets (a cell
+    /// line, reference material, pooled QC or the same patient across cohorts,
+    /// e.g. a Cellosaurus id).
+    // `--line-column` is kept as a hidden, deprecated alias.
+    #[arg(
+        long = "anchor-column",
+        alias = "line-column",
+        value_name = "COLUMN",
+        default_value = "cvcl"
+    )]
+    pub(crate) anchor_column: String,
+
+    /// Gene / protein column.
+    #[arg(long = "gene-column", value_name = "COLUMN", default_value = "gene")]
+    pub(crate) gene_column: String,
+
+    /// log2 value column.
+    #[arg(long = "value-column", value_name = "COLUMN", default_value = "v")]
+    pub(crate) value_column: String,
+
+    /// Reference dataset whose offsets are fixed to 0 [default: the dataset
+    /// with the most profiles].
+    #[arg(long = "reference", value_name = "DATASET")]
+    pub(crate) reference: Option<String>,
+
+    /// Optional lineage table (.csv/.tsv), e.g. DepMap Model.csv; off by
+    /// default. Adds a shared per-lineage effect to the biology term. Not
+    /// recommended: no measurable effect in the benchmark, and lineage-aware
+    /// integration risks circularity when the output is used to study
+    /// lineage differences.
+    #[arg(long = "lineage-table", value_name = "FILE")]
+    pub(crate) lineage_table: Option<PathBuf>,
+
+    #[arg(
+        long = "lineage-key-column",
+        value_name = "COLUMN",
+        default_value = "RRID"
+    )]
+    pub(crate) lineage_key_column: String,
+
+    #[arg(
+        long = "lineage-column",
+        value_name = "COLUMN",
+        default_value = "OncotreeLineage"
+    )]
+    pub(crate) lineage_column: String,
+
+    /// TMT plex / mixture id column (per profile, scoped to its dataset). Read
+    /// from --plex-table when given, else from the input. Without it, plexes
+    /// are inferred from shared missingness (datasets with >= 20 profiles).
+    #[arg(long = "plex-column", value_name = "COLUMN")]
+    pub(crate) plex_column: Option<String>,
+
+    /// Table (.csv/.tsv) with dataset, line and plex columns.
+    #[arg(long = "plex-table", value_name = "FILE")]
+    pub(crate) plex_table: Option<PathBuf>,
+
+    /// Disable the plex block entirely.
+    #[arg(long = "no-plex")]
+    pub(crate) no_plex: bool,
+
+    /// Protein FASTA for technical sequence features (length, tryptic
+    /// peptides, GRAVY, pI, amino-acid composition). Without it only the
+    /// abundance spline is used.
+    #[arg(long = "fasta", value_name = "FILE")]
+    pub(crate) fasta: Option<PathBuf>,
+
+    /// Only map gene names from FASTA headers containing this text (e.g. HUMAN).
+    #[arg(long = "fasta-organism", value_name = "TEXT")]
+    pub(crate) fasta_organism: Option<String>,
+
+    /// Rank of the shared biological low-rank term.
+    #[arg(long = "rank", value_name = "N", default_value_t = 16)]
+    pub(crate) rank: usize,
+
+    /// Maximum number of fitting sweeps.
+    #[arg(long = "sweeps", value_name = "N", default_value_t = 400)]
+    pub(crate) sweeps: usize,
+
+    /// Early stop rule: `output` stops when the mean |change| of the fitted
+    /// offsets A + c + P over observed cells between two sweeps is below
+    /// --stop-tol (after --min-sweeps; c counts even when it is kept in the
+    /// output, the post-fit plex rescale does not); `monitor`
+    /// is the previous rule (hold-out MSE change over 3 sweeps; use with
+    /// --sweeps 60 for the old behaviour); `none` runs all --sweeps.
+    #[arg(long = "stop-rule", value_name = "RULE", value_enum, default_value_t = BridleStopRule::Output)]
+    pub(crate) stop_rule: BridleStopRule,
+
+    /// Tolerance of --stop-rule [default: 1e-5 for `output`, 2e-4 for `monitor`].
+    #[arg(long = "stop-tol", value_name = "TOL")]
+    pub(crate) stop_tol: Option<f64>,
+
+    /// Sweeps before --stop-rule may stop the fit [default: 200 for `output`,
+    /// 8 for `monitor`].
+    #[arg(long = "min-sweeps", value_name = "N")]
+    pub(crate) min_sweeps: Option<usize>,
+
+    #[arg(long = "seed", value_name = "N", default_value_t = 0)]
+    pub(crate) seed: u32,
+
+    /// Disable the graph prior: by default plex-aware anchor offsets chained
+    /// to the reference (batches linked by >= 3 shared anchors; centring for
+    /// unlinked batches with >= 5 profiles) are the initial value and prior
+    /// mean of each dataset's offsets, and the feature model only where no
+    /// such offset exists.
+    #[arg(long = "no-graph-prior")]
+    pub(crate) no_graph_prior: bool,
+
+    /// Remove the per-profile sample loading c from the output (v = y - A -
+    /// c - P). By default c is kept (v = y - A - P): removing it was slightly
+    /// more accurate on held-out lines but lost co-complex (CORUM) signal.
+    #[arg(long = "remove-sample-loading")]
+    pub(crate) remove_sample_loading: bool,
+
+    /// Disable the post-fit plex rescale: by default every (dataset x plex,
+    /// or dataset, gene) is rescaled around its own mean by an empirical-Bayes
+    /// ComBat-style scale estimated from all its values, never from anchor
+    /// identity (TMT plex compression); per-batch scales go to the --report.
+    #[arg(long = "no-plex-rescale")]
+    pub(crate) no_plex_rescale: bool,
+
+    /// Rescale each dataset sharing >= 20 anchor samples with the reference
+    /// onto the reference's spread (per-dataset slope b_s from the anchors,
+    /// e.g. TMT ratio compression); b_s is recorded in the --report.
+    #[arg(long = "anchor-scale")]
+    pub(crate) anchor_scale: bool,
+
+    /// Optional pooled per-line biology (theta) for observed line/gene cells.
+    #[arg(long = "theta-output", value_name = "FILE")]
+    pub(crate) theta_output: Option<PathBuf>,
+
+    /// Optional JSON fit report. It includes the per-dataset value section
+    /// (`dataset_value`) only when the value report is computed (see
+    /// --value-report).
+    #[arg(long = "report", value_name = "FILE")]
+    pub(crate) report: Option<PathBuf>,
+
+    /// Compute the per-dataset value report and add it to the --report JSON
+    /// (`dataset_value`). Implied by --dataset-report, --profile-report,
+    /// --identity and --identity-reference. Its memory grows with the
+    /// cross-dataset cell pairs (sum over anchors of C(m, 2) x genes, m =
+    /// datasets measuring the anchor), so it is not computed by --report
+    /// alone.
+    #[arg(long = "value-report")]
+    pub(crate) value_report: bool,
+
+    /// Per-dataset value report (TSV): coverage, fit diagnostics, redundancy
+    /// and the no_anchors_cannot_audit flag, from this fit (identity with
+    /// --identity).
+    #[arg(long = "dataset-report", value_name = "FILE")]
+    pub(crate) dataset_report: Option<PathBuf>,
+
+    /// Per-profile rows of the value report (TSV): abundance rho, redundancy
+    /// and, with --identity, identity vs other datasets and best-matching
+    /// anchor.
+    #[arg(long = "profile-report", value_name = "FILE")]
+    pub(crate) profile_report: Option<PathBuf>,
+
+    /// Add the profile-vs-profile identity check to the value report (every
+    /// profile against every profile of the other datasets: quadratic in
+    /// profiles, so off by default).
+    #[arg(long = "identity")]
+    pub(crate) identity: bool,
+
+    /// Optional per-anchor reference (e.g. DepMap RNA) for the identity
+    /// check (implies --identity): long table (.parquet/.tsv/.csv) with the
+    /// --anchor-column, --gene-column and --value-column columns. Also
+    /// quadratic: every profile against every reference anchor.
+    #[arg(long = "identity-reference", value_name = "FILE")]
+    pub(crate) identity_reference: Option<PathBuf>,
 }

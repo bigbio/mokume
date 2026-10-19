@@ -1,232 +1,20 @@
 //! Per-row reporter-ion corrections for isobaric (TMT) QPX features.
 
+mod floor;
+mod impurity;
+
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap};
-use std::fs::read_to_string;
 use std::hash::{Hash, Hasher};
-use std::path::Path;
 
-use mokume_core::{MokumeError, Result, TmtConfig, TmtInterferenceFloor, TmtRowMerge};
+use mokume_core::{MokumeError, Result, TmtConfig, TmtRowMerge};
 use mokume_io::{QpxFeatureRecord, SdrfTable};
 use tracing::{info, warn};
 
-const RESERVOIR_ROWS: usize = 20_000;
-const MIN_FLOOR_ROWS: usize = 100;
+use floor::{plex_model, PlexModel, PlexSample};
+use impurity::{channel_key, ImpurityMatrix};
+
 const FLOOR_CLAMP: f64 = 0.01;
-const MAX_FLOOR: f64 = 0.5;
-
-/// Reporter channel key, e.g. `TMT127N` / `127N` -> `127N`.
-pub(crate) fn channel_key(label: &str) -> Option<String> {
-    let upper = label.trim().to_ascii_uppercase();
-    let bytes = upper.as_bytes();
-    let mut end = bytes.len();
-    let suffix = match bytes.last() {
-        Some(b'N') | Some(b'C') => {
-            end -= 1;
-            Some(bytes[end] as char)
-        }
-        _ => None,
-    };
-    let digits = upper[..end]
-        .chars()
-        .rev()
-        .take_while(char::is_ascii_digit)
-        .collect::<Vec<_>>();
-    if digits.len() != 3 {
-        return None;
-    }
-    let mass = digits.into_iter().rev().collect::<String>();
-    Some(match suffix {
-        Some(letter) => format!("{mass}{letter}"),
-        None => mass,
-    })
-}
-
-/// Isotope-impurity matrix: `fraction[i][j]` of true channel `i` observed in channel `j`.
-#[derive(Debug, Clone)]
-pub(crate) struct ImpurityMatrix {
-    index: HashMap<String, usize>,
-    fraction: Vec<Vec<f64>>,
-}
-
-impl ImpurityMatrix {
-    pub(crate) fn from_path(path: &Path) -> Result<Self> {
-        let text = read_to_string(path).map_err(|source| MokumeError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        Self::parse(&text)
-            .map_err(|message| invalid_input(format!("{}: {message}", path.display())))
-    }
-
-    pub(crate) fn parse(text: &str) -> std::result::Result<Self, String> {
-        let mut rows = Vec::<(String, [f64; 4])>::new();
-        for line in text.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let fields = line
-                .split(|c: char| c == '\t' || c == ',' || c == ';' || c.is_whitespace())
-                .filter(|field| !field.is_empty())
-                .collect::<Vec<_>>();
-            let Some(key) = fields.first().and_then(|label| channel_key(label)) else {
-                continue;
-            };
-            let values = fields[1..]
-                .iter()
-                .take(4)
-                .map(|value| value.parse::<f64>())
-                .collect::<std::result::Result<Vec<_>, _>>();
-            let Ok(values) = values else {
-                continue;
-            };
-            let [m2, m1, p1, p2] = values[..] else {
-                return Err(format!(
-                    "channel {key} needs 4 impurity values (-2, -1, +1, +2)"
-                ));
-            };
-            if [m2, m1, p1, p2]
-                .iter()
-                .any(|value| !value.is_finite() || *value < 0.0)
-            {
-                return Err(format!(
-                    "channel {key} has a negative or non-finite impurity"
-                ));
-            }
-            rows.push((key, [m2, m1, p1, p2]));
-        }
-        if rows.len() < 2 {
-            return Err("impurity table needs at least two channels".to_owned());
-        }
-        let uses_suffix = rows
-            .iter()
-            .any(|(key, _)| key.ends_with('N') || key.ends_with('C'));
-        let channel = |key: &str| -> (i32, char) {
-            let mass = key[..3].parse::<i32>().unwrap_or(0);
-            let kind = match key.chars().nth(3) {
-                Some(letter) => letter,
-                None if uses_suffix && mass == 126 => 'C',
-                None if uses_suffix => 'N',
-                None => ' ',
-            };
-            (mass, kind)
-        };
-        let index = rows
-            .iter()
-            .enumerate()
-            .map(|(position, (key, _))| (key.clone(), position))
-            .collect::<HashMap<_, _>>();
-        if index.len() != rows.len() {
-            return Err("impurity table lists a channel twice".to_owned());
-        }
-        let by_channel = rows
-            .iter()
-            .enumerate()
-            .map(|(position, (key, _))| (channel(key), position))
-            .collect::<HashMap<_, _>>();
-        let size = rows.len();
-        let mut fraction = vec![vec![0.0; size]; size];
-        for (position, (key, impurities)) in rows.iter().enumerate() {
-            let (mass, kind) = channel(key);
-            let total = impurities.iter().sum::<f64>() / 100.0;
-            if total >= 1.0 {
-                return Err(format!("channel {key} impurities sum to 100% or more"));
-            }
-            fraction[position][position] = 1.0 - total;
-            for (offset, impurity) in [-2, -1, 1, 2].into_iter().zip(impurities) {
-                if let Some(target) = by_channel.get(&(mass + offset, kind)) {
-                    fraction[position][*target] += impurity / 100.0;
-                }
-            }
-        }
-        Ok(Self { index, fraction })
-    }
-
-    /// Non-negative least squares for the true channel intensities of one row.
-    pub(crate) fn correct(&self, observed: &[Option<f64>]) -> Vec<f64> {
-        let y = observed
-            .iter()
-            .map(|value| value.unwrap_or(0.0))
-            .collect::<Vec<_>>();
-        let rhs = self
-            .fraction
-            .iter()
-            .map(|row| row.iter().zip(&y).map(|(a, b)| a * b).sum::<f64>())
-            .collect::<Vec<_>>();
-        let gram = self
-            .fraction
-            .iter()
-            .map(|left| {
-                self.fraction
-                    .iter()
-                    .map(|right| left.iter().zip(right).map(|(a, b)| a * b).sum::<f64>())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let scale = y.iter().copied().fold(0.0, f64::max).max(f64::MIN_POSITIVE);
-        let mut x = y.clone();
-        for _ in 0..500 {
-            let mut change = 0.0_f64;
-            for (i, (row, target)) in gram.iter().zip(&rhs).enumerate() {
-                let diagonal = row[i];
-                if diagonal <= 0.0 {
-                    continue;
-                }
-                let residual = target - row.iter().zip(&x).map(|(g, v)| g * v).sum::<f64>();
-                let updated = (x[i] + residual / diagonal).max(0.0);
-                change = change.max((updated - x[i]).abs());
-                x[i] = updated;
-            }
-            if change <= 1e-12 * scale {
-                break;
-            }
-        }
-        x
-    }
-}
-
-#[derive(Debug, Default)]
-struct PlexSample {
-    labels: Vec<String>,
-    rows: Vec<Vec<(usize, f64)>>,
-    seen: u64,
-    rng: u64,
-}
-
-impl PlexSample {
-    fn label_index(&mut self, label: &str) -> usize {
-        if let Some(position) = self.labels.iter().position(|known| known == label) {
-            return position;
-        }
-        self.labels.push(label.to_owned());
-        self.labels.len() - 1
-    }
-
-    fn offer(&mut self, row: Vec<(usize, f64)>) {
-        self.seen += 1;
-        if self.rows.len() < RESERVOIR_ROWS {
-            self.rows.push(row);
-            return;
-        }
-        self.rng ^= self.rng << 13;
-        self.rng ^= self.rng >> 7;
-        self.rng ^= self.rng << 17;
-        let slot = self.rng % self.seen;
-        if let Ok(slot) = usize::try_from(slot) {
-            if slot < RESERVOIR_ROWS {
-                self.rows[slot] = row;
-            }
-        }
-    }
-}
-
-/// Loading factors (mean 1) and additive floor of one plex.
-#[derive(Debug, Clone, Default)]
-struct PlexModel {
-    loading: HashMap<String, f64>,
-    floor: f64,
-}
 
 #[derive(Debug, Default, Clone, Copy)]
 struct TmtStats {
@@ -354,10 +142,7 @@ impl TmtRowProcessor {
             }
         }
         if self.config.interference_floor.is_some() {
-            let sample = self.samples.entry(plex).or_insert_with(|| PlexSample {
-                rng: 0x9E37_79B9_7F4A_7C15,
-                ..PlexSample::default()
-            });
+            let sample = self.samples.entry(plex).or_insert_with(PlexSample::seeded);
             let values = row
                 .iter()
                 .filter(|record| record.intensity.is_finite() && record.intensity > 0.0)
@@ -498,84 +283,6 @@ fn row_total(row: &[QpxFeatureRecord]) -> f64 {
         .sum()
 }
 
-fn plex_model(sample: &PlexSample, floor: TmtInterferenceFloor, quantile: f64) -> PlexModel {
-    let channels = sample.labels.len();
-    let complete = sample
-        .rows
-        .iter()
-        .filter(|row| row.len() == channels && channels >= 2)
-        .collect::<Vec<_>>();
-    if complete.len() < MIN_FLOOR_ROWS {
-        warn!(
-            rows = complete.len(),
-            "TMT interference floor: too few complete rows in a plex; floor not applied"
-        );
-        return PlexModel::default();
-    }
-    let mut ratios = vec![Vec::with_capacity(complete.len()); channels];
-    for row in &complete {
-        let mean = row.iter().map(|(_, value)| value).sum::<f64>() / channels as f64;
-        for (label, value) in row.iter() {
-            ratios[*label].push(value / mean);
-        }
-    }
-    let mut loading = ratios
-        .iter_mut()
-        .map(|values| quantile_of(values, 0.5))
-        .collect::<Vec<_>>();
-    let loading_mean = loading.iter().sum::<f64>() / channels as f64;
-    for value in &mut loading {
-        *value /= loading_mean;
-    }
-    let floor = match floor {
-        TmtInterferenceFloor::Fixed(value) => value,
-        TmtInterferenceFloor::Auto => {
-            let mut totals = complete
-                .iter()
-                .map(|row| row.iter().map(|(_, value)| value).sum::<f64>())
-                .collect::<Vec<_>>();
-            let cutoff = quantile_of(&mut totals, 0.5);
-            let mut adjusted = Vec::new();
-            for row in &complete {
-                let total = row.iter().map(|(_, value)| value).sum::<f64>();
-                if total < cutoff {
-                    continue;
-                }
-                let mean = row
-                    .iter()
-                    .map(|(label, value)| value / loading[*label])
-                    .sum::<f64>()
-                    / channels as f64;
-                for (label, value) in row.iter() {
-                    adjusted.push(value / (loading[*label] * mean));
-                }
-            }
-            quantile_of(&mut adjusted, quantile).clamp(0.0, MAX_FLOOR - 1e-6)
-        }
-    };
-    PlexModel {
-        loading: sample
-            .labels
-            .iter()
-            .cloned()
-            .zip(loading)
-            .collect::<HashMap<_, _>>(),
-        floor,
-    }
-}
-
-fn quantile_of(values: &mut [f64], quantile: f64) -> f64 {
-    if values.is_empty() {
-        return 0.0;
-    }
-    values.sort_by(f64::total_cmp);
-    let position = quantile.clamp(0.0, 1.0) * (values.len() - 1) as f64;
-    let lower = position.floor() as usize;
-    let upper = position.ceil() as usize;
-    let weight = position - lower as f64;
-    values[lower] * (1.0 - weight) + values[upper] * weight
-}
-
 fn invalid_input(message: impl Into<String>) -> MokumeError {
     MokumeError::InvalidInput {
         message: message.into(),
@@ -586,10 +293,10 @@ fn invalid_input(message: impl Into<String>) -> MokumeError {
 mod tests {
     use std::collections::HashMap;
 
-    use mokume_core::{TmtConfig, TmtInterferenceFloor, TmtRowMerge};
+    use mokume_core::{TmtConfig, TmtRowMerge};
     use mokume_io::QpxFeatureRecord;
 
-    use super::{channel_key, plex_model, ImpurityMatrix, PlexSample, TmtRowProcessor};
+    use super::TmtRowProcessor;
 
     fn row(peptidoform: &str, values: &[(&str, f64)]) -> Vec<QpxFeatureRecord> {
         values
@@ -636,62 +343,5 @@ mod tests {
             vec![100.0, 50.0]
         );
         Ok(())
-    }
-
-    #[test]
-    fn interference_floor_is_subtracted_relative_to_the_row_mean() {
-        // Two channels at equal loading; one channel carries only a 5% floor in half the rows.
-        let mut sample = PlexSample::default();
-        let a = sample.label_index("TMT126");
-        let b = sample.label_index("TMT127N");
-        for index in 0..400 {
-            let level = 1000.0 + index as f64;
-            if index % 2 == 0 {
-                sample.rows.push(vec![(a, level), (b, level)]);
-            } else {
-                sample.rows.push(vec![(a, 1.9 * level), (b, 0.1 * level)]);
-            }
-        }
-        let fixed = plex_model(&sample, TmtInterferenceFloor::Fixed(0.05), 0.01);
-        assert!((fixed.floor - 0.05).abs() < 1e-12);
-        let auto = plex_model(&sample, TmtInterferenceFloor::Auto, 0.01);
-        assert!(auto.floor > 0.0 && auto.floor < 0.5, "{}", auto.floor);
-        let loading_sum = auto.loading.values().sum::<f64>();
-        assert!((loading_sum - 2.0).abs() < 1e-9);
-    }
-
-    #[test]
-    fn channel_keys_strip_prefixes() {
-        assert_eq!(channel_key("TMT127N").as_deref(), Some("127N"));
-        assert_eq!(channel_key("tmt126").as_deref(), Some("126"));
-        assert_eq!(channel_key("131C").as_deref(), Some("131C"));
-        assert_eq!(channel_key("sample"), None);
-    }
-
-    #[test]
-    fn impurity_correction_recovers_true_intensities() -> Result<(), String> {
-        let matrix = ImpurityMatrix::parse(
-            "channel\t-2\t-1\t+1\t+2\n126\t0\t0\t5\t0\n127N\t0\t0\t4\t0\n127C\t0\t2\t3\t0\n128N\t0\t1\t0\t0\n",
-        )?;
-        // 126 leaks 5% into 127C (13C), 127C leaks 2% back into 126.
-        let truth = [1000.0, 500.0, 0.0, 200.0];
-        let mut observed = [0.0; 4];
-        for (i, value) in truth.iter().enumerate() {
-            for (j, slot) in observed.iter_mut().enumerate() {
-                *slot += value * matrix.fraction[i][j];
-            }
-        }
-        assert!((observed[2] - 50.0).abs() < 1e-9);
-        let corrected = matrix.correct(&observed.map(Some));
-        for (value, expected) in corrected.iter().zip(truth) {
-            assert!((value - expected).abs() < 1e-6, "{corrected:?}");
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn impurity_table_rejects_bad_rows() {
-        assert!(ImpurityMatrix::parse("126\t0\t0\t5\n127N\t0\t0\t4\t0\n").is_err());
-        assert!(ImpurityMatrix::parse("126\t0\t0\t-5\t0\n127N\t0\t0\t4\t0\n").is_err());
     }
 }

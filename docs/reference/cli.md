@@ -124,11 +124,15 @@ choice. The impurity table has one line per channel with the percentages
 leaking to the channels 2 and 1 Da lighter and 1 and 2 Da heavier (the lot's
 certificate of analysis), e.g.
 
+```text
+channel  -2   -1    +1    +2
+126      0.0  0.0   5.09  0.0
+127N     0.0  0.25  5.27  0.0
 ```
-channel	-2	-1	+1	+2
-126	0.0	0.0	5.09	0.0
-127N	0.0	0.25	5.27	0.0
-```
+
+Fields may be separated by tabs, spaces, commas or semicolons. Lines that do
+not start with a channel name (such as the header) are skipped; every channel
+line needs exactly four numbers, otherwise the table is rejected.
 
 Channel names may carry a `TMT` prefix; `N`/`C` channels leak into the next
 channel of the same type (126 counts as `C`). With

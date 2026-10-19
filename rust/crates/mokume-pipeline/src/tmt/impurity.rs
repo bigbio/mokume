@@ -120,28 +120,21 @@ fn impurity_rows(text: &str) -> std::result::Result<Vec<(String, [f64; 4])>, Str
         let Some(key) = fields.first().and_then(|label| channel_key(label)) else {
             continue;
         };
-        let values = fields[1..]
-            .iter()
-            .take(4)
-            .map(|value| value.parse::<f64>())
-            .collect::<std::result::Result<Vec<_>, _>>();
-        let Ok(values) = values else {
-            continue;
-        };
-        let [m2, m1, p1, p2] = values[..] else {
+        let Ok(values) = <[&str; 4]>::try_from(&fields[1..]) else {
             return Err(format!(
-                "channel {key} needs 4 impurity values (-2, -1, +1, +2)"
+                "channel {key} needs exactly 4 impurity values (-2, -1, +1, +2)"
             ));
         };
-        if [m2, m1, p1, p2]
+        let values = values.map(|value| value.parse::<f64>().unwrap_or(f64::NAN));
+        if values
             .iter()
             .any(|value| !value.is_finite() || *value < 0.0)
         {
             return Err(format!(
-                "channel {key} has a negative or non-finite impurity"
+                "channel {key} has a non-numeric, negative or non-finite impurity"
             ));
         }
-        rows.push((key, [m2, m1, p1, p2]));
+        rows.push((key, values));
     }
     Ok(rows)
 }
@@ -221,5 +214,11 @@ mod tests {
     fn impurity_table_rejects_bad_rows() {
         assert!(ImpurityMatrix::parse("126\t0\t0\t5\n127N\t0\t0\t4\t0\n").is_err());
         assert!(ImpurityMatrix::parse("126\t0\t0\t-5\t0\n127N\t0\t0\t4\t0\n").is_err());
+        // A channel line with an unreadable value or a fifth value is an error, not a skipped channel.
+        assert!(
+            ImpurityMatrix::parse("126\t0\t0\t5\t0\n127N\t0\tn/a\t4\t0\n127C\t0\t2\t3\t0\n")
+                .is_err()
+        );
+        assert!(ImpurityMatrix::parse("126\t0\t0\t5\t0\t0\n127N\t0\t0\t4\t0\n").is_err());
     }
 }

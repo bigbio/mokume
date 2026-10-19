@@ -6863,6 +6863,11 @@ fn validate_msstats_input(path: &Path, config: &FeatureToProteinsConfig) -> Resu
     if config.input.sdrf.is_none() {
         return Err(invalid_input("MSstats input requires --sdrf option"));
     }
+    if config.tmt.is_active() {
+        return Err(invalid_input(
+            "TMT reporter corrections (--tmt-row-merge best-row, --tmt-impurity, --tmt-interference-floor) require QPX input; MSstats tables hold one reporter channel per row",
+        ));
+    }
     match config.quantification {
         QuantMethod::Ratio => Err(invalid_input(
             "Ratio quantification requires PSM-level QPX input; MSstats feature tables do not contain PSM evidence",
@@ -9899,7 +9904,7 @@ mod tests {
         FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig, IrsConfig,
         MaxLfqConfig, MokumeError, NormalizationConfig, OutputConfig, OutputFormat, PeptideId,
         PibaqConfig, ProteinId, QuantMethod, RatioConfig, RuntimeConfig, SampleId,
-        StringIdRegistry, TmtConfig,
+        StringIdRegistry, TmtConfig, TmtRowMerge,
     };
     use mokume_io::{QpxFeatureRecord, SdrfRawTable, SdrfTable};
     use mokume_normalization::SampleNormalizationMethod;
@@ -10056,6 +10061,25 @@ mod tests {
         assert_eq!(
             error.map(|error| error.to_string()).as_deref(),
             Some("invalid input: piBAQ quantification requires --fasta option")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_tmt_row_corrections_with_msstats_input_before_loading(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let msstats = existing_dummy_path("tmt_with_msstats")?;
+        let mut config = base_config(msstats.clone());
+        config.input.parquet = None;
+        config.input.msstats = Some(msstats.clone());
+        config.input.sdrf = Some(msstats);
+        config.tmt.row_merge = TmtRowMerge::BestRow;
+
+        let error = validate_features_to_proteins(&config).err();
+
+        assert_eq!(
+            error.map(|error| error.to_string()).as_deref(),
+            Some("invalid input: TMT reporter corrections (--tmt-row-merge best-row, --tmt-impurity, --tmt-interference-floor) require QPX input; MSstats tables hold one reporter channel per row")
         );
         Ok(())
     }

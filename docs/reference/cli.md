@@ -145,6 +145,10 @@ precursor purity of `1 - f`). `auto` sets `f` per plex to the
 `--tmt-floor-quantile` of loading-adjusted channel ratios in the more intense
 half of complete rows.
 
+These options work on QPX feature rows, which hold every reporter channel of a
+spectrum; they are rejected with `--msstats` input, whose rows hold one channel
+each.
+
 IRS options require `--irs` and an SDRF. Reference detection must find usable
 reference samples and plex assignments; otherwise the command fails. IRS is
 rejected for `peptide-count` and `spectral-count` because scaling count evidence

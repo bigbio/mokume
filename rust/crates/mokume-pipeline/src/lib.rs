@@ -375,22 +375,14 @@ impl FeatureToProteinState {
         contaminant_patterns: &[String],
     ) -> bool {
         (remove_contaminants && matches_protein_contaminant(protein_group, contaminant_patterns))
-            || self.fails_protein_fdr(feature, protein_group)
+            || self.fails_protein_fdr(feature)
     }
 
-    /// `--filter-protein-fdr`: reject a row whose protein group is not in the
-    /// passing set. The set is keyed by the full parsed protein group, which is
-    /// the aggregation name for every method except Ratio (first accession), so
-    /// Ratio re-derives the group name before the lookup.
-    fn fails_protein_fdr(&self, feature: &QpxFeatureRecord, protein_group: &str) -> bool {
-        let Some(allowed) = &self.protein_fdr_allowed else {
-            return false;
-        };
-        if matches!(self.aggregation, FeatureAggregation::Ratio(_)) {
-            return protein_group_name(&feature.protein_accessions)
-                .is_none_or(|group| !allowed.contains(&group));
-        }
-        !allowed.contains(protein_group)
+    fn fails_protein_fdr(&self, feature: &QpxFeatureRecord) -> bool {
+        fails_protein_fdr(
+            self.protein_fdr_allowed.as_ref(),
+            &feature.protein_accessions,
+        )
     }
 
     /// Apply the opt-in `features2peptides` per-row preprocessing filters
@@ -6519,6 +6511,13 @@ fn dataset_sample_normalization_method(
 /// MSstats table carries no protein q-values and spectral-count builds its
 /// matrix outside the feature ingest, so both are rejected rather than silently
 /// ignoring the requested filter.
+/// `--filter-protein-fdr`: reject a row whose QPX protein group (as reported, before any renaming) failed.
+fn fails_protein_fdr(allowed: Option<&HashSet<String>>, accessions: &[String]) -> bool {
+    allowed.is_some_and(|allowed| {
+        protein_group_name(accessions).is_none_or(|group| !allowed.contains(&group))
+    })
+}
+
 fn validate_protein_fdr_request(config: &FeatureToProteinsConfig) -> Result<()> {
     let Some(threshold) = config.protein_fdr_threshold else {
         return Ok(());
@@ -11445,6 +11444,18 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 "{sequence}: got {got}, expected {expected}"
             );
         }
+    }
+
+    #[test]
+    fn protein_fdr_lookup_uses_the_qpx_group_not_a_renamed_one() {
+        let accessions = vec!["CONTAM_P1".to_owned(), "P1".to_owned()];
+        let passing = HashSet::from([super::protein_group_name(&accessions).unwrap_or_default()]);
+        assert!(!super::fails_protein_fdr(Some(&passing), &accessions));
+        assert!(super::fails_protein_fdr(
+            Some(&HashSet::from(["P1".to_owned()])),
+            &accessions
+        ));
+        assert!(!super::fails_protein_fdr(None, &accessions));
     }
 
     #[test]

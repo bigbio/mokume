@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use mokume_core::QuantMethod;
+use mokume_core::{QuantMethod, TmtInterferenceFloor};
 
 use crate::parsers::{
     parse_correlation, parse_de_log2fc, parse_finite_f64, parse_fraction, parse_memory,
-    parse_nonnegative_f64, parse_positive_usize, parse_quant_method, DeLog2FcArg, QuantMethodArg,
+    parse_nonnegative_f64, parse_positive_usize, parse_quant_method, parse_tmt_floor, DeLog2FcArg,
+    QuantMethodArg,
 };
 use crate::PibaqDigestRequest;
 
@@ -204,6 +205,47 @@ mean-center, rlr, loess, tmm]"
         help = "SDRF column naming each channel's plex (default: channels sharing data files)"
     )]
     irs_plex_column: Option<String>,
+
+    #[arg(
+        long = "irs-missing-reference",
+        value_name = "MODE",
+        value_parser = ["keep", "drop", "plex-median"],
+        ignore_case = true,
+        help = "Proteins without a reference value in a plex: keep unscaled, drop, or use the plex median factor [default: keep]"
+    )]
+    irs_missing_reference: Option<String>,
+
+    #[arg(
+        long = "tmt-row-merge",
+        value_name = "MODE",
+        value_parser = ["max", "best-row"],
+        ignore_case = true,
+        help = "Repeated rows of one ion in one plex: max per channel, or the row with the highest reporter sum [default: max]"
+    )]
+    tmt_row_merge: Option<String>,
+
+    #[arg(
+        long = "tmt-impurity",
+        value_name = "FILE",
+        help = "Reporter isotope-impurity table (channel, -2, -1, +1, +2 in percent) for per-row correction"
+    )]
+    tmt_impurity: Option<PathBuf>,
+
+    #[arg(
+        long = "tmt-interference-floor",
+        value_name = "auto|FRACTION",
+        value_parser = parse_tmt_floor,
+        help = "Subtract an additive co-isolation floor from reporter channels (fraction of the row mean, or auto per plex)"
+    )]
+    tmt_interference_floor: Option<TmtInterferenceFloor>,
+
+    #[arg(
+        long = "tmt-floor-quantile",
+        value_name = "FRACTION",
+        value_parser = parse_fraction,
+        help = "Ratio quantile for --tmt-interference-floor auto [default: 0.01]"
+    )]
+    tmt_floor_quantile: Option<f64>,
 
     #[arg(
         long = "coverage-threshold",

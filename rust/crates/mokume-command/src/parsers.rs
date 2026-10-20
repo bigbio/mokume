@@ -183,6 +183,21 @@ pub(crate) fn parse_fraction(value: &str) -> std::result::Result<f64, String> {
     Ok(parsed)
 }
 
+pub(crate) fn parse_tmt_floor(
+    value: &str,
+) -> std::result::Result<mokume_core::TmtInterferenceFloor, String> {
+    if value.trim().eq_ignore_ascii_case("auto") {
+        return Ok(mokume_core::TmtInterferenceFloor::Auto);
+    }
+    let parsed = parse_finite_f64(value)?;
+    if !(0.0..0.5).contains(&parsed) {
+        return Err(format!(
+            "expected `auto` or a fraction in [0, 0.5), got `{value}`"
+        ));
+    }
+    Ok(mokume_core::TmtInterferenceFloor::Fixed(parsed))
+}
+
 pub(crate) fn parse_correlation(value: &str) -> std::result::Result<f64, String> {
     let parsed = parse_finite_f64(value)?;
     if !(-1.0..=1.0).contains(&parsed) {

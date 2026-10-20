@@ -8,6 +8,9 @@ use mokume_core::{MokumeError, Result};
 
 use super::invalid_input;
 
+/// Corrected values at or below this fraction of the row maximum are set to zero.
+const RESIDUE_FRACTION: f64 = 1e-6;
+
 /// Reporter channel key, e.g. `TMT127N` / `127N` -> `127N`.
 pub(crate) fn channel_key(label: &str) -> Option<String> {
     let upper = label.trim().to_ascii_uppercase();
@@ -99,6 +102,12 @@ impl ImpurityMatrix {
             }
             if change <= 1e-12 * scale {
                 break;
+            }
+        }
+        // Solver residue is not a measured intensity: report it as an empty channel.
+        for value in &mut x {
+            if *value <= RESIDUE_FRACTION * scale {
+                *value = 0.0;
             }
         }
         x
@@ -207,6 +216,29 @@ mod tests {
         for (value, expected) in corrected.iter().zip(truth) {
             assert!((value - expected).abs() < 1e-6, "{corrected:?}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn empty_and_missing_channels_stay_exactly_zero() -> Result<(), String> {
+        let matrix = ImpurityMatrix::parse(
+            "126\t0\t0\t5\t0\n127N\t0\t0\t4\t0\n127C\t0\t2\t3\t0\n128N\t0\t1\t0\t0\n",
+        )?;
+        let truth = [1000.0, 500.0, 0.0, 200.0];
+        let mut observed = [0.0; 4];
+        for (i, value) in truth.iter().enumerate() {
+            for (j, slot) in observed.iter_mut().enumerate() {
+                *slot += value * matrix.fraction[i][j];
+            }
+        }
+        assert_eq!(matrix.correct(&observed.map(Some))[2], 0.0);
+        let missing = [
+            Some(observed[0]),
+            Some(observed[1]),
+            None,
+            Some(observed[3]),
+        ];
+        assert_eq!(matrix.correct(&missing)[2], 0.0);
         Ok(())
     }
 

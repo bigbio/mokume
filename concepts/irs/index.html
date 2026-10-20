@@ -2119,7 +2119,17 @@
 </table>
 <p>Default regex: <code>pool|powder|ref|reference|bridge</code></p>
 <h2 id="plex-detection">Plex Detection<a class="headerlink" href="#plex-detection" title="Anchor link to this section">&para;</a></h2>
-<p>Plexes are detected from quantms-style source names in the SDRF:</p>
+<p>In the Rust <code>features2proteins</code> path, plexes are resolved in this order:</p>
+<ol>
+<li><code>--irs-plex-column &lt;SDRF column&gt;</code>: each sample's plex is the value in that column.</li>
+<li>Shared data files: channels (samples) that appear in exactly the same set of
+   <code>comment[data file]</code> entries form one plex. This covers fractionated TMT sets and
+   any source-name style (<code>PXD011896-Set1-126</code>, <code>Sample-1</code>, ...).</li>
+<li>Legacy fallback, used only when no data file holds more than one sample: the
+   quantms-style source name below.</li>
+</ol>
+<p>The log reports the number of plexes and the channels per plex. IRS fails if one plex
+is found while the data files split the channels into several groups.</p>
 <table>
 <thead>
 <tr>

@@ -2301,7 +2301,7 @@ feature tables.</p>
 <tr>
 <td><code>--keep-contaminants</code></td>
 <td>off</td>
-<td>Keep contaminants; rows marked <code>is_decoy=true</code> are always removed</td>
+<td>Keep contaminants (a group is a contaminant only if all its accessions are); rows marked <code>is_decoy=true</code> are always removed</td>
 </tr>
 </tbody>
 </table>
@@ -2349,6 +2349,11 @@ feature tables.</p>
 <td><code>--pibaq-max-aa</code></td>
 <td>30</td>
 <td>Maximum theoretical peptide length</td>
+</tr>
+<tr>
+<td><code>--pibaq-missed-cleavages</code></td>
+<td>0</td>
+<td>Missed cleavages in the theoretical digest</td>
 </tr>
 <tr>
 <td><code>--pibaq-min-shared</code></td>
@@ -2448,6 +2453,11 @@ passing a non-<code>none</code> value is rejected. Other methods default to <cod
 <td><code>--irs-remove-reference</code></td>
 <td>off</td>
 <td>Remove reference samples from output</td>
+</tr>
+<tr>
+<td><code>--irs-plex-column</code></td>
+<td>auto</td>
+<td>SDRF column naming each channel's plex (default: channels sharing data files)</td>
 </tr>
 </tbody>
 </table>

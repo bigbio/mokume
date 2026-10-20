@@ -2294,6 +2294,11 @@ feature tables.</p>
 <td>Minimum amino acid length</td>
 </tr>
 <tr>
+<td><code>--filter-protein-fdr</code></td>
+<td>none</td>
+<td>Keep protein groups whose best QPX <code>pg_global_qvalue</code> is <code>&lt;=</code> this value (e.g. <code>0.01</code>); requires QPX <code>--parquet</code> input with a populated <code>pg_global_qvalue</code>; not available for <code>spectral-count</code></td>
+</tr>
+<tr>
 <td><code>--min-unique</code></td>
 <td>2</td>
 <td>Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option</td>

@@ -159,6 +159,7 @@ impl TmtRowProcessor {
 
     /// Turn the pre-pass sample into per-plex loading factors and floors.
     pub(crate) fn finish_prepass(&mut self) {
+        self.reset_stats();
         let Some(floor) = self.config.interference_floor else {
             return;
         };
@@ -169,7 +170,6 @@ impl TmtRowProcessor {
             summary.push(format!("{plex}={:.4}", model.floor));
             self.models.insert(plex, model);
         }
-        self.reset_stats();
         info!(
             plexes = summary.len(),
             floors = %summary.join(" "),

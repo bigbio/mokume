@@ -44,22 +44,17 @@ periphery command.
 
 mokume uses optional dependencies for the periphery commands:
 
-=== "Plotting"
+=== "Analysis"
 
     ```bash
-    pip install mokume[plotting]
+    pip install mokume[analysis]
     ```
 
-    Enables `mokume plot tsne`, `mokume plot pca`, `mokume plot de`, and the piBAQ QC
-    report (numpy, pandas, scipy, scikit-learn, matplotlib, seaborn).
-
-=== "Interactive Reports"
-
-    ```bash
-    pip install mokume[reports]
-    ```
-
-    Enables `mokume interactive-report` (plotly).
+    Enables `mokume plot tsne`, `mokume plot pca`, `mokume plot de`, the piBAQ
+    QC report, `mokume interactive-report`, the QC / workflow-comparison
+    reports, and the pure-Python method fallback the Rust kernel does not
+    reproduce — `mokume.impute(method="missforest")` (numpy, pandas, scipy,
+    scikit-learn, matplotlib, seaborn, plotly).
 
 === "TissueMap"
 
@@ -71,21 +66,10 @@ mokume uses optional dependencies for the periphery commands:
     AdaTiSS tissue-specificity scoring, embeddings, and atlas plots (scanpy,
     anndata, umap-learn, combat, matplotlib, seaborn, pyarrow).
 
-=== "Analysis"
-
-    ```bash
-    pip install mokume[analysis]
-    ```
-
-    Enables the QC / workflow-comparison reports and the pure-Python method
-    fallback the Rust kernel does not reproduce — `mokume.impute(method="missforest")`
-    — plus `mokume.qc_report`
-    and `mokume.workflow_comparison` (numpy, pandas, scipy, scikit-learn).
-
 === "Mokume Plugin"
 
     ```bash
-    pip install "mokume[agentic]"
+    pip install "mokume[plugin]"
     ```
 
     This optional MCP workflow requires Python 3.10 or newer.
@@ -140,7 +124,7 @@ pip install ./rust
 ## Requirements
 
 - Python >= 3.10 for the Rust-backed ``mokume`` distribution, ``mokume-py``,
-  and the optional ``mokume[agentic]`` Plugin/MCP workflow
+  and the optional Plugin/MCP workflow
 - Both distributions declare pyOpenMS as a base dependency. In the default
   Rust-backed wheel, piBAQ reads every protease registered by the installed
   runtime, digests the FASTA in Python, and passes the complete theoretical-
@@ -155,5 +139,5 @@ pip install ./rust
 - A method stays in the Python periphery because the kernel cannot reproduce
   it cross-language: the `missforest` imputer (`mokume.impute`), in the
   `analysis` extra
-- The Mokume Plugin requires an agent host plus `mokume[agentic]`; its bundled
+- The Mokume Plugin requires an agent host plus `mokume[plugin]`; its bundled
   stdio MCP server is started by the host and calls the local Rust-backed wheel

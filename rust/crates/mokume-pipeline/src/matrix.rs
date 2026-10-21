@@ -13,6 +13,10 @@ use super::{
 /// `values[row][column]` is one protein/sample cell and `sample_names` labels
 /// the columns. Non-finite cells are missing. Supported methods are `none`,
 /// `median`, `mean`, `quantile`, `rlr`, `loess`, `hierarchical`, and `tmm`.
+/// Quantile accepts signed values and retains fully missing rows; with multiple
+/// rows it needs at least two finite values per column, since preprocessCore's
+/// rank interpolation is undefined below that. TMM accepts non-negative values
+/// and needs positive library sizes unless the entire matrix is zero/missing.
 pub fn normalize_matrix(
     values: &[Vec<f64>],
     sample_names: &[String],
@@ -53,6 +57,20 @@ fn normalize_inner(
         sample_ids.push(id);
     }
 
+    match method {
+        SampleNormalizationMethod::Quantile => quantile_matrix(values, &sample_ids),
+        SampleNormalizationMethod::Hierarchical => Ok(hierarchical_matrix(values)),
+        SampleNormalizationMethod::Tmm => tmm_matrix(values, sample_names),
+        _ => normalize_peptide_matrix(values, &sample_ids, &samples, method),
+    }
+}
+
+fn normalize_peptide_matrix(
+    values: &[Vec<f64>],
+    sample_ids: &[SampleId],
+    samples: &StringIdRegistry<SampleId>,
+    method: SampleNormalizationMethod,
+) -> Result<Vec<Vec<f64>>> {
     let mut cells = HashMap::<CellKey, HashMap<PeptideId, f64>>::new();
     let mut allowed = HashSet::<CellKey>::new();
     for (row_index, row) in values.iter().enumerate() {
@@ -61,8 +79,7 @@ fn normalize_inner(
         let protein = ProteinId::new(raw_row);
         let peptide = PeptideId::new(raw_row);
         for (&sample, &value) in sample_ids.iter().zip(row) {
-            let observed =
-                value.is_finite() && (method == SampleNormalizationMethod::Quantile || value > 0.0);
+            let observed = value.is_finite() && value > 0.0;
             if observed {
                 let cell = CellKey { protein, sample };
                 cells.entry(cell).or_default().insert(peptide, value);
@@ -71,9 +88,9 @@ fn normalize_inner(
         }
     }
 
-    apply_dataset_norm_to_peptide_cells(&mut cells, method, &allowed, &HashMap::new(), &samples);
+    apply_dataset_norm_to_peptide_cells(&mut cells, method, &allowed, &HashMap::new(), samples);
 
-    let mut normalized = vec![vec![f64::NAN; sample_names.len()]; values.len()];
+    let mut normalized = vec![vec![f64::NAN; sample_ids.len()]; values.len()];
     for (cell, peptides) in cells {
         let row = usize::try_from(cell.protein.get())
             .map_err(|_| invalid_input("matrix row index is not representable"))?;
@@ -84,6 +101,109 @@ fn normalize_inner(
         }
     }
     Ok(normalized)
+}
+
+/// Retain all input rows, including entirely missing rows in the target grid.
+fn quantile_matrix(values: &[Vec<f64>], samples: &[SampleId]) -> Result<Vec<Vec<f64>>> {
+    let minimum = values.len().min(2);
+    for column in 0..samples.len() {
+        if values.iter().filter(|row| row[column].is_finite()).count() < minimum {
+            return Err(invalid_input(format!(
+                "quantile column {column} needs at least {minimum} finite values; preprocessCore's missing-value rank interpolation is undefined below this"
+            )));
+        }
+    }
+    let assignments = super::quantile_normalized_assignments(values.iter().enumerate().flat_map(
+        |(row, values)| {
+            samples
+                .iter()
+                .zip(values)
+                .map(move |(&sample, &value)| (row, sample, value))
+        },
+    ));
+    Ok(values
+        .iter()
+        .enumerate()
+        .map(|(row, _)| {
+            samples
+                .iter()
+                .map(|&sample| assignments.get(&(row, sample)).copied().unwrap_or(f64::NAN))
+                .collect()
+        })
+        .collect())
+}
+
+/// The matrix entrypoint preserves the caller's sample order, which determines
+/// DirectLFQ's anchor when pairwise distances tie.
+fn hierarchical_matrix(values: &[Vec<f64>]) -> Vec<Vec<f64>> {
+    let rows: Vec<Vec<f64>> = values
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|&value| {
+                    if value.is_finite() && value > 0.0 {
+                        value.log2()
+                    } else {
+                        f64::NAN
+                    }
+                })
+                .collect()
+        })
+        .collect();
+    let shifts = super::hierarchical_sample_shifts(&rows, values.first().map_or(0, Vec::len), 50);
+    rows.iter()
+        .map(|row| {
+            row.iter()
+                .zip(&shifts)
+                .map(|(value, shift)| (value + shift).exp2())
+                .collect()
+        })
+        .collect()
+}
+
+/// Missing counts are zero only when fitting edgeR factors; the output retains
+/// the original missing mask and measured zero values.
+fn tmm_matrix(values: &[Vec<f64>], samples: &[String]) -> Result<Vec<Vec<f64>>> {
+    if values
+        .iter()
+        .flatten()
+        .any(|value| value.is_finite() && *value < 0.0)
+    {
+        return Err(invalid_input(
+            "TMM requires non-negative linear intensities",
+        ));
+    }
+    let columns: Vec<Vec<f64>> = (0..samples.len())
+        .map(|column| values.iter().map(|row| row[column]).collect())
+        .collect();
+    if values
+        .iter()
+        .flatten()
+        .any(|value| value.is_finite() && *value > 0.0)
+        && columns
+            .iter()
+            .any(|column| !column.iter().any(|v| v.is_finite() && *v > 0.0))
+    {
+        return Err(invalid_input(
+            "TMM requires a positive library size in every sample",
+        ));
+    }
+    let factors = mokume_normalization::tmm_norm_factors(samples, &columns);
+    Ok(values
+        .iter()
+        .map(|row| {
+            row.iter()
+                .zip(samples)
+                .map(|(&value, sample)| {
+                    if value.is_finite() {
+                        value / factors[sample]
+                    } else {
+                        f64::NAN
+                    }
+                })
+                .collect()
+        })
+        .collect())
 }
 
 fn parse_matrix_normalization(method: &str) -> Result<Option<SampleNormalizationMethod>> {

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
@@ -10,6 +11,36 @@ use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
 use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
+use parquet::arrow::ProjectionMask;
+use parquet::schema::types::SchemaDescriptor;
+
+// Column-name candidates in priority order. The reader decodes exactly these
+// columns, so a QPX file's other (often large nested) columns are skipped.
+const SEQUENCE_COLUMNS: &[&str] = &["sequence", "Sequence"];
+const PEPTIDOFORM_COLUMNS: &[&str] = &["peptidoform", "modified_sequence"];
+const CHARGE_COLUMNS: &[&str] = &["charge", "precursor_charge"];
+const RUN_COLUMNS: &[&str] = &["run_file_name", "reference_file_name", "run", "raw_file"];
+const INTENSITY_COLUMNS: &[&str] = &["intensities", "primary_intensities"];
+const PROTEIN_GROUP_COLUMNS: &[&str] = &["pg_accessions", "protein_accessions", "proteins"];
+const ANCHOR_PROTEIN_COLUMNS: &[&str] = &["anchor_protein", "protein"];
+const UNIQUE_COLUMNS: &[&str] = &["unique", "is_unique"];
+const DECOY_COLUMNS: &[&str] = &["is_decoy", "decoy"];
+const PEPTIDE_QVALUE_COLUMNS: &[&str] = &["peptide_qvalue", "peptide_q_value"];
+const PG_QVALUE_COLUMNS: &[&str] = &["pg_global_qvalue", "protein_qvalue"];
+const SCORE_COLUMNS: &[&str] = &["additional_scores"];
+const FEATURE_COLUMNS: [&[&str]; 11] = [
+    SEQUENCE_COLUMNS,
+    PEPTIDOFORM_COLUMNS,
+    CHARGE_COLUMNS,
+    RUN_COLUMNS,
+    INTENSITY_COLUMNS,
+    PROTEIN_GROUP_COLUMNS,
+    ANCHOR_PROTEIN_COLUMNS,
+    UNIQUE_COLUMNS,
+    DECOY_COLUMNS,
+    PEPTIDE_QVALUE_COLUMNS,
+    PG_QVALUE_COLUMNS,
+];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct QpxFeatureRecord {
@@ -29,6 +60,8 @@ pub struct QpxFeatureRecord {
     pub selected_score: Option<QpxScoreValue>,
     pub label: Option<String>,
     pub intensity: f64,
+    /// First record flattened from one parquet row (rows of TMT channels follow it).
+    pub row_start: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -58,7 +91,10 @@ impl QpxParquetReader {
         })
     }
 
-    pub fn open(path: impl AsRef<Path>, batch_size: usize) -> Result<Self> {
+    /// Opens `path`, decoding only the columns [`flatten_qpx_batch`] reads.
+    /// `with_scores` also decodes `additional_scores` for
+    /// [`flatten_qpx_batch_with_score`].
+    pub fn open(path: impl AsRef<Path>, batch_size: usize, with_scores: bool) -> Result<Self> {
         let path = path.as_ref().to_path_buf();
         if !path.exists() {
             return Err(MokumeError::MissingInput { path });
@@ -74,7 +110,9 @@ impl QpxParquetReader {
                 path.display()
             ))
         })?;
+        let projection = feature_projection(builder.parquet_schema(), with_scores);
         let inner = builder
+            .with_projection(projection)
             .with_batch_size(batch_size)
             .build()
             .map_err(|source| {
@@ -86,6 +124,26 @@ impl QpxParquetReader {
 
         Ok(Self { inner })
     }
+}
+
+fn feature_projection(schema: &SchemaDescriptor, with_scores: bool) -> ProjectionMask {
+    let score_columns: &[&str] = if with_scores { SCORE_COLUMNS } else { &[] };
+    let roots = schema
+        .root_schema()
+        .get_fields()
+        .iter()
+        .enumerate()
+        .filter(|(_, field)| {
+            FEATURE_COLUMNS
+                .iter()
+                .copied()
+                .flatten()
+                .chain(score_columns)
+                .any(|candidate| *candidate == field.name())
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    ProjectionMask::roots(schema, roots)
 }
 
 impl Iterator for QpxParquetReader {
@@ -119,11 +177,35 @@ fn flatten_qpx_batch_inner(
     score_name: Option<&str>,
 ) -> Result<Vec<QpxFeatureRecord>> {
     let columns = QpxBatchColumns::from_batch(batch, score_name)?;
+    let mut run_keys = RunKeys::default();
     let mut records = Vec::new();
     for row in 0..batch.num_rows() {
-        flatten_qpx_row(&columns, score_name, row, &mut records)?;
+        flatten_qpx_row(&columns, score_name, row, &mut run_keys, &mut records)?;
     }
     Ok(records)
+}
+
+/// Normalized run keys for one batch. Rows repeat a handful of run names and
+/// labels, so each distinct value is normalized once.
+#[derive(Default)]
+struct RunKeys(HashMap<String, String>);
+
+impl RunKeys {
+    fn same_run(&mut self, label: &str, run_file_name: &str) -> bool {
+        if label == run_file_name {
+            return true;
+        }
+        self.cache(label);
+        self.cache(run_file_name);
+        self.0.get(label) == self.0.get(run_file_name)
+    }
+
+    fn cache(&mut self, value: &str) {
+        if !self.0.contains_key(value) {
+            self.0
+                .insert(value.to_owned(), crate::sdrf::normalize_file_key(value));
+        }
+    }
 }
 
 struct QpxBatchColumns<'a> {
@@ -144,26 +226,17 @@ struct QpxBatchColumns<'a> {
 impl<'a> QpxBatchColumns<'a> {
     fn from_batch(batch: &'a RecordBatch, score_name: Option<&str>) -> Result<Self> {
         Ok(Self {
-            sequence: column_by_names(batch, &["sequence", "Sequence"])?,
-            peptidoform: column_by_names(batch, &["peptidoform", "modified_sequence"])?,
-            charge: column_by_names(batch, &["charge", "precursor_charge"])?,
-            run_file_name: column_by_names(
-                batch,
-                &["run_file_name", "reference_file_name", "run", "raw_file"],
-            )?,
-            intensities: column_by_names(batch, &["intensities", "primary_intensities"])?,
-            protein_groups: column_by_names(
-                batch,
-                &["pg_accessions", "protein_accessions", "proteins"],
-            )?,
-            anchor_protein: optional_column_by_names(batch, &["anchor_protein", "protein"]),
-            unique: optional_column_by_names(batch, &["unique", "is_unique"]),
-            is_decoy: optional_column_by_names(batch, &["is_decoy", "decoy"]),
-            peptide_qvalue: optional_column_by_names(batch, &["peptide_qvalue", "peptide_q_value"]),
-            pg_global_qvalue: optional_column_by_names(
-                batch,
-                &["pg_global_qvalue", "protein_qvalue"],
-            ),
+            sequence: column_by_names(batch, SEQUENCE_COLUMNS)?,
+            peptidoform: column_by_names(batch, PEPTIDOFORM_COLUMNS)?,
+            charge: column_by_names(batch, CHARGE_COLUMNS)?,
+            run_file_name: column_by_names(batch, RUN_COLUMNS)?,
+            intensities: column_by_names(batch, INTENSITY_COLUMNS)?,
+            protein_groups: column_by_names(batch, PROTEIN_GROUP_COLUMNS)?,
+            anchor_protein: optional_column_by_names(batch, ANCHOR_PROTEIN_COLUMNS),
+            unique: optional_column_by_names(batch, UNIQUE_COLUMNS),
+            is_decoy: optional_column_by_names(batch, DECOY_COLUMNS),
+            peptide_qvalue: optional_column_by_names(batch, PEPTIDE_QVALUE_COLUMNS),
+            pg_global_qvalue: optional_column_by_names(batch, PG_QVALUE_COLUMNS),
             additional_scores: requested_score_column(batch, score_name)?,
         })
     }
@@ -236,29 +309,36 @@ fn flatten_qpx_row(
     columns: &QpxBatchColumns<'_>,
     score_name: Option<&str>,
     row: usize,
+    run_keys: &mut RunKeys,
     records: &mut Vec<QpxFeatureRecord>,
 ) -> Result<()> {
     let metadata = QpxRowMetadata::from_columns(columns, score_name, row)?;
     let entries = intensity_entries(columns.intensities, row)?;
-    let labels_are_runs = intensity_labels_are_runs(&entries, &metadata.run_file_name);
+    let labels_are_runs = intensity_labels_are_runs(&entries, &metadata.run_file_name, run_keys);
     records.extend(
         entries
             .into_iter()
             .filter(|entry| entry.intensity.is_finite())
-            .map(|entry| qpx_feature_record(&metadata, entry, labels_are_runs)),
+            .enumerate()
+            .map(|(index, entry)| {
+                qpx_feature_record(&metadata, entry, labels_are_runs, index == 0)
+            }),
     );
     Ok(())
 }
 
 /// LFQ intensities are labeled by run file; isobaric intensities are labeled
 /// by reporter channel. Matching the anchor run distinguishes the two layouts.
-fn intensity_labels_are_runs(entries: &[QpxIntensityEntry], run_file_name: &str) -> bool {
-    let row_key = crate::sdrf::normalize_file_key(run_file_name);
+fn intensity_labels_are_runs(
+    entries: &[QpxIntensityEntry],
+    run_file_name: &str,
+    run_keys: &mut RunKeys,
+) -> bool {
     entries.iter().any(|entry| {
         entry
             .label
             .as_deref()
-            .is_some_and(|label| crate::sdrf::normalize_file_key(label) == row_key)
+            .is_some_and(|label| run_keys.same_run(label, run_file_name))
     })
 }
 
@@ -266,6 +346,7 @@ fn qpx_feature_record(
     metadata: &QpxRowMetadata,
     entry: QpxIntensityEntry,
     labels_are_runs: bool,
+    row_start: bool,
 ) -> QpxFeatureRecord {
     let (run_file_name, label) = if labels_are_runs {
         (
@@ -292,6 +373,7 @@ fn qpx_feature_record(
         selected_score: metadata.selected_score,
         label,
         intensity: entry.intensity,
+        row_start,
     }
 }
 
@@ -300,7 +382,7 @@ fn requested_score_column<'a>(
     score_name: Option<&str>,
 ) -> Result<Option<&'a dyn Array>> {
     score_name
-        .map(|_| column_by_names(batch, &["additional_scores"]))
+        .map(|_| column_by_names(batch, SCORE_COLUMNS))
         .transpose()
 }
 

@@ -32,6 +32,7 @@ from mokume.core.constants import (
 from mokume.core.contaminants import (
     DEFAULT_CONTAMINANT_PATTERNS,
     contaminant_group_mask,
+    strip_contaminant_members,
 )
 from mokume.core.logger import get_logger
 
@@ -101,7 +102,14 @@ def remove_contaminants_entrapments_decoys(
     mask = contaminant_group_mask(
         dataset[protein_field], DEFAULT_CONTAMINANT_PATTERNS, case_sensitive=True
     )
-    return dataset[~mask]
+    kept = dataset[~mask]
+    return kept.assign(
+        **{
+            protein_field: strip_contaminant_members(
+                kept[protein_field], DEFAULT_CONTAMINANT_PATTERNS, case_sensitive=True
+            )
+        }
+    )
 
 
 def remove_protein_by_ids(

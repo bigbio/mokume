@@ -10,9 +10,7 @@ test is self-contained and green in CI.
 It exercises the same contract main's test does:
 
   * ``PipelineConfig`` -> ``QuantificationPipeline(config).run_dataset()``
-  * multiple quantification methods (median, maxlfq, top3 via the TopN
-    pattern; ratio is skipped because no TMT/PSM fixture with reference
-    samples ships with the dev branch)
+  * multiple quantification methods (median, maxlfq, top3 via the TopN pattern)
   * median + IRS post-processing (guarded: skipped if the fixture has no
     reference samples to scale against)
 
@@ -34,12 +32,6 @@ EXAMPLE_DIR = os.path.join(os.path.dirname(__file__), "example")
 PARQUET = os.path.join(EXAMPLE_DIR, "feature_wide.parquet")
 SDRF = os.path.join(EXAMPLE_DIR, "PXD020192.sdrf.tsv")
 
-# Skip the whole module only if the dev fixture itself is missing.
-pytestmark = pytest.mark.skipif(
-    not (os.path.exists(PARQUET) and os.path.exists(SDRF)),
-    reason="Dev feature_wide fixture not available",
-)
-
 # Imports (after path setup) -------------------------------------------
 from mokume.pipeline.config import (  # noqa: E402
     PipelineConfig,
@@ -58,7 +50,6 @@ def _make_config(
     quant_method: str = "median",
     irs: bool = False,
     irs_remove_ref: bool = False,
-    coverage_threshold: float = None,
     export_peptides: str = None,
 ) -> PipelineConfig:
     """Build a PipelineConfig pointing at the dev fixture.
@@ -77,10 +68,7 @@ def _make_config(
             run_method="median",
             sample_method="globalMedian",
         ),
-        quantification=QuantificationConfig(
-            method=quant_method,
-            coverage_threshold=coverage_threshold,
-        ),
+        quantification=QuantificationConfig(method=quant_method),
         irs=IRSConfig(
             enabled=irs,
             remove_reference=irs_remove_ref,
@@ -157,25 +145,6 @@ class TestTopNQuantification:
         _assert_valid_result(dataset, min_proteins=10)
 
 
-class TestRatioQuantification:
-    """Ratio flow: PS protocol log2 ratios.
-
-    Skipped on the dev branch: the ratio flow requires a TMT PSM parquet
-    plus an SDRF declaring reference/pooled samples, and no such fixture
-    ships here (``feature_wide.parquet`` is LFQ and PXD020192 has no pooled
-    samples). Kept as a skipped placeholder so the contract is documented.
-    """
-
-    @pytest.mark.skip(reason="No TMT/PSM ratio fixture with reference samples")
-    def test_ratio_pipeline(self):  # pragma: no cover - documented placeholder
-        config = _make_config(quant_method="ratio", coverage_threshold=0.65)
-        pipeline = QuantificationPipeline(config)
-        dataset = pipeline.run_dataset()
-        _assert_valid_result(dataset, min_proteins=1)
-        assert "ratio_config" in dataset.uns
-        assert dataset.uns["ratio_config"]["reference_samples"]
-
-
 class TestIRSNormalization:
     """Standard flow + IRS post-processing."""
 
@@ -234,16 +203,6 @@ class TestSchemaValidation:
         pipeline = QuantificationPipeline(config)
         dataset = pipeline.run_dataset()
 
-        if dataset.peptides is not None:
-            errors = dataset.validate_level("peptides")
-            assert errors == [], f"Schema errors: {errors}"
-
-
-class TestProvenanceProvenanceDepth:
-    """The core P3 contract: >= 2 provenance steps recorded."""
-
-    def test_at_least_two_steps(self):
-        config = _make_config(quant_method="median")
-        pipeline = QuantificationPipeline(config)
-        dataset = pipeline.run_dataset()
-        assert len(dataset.uns["provenance"]["steps"]) >= 2
+        assert dataset.peptides is not None
+        errors = dataset.validate_level("peptides")
+        assert errors == [], f"Schema errors: {errors}"

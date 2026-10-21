@@ -67,9 +67,50 @@ def test_python_name_matches_real_families_flag() -> None:
     ]
 
 
+def test_tmt_correction_options_translate() -> None:
+    """TMT correction and IRS keywords map to their CLI flags."""
+    assert flags_for(
+        "features2proteins",
+        {
+            "tmt_row_merge": "best-row",
+            "tmt_impurity": "lot.tsv",
+            "tmt_interference_floor": "auto",
+            "irs_missing_reference": "plex-median",
+        },
+    ) == [
+        "--tmt-row-merge",
+        "best-row",
+        "--tmt-impurity",
+        "lot.tsv",
+        "--tmt-interference-floor",
+        "auto",
+        "--irs-missing-reference",
+        "plex-median",
+    ]
+
+
 def test_features2proteins_protein_fdr_keyword_maps_to_flag() -> None:
     """The protein FDR keyword reaches the features2proteins CLI flag."""
     assert flags_for("features2proteins", {"filter_protein_fdr": 0.01}) == [
         "--filter-protein-fdr",
         "0.01",
+    ]
+
+
+def test_pibaq_shared_peptide_options_translate() -> None:
+    """piBAQ shared-peptide keywords map to their CLI flags."""
+    assert flags_for(
+        "features2proteins",
+        {
+            "pibaq_shared": "stable-ratio",
+            "pibaq_family_rows": "all",
+            "pibaq_evidence": "e.tsv",
+        },
+    ) == [
+        "--pibaq-shared",
+        "stable-ratio",
+        "--pibaq-family-rows",
+        "all",
+        "--pibaq-evidence",
+        "e.tsv",
     ]

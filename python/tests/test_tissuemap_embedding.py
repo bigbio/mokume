@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from mokume.tissuemap.embedding import _impute_for_pca
+from mokume.tissuemap.plotting.atlas import plot_slide_atlas_dendrogram
 from mokume.tissuemap.plotting.markers import _significant_markers
 from mokume.tissuemap.tissue_specificity import _compute_ts_vectorized_mad
 
@@ -85,3 +88,17 @@ def test_marker_display_requires_effect_and_adjusted_significance():
     )
 
     assert _significant_markers(result)["names"].tolist() == ["kept"]
+
+
+def test_atlas_dendrogram_skips_single_tissue(tmp_path, caplog):
+    """A single-tissue dataset has no meaningful dendrogram to plot."""
+    adata = SimpleNamespace(
+        obsm={"X_tsne": np.array([[0.0, 0.0], [1.0, 1.0]])},
+        obs=pd.DataFrame({"tissue": ["liver", "liver"]}),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        plot_slide_atlas_dendrogram(adata, tmp_path)
+
+    assert "requires at least two tissues" in caplog.text
+    assert not any(tmp_path.iterdir())

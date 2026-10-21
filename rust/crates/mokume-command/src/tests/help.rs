@@ -22,8 +22,12 @@ const REQUIRED_FEATURES_TO_PROTEINS_OPTIONS: &[&str] = &[
     "--pibaq-min-shared",
     "--pibaq-families",
     "--pibaq-min-anchors",
+    "--pibaq-shared",
+    "--pibaq-family-rows",
+    "--pibaq-evidence",
     "--directlfq-min-nonan",
     "--directlfq-num-samples-quadratic",
+    "--directlfq-no-sample-normalization",
     "--export-peptides",
     "--export-ions",
     "--batch-correction",
@@ -41,13 +45,18 @@ const REQUIRED_FEATURES_TO_PROTEINS_OPTIONS: &[&str] = &[
     "--irs-stat",
     "--irs-remove-reference",
     "--irs-plex-column",
+    "--irs-missing-reference",
+    "--tmt-row-merge",
+    "--tmt-impurity",
+    "--tmt-interference-floor",
+    "--tmt-floor-quantile",
     "--coverage-threshold",
     "--min-sample-correlation",
     "--ratio-fraction-merge",
     "--impute-method",
     "--impute-quantile",
-    "--impute-shift",
-    "--impute-scale",
+    "--impute-seed",
+    "--impute-tune-sigma",
     "--impute-n-neighbors",
     "--de-contrast",
     "--de-contrast-file",
@@ -139,6 +148,8 @@ fn features2proteins_help_lists_python_option_surface() {
         "removed option `--topn` must not appear in help:\n{help}"
     );
     assert!(!help.contains("--ibaq-"));
+    assert!(!help_has_option(&help, "--impute-shift"));
+    assert!(!help_has_option(&help, "--impute-scale"));
 }
 
 #[test]
@@ -179,7 +190,8 @@ fn normalization_help_separates_and_aligns_metadata() {
     let features_help = render_subcommand_help_path(&["quantify", "features2proteins"]);
     for expected in [
         "[default: median; directlfq, ratio, peptide-count, spectral-count: none]",
-        "[default: global-median; directlfq, ratio, peptide-count, spectral-count: none]",
+        "[default: global-median; maxlfq without --normalization-proteins: hierarchical;",
+        "directlfq, ratio, peptide-count, spectral-count: none]",
         "Unavailable for directlfq, ratio, peptide-count, spectral-count",
     ] {
         assert!(

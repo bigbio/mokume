@@ -59,17 +59,29 @@ class TestSeqKNN:
         empty = pd.DataFrame()
         assert impute_seqknn(empty).empty
 
-    def test_no_complete_rows_seeds_with_column_mean(self):
-        # Every row has at least one NaN
+    def test_no_complete_rows_raises(self):
+        """Every row has at least one NaN; the Rust kernel rejects this too."""
         df = pd.DataFrame(
             {
                 "S1": [1.0, 2.0, np.nan, 4.0],
                 "S2": [np.nan, 3.0, 4.0, 5.0],
-                "S3": [3.0, np.nan, 5.0, 6.0],
+                "S3": [3.0, np.nan, 5.0, np.nan],
             }
         )
-        result = impute_seqknn(df, k=2)
-        assert not result.isna().any().any()
+        with pytest.raises(ValueError, match="complete protein rows"):
+            impute_seqknn(df, k=2)
+
+    def test_weights_use_squared_distance(self):
+        """Squared distances 1 and 4 give weights 1 and 1/4: (10 + 20 / 4) / 1.25."""
+        df = pd.DataFrame({"S1": [0.0, 3.0, 1.0], "S2": [10.0, 20.0, np.nan]})
+        assert impute_seqknn(df, k=2).iloc[2, 1] == pytest.approx(12.0)
+
+    def test_fully_missing_row_takes_first_complete_rows(self):
+        """No observed column: every distance is 0, so ties keep row order."""
+        df = pd.DataFrame(
+            {"S1": [1.0, 3.0, 9.0, np.nan], "S2": [2.0, 4.0, 9.0, np.nan]}
+        )
+        np.testing.assert_allclose(impute_seqknn(df, k=2).iloc[3], [2.0, 3.0])
 
 
 class TestMissForest:
@@ -173,7 +185,7 @@ class TestDrawsAreReproducible:
     """
 
     @pytest.mark.parametrize(
-        "method", ["minprob", "mindet", "knn", "qrilc", "gms", "impseq", "impseqrob"]
+        "method", ["minprob", "mindet", "knn", "qrilc", "gms", "impseq"]
     )
     def test_same_input_same_output(self, matrix_with_missing, method):
         """Two runs of one imputer on one matrix must agree exactly."""

@@ -1,27 +1,17 @@
-import logging
-
-from mokume.quantification.pibaq import peptides_to_protein
-
 from pathlib import Path
+
+import pandas as pd
+
+from mokume.core.constants import PIBAQ, PROTEIN_NAME, SAMPLE_ID
+from mokume.quantification.pibaq import peptides_to_protein
 
 TESTS_DIR = Path(__file__).parent
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
-
-def test_pibaq_compute():
-    """
-    Test the computation of piBAQ values using the peptides_to_protein function.
-
-    This test sets up the necessary arguments, including paths to input files,
-    enzyme type, normalization options, and output paths, and then calls the
-    peptides_to_protein function to perform the computation. It prints the
-    arguments for verification before execution.
-
-    The test uses example data files located in the 'example' directory and
-    outputs results to the 'out' directory.
-    """
+def test_pibaq_compute(tmp_path):
+    """The file-oriented piBAQ workflow writes quantified data and its QC report."""
+    output = tmp_path / "PXD017834-pibaq.tsv"
+    qc_report = tmp_path / "QCprofile.pdf"
     args = {
         "fasta": str(
             TESTS_DIR
@@ -37,9 +27,14 @@ def test_pibaq_compute():
         "ploidy": 2,
         "cpc": 200,
         "organism": "human",
-        "output": str(TESTS_DIR / "example" / "out" / "PXD017834-pibaq.tsv"),
+        "output": str(output),
         "verbose": True,
-        "qc_report": str(TESTS_DIR / "example/out/QCprofile.pdf"),
+        "qc_report": str(qc_report),
     }
-    logger.info(args)
+
     peptides_to_protein(**args)
+
+    result = pd.read_csv(output, sep="\t")
+    assert not result.empty
+    assert {PROTEIN_NAME, SAMPLE_ID, PIBAQ}.issubset(result.columns)
+    assert qc_report.is_file()

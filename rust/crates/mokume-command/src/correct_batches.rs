@@ -776,12 +776,13 @@ mod tests {
     // so the test helpers spell out the two-parameter standard `Result`.
     type TestResult<T> = std::result::Result<T, Box<dyn Error>>;
 
-    fn temp_dir(tag: &str) -> TestResult<PathBuf> {
+    fn temp_dir(tag: &str) -> TestResult<(tempfile::TempDir, PathBuf)> {
         let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-        Ok(tempfile::Builder::new()
+        let directory = tempfile::Builder::new()
             .prefix(&format!("mokume-correct-batches-{tag}-{nanos}-"))
-            .tempdir()?
-            .keep())
+            .tempdir()?;
+        let path = directory.path().to_path_buf();
+        Ok((directory, path))
     }
 
     fn write_file(dir: &Path, name: &str, contents: &str) -> TestResult<PathBuf> {
@@ -1002,51 +1003,50 @@ P2\tB2-s1\t8.0\told\n\
 P1\tB2-s2\t21.0\told\n\
 P2\tB2-s2\t7.5\told\n";
 
-    // Expected PiBAQBec values keyed by (SampleID, ProteinName), captured from the
-    // Python oracle:
-    //   conda run -n Bigbio python -m mokume.mokume_cli correct-batches \
-    //     --folder <fixture-dir> --pattern "*pibaq.tsv" --output <out.tsv>
-    // inmoose 0.9.1 / pandas. B1-s3/P5 is an explicit observed zero, which is
-    // distinct from a structurally absent cell under the complete-matrix contract.
+    // Expected PiBAQBec values keyed by (SampleID, ProteinName), from
+    // sva 3.58.0: ComBat(X, batch=rep(1:2,each=3), par.prior=TRUE,
+    // prior.plots=FALSE, BPPARAM=BiocParallel::SerialParam()). X is the
+    // 5-by-6 matrix in BATCH_A/BATCH_B; no covariates or log transform.
+    // B1-s3/P5 is an observed zero, distinct from a structurally absent cell.
     const EXPECTED: &[(&str, &str, f64)] = &[
-        ("B1-s1", "P1", 14.86027101136503),
-        ("B1-s1", "P2", 6.568250615964994),
-        ("B1-s1", "P3", 1.8528067846912328),
-        ("B1-s1", "P4", 40.18479019681545),
-        ("B1-s1", "P5", 4.791576963794292),
-        ("B1-s2", "P1", 15.799571789576207),
-        ("B1-s2", "P2", 7.472688758460274),
-        ("B1-s2", "P3", 2.802714985157337),
-        ("B1-s2", "P4", 41.94917557277646),
-        ("B1-s2", "P5", 5.225650064373009),
-        ("B1-s3", "P1", 14.390620622259444),
-        ("B1-s3", "P2", 5.663812473469715),
-        ("B1-s3", "P3", 2.327760884924285),
-        ("B1-s3", "P4", 38.42040482085444),
-        ("B1-s3", "P5", 2.187138360321982),
-        ("B2-s1", "P1", 15.14370361017618),
-        ("B2-s1", "P2", 6.405668897416727),
-        ("B2-s1", "P3", 2.169016234610666),
-        ("B2-s1", "P4", 39.86488123350397),
-        ("B2-s1", "P5", 4.093616827669412),
-        ("B2-s2", "P1", 16.181696236203024),
-        ("B2-s2", "P2", 5.836487008977049),
-        ("B2-s2", "P3", 1.6604208788502293),
-        ("B2-s2", "P4", 41.08220056732911),
-        ("B2-s2", "P5", 3.4445768562464525),
-        ("B2-s3", "P1", 14.105710984149336),
-        ("B2-s3", "P2", 7.544032674296082),
-        ("B2-s3", "P3", 3.186206946131539),
-        ("B2-s3", "P4", 38.647561899678834),
-        ("B2-s3", "P5", 4.742656799092371),
+        ("B1-s1", "P1", 14.888611859089949),
+        ("B1-s1", "P2", 6.5690968224600965),
+        ("B1-s1", "P3", 1.9297166147721312),
+        ("B1-s1", "P4", 40.173786157439345),
+        ("B1-s1", "P5", 4.684966644482776),
+        ("B1-s2", "P1", 15.677789476902493),
+        ("B1-s2", "P2", 7.334035336187576),
+        ("B1-s2", "P3", 2.726342258417554),
+        ("B1-s2", "P4", 41.67158412295979),
+        ("B1-s2", "P5", 5.0545060403878574),
+        ("B1-s3", "P1", 14.494023050183676),
+        ("B1-s3", "P2", 5.804158308732618),
+        ("B1-s3", "P3", 2.3280294365948424),
+        ("B1-s3", "P4", 38.675988191918904),
+        ("B1-s3", "P5", 2.467730269052283),
+        ("B2-s1", "P1", 15.138421089351253),
+        ("B2-s1", "P2", 6.430633041171619),
+        ("B2-s1", "P3", 2.189092103326806),
+        ("B2-s1", "P4", 39.873424456324024),
+        ("B2-s1", "P5", 4.093086754577451),
+        ("B2-s2", "P1", 16.047926019136252),
+        ("B2-s2", "P2", 5.9390395451127045),
+        ("B2-s2", "P3", 1.7421344916475499),
+        ("B2-s2", "P4", 40.911988439474825),
+        ("B2-s2", "P5", 3.546244078657096),
+        ("B2-s3", "P1", 14.228916159566253),
+        ("B2-s3", "P2", 7.41382003328945),
+        ("B2-s3", "P3", 3.0830073266853177),
+        ("B2-s3", "P4", 38.83486047317322),
+        ("B2-s3", "P5", 4.639929430497806),
     ];
 
-    /// Golden test: the Rust command reproduces the Python oracle's PiBAQBec
+    /// Golden test: the Rust command reproduces official sva::ComBat PiBAQBec
     /// values to relative 1e-6 on a synthetic 2-batch / 6-sample / 5-protein
     /// complete dataset (including one explicit observed zero).
     #[test]
-    fn correct_batches_matches_python_oracle() -> TestResult<()> {
-        let dir = temp_dir("oracle")?;
+    fn correct_batches_matches_sva_oracle() -> TestResult<()> {
+        let (_dir_guard, dir) = temp_dir("oracle")?;
         write_file(&dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(&dir, "batchB_pibaq.tsv", BATCH_B)?;
         let output = dir.join("corrected.tsv");
@@ -1075,13 +1075,13 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn reordered_input_columns_preserve_identity() -> TestResult<()> {
-        let canonical_dir = temp_dir("canonical-order")?;
+        let (_canonical_dir_guard, canonical_dir) = temp_dir("canonical-order")?;
         write_file(&canonical_dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(&canonical_dir, "batchB_pibaq.tsv", BATCH_B)?;
         let canonical_output = canonical_dir.join("corrected.tsv");
         run_correct_batches(&args_for(&canonical_dir, &canonical_output))?;
 
-        let reordered_dir = temp_dir("reordered-order")?;
+        let (_reordered_dir_guard, reordered_dir) = temp_dir("reordered-order")?;
         write_file(&reordered_dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(
             &reordered_dir,
@@ -1101,7 +1101,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn selected_delimiter_and_quoted_fields_round_trip() -> TestResult<()> {
-        let dir = temp_dir("delimited-output")?;
+        let (_dir_guard, dir) = temp_dir("delimited-output")?;
         write_file(&dir, "batchA_pibaq.csv", DELIMITED_A)?;
         write_file(&dir, "batchB_pibaq.csv", DELIMITED_B)?;
         let output = dir.join("corrected.csv");
@@ -1146,7 +1146,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn duplicate_headers_fail_before_output_creation() -> TestResult<()> {
-        let duplicate_dir = temp_dir("duplicate-header")?;
+        let (_duplicate_dir_guard, duplicate_dir) = temp_dir("duplicate-header")?;
         write_file(
             &duplicate_dir,
             "batchA_pibaq.tsv",
@@ -1160,7 +1160,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn extra_schema_column_fails_before_output_creation() -> TestResult<()> {
-        let mismatch_dir = temp_dir("schema-mismatch")?;
+        let (_mismatch_dir_guard, mismatch_dir) = temp_dir("schema-mismatch")?;
         write_file(&mismatch_dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(
             &mismatch_dir,
@@ -1174,7 +1174,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn missing_schema_column_fails_before_output_creation() -> TestResult<()> {
-        let missing_dir = temp_dir("schema-missing")?;
+        let (_missing_dir_guard, missing_dir) = temp_dir("schema-missing")?;
         write_file(&missing_dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(
             &missing_dir,
@@ -1188,7 +1188,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn duplicate_source_roles_fail_before_output_creation() -> TestResult<()> {
-        let role_dir = temp_dir("source-role")?;
+        let (_role_dir_guard, role_dir) = temp_dir("source-role")?;
         write_file(&role_dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(&role_dir, "batchB_pibaq.tsv", BATCH_B)?;
         let role_output = role_dir.join("corrected.tsv");
@@ -1199,7 +1199,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn corrected_column_collision_fails_before_output_creation() -> TestResult<()> {
-        let collision_dir = temp_dir("corrected-column")?;
+        let (_collision_dir_guard, collision_dir) = temp_dir("corrected-column")?;
         write_file(&collision_dir, "batchA_pibaq.tsv", COLLISION_A)?;
         write_file(&collision_dir, "batchB_pibaq.tsv", COLLISION_B)?;
         let collision_output = collision_dir.join("corrected.tsv");
@@ -1209,7 +1209,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn input_output_collision_does_not_truncate_input() -> TestResult<()> {
-        let dir = temp_dir("input-output-collision")?;
+        let (_dir_guard, dir) = temp_dir("input-output-collision")?;
         let input = write_file(&dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(&dir, "batchB_pibaq.tsv", BATCH_B)?;
         let before = std::fs::read(&input)?;
@@ -1240,7 +1240,7 @@ P2\tB2-s2\t7.5\told\n";
 
     #[test]
     fn export_anndata_writes_h5ad_file() -> TestResult<()> {
-        let dir = temp_dir("anndata")?;
+        let (_dir_guard, dir) = temp_dir("anndata")?;
         write_file(&dir, "batchA_pibaq.tsv", BATCH_A)?;
         write_file(&dir, "batchB_pibaq.tsv", BATCH_B)?;
         let output = dir.join("corrected.tsv");
@@ -1275,7 +1275,7 @@ P2\tB2-s2\t7.5\told\n";
         let obs_idx = |name: &str| obs.iter().position(|s| s == name);
         let var_idx = |name: &str| var.iter().position(|s| s == name);
 
-        // Corrected layer values match the Python oracle where present.
+        // Corrected layer values match the official sva oracle where present.
         for &(sample, protein, expected) in EXPECTED {
             let (Some(i), Some(j)) = (obs_idx(sample), var_idx(protein)) else {
                 panic!("missing ({sample}, {protein}) in AnnData index");
@@ -1294,7 +1294,6 @@ P2\tB2-s2\t7.5\told\n";
             panic!("missing B1-s3/P5 in AnnData index");
         };
         assert_eq!(x[[i, j]], 0.0, "explicit raw zero must be preserved");
-        assert_eq!(layer[[i, j]], 2.187138360321982);
 
         // Raw X reflects the input piBAQ values.
         let (Some(i), Some(j)) = (obs_idx("B1-s1"), var_idx("P4")) else {

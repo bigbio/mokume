@@ -225,6 +225,10 @@ fn validate_irs_options(args: &Features2PeptidesArgs) -> mokume_core::Result<()>
     Ok(())
 }
 
+pub(crate) fn validate_options(args: &Features2PeptidesArgs) -> mokume_core::Result<()> {
+    validate_irs_options(args)
+}
+
 fn resolve_irs_config(
     args: &Features2PeptidesArgs,
 ) -> mokume_core::Result<Option<IrsChannelConfig>> {
@@ -269,6 +273,7 @@ fn feature_to_peptides_config(
     irs: Option<IrsChannelConfig>,
     filter_pipeline: Option<PreprocessingFilterConfig>,
 ) -> FeatureToPeptidesConfig {
+    let defaults = FilterConfig::default();
     FeatureToPeptidesConfig {
         input: InputConfig {
             parquet: Some(parquet),
@@ -279,8 +284,8 @@ fn feature_to_peptides_config(
         },
         output,
         filtering: FilterConfig {
-            min_aa: args.min_aa.unwrap_or(7),
-            min_unique_peptides: args.min_unique.unwrap_or(2),
+            min_aa: args.min_aa.unwrap_or(defaults.min_aa),
+            min_unique_peptides: args.min_unique.unwrap_or(defaults.min_unique_peptides),
             remove_contaminants: args.remove_decoy_contaminants,
         },
         remove_ids: args.remove_ids.clone(),
@@ -317,11 +322,11 @@ fn build_filter_pipeline(
                 name: "cli_config".to_string(),
                 ..PreprocessingFilterConfig::default()
             };
-            // A CLI-only filter override extends the base filtering contract; it
-            // must not silently restore the preprocessing defaults for unrelated
-            // settings such as --min_unique or contaminant removal.
-            config.peptide.min_peptide_length = args.min_aa.unwrap_or(7);
-            config.protein.min_unique_peptides = args.min_unique.unwrap_or(2);
+            // A CLI-only override starts from the base filtering contract (explicit
+            // --min-aa/--min-unique are applied below), not the preprocessing
+            // defaults for settings such as --min_unique or contaminant removal.
+            config.peptide.min_peptide_length = FilterConfig::default().min_aa;
+            config.protein.min_unique_peptides = FilterConfig::default().min_unique_peptides;
             config.protein.remove_contaminants = args.remove_decoy_contaminants;
             config
         }

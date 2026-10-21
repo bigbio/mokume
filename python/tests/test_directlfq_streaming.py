@@ -8,18 +8,11 @@ import pandas as pd
 import pytest
 
 from mokume.pipeline.directlfq_streaming import estimate_protein_intensities_streamed
-from mokume.quantification import get_quantification_method
 from mokume.quantification.directlfq import DirectLFQQuantification
-from mokume.quantification.maxlfq import MaxLFQQuantification
 
 lfq_estimation = pytest.importorskip("directlfq.protein_intensity_estimation")
 lfq_config = pytest.importorskip("directlfq.config")
 lfq_manager = pytest.importorskip("directlfq.lfq_manager")
-
-
-def test_maxlfq_factory_forwards_threads_keyword():
-    quantifier = get_quantification_method("maxlfq", threads=3)
-    assert quantifier.threads == 3
 
 
 def _make_normed_directlfq_frame() -> pd.DataFrame:
@@ -75,12 +68,11 @@ def _sort_long_result(df: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values(["ProteinName", "SampleID"]).reset_index(drop=True)
 
 
-def test_maxlfq_directlfq_wrapper_matches_upstream_run_lfq():
+def test_directlfq_wrapper_matches_upstream_run_lfq():
     peptide_df = _make_long_directlfq_frame()
-    maxlfq = MaxLFQQuantification(min_peptides=1, threads=2)
-    assert maxlfq.using_directlfq
+    quantifier = DirectLFQQuantification(min_nonan=1, num_cores=1)
 
-    streamed_df = maxlfq.quantify(
+    streamed_df = quantifier.quantify(
         peptide_df,
         protein_column="ProteinName",
         peptide_column="PeptideSequence",
@@ -209,62 +201,6 @@ def test_streaming_directlfq_sorts_noncontiguous_protein_groups():
         rtol=1e-10,
         atol=1e-10,
     )
-
-
-def test_resolve_directlfq_num_cores_mirrors_joblib_sentinels():
-    import os
-
-    from mokume.quantification.maxlfq import _resolve_directlfq_num_cores
-
-    n = os.cpu_count() or 1
-    assert _resolve_directlfq_num_cores(4) == 4
-    assert _resolve_directlfq_num_cores(1) == 1
-    assert _resolve_directlfq_num_cores(-1) == n  # all cores, like joblib n_jobs=-1
-    assert _resolve_directlfq_num_cores(-2) == max(1, n - 1)  # all but one
-    assert _resolve_directlfq_num_cores(0) is None
-
-
-def test_maxlfq_threads_minus_one_reaches_directlfq_as_all_cores(monkeypatch):
-    """threads=-1 ('all cores') must reach DirectLFQ as a parallel core count,
-    not silently collapse to sequential (num_cores=None)."""
-    import os
-
-    import mokume.quantification.directlfq as directlfq_mod
-    from mokume.quantification.maxlfq import (
-        MaxLFQQuantification,
-        _resolve_directlfq_num_cores,
-    )
-
-    captured = {}
-
-    class FakeDirectLFQ:
-        def __init__(self, min_nonan, num_cores=None):
-            captured["num_cores"] = num_cores
-
-        def quantify(self, peptide_df, **kwargs):
-            return pd.DataFrame({"ProteinName": [], "SampleID": [], "Intensity": []})
-
-    maxlfq = MaxLFQQuantification(min_peptides=1, threads=-1)
-    if not maxlfq.using_directlfq:
-        pytest.skip("directlfq not available")
-
-    monkeypatch.setattr(directlfq_mod, "DirectLFQQuantification", FakeDirectLFQ)
-    maxlfq._quantify_with_directlfq(
-        pd.DataFrame(
-            {
-                "ProteinName": ["P1"],
-                "PeptideSequence": ["PEPA"],
-                "SampleID": ["S1"],
-                "Intensity": [10.0],
-            }
-        ),
-        protein_column="ProteinName",
-        peptide_column="PeptideSequence",
-        intensity_column="Intensity",
-        sample_column="SampleID",
-    )
-    assert captured["num_cores"] == _resolve_directlfq_num_cores(-1)
-    assert captured["num_cores"] == (os.cpu_count() or 1)
 
 
 def test_streaming_directlfq_preserves_empty_output_shape_and_exports_ions(tmp_path):

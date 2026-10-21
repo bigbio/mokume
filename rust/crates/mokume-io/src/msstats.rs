@@ -146,26 +146,22 @@ impl<'a> MsstatsReader<'a> {
             selected_score: None,
             label,
             intensity,
+            row_start: true,
         })
     }
 
     fn resolve_run_file(&self, record: &StringRecord, row: usize) -> Result<String> {
-        let reference_file = optional_value(record, self.columns.reference)
-            .and_then(|value| self.sdrf.resolve_run_file(value));
-        let run_file = optional_value(record, self.columns.run)
-            .and_then(|value| self.sdrf.resolve_run_file(value));
-        if reference_file.is_some() && run_file.is_some() && reference_file != run_file {
-            return Err(row_error(
-                row,
-                "Run and Reference map to different SDRF data files",
-            ));
-        }
-        reference_file.or(run_file).ok_or_else(|| {
-            row_error(
-                row,
-                "Run and Reference cannot be mapped to an SDRF data file",
-            )
-        })
+        // quantms writes Run as an OpenMS design index and the data file in
+        // Reference, so Run names the file only when there is no Reference column.
+        let file_column = self.columns.reference.or(self.columns.run);
+        optional_value(record, file_column)
+            .and_then(|value| self.sdrf.resolve_run_file(value))
+            .ok_or_else(|| {
+                row_error(
+                    row,
+                    "Run or Reference cannot be mapped to an SDRF data file",
+                )
+            })
     }
 }
 
@@ -413,28 +409,25 @@ mod tests {
     }
 
     #[test]
-    fn rejects_conflicting_run_and_reference_aliases() -> Result<()> {
+    fn reference_names_the_file_when_run_is_a_design_index() -> Result<()> {
         let sdrf = SdrfTable::from_reader(
             concat!(
                 "source name\tcomment[data file]\tcomment[label]\n",
-                "sample-1\trun-1.raw\tlabel free sample\n",
-                "sample-2\trun-2.raw\tlabel free sample\n",
+                "sample-1\t2.raw\tlabel free sample\n",
+                "sample-2\t2_20221202203139.raw\tlabel free sample\n",
             )
             .as_bytes(),
         )?;
         let input = msstats_file(concat!(
             "ProteinName,PeptideSequence,Charge,Run,Reference,Intensity\n",
-            "P12345,PEPTIDE,2,run-1,run-2,42\n",
+            "P12345,PEPTIDE,2,2,2_20221202203139.mzML,42\n",
         ))?;
 
-        let message = MsstatsReader::open(input.path(), &sdrf)?
+        let row = MsstatsReader::open(input.path(), &sdrf)?
             .next()
-            .ok_or_else(|| invalid_input("missing MSstats row"))?
-            .err()
-            .ok_or_else(|| invalid_input("conflicting aliases unexpectedly succeeded"))?
-            .to_string();
+            .ok_or_else(|| invalid_input("missing MSstats row"))??;
 
-        assert!(message.contains("Run and Reference map to different"));
+        assert_eq!(row.run_file_name, "2_20221202203139.raw");
         Ok(())
     }
 }

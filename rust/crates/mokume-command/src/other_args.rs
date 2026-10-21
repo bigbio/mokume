@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use mokume_core::{FilterConfig, PibaqConfig};
 
 use crate::parsers::{
     parse_peptides2protein_method, parse_positive_f64, parse_positive_i32, parse_positive_usize,
@@ -23,17 +24,21 @@ pub(crate) struct Peptides2ProteinArgs {
     )]
     pub(crate) quant_method: String,
 
-    #[arg(long = "enzyme", value_name = "NAME", default_value = "Trypsin")]
-    pub(crate) enzyme: String,
+    #[arg(
+        long = "enzyme",
+        value_name = "NAME",
+        help = "piBAQ only [default: Trypsin]"
+    )]
+    pub(crate) enzyme: Option<String>,
 
     #[arg(long = "normalize")]
     pub(crate) normalize: bool,
 
-    #[arg(long = "min-aa", value_name = "N", default_value_t = 7)]
-    pub(crate) min_aa: usize,
+    #[arg(long = "min-aa", value_name = "N", help = "piBAQ only [default: 7]")]
+    pub(crate) min_aa: Option<usize>,
 
-    #[arg(long = "max-aa", value_name = "N", default_value_t = 30)]
-    pub(crate) max_aa: usize,
+    #[arg(long = "max-aa", value_name = "N", help = "piBAQ only [default: 30]")]
+    pub(crate) max_aa: Option<usize>,
 
     #[arg(long = "tpa")]
     pub(crate) tpa: bool,
@@ -72,17 +77,55 @@ pub(crate) struct Peptides2ProteinArgs {
     )]
     pub(crate) directlfq_min_nonan: Option<usize>,
 
+    #[arg(long = "maxlfq-min-ratio-count", value_name = "N", value_parser = parse_positive_usize,
+        help = "MaxLFQ only: minimum shared peptide species per sample pair [default: 2]")]
+    pub(crate) maxlfq_min_ratio_count: Option<usize>,
+
+    #[arg(
+        long,
+        help = "Enable large-ratio stabilization (MaxLFQ only; default: off)"
+    )]
+    pub(crate) stabilize: bool,
+
     #[arg(long = "families", value_name = "FILE")]
     pub(crate) families_yaml: Option<PathBuf>,
 
-    #[arg(long = "min-shared", value_name = "N", default_value_t = 2)]
-    pub(crate) min_shared: usize,
+    #[arg(
+        long = "min-shared",
+        value_name = "N",
+        help = "piBAQ only [default: 2]"
+    )]
+    pub(crate) min_shared: Option<usize>,
 
-    #[arg(long = "min-anchors", value_name = "N", default_value_t = 1)]
-    pub(crate) min_anchors: usize,
+    #[arg(
+        long = "min-anchors",
+        value_name = "N",
+        help = "piBAQ only [default: 1]"
+    )]
+    pub(crate) min_anchors: Option<usize>,
 
-    #[arg(long = "high-anchor-threshold", value_name = "N", default_value_t = 3)]
-    pub(crate) high_anchor_threshold: usize,
+    #[arg(
+        long = "high-anchor-threshold",
+        value_name = "N",
+        help = "piBAQ only [default: 3]"
+    )]
+    pub(crate) high_anchor_threshold: Option<usize>,
+}
+
+impl Peptides2ProteinArgs {
+    pub(crate) fn pibaq_enzyme(&self) -> String {
+        self.enzyme
+            .clone()
+            .unwrap_or_else(|| PibaqConfig::default().enzyme)
+    }
+
+    pub(crate) fn pibaq_min_aa(&self) -> usize {
+        self.min_aa.unwrap_or(FilterConfig::default().min_aa)
+    }
+
+    pub(crate) fn pibaq_max_aa(&self) -> usize {
+        self.max_aa.unwrap_or(PibaqConfig::default().max_aa)
+    }
 }
 
 #[derive(Debug, Args)]

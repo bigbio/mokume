@@ -29,6 +29,10 @@ class TestGetAccession:
     def test_standard_uniprot_nxp(self):
         assert get_accession("nxp|NX_P12345|PROT_NAME") == "NX_P12345"
 
+    def test_ups_database_prefix(self):
+        """A UPS| prefix is a database tag, so the accession is the second field."""
+        assert get_accession("UPS|P02768ups|ALBU_HUMAN_UPS") == "P02768ups"
+
     def test_prefix_case_insensitive(self):
         assert get_accession("SP|P12345|PROT_NAME") == "P12345"
         assert get_accession("Tr|Q67890|PROT_NAME") == "Q67890"

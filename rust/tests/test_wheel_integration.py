@@ -14,7 +14,8 @@ import mokume
 EXAMPLE = os.path.join(os.path.dirname(__file__), "example")
 PEPTIDES_CSV = os.path.join(EXAMPLE, "peptides_small.csv")
 FEATURE_PARQUET = os.path.join(EXAMPLE, "feature_wide.parquet")
-SDRF = os.path.join(EXAMPLE, "PXD020192.sdrf.tsv")
+NEW_QPX_PARQUET = os.path.join(EXAMPLE, "feature_wide_new_qpx.parquet")
+NEW_QPX_SDRF = os.path.join(EXAMPLE, "sdrf_new_qpx.tsv")
 
 pd = pytest.importorskip("pandas")
 
@@ -92,19 +93,16 @@ class TestFeatures2Proteins:
 
     def test_basic_run(self, tmp_path):
         output = str(tmp_path / "proteins.csv")
-        try:
-            mokume.features2proteins(
-                parquet=FEATURE_PARQUET,
-                output=output,
-                sdrf=SDRF,
-            )
-            assert os.path.exists(output)
-            df = pd.read_csv(output)
-            assert len(df) > 0
-        except RuntimeError as exc:
-            if "SDRF" in str(exc) or "sdrf" in str(exc):
-                pytest.skip(f"SDRF mismatch with fixture: {exc}")
-            raise
+        mokume.features2proteins(
+            parquet=NEW_QPX_PARQUET,
+            output=output,
+            sdrf=NEW_QPX_SDRF,
+            quant_method="sum",
+            min_unique=1,
+        )
+        assert os.path.exists(output)
+        df = pd.read_csv(output)
+        assert len(df) > 0
 
 
 class TestFeatures2Peptides:
@@ -112,18 +110,13 @@ class TestFeatures2Peptides:
 
     def test_basic_run(self, tmp_path):
         output = str(tmp_path / "peptides.csv")
-        try:
-            mokume.features2peptides(
-                parquet=FEATURE_PARQUET,
-                output=output,
-            )
-            assert os.path.exists(output)
-            df = pd.read_csv(output)
-            assert len(df) > 0
-        except RuntimeError as exc:
-            if "column" in str(exc).lower() or "schema" in str(exc).lower():
-                pytest.skip(f"Feature parquet schema issue: {exc}")
-            raise
+        mokume.features2peptides(
+            parquet=FEATURE_PARQUET,
+            output=output,
+        )
+        assert os.path.exists(output)
+        df = pd.read_csv(output)
+        assert len(df) > 0
 
 
 class TestRunGeneric:

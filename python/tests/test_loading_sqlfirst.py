@@ -35,7 +35,7 @@ from mokume.pipeline.config import (
     QuantificationConfig,
 )
 from mokume.pipeline.features_to_proteins import QuantificationPipeline
-from mokume.pipeline.stages import LoadingStage, QuantificationStage
+from mokume.pipeline.stages import LoadingStage
 from mokume.io.feature import Feature, SQLFilterBuilder
 from mokume.preprocessing.sdrf import analyse_sdrf
 
@@ -205,6 +205,7 @@ def _normalize_for_compare(df: pd.DataFrame) -> pd.DataFrame:
     if "BioReplicate" in df.columns:
         df["BioReplicate"] = df["BioReplicate"].astype(int)
     sort_cols = [PROTEIN_NAME, PEPTIDE_CANONICAL, SAMPLE_ID]
+    sort_cols += [c for c in ["PeptideSequence", "PrecursorCharge"] if c in df.columns]
     return df.sort_values(sort_cols).reset_index(drop=True)
 
 
@@ -280,6 +281,57 @@ def test_sqlfirst_filters_unique_min_aa_decoy_contam_entrap(lfq_dataset):
     )
 
 
+def test_null_unique_flag_means_a_one_protein_group(lfq_dataset):
+    """qpx < 1.1.3 leaves ``unique`` null; it then means a one-protein group."""
+    parquet, sdrf = lfq_dataset
+    table = pq.read_table(parquet)
+    groups = table["pg_accessions"].to_pylist()
+    for row, sequence in enumerate(table["sequence"].to_pylist()):
+        if sequence in {"KEPTPEPAR", "KEPTPEPBR"}:
+            groups[row] = groups[row] + [{**groups[row][0], "accession": "P00002"}]
+    table = table.set_column(
+        table.schema.get_field_index("pg_accessions"),
+        "pg_accessions",
+        pa.array(groups, type=_PG_PROTEIN_TYPE),
+    )
+    column = table.schema.get_field_index("unique")
+    nulls = pa.nulls(table.num_rows, pa.bool_())
+    pq.write_table(table.set_column(column, "unique", nulls), parquet)
+    cfg = _make_config(parquet, sdrf)
+
+    # Both P99999 peptides are now shared with P00002, so they are dropped.
+    for df in (LoadingStage(cfg).load_for_mokume(), _legacy_path_output(cfg)):
+        assert set(df[PROTEIN_NAME].astype(str)) == {"P12345"}
+
+
+def test_contaminant_twin_group_is_named_without_contaminant_members(lfq_dataset):
+    """A kept ``CONTAM_<ACC>;<ACC>`` group is named ``<ACC>``, as in Rust."""
+    parquet, sdrf = lfq_dataset
+    table = pq.read_table(parquet)
+    groups = table["pg_accessions"].to_pylist()
+    for row, sequence in enumerate(table["sequence"].to_pylist()):
+        if sequence in {"KEPTPEPAR", "KEPTPEPBR"}:
+            twin = {**groups[row][0], "accession": "CONTAM_P99999"}
+            groups[row] = [twin] + groups[row]
+    column = table.schema.get_field_index("pg_accessions")
+    groups = pa.array(groups, type=_PG_PROTEIN_TYPE)
+    pq.write_table(table.set_column(column, "pg_accessions", groups), parquet)
+    cfg = _make_config(parquet, sdrf)
+
+    for df in (LoadingStage(cfg).load_for_mokume(), _legacy_path_output(cfg)):
+        assert set(df[PROTEIN_NAME].astype(str)) == {"P12345", "P99999"}
+
+
+def test_load_fails_when_no_feature_passes_the_filters(lfq_dataset):
+    """Input that the filters empty fails early with a message naming them."""
+    parquet, sdrf = lfq_dataset
+    cfg = _make_config(parquet, sdrf)
+    cfg.filtering.min_aa = 50
+
+    with pytest.raises(ValueError, match="No features pass the input filters"):
+        LoadingStage(cfg).load_for_mokume()
+
+
 def test_sqlfirst_respects_disabled_contaminant_filter(request):
     """The SQL-first path must not apply a second hard-coded name filter."""
     parquet, sdrf = request.getfixturevalue("lfq_dataset")
@@ -298,6 +350,7 @@ def test_sqlfirst_peptidoform_sums_charges_per_sample(lfq_dataset):
     charge-3 (302), so the aggregated NormIntensity must equal 403."""
     parquet, sdrf = lfq_dataset
     cfg = _make_config(parquet, sdrf)
+    cfg.quantification.method = "sum"
     df = LoadingStage(cfg).load_for_mokume()
 
     p_ar = df[
@@ -614,127 +667,39 @@ def test_dispatcher_routes_lfq_with_run_norm_to_sqlfirst(
     )
 
 
-def _wide_from_sqlfirst_maxlfq_input(cfg: PipelineConfig) -> pd.DataFrame:
-    peptide_df = LoadingStage(cfg).load_for_mokume()
-    wide = peptide_df.pivot_table(
-        index=[PROTEIN_NAME, PEPTIDE_CANONICAL],
-        columns=SAMPLE_ID,
-        values=NORM_INTENSITY,
-        aggfunc="sum",
-        observed=True,
-    )
-    wide = np.log2(wide.replace(0, np.nan))
-    wide.index.names = ["protein", "ion"]
-    wide.columns = wide.columns.astype(str)
-    wide.columns.name = None
-    return wide.sort_index().sort_index(axis=1)
-
-
-def _wide_from_maxlfq_directlfq_loader(cfg: PipelineConfig) -> pd.DataFrame:
-    loader = LoadingStage(cfg)
-    table = loader.load_for_maxlfq_directlfq()
-    wide = loader.convert_maxlfq_to_directlfq_format(table)
-    wide.columns = wide.columns.astype(str)
-    return wide.sort_index().sort_index(axis=1)
-
-
-def test_maxlfq_directlfq_loader_matches_sqlfirst_input(lfq_dataset):
+@pytest.mark.parametrize("normalization", ["none", "quantile", "loess"])
+def test_maxlfq_normalization_preserves_charge_species(lfq_dataset, normalization):
     parquet, sdrf = lfq_dataset
-    cfg = PipelineConfig(
-        input=InputConfig(parquet=parquet, sdrf=sdrf),
-        filtering=FilterConfig(
-            remove_contaminants=True, min_aa=7, min_unique_peptides=2
-        ),
-        normalization=NormalizationConfig(run_method="none", sample_method="none"),
-        quantification=QuantificationConfig(method="maxlfq"),
-    )
-
-    expected = _wide_from_sqlfirst_maxlfq_input(cfg)
-    actual = _wide_from_maxlfq_directlfq_loader(cfg)
-
-    pd.testing.assert_frame_equal(
-        actual,
-        expected,
-        check_exact=False,
-        rtol=1e-10,
-        atol=1e-10,
-    )
+    cfg = _make_config(parquet, sdrf)
+    cfg.quantification.method = "maxlfq"
+    cfg.normalization.sample_method = normalization
+    frame = LoadingStage(cfg).load_for_mokume()
+    selected = frame[
+        (frame[PROTEIN_NAME].astype(str) == "P12345")
+        & (frame[PEPTIDE_CANONICAL] == "PEPTIDEAR")
+    ]
+    assert len(selected) == 8
+    assert set(selected["PrecursorCharge"]) == {2, 3}
+    if normalization == "none":
+        np.testing.assert_allclose(
+            sorted(selected[NORM_INTENSITY]), [101] * 4 + [302] * 4
+        )
 
 
-def test_maxlfq_directlfq_loader_preserves_run_normalization(
-    lfq_multi_techrep_dataset,
-):
-    parquet, sdrf = lfq_multi_techrep_dataset
-    cfg = PipelineConfig(
-        input=InputConfig(parquet=parquet, sdrf=sdrf),
-        filtering=FilterConfig(
-            remove_contaminants=True, min_aa=7, min_unique_peptides=2
-        ),
-        normalization=NormalizationConfig(run_method="median", sample_method="none"),
-        quantification=QuantificationConfig(method="maxlfq"),
-    )
-
-    expected = _wide_from_sqlfirst_maxlfq_input(cfg)
-    actual = _wide_from_maxlfq_directlfq_loader(cfg)
-
-    pd.testing.assert_frame_equal(
-        actual,
-        expected,
-        check_exact=False,
-        rtol=1e-10,
-        atol=1e-10,
-    )
-
-
-def test_maxlfq_pipeline_uses_directlfq_loader_when_safe(monkeypatch, lfq_dataset):
-    pytest.importorskip("directlfq.normalization")
-
+def test_maxlfq_pipeline_uses_own_solver(monkeypatch, lfq_dataset):
     parquet, sdrf = lfq_dataset
-    cfg = PipelineConfig(
-        input=InputConfig(parquet=parquet, sdrf=sdrf),
-        filtering=FilterConfig(
-            remove_contaminants=True, min_aa=7, min_unique_peptides=2
-        ),
-        normalization=NormalizationConfig(run_method="none", sample_method="none"),
-        quantification=QuantificationConfig(method="maxlfq"),
-    )
+    cfg = _make_config(parquet, sdrf)
+    cfg.quantification.method = "maxlfq"
+    cfg.runtime.duckdb_threads = 1
+    features_module = importlib.import_module("mokume.pipeline.features_to_proteins")
 
-    calls = {"loader": 0, "old_quantify": 0, "min_nonan": None}
-    original_loader = LoadingStage.load_for_maxlfq_directlfq
+    def unexpected_call(*_args, **_kwargs):
+        pytest.fail("MaxLFQ pipeline must not enter DirectLFQ")
 
-    def wrapped_loader(self):
-        calls["loader"] += 1
-        return original_loader(self)
-
-    def fake_quantify(self, peptide_df):
-        calls["old_quantify"] += 1
-        return pd.DataFrame({PROTEIN_NAME: []})
-
-    def fake_estimate(normed_df, min_nonan, num_samples_quadratic, num_cores=None):
-        calls["min_nonan"] = min_nonan
-        return pd.DataFrame({"protein": ["P12345"], "run_S1": [0.0], "run_S2": [1.0]})
-
-    features_to_proteins_module = importlib.import_module(
-        "mokume.pipeline.features_to_proteins"
-    )
-
-    monkeypatch.setattr(LoadingStage, "load_for_maxlfq_directlfq", wrapped_loader)
-    monkeypatch.setattr(QuantificationStage, "quantify", fake_quantify)
     monkeypatch.setattr(
-        features_to_proteins_module,
-        "estimate_protein_intensities_streamed",
-        fake_estimate,
+        features_module, "estimate_protein_intensities_streamed", unexpected_call
     )
-
     result = QuantificationPipeline(cfg).run()
-
-    # min_nonan must flow from config (directlfq_min_nonan), not a hardcoded value.
-    assert calls == {
-        "loader": 1,
-        "old_quantify": 0,
-        "min_nonan": cfg.quantification.directlfq_min_nonan,
-    }
-    assert list(result.columns) == [PROTEIN_NAME, "run_S1", "run_S2"]
-    assert result[PROTEIN_NAME].tolist() == ["P12345"]
-    assert pd.isna(result.loc[0, "run_S1"])
-    assert result.loc[0, "run_S2"] == 1.0
+    row = result.set_index(PROTEIN_NAME).loc["P12345"]
+    # All four samples have the same four species: 101 + 302 + 203 + 404.
+    np.testing.assert_allclose(row.to_numpy(dtype=float), [1010] * 4)

@@ -47,7 +47,7 @@ dependencies = [
 
 [project.optional-dependencies]
 plotting = ["matplotlib", "seaborn>=0.13.2", "scikit-learn"]
-reports = ["plotly>=5.0", "scikit-learn"]
+reports = ["plotly>=5.0", "scikit-learn", "threadpoolctl"]
 directlfq = ["directlfq>=0.3.0", "pyyaml>=6.0", "polars>=1.0"]
 batch-correction = ["inmoose>=0.8.1", "scikit-learn>=1.3"]
 inmoose = ["inmoose>=0.8.1", "scikit-learn>=1.3"]  # Deprecated alias, use batch-correction instead
@@ -56,7 +56,7 @@ imputation = ["scikit-learn"]
 analysis = ["statsmodels>=0.13"]
 de = ["statsmodels>=0.13"]  # Alias for analysis; "mokume-py[de]" is what users reach for first
 h5ad = ["anndata"]
-all = ["directlfq>=0.3.0", "pyyaml>=6.0", "polars>=1.0", "inmoose>=0.8.1", "combat>=0.3", "matplotlib", "seaborn>=0.13.2", "plotly>=5.0", "scanpy>=1.9", "umap-learn>=0.5", "scikit-learn>=1.3", "statsmodels>=0.13", "anndata"]
+all = ["directlfq>=0.3.0", "pyyaml>=6.0", "polars>=1.0", "inmoose>=0.8.1", "combat>=0.3", "matplotlib", "seaborn>=0.13.2", "plotly>=5.0", "scanpy>=1.9", "umap-learn>=0.5", "scikit-learn>=1.3", "threadpoolctl", "statsmodels>=0.13", "anndata"]
 dev = ["pytest>=8.0", "pytest-cov>=4.0", "flake8>=7.0"]
 
 [project.scripts]
@@ -80,14 +80,12 @@ packages = ["mokume"]
 include = ["mokume", "README.md"]
 
 [tool.pytest.ini_options]
-# Show print output during tests (needed for quantification comparison tables)
-addopts = "-v -s --tb=short"
+addopts = "-v --tb=short"
 # Test paths
 testpaths = ["tests"]
 # Markers for test categorization
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "comparison: marks tests that print comparison tables",
 ]
 
 [tool.bandit]

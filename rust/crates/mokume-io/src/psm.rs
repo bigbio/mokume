@@ -343,7 +343,7 @@ mod tests {
         writer.close()?;
 
         let mut reader = QpxPsmParquetReader::open(&path, 1)?;
-        let records = reader.next().ok_or("missing first PSM batch")??;
+        let records = reader.next().expect("missing first PSM batch")?;
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].run_file_name, "run-a");
         Ok(())

@@ -1,6 +1,6 @@
 {
   "name": "mokume",
-  "version": "0.1.0+codex.20260821052825",
+  "version": "0.1.0+codex.20260901123829",
   "description": "Traceable proteomics method selection and evaluation with Mokume",
   "author": {
     "name": "BigBio",
@@ -29,17 +29,15 @@
     "defaultPrompt": [
       "Inspect this protein matrix and recommend traceable Mokume settings.",
       "Evaluate these Mokume analysis candidates for my contrast."
-    ]
+    ],
+    "composerIcon": "./assets/mokume-mark.png",
+    "logo": "./assets/mokume-mark.png",
+    "logoDark": "./assets/mokume-mark.png"
   },
   "mcpServers": {
     "mokume": {
       "command": "mokume",
-      "args": [
-        "mcp",
-        "serve",
-        "--knowledge",
-        "./knowledge/knowledge.yaml"
-      ],
+      "args": ["mcp", "serve"],
       "cwd": "."
     }
   }

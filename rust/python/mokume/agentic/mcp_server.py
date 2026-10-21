@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-def create_server(knowledge: str):
+def create_server(knowledge: str | None = None):
     """Build the MCP server around one immutable knowledge snapshot."""
     try:
         fast_mcp = getattr(importlib.import_module("mcp.server.fastmcp"), "FastMCP")
@@ -16,13 +16,22 @@ def create_server(knowledge: str):
         service_type = getattr(service_module, "RecommendationService")
         inspection_type = getattr(service_module, "InspectionRequest")
         request_type = getattr(service_module, "EvaluationRequest")
+        load_graph = getattr(
+            importlib.import_module("mokume.agentic.knowledge"), "load_knowledge_graph"
+        )
+        search = getattr(
+            importlib.import_module("mokume.agentic.knowledge_search"),
+            "search_knowledge",
+        )
     except ImportError as exc:
         raise RuntimeError(
-            "Mokume MCP dependencies are missing; install 'mokume[agentic]'"
+            "Mokume MCP dependencies are missing; install 'mokume[plugin]'"
         ) from exc
 
     server = fast_mcp("mokume")
     service = service_type(knowledge)
+    # The service loads the same cached snapshot.
+    graph = load_graph(knowledge)
 
     @server.tool()
     def inspect_dataset(
@@ -72,16 +81,32 @@ def create_server(knowledge: str):
             )
         )
 
+    @server.tool()
+    def search_knowledge(
+        query: str,
+        data_type: str | None = None,
+        method: str | None = None,
+        limit: int = 5,
+    ) -> dict[str, Any]:
+        """Search benchmark evidence and dataset summaries by method, type, or PXD.
+
+        Results explain choices; they never authorize a configuration.
+        """
+        return search(graph, query, data_type=data_type, method=method, limit=limit)
+
     return server
 
 
 def main(argv: list[str] | None = None) -> int:
     """Run the plugin MCP server over stdio."""
     parser = argparse.ArgumentParser(prog="mokume mcp serve")
-    parser.add_argument("--knowledge", metavar="<FILE>", required=True)
+    parser.add_argument("--knowledge", metavar="<FILE>")
     args = parser.parse_args(argv)
-    knowledge = Path(args.knowledge).expanduser().resolve()
-    if not knowledge.is_file():
-        parser.error(f"knowledge catalog not found: {knowledge}")
-    create_server(str(knowledge)).run(transport="stdio")
+    knowledge = None
+    if args.knowledge is not None:
+        path = Path(args.knowledge).expanduser().resolve()
+        if not path.is_file():
+            parser.error(f"knowledge catalog not found: {path}")
+        knowledge = str(path)
+    create_server(knowledge).run(transport="stdio")
     return 0

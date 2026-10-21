@@ -7,6 +7,7 @@
 
 mod linalg;
 mod methods;
+mod stochastic;
 mod support;
 
 use mokume_core::{ImputationConfig, MokumeError, ProteinId, Result, SampleId};
@@ -27,6 +28,14 @@ where
     F: FnMut(ProteinId, SampleId) -> Option<f64>,
 {
     let method = config.method.trim().to_ascii_lowercase();
+    if matches!(method.as_str(), "minprob" | "qrilc")
+        && (!config.tune_sigma.is_finite() || config.tune_sigma <= 0.0)
+    {
+        return Err(MokumeError::InvalidInput {
+            message: "tune_sigma must be finite and positive".to_owned(),
+        });
+    }
+
     match method.as_str() {
         "" | "none" => Ok(Vec::new()),
         "mindet" => Ok(mindet_imputed_values(
@@ -35,14 +44,14 @@ where
             config.quantile,
             &mut value_at,
         )),
-        "minprob" => Ok(minprob_imputed_values(
+        "minprob" => minprob_imputed_values(
             proteins,
             samples,
             config.quantile,
-            config.shift,
-            config.scale,
+            config.tune_sigma,
+            config.seed,
             &mut value_at,
-        )),
+        ),
         "mean" => Ok(sample_stat_imputed_values(
             proteins,
             samples,
@@ -73,17 +82,18 @@ where
             config.n_neighbors,
             &mut value_at,
         )),
-        "seqknn" => Ok(seqknn_imputed_values(
+        "seqknn" => seqknn_imputed_values(proteins, samples, config.n_neighbors, &mut value_at),
+        "impseq" => impseq_imputed_values(proteins, samples, &mut value_at),
+        "gms" => Ok(gms_imputed_values(proteins, samples, &mut value_at)),
+        "bpca" => bpca_imputed_values(proteins, samples, &mut value_at),
+        "impseqrob" => impseqrob_imputed_values(proteins, samples, &mut value_at),
+        "qrilc" => qrilc_imputed_values(
             proteins,
             samples,
-            config.n_neighbors,
+            config.tune_sigma,
+            config.seed,
             &mut value_at,
-        )),
-        "impseq" => Ok(impseq_imputed_values(proteins, samples, &mut value_at)),
-        "gms" => Ok(gms_imputed_values(proteins, samples, &mut value_at)),
-        "bpca" => Ok(bpca_imputed_values(proteins, samples, &mut value_at)),
-        "impseqrob" => Ok(impseqrob_imputed_values(proteins, samples, &mut value_at)),
-        "qrilc" => Ok(qrilc_imputed_values(proteins, samples, &mut value_at)),
+        ),
         _ => unsupported("imputation"),
     }
 }
@@ -210,13 +220,8 @@ mod tests {
 
     #[test]
     fn impseqrob_tall_matrix_runs_finite_and_deterministic() {
-        // 42 proteins x 4 samples with 40 complete rows -> 40*39/2 = 780
-        // complete-row pairs, above the MAX_EXTRADIR_DIRECTIONS=500 cap. This
-        // exercises impSeqRob's tall-matrix regime: Python samples 500 random
-        // directions there, but the Rust port always uses the full deterministic
-        // direction set (the cap constant is reference-only), so it is
-        // faithful-not-bit-exact vs Python but must be FINITE and run-to-run
-        // DETERMINISTIC (no RNG). Proteins 41/42 each miss one cell.
+        // More than 500 complete-row pairs exercises rrcovNA's fixed seeded
+        // direction selection, whose output must remain reproducible.
         let samples = [
             SampleId::new(1),
             SampleId::new(2),

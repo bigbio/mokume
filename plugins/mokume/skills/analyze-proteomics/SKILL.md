@@ -7,16 +7,18 @@ description: Inspect protein expression matrices with SDRF metadata, select trac
 
 Use the bundled `mokume` MCP tools for data access and computation. Keep biological
 reasoning in the host model; never request or store a model API key inside Mokume.
-If either public MCP tool is unavailable, stop and report a host/plugin integration
-error. Do not replace the MCP workflow with a hand-written stdio client or a
+If `inspect_dataset` or `evaluate_recommendation` is unavailable, stop and report a
+host/plugin integration error. Do not replace the MCP workflow with a hand-written stdio client or a
 different Mokume CLI path.
 
 ## Workflow
 
 1. Resolve the protein matrix, SDRF, available peptide-count sidecar, optional
    ground-truth list, and output directory to absolute paths. Identify the
-   contrast, explicit matrix scale (`linear` or `log2`), data type (`LFQ`, `DIA`,
-   or `TMT`), upstream quantification, and upstream engine when known. Ask for the
+   contrast, explicit matrix scale (`linear` or `log2`), data type (`LFQ` for
+   label-free DDA, `DIA`, or `TMT`), upstream quantification, and upstream engine
+   when known. A declared quantification selects the benchmark preset measured on
+   that quantification. Ask for the
    scale when it is unknown and ask for the data type when generic sample names do
    not identify it; do not infer either fact from intensity magnitude or sample
    count.
@@ -76,6 +78,9 @@ different Mokume CLI path.
   finite zero and negative values remain valid observations.
 - Preserve evidence IDs and required limitations verbatim. Do not cite knowledge
   records outside the `allowed_evidence_refs` returned by `inspect_dataset`.
+- Use `mokume.search_knowledge` to explain methods, benchmark evidence, or the
+  benchmark result of a named PXD dataset. Its results are explanation-only and
+  never a recommendation source.
 - Treat an inferred data type, unknown quantification, incompatible upstream engine,
   provisional preset, or weak held-out transfer as a material limitation.
 

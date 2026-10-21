@@ -29,7 +29,7 @@
 //! likelihood over a reparameterised prior df using a bounded Brent minimizer
 //! that reproduces SciPy's `minimize_scalar(method="bounded")` step for step.
 
-use super::special::{digamma, tetragamma, trigamma};
+use super::special::{tetragamma, trigamma};
 use super::student_t::student_t_sf;
 
 /// Per-protein moderated statistics from [`run_limma`].
@@ -48,16 +48,8 @@ pub(crate) struct LimmaStats {
 /// Minimum finite observations required per group to test a protein.
 const MIN_PER_GROUP: usize = 2;
 
-/// Per-protein limma intermediates exposed for the DEqMS spectraCounteBayes
-/// port (`crates/mokume-stats/src/de/deqms.rs`) and the LimROTS port
-/// (`crates/mokume-stats/src/de/limrots.rs`). Bundles the raw cell-means fit
-/// fields DEqMS' count-aware moderation consumes (`sigma`, `df_residual`,
-/// `coefficients[:,0]` = `log2_fold_change`, `stdev_unscaled[:,0]`), the eBayes
-/// posterior variance `s2_post` (= `EBayesResult.s2_post`, limma.py:370) that
-/// LimROTS turns into `s_post = sqrt(s2_post)`, plus the standard eBayes-
-/// moderated outputs DEqMS falls back to when the count path is not exercised
-/// (`t_statistic`, `p_value`). The shared scalar `df_prior` is returned
-/// alongside the vector by [`run_limma_moderation`].
+/// Per-protein cell-means fit and moderated statistics used by DEqMS.
+/// LimROTS uses its own QR fit and shares only the variance-moderation helper.
 #[derive(Debug, Clone)]
 pub(crate) struct LimmaModeration {
     pub log2_fold_change: f64,
@@ -69,9 +61,6 @@ pub(crate) struct LimmaModeration {
     pub sigma: f64,
     pub df_residual: f64,
     pub stdev_unscaled: f64,
-    /// eBayes posterior variance (`var_post`, == `EBayesResult.s2_post`); its
-    /// square root is the `s_post` LimROTS' d-statistic divides by.
-    pub s2_post: f64,
     pub t_statistic: f64,
     pub p_value: f64,
 }
@@ -126,7 +115,6 @@ pub(crate) fn run_limma_moderation(
                     sigma: fit.sigma,
                     df_residual: fit.df_residual,
                     stdev_unscaled: fit.stdev_unscaled,
-                    s2_post: var_post,
                     t_statistic,
                     p_value,
                 },
@@ -241,7 +229,7 @@ fn finite_sum_count(values: &[f64]) -> (f64, usize) {
 /// `fitFDist` is used (oracle-verified, unchanged). Otherwise the unequal-df1
 /// maximum-likelihood `fitFDist` is used. Falls back to the `n < 3` shortcut of
 /// the reference.
-fn squeeze_var(variances: &[f64], df_residual: &[f64]) -> (Vec<f64>, f64, f64) {
+pub(super) fn squeeze_var(variances: &[f64], df_residual: &[f64]) -> (Vec<f64>, f64, f64) {
     let n = variances.len();
     if n < 3 {
         let mut sorted = variances.to_vec();
@@ -312,29 +300,22 @@ fn fit_f_dist(variances: &[f64], df1: f64) -> (f64, f64) {
     }
 
     let d1_half = df1 / 2.0;
-    let log_m_digamma = d1_half.ln() - digamma(d1_half);
-    let shifted = x
-        .iter()
-        .map(|value| value.ln() + log_m_digamma)
-        .collect::<Vec<_>>();
-    let mean_e = shifted.iter().sum::<f64>() / nok as f64;
-    let mut var_e = shifted
-        .iter()
-        .map(|value| {
-            let deviation = value - mean_e;
-            deviation * deviation
-        })
-        .sum::<f64>()
-        / (nok as f64 - 1.0);
+    let shift = log_m_digamma(d1_half);
+    let shifted = x.iter().map(|value| value.ln() + shift).collect::<Vec<_>>();
+    let mean_e = accurate_mean(&shifted);
+    let mut var_e = accurate_sum(shifted.iter().map(|value| {
+        let deviation = value - mean_e;
+        deviation * deviation
+    })) / (nok as f64 - 1.0);
     var_e -= trigamma(d1_half);
 
     if var_e > 0.0 {
         let df2 = 2.0 * trigamma_inverse(var_e);
         let d2_half = df2 / 2.0;
-        let s2_prior = (mean_e - (d2_half.ln() - digamma(d2_half))).exp();
+        let s2_prior = (mean_e - log_m_digamma(d2_half)).exp();
         (s2_prior, df2)
     } else {
-        let mean_x = x.iter().sum::<f64>() / nok as f64;
+        let mean_x = accurate_mean(&x);
         (mean_x, f64::INFINITY)
     }
 }
@@ -342,7 +323,54 @@ fn fit_f_dist(variances: &[f64], df1: f64) -> (f64, f64) {
 /// `log(x) - digamma(x)`, matching R's `statmod::logmdigamma` (mokume's
 /// `_logmdigamma`).
 fn log_m_digamma(x: f64) -> f64 {
-    x.ln() - digamma(x)
+    if x < 5.0 {
+        return (x / (x + 5.0)).ln()
+            + log_m_digamma(x + 5.0)
+            + 1.0 / x
+            + 1.0 / (x + 1.0)
+            + 1.0 / (x + 2.0)
+            + 1.0 / (x + 3.0)
+            + 1.0 / (x + 4.0);
+    }
+    let t = 1.0 / (x * x);
+    let tail = t
+        * (-1.0 / 12.0
+            + t * (1.0 / 120.0
+                + t * (-1.0 / 252.0
+                    + t * (1.0 / 240.0
+                        + t * (-1.0 / 132.0
+                            + t * (691.0 / 32760.0 + t * (-1.0 / 12.0 + 3617.0 * t / 8160.0)))))));
+    1.0 / (2.0 * x) - tail
+}
+
+/// Compensated reductions reproduce R's extended-precision sum/mean closely
+/// enough to retain small between-permutation differences in prior estimates.
+fn accurate_sum(values: impl Iterator<Item = f64>) -> f64 {
+    let (sum, correction) = sum_with_correction(values);
+    sum + correction
+}
+
+fn sum_with_correction(values: impl Iterator<Item = f64>) -> (f64, f64) {
+    let mut sum: f64 = 0.0;
+    let mut correction = 0.0;
+    for value in values {
+        let next = sum + value;
+        correction += if sum.abs() >= value.abs() {
+            (sum - next) + value
+        } else {
+            (value - next) + sum
+        };
+        sum = next;
+    }
+    (sum, correction)
+}
+
+fn accurate_mean(values: &[f64]) -> f64 {
+    let n = values.len() as f64;
+    let (sum, correction) = sum_with_correction(values.iter().copied());
+    let mean = sum / n;
+    let mean = mean + ((-mean).mul_add(n, sum) + correction) / n;
+    mean + accurate_sum(values.iter().map(|v| v - mean)) / n
 }
 
 /// Unequal-`df1` maximum-likelihood `fitFDist` (R `limma::fitFDistUnequalDF1`,
@@ -550,7 +578,7 @@ fn trigamma_inverse(x: f64) -> f64 {
         let tetra = tetragamma(y);
         let delta = tri * (1.0 - tri / x) / tetra;
         y += delta;
-        if delta.abs() < 1e-8 {
+        if -delta / y < 1e-8 {
             break;
         }
     }

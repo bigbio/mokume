@@ -18,8 +18,8 @@ use mokume_core::{
     FeatureToPeptidesConfig, FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig,
     IntensityFilterConfig, IrsChannelConfig, IrsConfig, IrsScope, IrsStat, MaxLfqConfig,
     MokumeError, NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat,
-    PeptideFilterConfig, PibaqConfig, PreprocessingFilterConfig, ProteinFilterConfig, QuantMethod,
-    RatioConfig, RunQcFilterConfig, RuntimeConfig,
+    PeptideFilterConfig, PibaqConfig, PibaqSharedMode, PreprocessingFilterConfig,
+    ProteinFilterConfig, QuantMethod, RatioConfig, RunQcFilterConfig, RuntimeConfig, TmtConfig,
 };
 use mokume_pipeline::{
     run_features_to_peptides, run_features_to_proteins, run_features_to_proteins_with_pibaq_digest,
@@ -36,7 +36,7 @@ fn features2proteins_sum_matches_synthetic_golden_matrix() -> Result<(), Box<dyn
 
 #[test]
 fn features2proteins_preserves_biological_replicate_peptide_rows() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("bioreplicate.features.parquet");
     let sdrf = root.join("bioreplicate.sdrf.tsv");
@@ -75,7 +75,7 @@ fn features2proteins_preserves_biological_replicate_peptide_rows() -> Result<(),
             .rows
             .first()
             .and_then(|row| row.get(1))
-            .ok_or("missing protein matrix value")?
+            .expect("missing protein matrix value")
             .parse::<f64>()?;
         assert!(
             (actual - expected).abs() <= 1e-12,
@@ -89,7 +89,7 @@ fn features2proteins_preserves_biological_replicate_peptide_rows() -> Result<(),
 #[test]
 fn features2proteins_exports_python_compatible_peptide_intermediates() -> Result<(), Box<dyn Error>>
 {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("export.features.parquet");
     let sdrf = root.join("export.sdrf.tsv");
@@ -173,7 +173,7 @@ fn features2proteins_exports_python_compatible_peptide_intermediates() -> Result
 // agree, quantile normalization equalizes the two samples' values.
 #[test]
 fn features2proteins_export_peptides_applies_dataset_normalization() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("qn.features.parquet");
     let sdrf = root.join("qn.sdrf.tsv");
@@ -319,7 +319,7 @@ fn default_peptides_config(parquet: PathBuf, output: PathBuf) -> FeatureToPeptid
 
 #[test]
 fn features2peptides_disabled_filter_pipeline_is_inert() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.disabled-filter.features.parquet");
     write_qpx_rows(&parquet, &synthetic_peptide_rows())?;
@@ -480,7 +480,7 @@ fn assert_peptide_condition(
 //   P1,PEPTIDEAK,run1,1,run1,250.0
 #[test]
 fn features2peptides_skip_normalization_matches_python_oracle() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.skip.features.parquet");
     let output = root.join("peptides.skip.csv");
@@ -537,7 +537,7 @@ fn features2peptides_skip_normalization_matches_python_oracle() -> Result<(), Bo
 // The reference channel TMT126 also survives as its own (lower-intensity) cell,
 // scaled by the same per-techreplicate factor.
 fn run_tmt_irs_global(stat: IrsStat) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("tmt.irs.features.parquet");
     let output = root.join("tmt.irs.csv");
@@ -625,6 +625,60 @@ fn features2peptides_tmt_irs_global_mean_matches_python_oracle() -> Result<(), B
     Ok(())
 }
 
+#[test]
+fn features2peptides_irs_keys_scales_by_run_identity() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    create_dir_all(&root)?;
+    let parquet = root.join("tmt.irs.run-key.features.parquet");
+    let sdrf = root.join("tmt.irs.run-key.sdrf.tsv");
+    let output = root.join("tmt.irs.run-key.csv");
+    let run1 = "161122_SILAC_Mixture1_01";
+    let run2 = "161122_SILAC_Mixture2_01";
+
+    write_qpx_tmt_rows(
+        &parquet,
+        &[
+            TmtRow {
+                sequence: "PEPTIDEAAK",
+                run_file_name: run1,
+                channels: &[("TMT126", 100.0), ("TMT127", 1000.0)],
+                accessions: &["P1"],
+            },
+            TmtRow {
+                sequence: "PEPTIDEAAK",
+                run_file_name: run2,
+                channels: &[("TMT126", 400.0), ("TMT127", 2000.0)],
+                accessions: &["P1"],
+            },
+        ],
+    )?;
+    std::fs::write(
+        &sdrf,
+        format!(
+            "source name\tassay name\tcomment[data file]\tcomment[label]\tcomment[technical replicate]\tfactor value[group]\n\
+             POOLX_ref\trun 1 ref\t{run1}\tTMT126\t1\tA\n\
+             POOLX_sample\trun 1 sample\t{run1}\tTMT127\t1\tA\n\
+             POOLY_ref\trun 2 ref\t{run2}\tTMT126\t1\tB\n\
+             POOLY_sample\trun 2 sample\t{run2}\tTMT127\t1\tB\n"
+        ),
+    )?;
+
+    let mut config = default_peptides_config(parquet, output.clone());
+    config.input.sdrf = Some(sdrf);
+    config.filtering.min_unique_peptides = 1;
+    config.irs = Some(IrsChannelConfig {
+        channel: "TMT126".to_owned(),
+        stat: IrsStat::Median,
+        scope: IrsScope::Global,
+    });
+    run_features_to_peptides(&config)?;
+
+    let table = read_csv(&output)?;
+    assert_peptide_cell(&table, "P1", "PEPTIDEAAK", "POOLX_sample", 2500.0)?;
+    assert_peptide_cell(&table, "P1", "PEPTIDEAAK", "POOLY_sample", 1250.0)?;
+    Ok(())
+}
+
 // Channel IRS, non-global scopes (`by_mixture` / `two_stage`), median stat,
 // --skip_normalization, no --sdrf. Verified cell-for-cell against the Python
 // `peptide_normalization` path on the matching pyarrow fixture (scratchpad
@@ -638,7 +692,7 @@ fn features2peptides_tmt_irs_global_mean_matches_python_oracle() -> Result<(), B
 // Each surviving (peptide, run) cell is the sample channel (max over channels),
 // scaled by the per-techreplicate factor below.
 fn run_tmt_irs_multimix(scope: IrsScope) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("tmt.irs.multimix.features.parquet");
     let output = root.join("tmt.irs.multimix.csv");
@@ -758,7 +812,7 @@ fn features2peptides_tmt_irs_two_stage_median_matches_python_oracle() -> Result<
 #[test]
 fn features2peptides_tmt_irs_by_mixture_uses_sdrf_source_name_mixture() -> Result<(), Box<dyn Error>>
 {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("tmt.irs.sdrfmix.features.parquet");
     let sdrf = root.join("tmt.irs.sdrfmix.sdrf.tsv");
@@ -869,7 +923,7 @@ fn features2peptides_tmt_irs_by_mixture_uses_sdrf_source_name_mixture() -> Resul
 #[test]
 fn features2peptides_filter_pipeline_applies_per_row_before_unique_gate(
 ) -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.filter.features.parquet");
     let output = root.join("peptides.filter.csv");
@@ -930,7 +984,7 @@ fn features2peptides_filter_pipeline_applies_per_row_before_unique_gate(
 #[test]
 fn features2peptides_exclude_sequence_patterns_drops_matching_canonicals(
 ) -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.exclude.features.parquet");
     write_qpx_rows(
@@ -996,7 +1050,7 @@ fn features2peptides_exclude_sequence_patterns_drops_matching_canonicals(
 // (only_py=0/only_rs=0) is verified on PXD003539 (quantile [0.05, 0.95]).
 #[test]
 fn features2peptides_quantile_filter_drops_out_of_bound_rows() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.quantile.features.parquet");
     let output = root.join("peptides.quantile.csv");
@@ -1073,7 +1127,7 @@ fn features2peptides_quantile_filter_drops_out_of_bound_rows() -> Result<(), Box
 // default "run1" vs "Empty"), which the cell helpers ignore.
 #[test]
 fn features2peptides_cv_filter_drops_high_cv_canonical() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.cv.features.parquet");
     let output = root.join("peptides.cv.csv");
@@ -1118,6 +1172,49 @@ fn features2peptides_cv_filter_drops_high_cv_canonical() -> Result<(), Box<dyn E
     Ok(())
 }
 
+// The CV pre-pass keys a group by its raw name, while ingest renames a mixed
+// `CONTAM_<ACC>;<ACC>` group to `<ACC>`; the high-CV canonical must still drop.
+#[test]
+fn features2peptides_cv_filter_drops_high_cv_canonical_in_contaminant_twin_group(
+) -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    create_dir_all(&root)?;
+    let parquet = root.join("peptides.cv-twin.features.parquet");
+    let output = root.join("peptides.cv-twin.csv");
+    let group = ["CONTAM_P05787", "P05787"];
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new_with_charge("PEPTIDEAK", "run1", 100.0, 2, &group),
+            QpxRow::new_with_charge("PEPTIDEAK", "run1", 120.0, 3, &group),
+            QpxRow::new_with_charge("PEPTIDEAK", "run1", 140.0, 4, &group),
+            QpxRow::new_with_charge("PEPTIDEBK", "run1", 10.0, 2, &group),
+            QpxRow::new_with_charge("PEPTIDEBK", "run1", 990.0, 3, &group),
+            QpxRow::new_with_charge("PEPTIDECK", "run1", 300.0, 2, &group),
+        ],
+    )?;
+    let mut config = default_peptides_config(parquet, output.clone());
+    config.filter_pipeline = Some(PreprocessingFilterConfig {
+        intensity: IntensityFilterConfig {
+            cv_threshold: Some(0.2),
+            ..IntensityFilterConfig::default()
+        },
+        ..PreprocessingFilterConfig::default()
+    });
+    run_features_to_peptides(&config)?;
+
+    let table = read_csv(&output)?;
+    assert_eq!(
+        table.rows.len(),
+        2,
+        "CV 0.2 drops PEPTIDEBK from the renamed twin group:\n{:#?}",
+        table.rows
+    );
+    assert_peptide_cell(&table, "P05787", "PEPTIDEAK", "run1", 360.0)?;
+    assert_peptide_cell(&table, "P05787", "PEPTIDECK", "run1", 300.0)?;
+    Ok(())
+}
+
 // Boundary guard for the float32 CV decision: Python computes the CV on the
 // float32 `NormIntensity` column, so the Rust pre-pass rounds its f64 CV to f32
 // before comparing to the threshold. This fixture's BOUNDARYAK group has a
@@ -1130,7 +1227,7 @@ fn features2peptides_cv_filter_drops_high_cv_canonical() -> Result<(), Box<dyn E
 // f32-input/f64-sum behaviour shared by every peptide cell).
 #[test]
 fn features2peptides_cv_filter_float32_boundary_keep() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.cvboundary.features.parquet");
     let output = root.join("peptides.cvboundary.csv");
@@ -1201,7 +1298,7 @@ fn features2peptides_cv_filter_float32_boundary_keep() -> Result<(), Box<dyn Err
 // exactly these two rows, cell-identical on the parity key.
 #[test]
 fn features2peptides_cv_then_quantile_share_buffer() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.cvquant.features.parquet");
     let output = root.join("peptides.cvquant.csv");
@@ -1254,7 +1351,7 @@ fn features2peptides_cv_then_quantile_share_buffer() -> Result<(), Box<dyn Error
 // PEPTIDECK/PEPTIDEDK).
 #[test]
 fn features2peptides_cv_precedes_charge_filter() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.cvcharge.features.parquet");
     let output = root.join("peptides.cvcharge.csv");
@@ -1311,7 +1408,7 @@ fn features2peptides_cv_precedes_charge_filter() -> Result<(), Box<dyn Error>> {
 // rejecting every feature at ingest and emits the same header-only table.
 #[test]
 fn features2peptides_replicate_agreement_empties_output() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.rep.features.parquet");
     let output = root.join("peptides.rep.csv");
@@ -1364,7 +1461,7 @@ fn features2peptides_replicate_agreement_empties_output() -> Result<(), Box<dyn 
 // on PXD003539 (Rust previously zeroed the threshold and kept the singletons).
 #[test]
 fn features2peptides_keep_shared_still_applies_min_peptide_filter() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.keepshared.features.parquet");
     let output = root.join("peptides.keepshared.csv");
@@ -1423,7 +1520,7 @@ fn features2peptides_keep_shared_still_applies_min_peptide_filter() -> Result<()
 // test fails on the pre-fix binary.
 #[test]
 fn features2peptides_keep_shared_median_includes_shared_peptides() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.keepshared.median.features.parquet");
     let output = root.join("peptides.keepshared.median.csv");
@@ -1524,7 +1621,7 @@ fn razor_filter_pipeline(handling: &str) -> PreprocessingFilterConfig {
 
 #[test]
 fn features2peptides_razor_remove_drops_only_the_razor_peptide() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.razor.features.parquet");
     write_qpx_rows(
@@ -1723,7 +1820,7 @@ fn razor_winner(table: &CsvTable, peptide: &str) -> Result<String, Box<dyn Error
 
 #[test]
 fn features2peptides_razor_assign_to_top_flips_winner_on_row_order() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
 
     // Fixture A: PY row precedes PX -> the tied razor goes to PY.
@@ -1783,7 +1880,7 @@ fn features2peptides_razor_assign_to_top_flips_winner_on_row_order() -> Result<(
 #[test]
 fn features2peptides_rejects_unavailable_search_score_and_coverage_filters(
 ) -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.unsupported.features.parquet");
     write_qpx_rows(&parquet, &synthetic_peptide_rows())?;
@@ -1824,7 +1921,7 @@ fn features2peptides_rejects_unavailable_search_score_and_coverage_filters(
 
 #[test]
 fn features2peptides_applies_named_score_direction() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
 
     for (case, higher_better) in [("higher", true), ("lower", false)] {
@@ -1859,7 +1956,7 @@ fn features2peptides_applies_named_score_direction() -> Result<(), Box<dyn Error
 
 #[test]
 fn features2peptides_applies_explicit_qpx_fdr_filters() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.fdr.features.parquet");
     write_qpx_rows(
@@ -1915,7 +2012,7 @@ fn features2peptides_applies_explicit_qpx_fdr_filters() -> Result<(), Box<dyn Er
 
 #[test]
 fn features2peptides_fdr_request_rejects_unpopulated_qvalue() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.missing-fdr.features.parquet");
     let output = root.join("peptides.missing-fdr.csv");
@@ -1977,7 +2074,7 @@ fn protein_names(table: &CsvTable) -> Vec<String> {
 #[test]
 fn features2proteins_filter_protein_fdr_keeps_groups_at_or_below_threshold(
 ) -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("proteins.protein-fdr.features.parquet");
     let sdrf = root.join("proteins.protein-fdr.sdrf.tsv");
@@ -2024,7 +2121,7 @@ fn features2proteins_filter_protein_fdr_keeps_groups_at_or_below_threshold(
 
 #[test]
 fn features2proteins_filter_protein_fdr_applies_to_maxlfq() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("proteins.protein-fdr-maxlfq.features.parquet");
     let sdrf = root.join("proteins.protein-fdr-maxlfq.sdrf.tsv");
@@ -2046,7 +2143,7 @@ fn features2proteins_filter_protein_fdr_applies_to_maxlfq() -> Result<(), Box<dy
 
 #[test]
 fn features2proteins_filter_protein_fdr_rejects_unpopulated_qvalue() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("proteins.missing-fdr.features.parquet");
     let sdrf = root.join("proteins.missing-fdr.sdrf.tsv");
@@ -2073,38 +2170,13 @@ fn features2proteins_filter_protein_fdr_rejects_unpopulated_qvalue() -> Result<(
     Ok(())
 }
 
-#[test]
-fn features2proteins_filter_protein_fdr_rejects_spectral_count() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
-    create_dir_all(&root)?;
-    let parquet = root.join("proteins.fdr-spc.features.parquet");
-    let sdrf = root.join("proteins.fdr-spc.sdrf.tsv");
-    let output = root.join("proteins.fdr-spc.csv");
-    write_qpx_rows(&parquet, &protein_fdr_rows())?;
-    write_synthetic_sdrf(&sdrf)?;
-
-    let mut config = default_sum_config(parquet.clone(), sdrf, output.clone());
-    config.quantification = QuantMethod::SpectralCount;
-    config.input.psm = Some(parquet);
-    config.protein_fdr_threshold = Some(0.01);
-    let error = match run_features_to_proteins(&config) {
-        Ok(()) => return Err("spectral-count accepted --filter-protein-fdr".into()),
-        Err(error) => error,
-    };
-    assert!(error
-        .to_string()
-        .contains("not supported with --quant-method spectral-count"));
-    assert!(!output.exists());
-    Ok(())
-}
-
 // Run-QC MinFeaturesFilter counts distinct `(protein, canonical)` features per
 // technical run after the per-sample protein min_unique gate. Duplicate charge
 // states must not inflate the count: run1 has three canonicals, while run2 has
 // two, so min_features=3 keeps only run1.
 #[test]
 fn features2peptides_run_qc_drops_low_feature_samples() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.runqc.features.parquet");
     let output = root.join("peptides.runqc.csv");
@@ -2158,7 +2230,7 @@ fn features2peptides_run_qc_drops_low_feature_samples() -> Result<(), Box<dyn Er
 // did not leak into aggregation (10 rather than 10 + 9).
 #[test]
 fn features2peptides_missing_rate_drops_incomplete_technical_run() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.missing-rate.features.parquet");
     let sdrf = root.join("peptides.missing-rate.sdrf.tsv");
@@ -2204,7 +2276,7 @@ fn features2peptides_missing_rate_drops_incomplete_technical_run() -> Result<(),
 // Default and custom contaminant patterns (`ProteinFilterConfig`).
 #[test]
 fn features2peptides_default_patterns_drop_contam_prefix() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.contam.features.parquet");
     write_qpx_rows(
@@ -2264,7 +2336,7 @@ fn features2peptides_default_patterns_drop_contam_prefix() -> Result<(), Box<dyn
 
 #[test]
 fn features2peptides_keeps_human_protein_with_contaminant_twin() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.twin.features.parquet");
     write_qpx_rows(
@@ -2299,7 +2371,7 @@ fn features2peptides_keeps_human_protein_with_contaminant_twin() -> Result<(), B
 //   P1,PEPTIDEAK,run1  -> log2(250) = 7.965784...
 #[test]
 fn features2peptides_log2_matches_python_oracle() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.log2.features.parquet");
     let output = root.join("peptides.log2.csv");
@@ -2326,7 +2398,7 @@ fn features2peptides_log2_matches_python_oracle() -> Result<(), Box<dyn Error>> 
 // extra P2 row is the non-vacuity proof: the baseline (4 rows) lacks it.
 #[test]
 fn features2peptides_keep_shared_peptides_matches_python_oracle() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.keep.features.parquet");
     let output = root.join("peptides.keep.csv");
@@ -2352,7 +2424,7 @@ fn features2peptides_keep_shared_peptides_matches_python_oracle() -> Result<(), 
 // Dictionary(Int8, Utf8), BioReplicate = Int32, NormIntensity = Float32.
 #[test]
 fn features2peptides_save_parquet_matches_csv_and_python_schema() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.sp.features.parquet");
     let output = root.join("peptides.sp.csv");
@@ -2419,7 +2491,7 @@ fn features2peptides_save_parquet_matches_csv_and_python_schema() -> Result<(), 
 // proof against the sample-level (6-column) path.
 #[test]
 fn features2peptides_aggregation_level_run_matches_python_oracle() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.aggrun.features.parquet");
     let output = root.join("peptides.aggrun.csv");
@@ -2464,7 +2536,7 @@ fn features2peptides_aggregation_level_run_matches_python_oracle() -> Result<(),
 // run-level WriteParquetTask schema, and its values equal the run-level CSV.
 #[test]
 fn features2peptides_aggregation_run_parquet_matches_python_schema() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.aggrunpq.features.parquet");
     let output = root.join("peptides.aggrunpq.csv");
@@ -2511,7 +2583,7 @@ fn features2peptides_rejects_dataset_level_sample_normalization() -> Result<(), 
         "loess",
         "hierarchical",
     ] {
-        let root = temp_root()?;
+        let (_tempdir, root) = temp_root()?;
         create_dir_all(&root)?;
         let parquet = root.join(format!("peptides.noop.{method}.features.parquet"));
         let output = root.join(format!("peptides.unsupported.{method}.csv"));
@@ -2544,7 +2616,7 @@ fn features2peptides_rejects_dataset_level_sample_normalization() -> Result<(), 
 // is non-vacuous: a no-op normalization would fail every cell.
 #[test]
 fn features2peptides_normalization_matches_python_oracle() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.norm.features.parquet");
     let output = root.join("peptides.norm.csv");
@@ -2572,7 +2644,7 @@ fn features2peptides_normalization_matches_python_oracle() -> Result<(), Box<dyn
 // (no P9 rows; baseline without --remove_ids keeps two extra P9 rows).
 #[test]
 fn features2peptides_remove_ids_matches_python_oracle() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.rid.features.parquet");
     let output = root.join("peptides.rid.csv");
@@ -2622,7 +2694,7 @@ fn features2peptides_remove_ids_matches_python_oracle() -> Result<(), Box<dyn Er
 #[test]
 fn features2peptides_remove_low_frequency_peptides_matches_python_oracle(
 ) -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.lf.features.parquet");
     let output = root.join("peptides.lf.csv");
@@ -2681,7 +2753,7 @@ fn features2peptides_remove_low_frequency_peptides_matches_python_oracle(
 
 #[test]
 fn features2proteins_sums_charge_states_per_sample() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("charge_states.features.parquet");
     let sdrf = root.join("charge_states.sdrf.tsv");
@@ -2707,7 +2779,7 @@ fn features2proteins_sums_charge_states_per_sample() -> Result<(), Box<dyn Error
 
 #[test]
 fn features2proteins_min_unique_counts_canonical_peptides() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("canonical_min_unique.features.parquet");
     let sdrf = root.join("canonical_min_unique.sdrf.tsv");
@@ -2901,6 +2973,37 @@ fn features2proteins_pibaq_allocates_family_shared_peptides() -> Result<(), Box<
 }
 
 #[test]
+fn features2proteins_pibaq_default_uses_unique_peptides_and_family_rows(
+) -> Result<(), Box<dyn Error>> {
+    // P5A/P5B share two peptides; each member keeps only its own unique peptide.
+    let table = run_family_pibaq_quantification_with(PibaqConfig::default())?;
+    assert_numeric_cell_close(&table, "P5A", "sample-1", 300.0);
+    assert_numeric_cell_close(&table, "P5B", "sample-1", 100.0);
+
+    // P4A/P4B have no unique peptide: one family row instead of invented member values.
+    let synthetic =
+        run_synthetic_quantification_with(QuantMethod::Pibaq, 3, PibaqConfig::default())?;
+    assert_numeric_cell_close(&synthetic, "P4A;P4B", "sample-1", 15.0);
+    assert!(!synthetic.rows.iter().any(|row| row
+        .first()
+        .is_some_and(|name| name == "P4A" || name == "P4B")));
+    assert_numeric_cell_close(&synthetic, "P1", "sample-1", 3450.0);
+    Ok(())
+}
+
+#[test]
+fn features2proteins_pibaq_stable_ratio_matches_legacy_on_one_anchored_sample(
+) -> Result<(), Box<dyn Error>> {
+    let table = run_family_pibaq_quantification_with(PibaqConfig {
+        shared_mode: PibaqSharedMode::StableRatio,
+        ..PibaqConfig::default()
+    })?;
+    assert_numeric_cell_close(&table, "P5A", "sample-1", 250.0);
+    assert_numeric_cell_close(&table, "P5B", "sample-1", 250.0 / 3.0);
+    Ok(())
+}
+
+#[test]
 fn features2proteins_lfq_methods_match_synthetic_oracles() -> Result<(), Box<dyn Error>> {
     // DirectLFQ oracle from the Mann-Labs `directlfq` package on the same 2-ion
     // x 2-sample P6 matrix: sample normalization removes the global 2x factor
@@ -2911,18 +3014,13 @@ fn features2proteins_lfq_methods_match_synthetic_oracles() -> Result<(), Box<dyn
     assert_numeric_cell_close(&directlfq, "P6", "sample-1", 500.0);
     assert_numeric_cell_close(&directlfq, "P6", "sample-2", 500.0);
 
-    // Python's `--quant-method maxlfq` delegates to DirectLFQ whenever the
-    // directlfq package is installed (the default in the reference environment),
-    // so its default output equals the directlfq output. Confirmed empirically:
-    // Python maxlfq and directlfq both yield [500.0, 500.0] on this dataset, while
-    // the built-in fallback (directlfq absent) yields [500.0, 1000.0]. The Rust
-    // port routes maxlfq through the parity-verified DirectLFQ-aligned solver.
+    // Cox Eq. 3 preserves the shared 2x peptide ratio. With external
+    // normalization disabled, total input intensity is 1500 => [500, 1000].
     let maxlfq = run_lfq_quantification(QuantMethod::MaxLfq)?;
     assert_numeric_cell_close(&maxlfq, "P6", "sample-1", 500.0);
-    assert_numeric_cell_close(&maxlfq, "P6", "sample-2", 500.0);
+    assert_numeric_cell_close(&maxlfq, "P6", "sample-2", 1000.0);
 
-    // The built-in MaxLFQ fallback (force_builtin) reproduces Python's not-installed
-    // path: [500.0, 1000.0] on the same matrix.
+    // The legacy flag is a no-op: neither path delegates to DirectLFQ.
     let maxlfq_builtin = run_lfq_quantification_builtin_maxlfq()?;
     assert_numeric_cell_close(&maxlfq_builtin, "P6", "sample-1", 500.0);
     assert_numeric_cell_close(&maxlfq_builtin, "P6", "sample-2", 1000.0);
@@ -2930,21 +3028,16 @@ fn features2proteins_lfq_methods_match_synthetic_oracles() -> Result<(), Box<dyn
 }
 
 #[test]
-fn features2proteins_maxlfq_maxes_contextual_ions_then_sums_canonical_peptides(
-) -> Result<(), Box<dyn Error>> {
-    // Python's loader first keeps the maximum intensity for each
-    // (peptidoform, charge, sample, condition, biological-replicate) ion, then
-    // sums those contextual ions into the canonical peptide. For sample-1 this
-    // yields PEPTIDEK = max(100, 80) + 20 + 40 = 160 and ANOTHERK = 30;
-    // sample-2 is exactly 2x. The delegated DirectLFQ solver normalizes that 2x
-    // sample shift to [190, 190], while the forced built-in solver returns the
-    // unnormalized canonical totals [190, 380].
-    let root = temp_root()?;
+fn features2proteins_maxlfq_preserves_species_after_contextual_maxima() -> Result<(), Box<dyn Error>>
+{
+    // Keep contextual maxima, then sum repeated observations of each species:
+    // sample-1 has intensities [120, 40, 30], sample-2 is exactly 2x.
+    // Cox's profile-total rescaling therefore gives [190, 380].
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("maxlfq_dup.features.parquet");
     let sdrf = root.join("maxlfq_dup.sdrf.tsv");
-    let delegated_output = root.join("maxlfq_dup.delegated.csv");
-    let builtin_output = root.join("maxlfq_dup.builtin.csv");
+    let default_output = root.join("maxlfq_dup.default.csv");
 
     write_qpx_rows(
         &parquet,
@@ -2974,26 +3067,78 @@ fn features2proteins_maxlfq_maxes_contextual_ions_then_sums_canonical_peptides(
         ),
     )?;
 
-    let mut config = default_sum_config(parquet, sdrf, delegated_output.clone());
+    let mut config = default_sum_config(parquet, sdrf, default_output.clone());
     config.quantification = QuantMethod::MaxLfq;
     run_features_to_proteins(&config)?;
-    let delegated = read_csv(&delegated_output)?;
-    assert_numeric_cell_close(&delegated, "P6", "sample-1", 190.0);
-    assert_numeric_cell_close(&delegated, "P6", "sample-2", 190.0);
-
-    config.output.protein_matrix = builtin_output.clone();
-    config.maxlfq.force_builtin = true;
-    run_features_to_proteins(&config)?;
-    let builtin = read_csv(&builtin_output)?;
-    assert_numeric_cell_close(&builtin, "P6", "sample-1", 190.0);
-    assert_numeric_cell_close(&builtin, "P6", "sample-2", 380.0);
+    let default = read_csv(&default_output)?;
+    assert_numeric_cell_close(&default, "P6", "sample-1", 190.0);
+    assert_numeric_cell_close(&default, "P6", "sample-2", 380.0);
     Ok(())
 }
 
 #[test]
-fn features2proteins_delegated_maxlfq_is_invariant_to_feature_order() -> Result<(), Box<dyn Error>>
-{
-    let root = temp_root()?;
+fn features2proteins_maxlfq_keeps_charge_specific_ratios() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    create_dir_all(&root)?;
+    let parquet = root.join("species.features.parquet");
+    let sdrf = root.join("species.sdrf.tsv");
+    let output = root.join("species.proteins.csv");
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new_with_charge("PEPTIDEAK", "run1.raw", 1.0, 2, &["P6"]),
+            QpxRow::new_with_charge("PEPTIDEAK", "run1.raw", 1.0, 3, &["P6"]),
+            QpxRow::new("ANOTHERAK", "run1.raw", 1.0, &["P6"]),
+            QpxRow::new_with_charge("PEPTIDEAK", "run2.raw", 1.0, 2, &["P6"]),
+            QpxRow::new_with_charge("PEPTIDEAK", "run2.raw", 9.0, 3, &["P6"]),
+            QpxRow::new("ANOTHERAK", "run2.raw", 3.0, &["P6"]),
+        ],
+    )?;
+    write_synthetic_sdrf(&sdrf)?;
+    let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.quantification = QuantMethod::MaxLfq;
+    run_features_to_proteins(&config)?;
+    let table = read_csv(&output)?;
+    // Three species ratios (1, 9, 3) imply 3-fold change with total 16.
+    assert_numeric_cell_close(&table, "P6", "sample-1", 4.0);
+    assert_numeric_cell_close(&table, "P6", "sample-2", 12.0);
+    Ok(())
+}
+
+#[test]
+fn features2proteins_maxlfq_stabilization_is_opt_in() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    create_dir_all(&root)?;
+    let parquet = root.join("stabilization.features.parquet");
+    let sdrf = root.join("stabilization.sdrf.tsv");
+    let output = root.join("stabilization.proteins.csv");
+    let sequences = (0..20)
+        .map(|i| format!("{}K", "A".repeat(i + 7)))
+        .collect::<Vec<_>>();
+    let mut rows = Vec::new();
+    for (i, sequence) in sequences.iter().enumerate() {
+        rows.push(QpxRow::new(sequence, "run1.raw", 10.0, &["P6"]));
+        if i < 2 {
+            rows.push(QpxRow::new(sequence, "run2.raw", 1.0, &["P6"]));
+        }
+    }
+    write_qpx_rows(&parquet, &rows)?;
+    write_synthetic_sdrf(&sdrf)?;
+    let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.quantification = QuantMethod::MaxLfq;
+    for (enabled, first, second) in [(false, 2020.0 / 11.0, 202.0 / 11.0), (true, 200.0, 2.0)] {
+        config.maxlfq.stabilize = enabled;
+        run_features_to_proteins(&config)?;
+        let table = read_csv(&output)?;
+        assert_numeric_cell_close(&table, "P6", "sample-1", first);
+        assert_numeric_cell_close(&table, "P6", "sample-2", second);
+    }
+    Ok(())
+}
+
+#[test]
+fn features2proteins_maxlfq_is_invariant_to_feature_order() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let forward_parquet = root.join("maxlfq_order.forward.features.parquet");
     let reversed_parquet = root.join("maxlfq_order.reversed.features.parquet");
@@ -3033,13 +3178,13 @@ fn features2proteins_delegated_maxlfq_is_invariant_to_feature_order() -> Result<
         .rows
         .iter()
         .find(|row| row.first().is_some_and(|protein| protein == "A5Z2X5"))
-        .ok_or("forward MaxLFQ protein row is missing")?;
+        .expect("forward MaxLFQ protein row is missing");
     for sample in ["Sample 1", "Sample 2", "Sample 3"] {
         let column = forward
             .headers
             .iter()
             .position(|header| header == sample)
-            .ok_or("forward MaxLFQ sample column is missing")?;
+            .expect("forward MaxLFQ sample column is missing");
         let expected = protein_row[column].parse::<f64>()?;
         assert_numeric_cell_close(&reversed, "A5Z2X5", sample, expected);
     }
@@ -3048,7 +3193,7 @@ fn features2proteins_delegated_maxlfq_is_invariant_to_feature_order() -> Result<
 
 #[test]
 fn features2proteins_directlfq_exports_python_shaped_ion_matrix() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("directlfq_ions.features.parquet");
     let sdrf = root.join("directlfq_ions.sdrf.tsv");
@@ -3183,11 +3328,11 @@ fn features2proteins_normalization_and_irs_match_synthetic_oracles() -> Result<(
     assert_numeric_cell_close(&loess, "P61", "sample-1", 20.0);
     assert_numeric_cell_close(&loess, "P62", "sample-2", 900.0);
 
-    // Hierarchical needs a pairwise overlap >= 10 rows; on this 3-row matrix the
-    // shift is 0.0 (identity), matching Python.
+    // directlfq 0.3.3 aligns the three paired rows; the median log2 ratio
+    // is log2(20), so sample-2 is divided by 20.
     let hierarchical = run_named_cross_distribution_normalization("hierarchical")?;
     assert_numeric_cell_close(&hierarchical, "P60", "sample-1", 10.0);
-    assert_numeric_cell_close(&hierarchical, "P61", "sample-2", 400.0);
+    assert_numeric_cell_close(&hierarchical, "P61", "sample-2", 20.0);
     assert_numeric_cell_close(&hierarchical, "P62", "sample-1", 30.0);
 
     // RLR (robust linear regression vs the per-row median) fits on all 6 rows,
@@ -3219,171 +3364,159 @@ fn features2proteins_normalization_and_irs_match_synthetic_oracles() -> Result<(
     Ok(())
 }
 
-/// Hierarchical (DirectLFQ-style) real-path parity. Two samples take the n==2
-/// branch: with a pairwise overlap of 12 (>= min_overlap 10) the shift is the
-/// real `median(sample-1) - median(sample-2)` over the overlap in log2 space
-/// (here -0.17581643490674992), not the zero-shift fallback. Pure medians and a
-/// single shift make this cell-exact at 1e-9. Oracle:
-/// `HierarchicalSampleNormalizer(num_samples_quadratic=50).fit_transform` on the
-/// log2 matrix, exponentiated back.
+/// Official directlfq 0.3.3 `NormalizationManagerSamples(..., 50)` on the
+/// log2 input matrix, exponentiated back. The shift is the median of paired
+/// differences, not the difference between the two column medians.
 #[test]
-fn features2proteins_hierarchical_real_path_matches_python_oracle() -> Result<(), Box<dyn Error>> {
-    let hierarchical = run_sample_normalization_real_path("hierarchical")?;
-    assert_numeric_cell_close(&hierarchical, "P70", "sample-1", 1000.0);
-    assert_numeric_cell_close(&hierarchical, "P71", "sample-1", 1499.9999999999998);
-    assert_numeric_cell_close(&hierarchical, "P72", "sample-1", 2299.9999999999995);
-    assert_numeric_cell_close(&hierarchical, "P73", "sample-1", 3100.0000000000005);
-    assert_numeric_cell_close(&hierarchical, "P74", "sample-1", 4399.999999999999);
-    assert_numeric_cell_close(&hierarchical, "P75", "sample-1", 5999.999999999999);
-    assert_numeric_cell_close(&hierarchical, "P76", "sample-1", 8299.999999999996);
-    assert_numeric_cell_close(&hierarchical, "P77", "sample-1", 10999.999999999993);
-    assert_numeric_cell_close(&hierarchical, "P78", "sample-1", 14999.999999999993);
-    assert_numeric_cell_close(&hierarchical, "P79", "sample-1", 20999.999999999993);
-    assert_numeric_cell_close(&hierarchical, "P80", "sample-1", 29000.00000000001);
-    assert_numeric_cell_close(&hierarchical, "P81", "sample-1", 39999.99999999998);
-    assert_numeric_cell_close(&hierarchical, "P70", "sample-2", 1088.877667829437);
-    assert_numeric_cell_close(&hierarchical, "P71", "sample-2", 1425.278898540971);
-    assert_numeric_cell_close(&hierarchical, "P72", "sample-2", 2222.018655489339);
-    assert_numeric_cell_close(&hierarchical, "P73", "sample-2", 3496.80226660673);
-    assert_numeric_cell_close(&hierarchical, "P74", "sample-2", 4240.426039758544);
-    assert_numeric_cell_close(&hierarchical, "P75", "sample-2", 6285.391415926021);
-    assert_numeric_cell_close(&hierarchical, "P76", "sample-2", 7923.134249653228);
-    assert_numeric_cell_close(&hierarchical, "P77", "sample-2", 11242.883236938096);
-    assert_numeric_cell_close(&hierarchical, "P78", "sample-2", 15846.268499306456);
-    assert_numeric_cell_close(&hierarchical, "P79", "sample-2", 20626.707040996665);
-    assert_numeric_cell_close(&hierarchical, "P80", "sample-2", 30541.69068302079);
-    assert_numeric_cell_close(&hierarchical, "P81", "sample-2", 38951.72145080913);
+fn features2proteins_hierarchical_real_path_matches_directlfq() -> Result<(), Box<dyn Error>> {
+    let hierarchical = run_sample_normalization_real_path("hierarchical", QuantMethod::Sum)?;
+    let expected = [
+        [1000.0, 1086.7540826452525],
+        [1499.9999999999998, 1422.4992463893152],
+        [2299.9999999999995, 2217.6851605199845],
+        [3100.0000000000005, 3489.9826231290645],
+        [4399.999999999999, 4232.156142984357],
+        [5999.999999999999, 6273.133322586412],
+        [8299.999999999996, 7907.682146077251],
+        [10999.999999999993, 11220.956788288388],
+        [14999.999999999993, 15815.364292154502],
+        [20999.999999999993, 20586.47977693851],
+        [29000.00000000001, 30482.126708342446],
+        [39999.99999999998, 38875.75580194394],
+    ];
+    for (index, values) in expected.iter().enumerate() {
+        for (column, &value) in values.iter().enumerate() {
+            assert_numeric_cell_close(
+                &hierarchical,
+                SAMPLE_NORM_PROTEINS[index],
+                &format!("sample-{}", column + 1),
+                value,
+            );
+        }
+    }
     Ok(())
 }
 
-/// Hierarchical column-order parity. The four samples register in the order
-/// [c, a, d, b] (parquet/SDRF insertion) but Python's pivot orders columns by name
-/// [a, b, c, d]; the leaf order, the cluster anchor, and the cumulative shift
-/// chain all depend on that column order. This matrix is genuinely order-sensitive
-/// (name order anchors hsample-b at shift 0; insertion order would anchor
-/// hsample-c, moving every column), so the protein matrix only matches Python when
-/// the Rust hierarchical sorts its columns by sample NAME rather than by
-/// `SampleId`. This is the guard for that fix; the two-sample real-path test could
-/// not catch it because there name-sort and insertion order coincide. Oracle:
-/// `HierarchicalSampleNormalizer().fit_transform` on the name-sorted log2 matrix.
+/// MaxLFQ applies hierarchical normalization to its species traces. With one
+/// species per protein those traces are the canonical-peptide cells, so MaxLFQ
+/// reproduces the Sum path's directlfq alignment above; without normalization it
+/// keeps the raw sample-2 scale.
+#[test]
+fn features2proteins_maxlfq_hierarchical_aligns_species_traces() -> Result<(), Box<dyn Error>> {
+    let sum = run_sample_normalization_real_path("hierarchical", QuantMethod::Sum)?;
+    let maxlfq = run_sample_normalization_real_path("hierarchical", QuantMethod::MaxLfq)?;
+    let raw = run_sample_normalization_real_path("none", QuantMethod::MaxLfq)?;
+    assert_eq!(maxlfq.headers, sum.headers);
+    assert_eq!(maxlfq.rows.len(), SAMPLE_NORM_PROTEINS.len());
+    let mut shifted = 0;
+    for ((normalized, expected), unnormalized) in maxlfq.rows.iter().zip(&sum.rows).zip(&raw.rows) {
+        assert_eq!(normalized.first(), expected.first());
+        for ((value, target), before) in normalized.iter().zip(expected).zip(unnormalized).skip(1) {
+            let (value, target, before) = (
+                value.parse::<f64>()?,
+                target.parse::<f64>()?,
+                before.parse::<f64>()?,
+            );
+            assert!(
+                (value - target).abs() <= 1e-9 * target,
+                "{value} != {target}"
+            );
+            shifted += usize::from((value - before).abs() > 1e-6 * before);
+        }
+    }
+    assert!(
+        shifted > 0,
+        "hierarchical normalization left MaxLFQ unchanged"
+    );
+    Ok(())
+}
+
+/// The pipeline pivot orders sample names [a,b,c,d], independently of their
+/// registration order [c,a,d,b]. Official directlfq 0.3.3 expected values use
+/// that name-sorted matrix after f32 quantization at the QPX boundary.
 #[test]
 fn features2proteins_hierarchical_orders_columns_by_sample_name() -> Result<(), Box<dyn Error>> {
     let hierarchical = run_hier_order_real_path()?;
-    // Oracle values are computed from the f32-quantized intensities (the QPX
-    // parquet stores intensity as f32), so the comparison holds at 1e-9.
-    let oracle: [(&str, [(&str, f64); 4]); 12] = [
-        (
-            "H90",
-            [
-                ("hsample-a", 157.1363517371411),
-                ("hsample-b", 1346.5999755859382),
-                ("hsample-c", 1020.3879303023602),
-                ("hsample-d", 369.6212233109585),
-            ],
-        ),
-        (
-            "H91",
-            [
-                ("hsample-a", 235.7045276057116),
-                ("hsample-b", 2019.9000244140636),
-                ("hsample-c", 1530.5820017144852),
-                ("hsample-d", 554.4056136920551),
-            ],
-        ),
-        (
-            "H92",
-            [
-                ("hsample-a", 361.41360899542445),
-                ("hsample-b", 3097.199951171876),
-                ("hsample-c", 2346.9272420504276),
-                ("hsample-d", 850.1026051316876),
-            ],
-        ),
-        (
-            "H93",
-            [
-                ("hsample-a", 487.12269038513745),
-                ("hsample-b", 4174.499999999998),
-                ("hsample-c", 3163.185348412179),
-                ("hsample-d", 1145.7995965713192),
-            ],
-        ),
-        (
-            "H94",
-            [
-                ("hsample-a", 691.3999476434207),
-                ("hsample-b", 5924.999999999999),
-                ("hsample-c", 4489.724660160245),
-                ("hsample-d", 1626.333356986486),
-            ],
-        ),
-        (
-            "H95",
-            [
-                ("hsample-a", 942.8181104228464),
-                ("hsample-b", 8079.600097656255),
-                ("hsample-c", 6122.328006857941),
-                ("hsample-d", 2217.7273398657508),
-            ],
-        ),
-        (
-            "H96",
-            [
-                ("hsample-a", 1304.2317194182706),
-                ("hsample-b", 11176.7998046875),
-                ("hsample-c", 8469.25482386459),
-                ("hsample-d", 3067.882451500532),
-            ],
-        ),
-        (
-            "H97",
-            [
-                ("hsample-a", 1728.499869108551),
-                ("hsample-b", 14812.599609375),
-                ("hsample-c", 11224.267870891634),
-                ("hsample-d", 4065.833456420541),
-            ],
-        ),
-        (
-            "H98",
-            [
-                ("hsample-a", 2357.045276057115),
-                ("hsample-b", 20199.000000000004),
-                ("hsample-c", 15305.81959210108),
-                ("hsample-d", 5544.318349664374),
-            ],
-        ),
-        (
-            "H99",
-            [
-                ("hsample-a", 3299.8633864799617),
-                ("hsample-b", 28278.59960937499),
-                ("hsample-c", 21428.146748871448),
-                ("hsample-d", 7762.045689530126),
-            ],
-        ),
-        (
-            "H100",
-            [
-                ("hsample-a", 4556.954200377088),
-                ("hsample-b", 39051.39843749999),
-                ("hsample-c", 29591.251891465436),
-                ("hsample-d", 10719.015476017788),
-            ],
-        ),
-        (
-            "H101",
-            [
-                ("hsample-a", 6285.4540694856405),
-                ("hsample-b", 53864.000000000015),
-                ("hsample-c", 40815.518912269545),
-                ("hsample-d", 14784.848932438334),
-            ],
-        ),
+    let expected = [
+        [
+            460.00000000000017,
+            459.9999916601302,
+            459.99997084436984,
+            459.9999958080811,
+        ],
+        [
+            690.0000000000001,
+            690.00000833987,
+            690.0000041699354,
+            689.9673608833084,
+        ],
+        [
+            1058.0000000000002,
+            1058.0068153416473,
+            1058.0157123155623,
+            1057.9673734482278,
+        ],
+        [
+            1426.0000000000007,
+            1426.0136640427731,
+            1425.9921396892423,
+            1425.9673860131434,
+        ],
+        [
+            2024.0000000000002,
+            2023.9863359572244,
+            2024.0078811604344,
+            2023.999949718653,
+        ],
+        [
+            2760.0000000000005,
+            2760.00003335948,
+            2760.0000166797417,
+            2759.9999748484897,
+        ],
+        [
+            3818.0,
+            3818.0067653024266,
+            3818.0155373817815,
+            3818.032693546606,
+        ],
+        [
+            5059.999999999999,
+            5059.999866562081,
+            5059.999966708354,
+            5059.99995388889,
+        ],
+        [
+            6899.999999999999,
+            6899.999999999999,
+            6899.999850085835,
+            6899.999937121222,
+        ],
+        [
+            9660.0,
+            9659.999866562075,
+            9659.999483538526,
+            9659.9999119697,
+        ],
+        [
+            13339.999999999995,
+            13339.99946624832,
+            13340.00001674757,
+            13339.999878434359,
+        ],
+        [
+            18399.999999999996,
+            18399.999999999996,
+            18399.999600228894,
+            18399.999832323236,
+        ],
     ];
-    for (protein, samples) in oracle {
-        for (sample, expected) in samples {
-            assert_numeric_cell_close(&hierarchical, protein, sample, expected);
+    for (index, values) in expected.iter().enumerate() {
+        for (sample, &value) in ["hsample-a", "hsample-b", "hsample-c", "hsample-d"]
+            .iter()
+            .zip(values)
+        {
+            assert_numeric_cell_close(&hierarchical, HIER_ORDER_PROTEINS[index], sample, value);
         }
     }
     Ok(())
@@ -3403,7 +3536,7 @@ fn features2proteins_hierarchical_orders_columns_by_sample_name() -> Result<(), 
 fn features2proteins_loess_real_path_matches_python_oracle_within_tolerance(
 ) -> Result<(), Box<dyn Error>> {
     const RELATIVE_TOLERANCE: f64 = 2e-3;
-    let loess = run_sample_normalization_real_path("loess")?;
+    let loess = run_sample_normalization_real_path("loess", QuantMethod::Sum)?;
     let oracle: [(&str, f64, f64); 12] = [
         ("P70", 1076.7736028666823, 1145.61937986298),
         ("P71", 1610.0202075409704, 1502.3120227807826),
@@ -3533,18 +3666,12 @@ fn features2proteins_deterministic_imputation_methods_match_synthetic_oracles(
 ) -> Result<(), Box<dyn Error>> {
     let minprob = run_imputation_quantification("minprob", |config| {
         config.imputation.quantile = 0.0;
-        config.imputation.shift = 1.0;
-        config.imputation.scale = 0.0;
     })?;
-    // Imputation runs in log2 space (matching the Python pipeline). Python's
-    // MinProb is stochastic (draws ~ N(mu, sd)), so cell-exact cross-language
-    // parity is not applicable; Rust deterministically fills the distribution
-    // mean mu = q_low - shift*sd. With quantile=0, shift=1, scale=0 (sd floored
-    // to 0.1): fill = 2**(min(log2 observed) - 0.1) = observed_min * 2**-0.1.
-    let shift = 2.0f64.powf(-0.1);
-    assert_numeric_cell_close(&minprob, "P31", "sample-2", 20.0 * shift);
-    assert_numeric_cell_close(&minprob, "P32", "sample-1", 10.0 * shift);
-    assert_numeric_cell_close(&minprob, "P32", "sample-3", 30.0 * shift);
+    // imputeLCMD 2.1 with shared seed-42 standard-normal draws. The public
+    // method is stochastic; this pins its fitted SD and pipeline log/exp scale.
+    assert_numeric_cell_close(&minprob, "P31", "sample-2", 2.0f64.powf(2.8123942601584764));
+    assert_numeric_cell_close(&minprob, "P32", "sample-1", 2.0f64.powf(2.6070930014911515));
+    assert_numeric_cell_close(&minprob, "P32", "sample-3", 2.0f64.powf(3.4811671996414963));
 
     // mean/median/constant are Rust-only extras (no Python counterpart). In
     // log2 space mean becomes the geometric mean and constant fills 2**0 = 1.
@@ -3610,7 +3737,20 @@ fn run_synthetic_quantification(
     quantification: QuantMethod,
     topn_peptides: usize,
 ) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let pibaq = if quantification == QuantMethod::Pibaq {
+        legacy_pibaq_config()
+    } else {
+        PibaqConfig::default()
+    };
+    run_synthetic_quantification_with(quantification, topn_peptides, pibaq)
+}
+
+fn run_synthetic_quantification_with(
+    quantification: QuantMethod,
+    topn_peptides: usize,
+    pibaq: PibaqConfig,
+) -> Result<CsvTable, Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("features.parquet");
     let sdrf = root.join("test.sdrf.tsv");
@@ -3653,10 +3793,11 @@ fn run_synthetic_quantification(
         quantification,
         topn_peptides,
         maxlfq: MaxLfqConfig::default(),
-        pibaq: PibaqConfig::default(),
+        pibaq,
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         protein_fdr_threshold: None,
@@ -3695,7 +3836,7 @@ fn run_canonical_collapse_quantification(
     quantification: QuantMethod,
     topn_peptides: usize,
 ) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("canonical_collapse.features.parquet");
     let sdrf = root.join("canonical_collapse.sdrf.tsv");
@@ -3731,7 +3872,7 @@ fn run_canonical_collapse_quantification(
 }
 
 fn run_ratio_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("ratio.features.parquet");
     let sdrf = root.join("ratio.sdrf.tsv");
@@ -3782,6 +3923,7 @@ fn run_ratio_quantification() -> Result<CsvTable, Box<dyn Error>> {
             reference_samples: Some(vec!["plexA_1".to_owned()]),
             ..IrsConfig::default()
         },
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         protein_fdr_threshold: None,
@@ -3799,7 +3941,7 @@ fn run_ratio_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_ratio_multiplex_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("ratio_mplex.features.parquet");
     let sdrf = root.join("ratio_mplex.sdrf.tsv");
@@ -3837,7 +3979,11 @@ fn run_ratio_multiplex_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_family_pibaq_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    run_family_pibaq_quantification_with(legacy_pibaq_config())
+}
+
+fn run_family_pibaq_quantification_with(pibaq: PibaqConfig) -> Result<CsvTable, Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("family.features.parquet");
     let sdrf = root.join("family.sdrf.tsv");
@@ -3883,10 +4029,11 @@ fn run_family_pibaq_quantification() -> Result<CsvTable, Box<dyn Error>> {
         quantification: QuantMethod::Pibaq,
         topn_peptides: 3,
         maxlfq: MaxLfqConfig::default(),
-        pibaq: PibaqConfig::default(),
+        pibaq,
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         protein_fdr_threshold: None,
@@ -3910,7 +4057,7 @@ fn run_family_pibaq_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_lfq_quantification(quantification: QuantMethod) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("lfq.features.parquet");
     let sdrf = root.join("lfq.sdrf.tsv");
@@ -3934,11 +4081,9 @@ fn run_lfq_quantification(quantification: QuantMethod) -> Result<CsvTable, Box<d
     read_csv(&output)
 }
 
-/// Same dataset as `run_lfq_quantification`, but forces the built-in MaxLFQ
-/// fallback (Python's directlfq-not-installed path) instead of delegating to the
-/// DirectLFQ-aligned solver.
+/// The compatibility flag must not select a different quantification algorithm.
 fn run_lfq_quantification_builtin_maxlfq() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("lfq_builtin.features.parquet");
     let sdrf = root.join("lfq_builtin.sdrf.tsv");
@@ -3957,14 +4102,13 @@ fn run_lfq_quantification_builtin_maxlfq() -> Result<CsvTable, Box<dyn Error>> {
 
     let mut config = default_sum_config(parquet, sdrf, output.clone());
     config.quantification = QuantMethod::MaxLfq;
-    config.maxlfq.force_builtin = true;
     run_features_to_proteins(&config)?;
 
     read_csv(&output)
 }
 
 fn run_global_median_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("global_median.features.parquet");
     let sdrf = root.join("global_median.sdrf.tsv");
@@ -3989,7 +4133,7 @@ fn run_global_median_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_condition_median_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("condition_median.features.parquet");
     let sdrf = root.join("condition_median.sdrf.tsv");
@@ -4018,7 +4162,7 @@ fn run_condition_median_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_quantile_sample_normalization() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("quantile_sample.features.parquet");
     let sdrf = root.join("quantile_sample.sdrf.tsv");
@@ -4055,7 +4199,7 @@ fn run_quantile_sample_normalization() -> Result<CsvTable, Box<dyn Error>> {
 /// onto the mean reference distribution [55, 210, 465]. One peptide per protein
 /// (min_unique=1) so each protein value equals its peptide's normalized value.
 fn run_quantile_cross_distribution_normalization() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("quantile_cross.features.parquet");
     let sdrf = root.join("quantile_cross.sdrf.tsv");
@@ -4089,7 +4233,7 @@ fn run_loess_cross_distribution_normalization() -> Result<CsvTable, Box<dyn Erro
 }
 
 fn run_named_cross_distribution_normalization(method: &str) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join(format!("{method}_cross.features.parquet"));
     let sdrf = root.join(format!("{method}_cross.sdrf.tsv"));
@@ -4120,7 +4264,7 @@ fn run_named_cross_distribution_normalization(method: &str) -> Result<CsvTable, 
 /// against the per-row median with no minimum-row guard, so all 6 rows
 /// participate and the real algorithm runs. Oracle from the Python reference.
 fn run_rlr_cross_distribution_normalization() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("rlr_cross.features.parquet");
     let sdrf = root.join("rlr_cross.sdrf.tsv");
@@ -4157,7 +4301,7 @@ fn run_rlr_cross_distribution_normalization() -> Result<CsvTable, Box<dyn Error>
 /// `min_unique_peptides = 1` and Sum quantification the pipeline's (protein x
 /// sample) wide matrix equals these intensities exactly, so it is the same matrix
 /// the Python normalizers are fitted on. Twelve rows clears every fallback
-/// threshold (LOESS >=10 MA points, Hierarchical >=10 overlap), exercising
+/// threshold (including LOESS >=10 MA points), exercising
 /// the real shift/smoothing math.
 const SAMPLE_NORM_PEPTIDES: [&str; 12] = [
     "AAALEPK", "ACDEFGK", "ADEFGHK", "AEFGHIK", "AFGHIKR", "AGHIKLR", "AHIKLMR", "AIKLMNR",
@@ -4181,8 +4325,11 @@ const SAMPLE_NORM_SAMPLE2: [f32; 12] = [
 
 /// Run the 12-row two-sample matrix through `features_to_proteins` with the named
 /// sample normalization method, returning the protein matrix.
-fn run_sample_normalization_real_path(method: &str) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+fn run_sample_normalization_real_path(
+    method: &str,
+    quantification: QuantMethod,
+) -> Result<CsvTable, Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join(format!("{method}_real.features.parquet"));
     let sdrf = root.join(format!("{method}_real.sdrf.tsv"));
@@ -4209,6 +4356,9 @@ fn run_sample_normalization_real_path(method: &str) -> Result<CsvTable, Box<dyn 
     write_synthetic_sdrf(&sdrf)?;
 
     let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.quantification = quantification;
+    // Each protein has one peptide species, so MaxLFQ needs single-species ratios.
+    config.maxlfq.min_ratio_count = 1;
     config.filtering.min_unique_peptides = 1;
     config.normalization.sample_method = method.to_owned();
     run_features_to_proteins(&config)?;
@@ -4288,7 +4438,7 @@ const CENTER_PEPTIDE_Z3_SAMPLE2: [[f32; 2]; 12] = [
 /// with the named centering method (`mediancenter` / `meancenter`), returning the
 /// protein matrix.
 fn run_center_real_path(method: &str) -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join(format!("{method}_center.features.parquet"));
     let sdrf = root.join(format!("{method}_center.sdrf.tsv"));
@@ -4353,18 +4503,9 @@ fn run_center_real_path(method: &str) -> Result<CsvTable, Box<dyn Error>> {
     read_csv(&output)
 }
 
-// Four-sample hierarchical matrix whose sample REGISTRATION order (parquet/SDRF
-// insertion: run-c, run-a, run-d, run-b) differs from the lexicographic NAME
-// order (hsample-a..d). The hierarchical leaf order, the cluster anchor (shift 0),
-// and the shift propagation all depend on the column order, so this fixture is
-// order-sensitive: under the name order hsample-b anchors at shift 0, but under
-// the insertion order hsample-c would anchor instead, shifting every column by a
-// different amount. The protein matrix therefore only matches the Python oracle
-// when the Rust hierarchical sorts its columns by sample NAME (Python's
-// `pivot_table(columns=SAMPLE_ID)` order), not by `SampleId`. Twelve
-// single-peptide proteins clear the >=10 pairwise-overlap guard so the real
-// median-shift solver runs on every pair. Oracle:
-// `HierarchicalSampleNormalizer().fit_transform` on the name-sorted log2 matrix.
+// Four-sample fixture with registration order [c,a,d,b] and the pipeline's
+// lexical sample order [a,b,c,d]. Official expected values above were computed
+// by directlfq 0.3.3 on these f32-quantized intensities in lexical sample order.
 const HIER_ORDER_PROTEINS: [&str; 12] = [
     "H90", "H91", "H92", "H93", "H94", "H95", "H96", "H97", "H98", "H99", "H100", "H101",
 ];
@@ -4389,7 +4530,7 @@ const HIER_ORDER_SAMPLE_D: [f32; 12] = [
 /// run-d, run-b so `SampleId` insertion order is [c, a, d, b] while names sort
 /// [a, b, c, d].
 fn run_hier_order_real_path() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("hier_order.features.parquet");
     let sdrf = root.join("hier_order.sdrf.tsv");
@@ -4426,7 +4567,7 @@ fn run_hier_order_real_path() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_run_median_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("run_median.features.parquet");
     let sdrf = root.join("run_median.sdrf.tsv");
@@ -4451,7 +4592,7 @@ fn run_run_median_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_run_max_min_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("run_max_min.features.parquet");
     let sdrf = root.join("run_max_min.sdrf.tsv");
@@ -4476,7 +4617,7 @@ fn run_run_max_min_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_irs_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("irs.features.parquet");
     let sdrf = root.join("irs.sdrf.tsv");
@@ -4510,7 +4651,7 @@ fn run_irs_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_normalization_proteins_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("normalization_proteins.features.parquet");
     let sdrf = root.join("normalization_proteins.sdrf.tsv");
@@ -4573,6 +4714,7 @@ fn default_sum_config(parquet: PathBuf, sdrf: PathBuf, output: PathBuf) -> Featu
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: None,
         sample_correlation_threshold: None,
         protein_fdr_threshold: None,
@@ -4587,7 +4729,7 @@ fn default_sum_config(parquet: PathBuf, sdrf: PathBuf, output: PathBuf) -> Featu
 }
 
 fn run_coverage_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("coverage.features.parquet");
     let sdrf = root.join("coverage.sdrf.tsv");
@@ -4637,6 +4779,7 @@ fn run_coverage_quantification() -> Result<CsvTable, Box<dyn Error>> {
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
+        tmt: TmtConfig::default(),
         coverage_threshold: Some(1.0),
         sample_correlation_threshold: None,
         protein_fdr_threshold: None,
@@ -4653,7 +4796,7 @@ fn run_coverage_quantification() -> Result<CsvTable, Box<dyn Error>> {
 }
 
 fn run_mindet_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("mindet.features.parquet");
     let sdrf = root.join("mindet.sdrf.tsv");
@@ -4690,35 +4833,14 @@ fn run_imputation_quantification<F>(method: &str, configure: F) -> Result<CsvTab
 where
     F: FnOnce(&mut FeatureToProteinsConfig),
 {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join(format!("{method}.features.parquet"));
     let sdrf = root.join(format!("{method}.sdrf.tsv"));
     let output = root.join(format!("{method}.protein.csv"));
 
-    write_qpx_rows(
-        &parquet,
-        &[
-            QpxRow::new("PEPTIDEAK", "imp1.raw", 5.0, &["P30"]),
-            QpxRow::new("APEPTIDECK", "imp1.raw", 5.0, &["P30"]),
-            QpxRow::new("PEPTIDEAK", "imp2.raw", 10.0, &["P30"]),
-            QpxRow::new("APEPTIDECK", "imp2.raw", 10.0, &["P30"]),
-            QpxRow::new("PEPTIDEAK", "imp3.raw", 15.0, &["P30"]),
-            QpxRow::new("APEPTIDECK", "imp3.raw", 15.0, &["P30"]),
-            QpxRow::new("QASTVWK", "imp1.raw", 50.0, &["P31"]),
-            QpxRow::new("GHILMVK", "imp1.raw", 50.0, &["P31"]),
-            QpxRow::new("QASTVWK", "imp3.raw", 150.0, &["P31"]),
-            QpxRow::new("GHILMVK", "imp3.raw", 150.0, &["P31"]),
-            QpxRow::new("THIDPEAK", "imp2.raw", 100.0, &["P32"]),
-            QpxRow::new("ATHIDPECK", "imp2.raw", 100.0, &["P32"]),
-            QpxRow::new("ALWAYSAK", "imp1.raw", 500.0, &["P33"]),
-            QpxRow::new("BALWAYSCK", "imp1.raw", 500.0, &["P33"]),
-            QpxRow::new("ALWAYSAK", "imp2.raw", 500.0, &["P33"]),
-            QpxRow::new("BALWAYSCK", "imp2.raw", 500.0, &["P33"]),
-            QpxRow::new("ALWAYSAK", "imp3.raw", 500.0, &["P33"]),
-            QpxRow::new("BALWAYSCK", "imp3.raw", 500.0, &["P33"]),
-        ],
-    )?;
+    let rows = imputation_qpx_rows(method);
+    write_qpx_rows(&parquet, &rows)?;
     write_imputation_sdrf(&sdrf)?;
 
     let mut config = default_sum_config(parquet, sdrf, output.clone());
@@ -4733,8 +4855,42 @@ where
     read_csv(&output)
 }
 
+fn imputation_qpx_rows(method: &str) -> Vec<QpxRow<'static>> {
+    let mut rows = vec![
+        QpxRow::new("PEPTIDEAK", "imp1.raw", 5.0, &["P30"]),
+        QpxRow::new("APEPTIDECK", "imp1.raw", 5.0, &["P30"]),
+        QpxRow::new("PEPTIDEAK", "imp2.raw", 10.0, &["P30"]),
+        QpxRow::new("APEPTIDECK", "imp2.raw", 10.0, &["P30"]),
+        QpxRow::new("PEPTIDEAK", "imp3.raw", 15.0, &["P30"]),
+        QpxRow::new("APEPTIDECK", "imp3.raw", 15.0, &["P30"]),
+        QpxRow::new("QASTVWK", "imp1.raw", 50.0, &["P31"]),
+        QpxRow::new("GHILMVK", "imp1.raw", 50.0, &["P31"]),
+        QpxRow::new("QASTVWK", "imp3.raw", 150.0, &["P31"]),
+        QpxRow::new("GHILMVK", "imp3.raw", 150.0, &["P31"]),
+        QpxRow::new("THIDPEAK", "imp2.raw", 100.0, &["P32"]),
+        QpxRow::new("ATHIDPECK", "imp2.raw", 100.0, &["P32"]),
+        QpxRow::new("ALWAYSAK", "imp1.raw", 500.0, &["P33"]),
+        QpxRow::new("BALWAYSCK", "imp1.raw", 500.0, &["P33"]),
+        QpxRow::new("ALWAYSAK", "imp2.raw", 500.0, &["P33"]),
+        QpxRow::new("BALWAYSCK", "imp2.raw", 500.0, &["P33"]),
+        QpxRow::new("ALWAYSAK", "imp3.raw", 500.0, &["P33"]),
+        QpxRow::new("BALWAYSCK", "imp3.raw", 500.0, &["P33"]),
+    ];
+    if method == "impseqrob" {
+        rows.extend([
+            QpxRow::new("NTERMPEPK", "imp1.raw", 20.0, &["P34"]),
+            QpxRow::new("CTERMPEPK", "imp1.raw", 20.0, &["P34"]),
+            QpxRow::new("NTERMPEPK", "imp2.raw", 200.0, &["P34"]),
+            QpxRow::new("CTERMPEPK", "imp2.raw", 200.0, &["P34"]),
+            QpxRow::new("NTERMPEPK", "imp3.raw", 200.0, &["P34"]),
+            QpxRow::new("CTERMPEPK", "imp3.raw", 200.0, &["P34"]),
+        ]);
+    }
+    rows
+}
+
 fn run_seqknn_quantification() -> Result<CsvTable, Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("seqknn.features.parquet");
     let sdrf = root.join("seqknn.sdrf.tsv");
@@ -5085,6 +5241,14 @@ fn write_synthetic_fasta(path: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Legacy proportional piBAQ, which these Python-oracle fixtures were written for.
+fn legacy_pibaq_config() -> PibaqConfig {
+    PibaqConfig {
+        shared_mode: PibaqSharedMode::Proportional,
+        ..PibaqConfig::default()
+    }
+}
+
 fn test_pibaq_digest(entries: &[(&str, &[&str])]) -> PibaqDigest {
     let accession_peptides = entries
         .iter()
@@ -5303,12 +5467,12 @@ fn qpx_row_scores(rows: &[QpxRow<'_>]) -> Result<ArrayRef, Box<dyn Error>> {
             builder
                 .values()
                 .field_builder::<Float64Builder>(1)
-                .ok_or("missing score_value builder")?
+                .expect("missing score_value builder")
                 .append_value(value);
             builder
                 .values()
                 .field_builder::<BooleanBuilder>(2)
-                .ok_or("missing higher_better builder")?
+                .expect("missing higher_better builder")
                 .append_value(higher_better);
             builder.values().append(true);
         }
@@ -5607,12 +5771,12 @@ fn parquet_string_cell(
     let dict = array
         .as_any()
         .downcast_ref::<DictionaryArray<Int8Type>>()
-        .ok_or("expected utf8 or dictionary column")?;
+        .expect("expected utf8 or dictionary column");
     let values = dict
         .values()
         .as_any()
         .downcast_ref::<StringArray>()
-        .ok_or("dictionary values are not utf8")?;
+        .expect("dictionary values are not utf8");
     let key = dict.keys().value(row);
     Ok(values.value(key as usize).to_owned())
 }
@@ -5629,7 +5793,7 @@ fn read_peptide_parquet(path: &Path) -> Result<PeptideParquetTable, Box<dyn Erro
 
     let file = File::open(path)?;
     let mut reader = ParquetRecordBatchReaderBuilder::try_new(file)?.build()?;
-    let batch = reader.next().ok_or("empty parquet")??;
+    let batch = reader.next().expect("empty parquet")?;
     let schema = batch.schema();
     let column_names = schema
         .fields()
@@ -5649,7 +5813,7 @@ fn read_peptide_parquet(path: &Path) -> Result<PeptideParquetTable, Box<dyn Erro
         .column(header_index(&column_names, "NormIntensity")?)
         .as_any()
         .downcast_ref::<Float32Array>()
-        .ok_or("NormIntensity is not float32")?;
+        .expect("NormIntensity is not float32");
 
     let mut rows = Vec::with_capacity(batch.num_rows());
     for row in 0..batch.num_rows() {
@@ -5777,49 +5941,32 @@ fn assert_float_close(actual: &str, expected: &str) {
     );
 }
 
-fn temp_root() -> Result<PathBuf, Box<dyn Error>> {
+fn temp_root() -> Result<(tempfile::TempDir, PathBuf), Box<dyn Error>> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-    Ok(tempfile::Builder::new()
+    let directory = tempfile::Builder::new()
         .prefix(&format!("mokume-golden-{timestamp}-"))
-        .tempdir()?
-        .keep())
+        .tempdir()?;
+    let path = directory.path().to_path_buf();
+    Ok((directory, path))
 }
 
-// impSeq: with only 2 complete rows (P30, P33) < max(2, p=3), the algorithm
-// takes the column-mean fallback, so each missing log2 cell is the mean of its
-// column's finite log2 values -> the geometric mean of the column's observed
-// raw values after 2**. Deterministic, matching the Python reference.
+// rrcovNA 0.5-3: two complete rows trigger covariance + 0.01 I,
+// followed by sequential conditional means, not column-mean imputation.
 #[test]
 fn features2proteins_impseq_imputation_matches_synthetic_oracle() -> Result<(), Box<dyn Error>> {
     let impseq = run_imputation_quantification("impseq", |_| {})?;
-    assert_numeric_cell_close(
-        &impseq,
-        "P32",
-        "sample-1",
-        (10.0_f64 * 100.0 * 1000.0).powf(1.0 / 3.0),
-    );
-    assert_numeric_cell_close(
-        &impseq,
-        "P31",
-        "sample-2",
-        (20.0_f64 * 200.0 * 1000.0).powf(1.0 / 3.0),
-    );
-    assert_numeric_cell_close(
-        &impseq,
-        "P32",
-        "sample-3",
-        (30.0_f64 * 300.0 * 1000.0).powf(1.0 / 3.0),
-    );
+    assert_numeric_cell_close(&impseq, "P32", "sample-1", 2.0f64.powf(7.102566092730076));
+    assert_numeric_cell_close(&impseq, "P31", "sample-2", 2.0f64.powf(7.468237752931963));
+    assert_numeric_cell_close(&impseq, "P32", "sample-3", 2.0f64.powf(8.053970647172795));
     assert_numeric_cell_close(&impseq, "P31", "sample-1", 100.0);
     assert_numeric_cell_close(&impseq, "P32", "sample-2", 200.0);
     Ok(())
 }
 
-// GMS is stochastic in Python (GMM + random draw), so cell-exact cross-language
-// parity is not applicable. The Rust port deterministically fills the lower
-// mixture component's mean (like MinProb). For this 3-observations-per-column
-// matrix the lower component collapses onto the minimum observation, and every
-// fill lies in [min_observed, geometric_mean_observed].
+// GMS fills the lower mixture component's mean, as the pure-Python impute_gms
+// does. For this 3-observations-per-column matrix the lower component collapses
+// onto the minimum observation, and every fill lies in [min_observed,
+// geometric_mean_observed].
 #[test]
 fn features2proteins_gms_imputation_matches_stochastic_oracle_property(
 ) -> Result<(), Box<dyn Error>> {
@@ -5879,9 +6026,8 @@ fn assert_gms_in_band(table: &CsvTable, protein: &str, sample: &str, lower: f64,
     );
 }
 
-// BPCA (Bayesian PCA EM) is deterministic in Python (numpy svd/inv/cov only, no
-// RNG). On this 4x3 matrix k = min(2, min(4,3)-1) = 2 so the full EM branch
-// runs; oracle from the Python reference (impute_bpca on log2, then 2**).
+// pcaMethods 2.2.0 pca(method="bpca", nPcs=2, maxSteps=100,
+// threshold=1e-4, center=TRUE, scale="none") on the log2 matrix.
 #[test]
 fn features2proteins_bpca_imputation_matches_synthetic_oracle() -> Result<(), Box<dyn Error>> {
     let table = run_imputation_quantification("bpca", |_| {})?;
@@ -5893,72 +6039,61 @@ fn features2proteins_bpca_imputation_matches_synthetic_oracle() -> Result<(), Bo
     Ok(())
 }
 
-// impSeqRob (robust sequential) is deterministic. On this matrix (2 complete
-// rows < ceil(p/alpha)=4) the conditional-MVN pre-impute branch fills both
-// incomplete rows; oracle from the Python reference (impute_impseqrob on log2,
-// then 2**).
+// rrcovNA 0.5-3 / norm 1.0-11.1, with a third complete row so the
+// initialized support leaves one row for the official sequential loop.
 #[test]
 fn features2proteins_impseqrob_imputation_matches_synthetic_oracle() -> Result<(), Box<dyn Error>> {
     let table = run_imputation_quantification("impseqrob", |_| {})?;
-    assert_numeric_cell_close(&table, "P31", "sample-2", 2.0f64.powf(7.569660028762611));
-    assert_numeric_cell_close(&table, "P32", "sample-1", 2.0f64.powf(6.967599172815016));
-    assert_numeric_cell_close(&table, "P32", "sample-3", 2.0f64.powf(7.947008510825019));
+    assert_imputation_log2_close(&table, "P31", "sample-2", 8.058466477798845);
+    assert_imputation_log2_close(&table, "P32", "sample-1", 6.209673798985398);
+    assert_imputation_log2_close(&table, "P32", "sample-3", 7.844203324508301);
     assert_numeric_cell_close(&table, "P30", "sample-1", 10.0);
     assert_numeric_cell_close(&table, "P33", "sample-2", 1000.0);
     Ok(())
 }
 
-// QRILC is stochastic in Python (truncated-normal draw). The Rust port fills the
-// deterministic center mu_imp = trunc - sd_obs (trunc = min observed, sd ddof=1
-// floored to 0.1), like MinProb/GMS. Oracle = 2**(log2-space center); every fill
-// lies at or below the column minimum (left-censored tail).
-#[test]
-fn features2proteins_qrilc_imputation_matches_stochastic_oracle_property(
-) -> Result<(), Box<dyn Error>> {
-    let qrilc = run_imputation_quantification("qrilc", |_| {})?;
-    assert_numeric_cell_close(
-        &qrilc,
-        "P32",
-        "sample-1",
-        2.0f64.powf(-4.440892098500626e-16),
-    );
-    assert_numeric_cell_close(&qrilc, "P31", "sample-2", 2.0f64.powf(1.4852731095132246));
-    assert_numeric_cell_close(&qrilc, "P32", "sample-3", 2.0f64.powf(2.336395795637601));
-    assert_qrilc_below_min(&qrilc, "P32", "sample-1", 10.0);
-    assert_qrilc_below_min(&qrilc, "P31", "sample-2", 20.0);
-    assert_qrilc_below_min(&qrilc, "P32", "sample-3", 30.0);
-    Ok(())
-}
-
-fn assert_qrilc_below_min(table: &CsvTable, protein: &str, sample: &str, min_observed: f64) {
-    let Some(sample_index) = table.headers.iter().position(|header| header == sample) else {
-        panic!("sample column is missing: {sample}");
+// Use the same predeclared log2 atol as the imputation-crate official fixtures.
+fn assert_imputation_log2_close(table: &CsvTable, protein: &str, sample: &str, expected: f64) {
+    let Some(column) = table.headers.iter().position(|header| header == sample) else {
+        panic!("missing sample {sample}");
     };
     let Some(row) = table
         .rows
         .iter()
-        .find(|row| row.first().is_some_and(|value| value == protein))
+        .find(|row| row.first().is_some_and(|id| id == protein))
     else {
-        panic!("protein row is missing: {protein}");
+        panic!("missing protein {protein}");
     };
-    let Some(cell) = row.get(sample_index) else {
-        panic!("sample column {sample} is missing from row {protein}");
+    let Ok(actual) = row[column].parse::<f64>() else {
+        panic!("nonnumeric abundance");
     };
-    let Ok(actual) = cell.parse::<f64>() else {
-        panic!("numeric cell is not a valid float: {cell}");
-    };
+    let error = (actual.log2() - expected).abs();
     assert!(
-        actual > 0.0 && actual <= min_observed + 1e-9,
-        "QRILC fill {actual} for {protein}@{sample} not in (0, min_observed={min_observed}]"
+        error <= 1e-8,
+        "{protein}/{sample}: absolute log2 error {error}"
     );
+}
+
+// imputeLCMD 2.1 QRILC with shared seed-42 uniforms. Its fitted truncation
+// limit may exceed the observed minimum; the old minimum-SD oracle was wrong.
+#[test]
+fn features2proteins_qrilc_imputation_matches_official_shared_draws() -> Result<(), Box<dyn Error>>
+{
+    let qrilc = run_imputation_quantification("qrilc", |_| {})?;
+    assert_numeric_cell_close(&qrilc, "P32", "sample-1", 2.0f64.powf(1.6186427548835307));
+    assert_numeric_cell_close(&qrilc, "P31", "sample-2", 2.0f64.powf(4.730141539459813));
+    assert_numeric_cell_close(&qrilc, "P32", "sample-3", 2.0f64.powf(3.7726840325126347));
+    assert_numeric_cell_close(&qrilc, "P30", "sample-1", 10.0);
+    Ok(())
 }
 
 // ===========================================================================
 // features2proteins --de-method deqms: PER-PROTEIN PEPTIDE-COUNT wiring.
 //
 // This is the pipeline-level proof that the DEqMS DE path consumes the real
-// per-protein unique-canonical-peptide counts (captured at ingest) rather than
-// the all-ones fallback. The synthetic parquet has 12 proteins, each with a
+// per-sample unique-canonical-peptide counts (captured at ingest; the smallest
+// over the contrast's samples, plus 1) rather than the all-ones fallback. The
+// synthetic parquet has 12 proteins, each with a
 // DISTINCT number of unique peptide sequences (1,2,3,4,5,6,7,8,9,11,13,15), so
 // the spectraCounteBayes count moderation genuinely runs (>= 10 testable
 // proteins and a real log2(count) spread), NOT the limma fallback.
@@ -5969,70 +6104,136 @@ fn assert_qrilc_below_min(table: &CsvTable, protein: &str, sample: &str, min_obs
 // (f32-exact for these magnitudes). The log2 protein matrix is therefore a clean,
 // known matrix; the only thing the count vector changes is the deqms moderation.
 //
-// Oracle (captured verbatim from `conda run -n Bigbio python` on mokume's
-// `run_deqms(log2_matrix, A, B, ("groupA","groupB"), peptide_counts=counts)`,
-// where `counts = parquet.groupby("anchor_protein")["sequence"].nunique()`, on
-// the exact log2 matrix this Rust run produces; see scratchpad
-// deqms_pipeline_oracle.py). Tuple: (protein, log2FC, sca_t, sca_pvalue,
-// peptide_count). DEqMS is LOWESS-bounded, so sca_t is asserted at relative 6e-3
-// (the established mokume-stats tolerance) and the adj-p rank is asserted exactly.
-const DEQMS_PIPELINE_ORACLE: &[(&str, f64, f64, f64, usize)] = &[
-    ("PROT05", -1.0, -98.5279709372, 3.82786439473e-10, 8),
-    ("PROT09", -1.0, -52.9074128499, 1.16613161144e-08, 11),
-    ("PROT08", -1.0, -37.1125038157, 8.1589378105e-08, 7),
-    ("PROT07", 1.0, 30.7917066547, 2.26854357277e-07, 4),
-    ("PROT04", -1.0, -23.5060652956, 9.9169228319e-07, 5),
-    ("PROT10", 1.0, 19.3560071397, 2.85460418766e-06, 6),
-    ("PROT12", -1.0, -17.2840417306, 5.27452228571e-06, 15),
-    ("PROT02", 2.00906160978, 16.5837158474, 6.59733867016e-06, 2),
-    ("PROT01", -2.00048684329, -15.8911018093, 8.307394376e-06, 1),
-    ("PROT03", 0.0159106916777, 0.345686569053, 0.742412704892, 3),
+// Independent Bioconductor DEqMS 1.28.0, R 4.5.3: lmFit(log2(DEQMS_TARGETS),
+// ~0+group), contrast A-B, eBayes, then spectraCounteBayes(fit.method="loess")
+// with DEQMS_COUNTS + 1 (every peptide is in every sample, so the smallest
+// per-sample count is the total). This uses the official Gaussian quadratic
+// LOESS surface.
+// Tuple: (protein, log2FC, sca_t, sca_pvalue, BH, peptide_count).
+const DEQMS_PIPELINE_ORACLE: &[(&str, f64, f64, f64, f64, usize)] = &[
+    (
+        "PROT05",
+        -0.9999999999999982,
+        -109.51940472414849,
+        7.302063232188464e-12,
+        8.762475878626156e-11,
+        9,
+    ),
+    (
+        "PROT09",
+        -0.9999999999999991,
+        -47.323521066550306,
+        1.6951257200029422e-09,
+        1.0170754320017653e-08,
+        12,
+    ),
+    (
+        "PROT08",
+        -1.0000000000000018,
+        -38.80926849955069,
+        6.128701301104685e-09,
+        2.451480520441874e-08,
+        8,
+    ),
+    (
+        "PROT07",
+        1.0,
+        27.116203656122753,
+        6.221031193079203e-08,
+        1.8663093579237608e-07,
+        5,
+    ),
+    (
+        "PROT04",
+        -1.0,
+        -21.580991911897772,
+        2.704484155453108e-07,
+        6.49076197308746e-07,
+        6,
+    ),
+    (
+        "PROT10",
+        0.9999999999999964,
+        19.869256756540995,
+        4.595047291347392e-07,
+        9.190094582694784e-07,
+        7,
+    ),
+    (
+        "PROT02",
+        2.0090616097754097,
+        17.152970197769925,
+        1.1759423721963774e-06,
+        2.015901209479504e-06,
+        3,
+    ),
+    (
+        "PROT01",
+        -2.00048684328549,
+        -15.20198554297494,
+        2.534570967347522e-06,
+        3.801856451021283e-06,
+        2,
+    ),
+    (
+        "PROT12",
+        -0.9999999999999982,
+        -8.981209839393513,
+        6.72251409468691e-05,
+        8.963352126249214e-05,
+        16,
+    ),
+    (
+        "PROT03",
+        0.015910691677653688,
+        0.3338625791472756,
+        0.7489935554533345,
+        0.8463792080005441,
+        4,
+    ),
     (
         "PROT06",
-        0.0917559508266,
-        0.274768056767,
-        0.793520719233,
-        13,
+        0.09175595082658283,
+        0.29684043988169595,
+        0.7758476073338322,
+        0.8463792080005441,
+        14,
     ),
     (
         "PROT11",
-        -0.00166445565951,
-        -0.120709050091,
-        0.908209010135,
-        9,
+        -0.0016644556595100113,
+        -0.1302860212054248,
+        0.9002796786684337,
+        0.9002796786684337,
+        10,
     ),
 ];
 
-// The deqms adj-p rank above, in order. The count moderation reorders the middle
-// of the table relative to the all-ones limma fallback (which ranks
-// [..PROT01,PROT02,PROT12..]); the count path ranks [..PROT12,PROT02,PROT01..].
 const DEQMS_PIPELINE_RANK: &[&str] = &[
-    "PROT05", "PROT09", "PROT08", "PROT07", "PROT04", "PROT10", "PROT12", "PROT02", "PROT01",
+    "PROT05", "PROT09", "PROT08", "PROT07", "PROT04", "PROT10", "PROT02", "PROT01", "PROT12",
     "PROT03", "PROT06", "PROT11",
 ];
 
-// All-ones limma fallback sca_t (Python `run_deqms(..., peptide_counts=None)` on
-// the same matrix). Used ONLY to prove non-vacuity: the deqms-with-counts sca_t
-// must differ from this fallback by a large margin, so the test cannot be passed
-// by the old all-ones code path. Tuple: (protein, fallback_sca_t).
+// Independent limma eBayes t statistics on the same matrix. Used only to
+// verify that variable peptide counts exercise DEqMS rather than the fallback.
 const DEQMS_FALLBACK_SCA_T: &[(&str, f64)] = &[
-    ("PROT05", -65.11281129),
-    ("PROT09", -46.68051845),
-    ("PROT08", -33.8387029),
-    ("PROT07", 31.91915491),
-    ("PROT04", -22.73149498),
-    ("PROT10", 18.51554925),
-    ("PROT01", -17.31471545),
-    ("PROT02", 16.53307016),
-    ("PROT12", -16.76645805),
-    ("PROT03", 0.3754350973),
-    ("PROT06", 0.2646723684),
-    ("PROT11", -0.09359488618),
+    ("PROT05", -65.11281128871813),
+    ("PROT09", -46.680518447285614),
+    ("PROT08", -33.83870290280209),
+    ("PROT07", 31.919154914696882),
+    ("PROT04", -22.731494984546792),
+    ("PROT10", 18.515549252570654),
+    ("PROT02", 16.53307015530404),
+    ("PROT01", -17.31471545499555),
+    ("PROT12", -16.76645805143682),
+    ("PROT03", 0.375435097346578),
+    ("PROT06", 0.2646723684393925),
+    ("PROT11", -0.09359488617639883),
 ];
 
 #[test]
 fn features2proteins_deqms_wires_per_protein_peptide_counts() -> Result<(), Box<dyn Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("deqms.features.parquet");
     let sdrf = root.join("deqms.sdrf.tsv");
@@ -6083,25 +6284,24 @@ fn features2proteins_deqms_wires_per_protein_peptide_counts() -> Result<(), Box<
     Ok(())
 }
 
-/// Assert every protein row matches the count-aware Python deqms oracle. Field
+/// Assert every protein row matches independent official DEqMS. Field
 /// layout: ProteinName(0), log2FC(1), pvalue(2), adj_pvalue(3), sca_t(4),
 /// sca_pvalue(5), sca_adj_pvalue(6), mean_A(7), mean_B(8), n_a(9), n_b(10),
 /// peptide_count(11), log_pvalue(12), significance(13).
 fn assert_deqms_oracle_rows(table: &CsvTable) -> Result<(), Box<dyn Error>> {
-    for &(protein, log2fc, sca_t, sca_p, count) in DEQMS_PIPELINE_ORACLE {
+    for &(protein, log2fc, sca_t, sca_p, bh, count) in DEQMS_PIPELINE_ORACLE {
         let row = find_de_row(table, protein)?;
         // log2FC is the untouched limma coefficient: cell-exact (1e-9).
         assert_de_cell_abs(row, 1, log2fc, 1e-9, protein, "log2FC")?;
-        // sca_t / sca_pvalue: LOWESS-bounded relative 6e-3 (matches mokume-stats'
-        // deqms oracle tolerance), with an absolute floor so near-zero t / large p
-        // are not over-constrained.
-        assert_de_cell_rel(row, 4, sca_t, 6e-3, 1.0, protein, "sca_t")?;
-        assert_de_cell_rel(row, 5, sca_p, 6e-3, 1e-4, protein, "sca_pvalue")?;
-        // pvalue == sca_pvalue and adj_pvalue == sca_adj_pvalue, exactly as Python.
+        // Original official audit tolerances: relative 1e-6, absolute 1e-10.
+        assert_de_cell_rel(row, 4, sca_t, 1e-6, 1e-10, protein, "sca_t")?;
+        assert_de_cell_rel(row, 5, sca_p, 1e-6, 1e-10, protein, "sca_pvalue")?;
+        assert_de_cell_rel(row, 6, bh, 1e-6, 1e-10, protein, "sca_adj_pvalue")?;
+        // Public p-value columns must preserve the count-aware results.
         assert_de_columns_equal(row, 2, 5, protein, "pvalue==sca_pvalue")?;
         assert_de_columns_equal(row, 3, 6, protein, "adj_pvalue==sca_adj_pvalue")?;
-        // The per-protein peptide_count is the exact unique-sequence count: this is
-        // the core of the fix (Rust nunique == Python nunique).
+        // peptide_count is the smallest per-sample unique-sequence count plus 1,
+        // the count the DEqMS vignette and OpDEA pass to spectraCounteBayes.
         let actual_count = de_field(row, 11)?;
         assert_eq!(
             actual_count,
@@ -6113,7 +6313,7 @@ fn assert_deqms_oracle_rows(table: &CsvTable) -> Result<(), Box<dyn Error>> {
 }
 
 /// Assert the emitted adj-p rank matches the count-aware oracle exactly (the
-/// count moderation reorders the middle of the table vs the all-ones fallback).
+/// count moderation changes the statistics relative to the limma fallback).
 fn assert_deqms_rank(table: &CsvTable) -> Result<(), Box<dyn Error>> {
     let rank = table
         .rows
@@ -6126,14 +6326,14 @@ fn assert_deqms_rank(table: &CsvTable) -> Result<(), Box<dyn Error>> {
         .collect::<Result<Vec<_>, _>>()?;
     assert_eq!(
         rank, DEQMS_PIPELINE_RANK,
-        "deqms adj-p rank must match the count-aware Python oracle"
+        "deqms adj-p rank must match the independent official oracle"
     );
     Ok(())
 }
 
 /// Non-vacuity: the emitted sca_t must differ materially from the all-ones limma
 /// fallback, proving the count path is genuinely exercised (the old all-ones code
-/// could not have produced these numbers). The worst mover (PROT05) shifts ~33.
+/// could not have produced these numbers). PROT05 shifts by more than 43.
 fn assert_deqms_differs_from_fallback(table: &CsvTable) -> Result<(), Box<dyn Error>> {
     let mut max_fallback_diff = 0.0_f64;
     for &(protein, fallback_t) in DEQMS_FALLBACK_SCA_T {
@@ -6240,8 +6440,8 @@ const DEQMS_TARGETS: &[(&str, [f32; 6])] = &[
     ("PROT12", [900.0, 950.0, 850.0, 1800.0, 1900.0, 1700.0]),
 ];
 
-/// Per-protein number of UNIQUE peptide sequences (the count vector). Index
-/// aligns with `DEQMS_TARGETS`.
+/// Per-protein number of unique peptide sequences, each seen in every sample (the
+/// DEqMS count is this plus 1). Index aligns with `DEQMS_TARGETS`.
 const DEQMS_COUNTS: [usize; 12] = [1, 2, 3, 5, 8, 13, 4, 7, 11, 6, 9, 15];
 
 const DEQMS_SAMPLE_RUNS: [&str; 6] = ["A1.raw", "A2.raw", "A3.raw", "B1.raw", "B2.raw", "B3.raw"];

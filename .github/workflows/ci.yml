@@ -62,7 +62,7 @@ jobs:
 
       - name: Build and install wheel (debug)
         run: |
-          pip install maturin pytest
+          pip install maturin pytest 'tomli>=2; python_version < "3.11"'
           wheel_dir="$(mktemp -d "$RUNNER_TEMP/mokume-wheels.XXXXXX")"
           maturin build --out "$wheel_dir"
           shopt -s nullglob
@@ -71,7 +71,7 @@ jobs:
             printf 'Expected exactly one Mokume wheel, found %d\n' "${#wheels[@]}" >&2
             exit 1
           fi
-          pip install "${wheels[0]}[plotting,agentic]" pyarrow
+          pip install "${wheels[0]}[analysis,plugin]" pyarrow
 
       - name: Run the Python test suite
         run: pytest tests -v --tb=short

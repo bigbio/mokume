@@ -8,14 +8,12 @@ periphery commands **read those tables** to render figures, so the cells in the
 plots always match the cells in the kernel output (the periphery never
 recomputes the numbers).
 
-!!! note "Periphery extras"
+!!! note "Analysis extra"
     Plotting and reports are exposed by the wheel's unified CLI but remain
-    implemented in its Python periphery. Install the extra you need:
+    implemented in its Python periphery. Install the shared analysis extra:
     ```bash
-    pip install "mokume[plotting]"   # matplotlib + seaborn (DE plots, t-SNE, piBAQ QC)
-    pip install "mokume[reports]"    # plotly interactive DE report
-    pip install "mokume[analysis]"   # single-matrix QC + workflow-comparison reports
-    pip install "mokume[all]"        # everything
+    pip install "mokume[analysis]"  # plots, reports, QC, comparison, and missforest
+    pip install "mokume[all]"       # every optional capability
     ```
 
 ## DE Plots from features2proteins Output
@@ -152,7 +150,7 @@ This generates a report with:
 ## t-SNE Visualization Command
 
 A standalone periphery command for t-SNE visualization from a folder of protein
-files (`plotting` extra). It is exposed by the wheel CLI while remaining outside
+files (`analysis` extra). It is exposed by the wheel CLI while remaining outside
 the Rust compute kernel:
 
 ```bash
@@ -168,7 +166,7 @@ The equivalent Python APIs remain available as `mokume.de_plots([...])`,
 ## Plotting Library API
 
 Besides the canned commands above, the `mokume.plotting` module exposes the
-individual figure functions as a callable library (`plotting` extra). Use these
+individual figure functions as a callable library (`analysis` extra). Use these
 when you want to build figures directly from a kernel CSV in your own script
 instead of running `de_plots`. Each takes a pandas `DataFrame` and either
 returns a matplotlib `Figure` or writes to an `output_file` / `file_name` path.

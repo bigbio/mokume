@@ -72,7 +72,7 @@ The unified wheel CLI groups three Rust-native quantification commands under
 `mokume quantify`, alongside standalone batch correction and the
 optional Python periphery commands. The latter are still part of the installed
 `mokume` command, but they do not move plotting or TissueMap computation into
-Rust. The hidden `mokume mcp serve` service belongs to the `agentic` extra and
+Rust. The hidden `mokume mcp serve` service belongs to the `plugin` extra and
 is started by the installed Mokume Plugin; users do not configure or launch it
 manually.
 

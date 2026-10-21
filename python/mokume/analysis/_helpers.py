@@ -89,10 +89,15 @@ def finalize_de_result(
     cond_b: str,
     extra_cols: Iterable[str] = (),
 ) -> pd.DataFrame:
-    """Merge group summary, BH-adjust, select columns, and sort."""
+    """Merge group summary, BH-adjust, select columns, and sort.
+
+    A method that brings its own ``adj_pvalue`` (the ROTS permutation FDR)
+    keeps it instead of a BH adjustment.
+    """
     summary = per_group_summary(sub_matrix, samples_a, samples_b, cond_a, cond_b)
     merged = raw.merge(summary, on="ProteinName", how="left")
-    merged["adj_pvalue"] = bh_adjust(merged["pvalue"].values)
+    if "adj_pvalue" not in merged.columns:
+        merged["adj_pvalue"] = bh_adjust(merged["pvalue"].values)
     columns = [
         "ProteinName",
         "log2FC",

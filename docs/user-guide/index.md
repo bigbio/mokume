@@ -36,7 +36,8 @@ The same `mokume` console command exposes `tsne-visualization`, `tissuemap`,
 `de-plots`, and `interactive-report`. These commands live in the Python
 periphery of the wheel: plotting and reporting consume kernel tables, while
 TissueMap derives its downstream atlas from QPX data. Install the relevant
-extra (`plotting`, `reports`, `tissuemap`, or `all`) to pull in their libraries.
-The top-level Python wrappers remain available for scripts. The agentic workflow
-is provided by the [Mokume Plugin](agentic-plugin.md), whose hidden local MCP
-service uses the default Rust-backed wheel.
+extra (`analysis`, `tissuemap`, or `all`) to pull in their libraries.
+The top-level Python wrappers remain available for scripts. Evidence-bound
+method selection is available through the
+[Mokume Plugin](agentic-plugin.md), which uses the default Rust-backed wheel
+and the deterministic recommendation service.

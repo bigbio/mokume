@@ -140,7 +140,7 @@ nav:
       - Full Pipeline: examples/pipeline.md
       - CPTAC UCEC Total Proteome: examples/cptac-ucec.md
       - PXD030304 Cancer Cell-Line Atlas: examples/pxd030304-cell-lines.md
-  - User Guide (CLI):
+  - User Guide:
       - user-guide/index.md
       - Mokume Plugin: user-guide/agentic-plugin.md
       - features2proteins: user-guide/features2proteins.md

@@ -1,325 +1,361 @@
-use std::collections::HashMap;
+//! Maximal peptide ratio extraction: Cox et al. (2014), Eq. 3 and Fig. 2.
+//!
+//! Input is a single protein's positive, linear peptide-species intensities.
+//! Species must distinguish sequence, modification and charge. Normalization
+//! (including the paper's separate delayed-normalization stage) is upstream.
 
-use mokume_core::{PeptideId, SampleId};
+use std::collections::{BTreeMap, HashMap};
+
+use faer::dyn_stack::{MemBuffer, MemStack};
+use faer::linalg::cholesky::llt;
+use faer::{Mat, Par};
+use mokume_core::{MokumeError, Result, SampleId};
 
 use crate::{median, sample_order, PeptideMeasurement};
 
-pub fn max_lfq(measurements: &[PeptideMeasurement]) -> Vec<(SampleId, f64)> {
-    let samples = sample_order(measurements);
-    solve_max_lfq_builtin(measurements, &samples)
+/// The minimum number of shared species supporting a sample-pair ratio.
+pub const DEFAULT_MAXLFQ_MIN_RATIO_COUNT: usize = 2;
+
+#[derive(Debug, Clone)]
+pub struct MaxLfqResult {
+    /// Linear intensities in the requested sample order; zero means unquantified.
+    pub intensities: Vec<(SampleId, f64)>,
+    /// Independently solved sample components. Ratios across components are not
+    /// identifiable from shared peptides; their offsets use observed totals.
+    pub components: Vec<Vec<SampleId>>,
+    /// Valid sample pairs assigned a positive large-ratio stabilization weight.
+    pub stabilized_pairs: usize,
+}
+
+pub fn max_lfq(measurements: &[PeptideMeasurement]) -> Result<Vec<(SampleId, f64)>> {
+    max_lfq_with_samples(measurements, &sample_order(measurements))
 }
 
 pub fn max_lfq_with_samples(
     measurements: &[PeptideMeasurement],
     samples: &[SampleId],
-) -> Vec<(SampleId, f64)> {
-    solve_max_lfq_builtin(measurements, samples)
+) -> Result<Vec<(SampleId, f64)>> {
+    Ok(solve_max_lfq(measurements, samples, DEFAULT_MAXLFQ_MIN_RATIO_COUNT)?.intensities)
 }
 
-fn solve_max_lfq_builtin(
+/// Minimize the unweighted squared residuals of all valid pairwise log ratios.
+/// Duplicate species/sample observations are summed before taking logarithms.
+/// Missing, nonpositive and nonfinite observations do not support a ratio.
+/// A sample without a valid edge stays zero (Cox et al., Fig. 2D).
+pub fn solve_max_lfq(
     measurements: &[PeptideMeasurement],
     samples: &[SampleId],
-) -> Vec<(SampleId, f64)> {
-    if samples.is_empty() {
-        return Vec::new();
+    min_ratio_count: usize,
+) -> Result<MaxLfqResult> {
+    solve_max_lfq_with_stabilization(measurements, samples, min_ratio_count, false)
+}
+
+/// Apply Cox et al. Eq. 5 to low-overlap ratios when `stabilize` is enabled.
+/// Shared-species requirements and disconnected-component handling are unchanged.
+pub fn solve_max_lfq_with_stabilization(
+    measurements: &[PeptideMeasurement],
+    samples: &[SampleId],
+    min_ratio_count: usize,
+    stabilize: bool,
+) -> Result<MaxLfqResult> {
+    if min_ratio_count == 0 {
+        return Err(invalid("minimum ratio count must be positive"));
     }
-
-    let sample_index = samples
-        .iter()
-        .enumerate()
-        .map(|(index, sample)| (*sample, index))
-        .collect::<HashMap<_, _>>();
-    let rows = peptide_intensity_rows(measurements, &sample_index, samples.len());
-    if rows.is_empty() {
-        return Vec::new();
+    let sample_index: HashMap<_, _> = samples.iter().enumerate().map(|(i, s)| (*s, i)).collect();
+    if sample_index.len() != samples.len() {
+        return Err(invalid("sample identifiers must be unique"));
     }
-
-    if samples.len() == 1 {
-        let mut values = rows
-            .iter()
-            .filter_map(|(_, values)| values[0])
-            .collect::<Vec<_>>();
-        return median(&mut values)
-            .map(|value| vec![(samples[0], value)])
-            .unwrap_or_default();
-    }
-
-    if rows.len() == 1 {
-        return rows[0]
-            .1
-            .iter()
-            .enumerate()
-            .filter_map(|(index, value)| value.map(|value| (samples[index], value)))
-            .collect();
-    }
-
-    let original_sum = rows
-        .iter()
-        .flat_map(|(_, values)| values.iter().filter_map(|value| *value))
-        .sum::<f64>();
-    if original_sum <= 0.0 {
-        return Vec::new();
-    }
-
-    let log_rows = rows
-        .iter()
-        .map(|(_, values)| {
-            values
-                .iter()
-                .map(|value| value.map(f64::log2))
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    let Some(reference) = reference_peptide_row(&rows, &log_rows) else {
-        return Vec::new();
-    };
-    let aligned = align_to_reference(&log_rows, reference);
-    let mut intensities = median_aligned_by_sample(&aligned)
-        .into_iter()
-        .enumerate()
-        .map(|(index, value)| {
-            value.map(|value| value.exp2()).or_else(|| {
-                let mut raw_values = rows
-                    .iter()
-                    .filter_map(|(_, values)| values[index])
-                    .collect::<Vec<_>>();
-                median(&mut raw_values)
-            })
-        })
-        .collect::<Vec<_>>();
-
-    let current_sum = intensities.iter().filter_map(|value| *value).sum::<f64>();
-    if current_sum > 0.0 {
-        let scale = original_sum / current_sum;
-        for value in intensities.iter_mut().flatten() {
-            *value *= scale;
+    let rows = intensity_rows(measurements, &sample_index)?;
+    let (edges, stabilized_pairs) =
+        pairwise_ratios(&rows, samples.len(), min_ratio_count, stabilize);
+    let components = connected_components(&edges, samples.len());
+    let mut log_profile = vec![f64::NEG_INFINITY; samples.len()];
+    for component in &components {
+        let relative = solve_component(component, &edges, samples.len())?;
+        let total = log_total(&rows, component.iter().copied());
+        let shift = total - log_sum_exp2(&relative);
+        for (&sample, value) in component.iter().zip(relative) {
+            log_profile[sample] = value + shift;
         }
     }
+    // Eq. 3 fixes ratios, not the absolute scale. Rescale the entire supported
+    // profile to the original summed intensity, including isolated observations.
+    if !components.is_empty() {
+        let shift = log_total(&rows, 0..samples.len()) - log_sum_exp2(&log_profile);
+        for value in &mut log_profile {
+            *value += shift;
+        }
+    }
+    Ok(MaxLfqResult {
+        intensities: linear_intensities(samples, log_profile)?,
+        stabilized_pairs,
+        components: components
+            .into_iter()
+            .map(|c| c.into_iter().map(|i| samples[i]).collect())
+            .collect(),
+    })
+}
 
-    intensities
-        .into_iter()
-        .enumerate()
-        .filter_map(|(index, value)| {
-            value
-                .filter(|value| value.is_finite() && *value > 0.0)
-                .map(|value| (samples[index], value))
+fn linear_intensities(samples: &[SampleId], log_profile: Vec<f64>) -> Result<Vec<(SampleId, f64)>> {
+    samples
+        .iter()
+        .zip(log_profile)
+        .map(|(&sample, log_value)| {
+            let value = log_value.exp2();
+            if !value.is_finite() || (log_value.is_finite() && value == 0.0) {
+                return Err(invalid("protein intensity is outside the finite f64 range"));
+            }
+            Ok((sample, value))
         })
         .collect()
 }
 
-fn peptide_intensity_rows(
+type RatioEdge = (usize, usize, f64);
+
+fn intensity_rows(
     measurements: &[PeptideMeasurement],
     sample_index: &HashMap<SampleId, usize>,
-    sample_count: usize,
-) -> Vec<(PeptideId, Vec<Option<f64>>)> {
-    let mut rows = HashMap::<PeptideId, Vec<Option<f64>>>::new();
-    for measurement in measurements {
-        if !measurement.intensity.is_finite() || measurement.intensity <= 0.0 {
-            continue;
-        }
-        let Some(sample) = sample_index.get(&measurement.sample).copied() else {
-            continue;
-        };
+) -> Result<Vec<Vec<f64>>> {
+    let mut ordered = measurements
+        .iter()
+        .filter(|m| {
+            m.intensity.is_finite() && m.intensity > 0.0 && sample_index.contains_key(&m.sample)
+        })
+        .collect::<Vec<_>>();
+    ordered.sort_by(|a, b| {
+        (a.peptide.get(), a.sample.get())
+            .cmp(&(b.peptide.get(), b.sample.get()))
+            .then_with(|| a.intensity.total_cmp(&b.intensity))
+    });
+    let mut rows = BTreeMap::<u32, Vec<f64>>::new();
+    for measurement in ordered {
         let values = rows
-            .entry(measurement.peptide)
-            .or_insert_with(|| vec![None; sample_count]);
-        // Python's built-in MaxLFQ pivots the (peptide, sample) matrix with
-        // aggfunc="sum", so duplicate (peptide, sample) intensities are summed.
-        values[sample] = values[sample]
-            .map(|current| current + measurement.intensity)
-            .or(Some(measurement.intensity));
+            .entry(measurement.peptide.get())
+            .or_insert_with(|| vec![0.0; sample_index.len()]);
+        let value = &mut values[sample_index[&measurement.sample]];
+        *value += measurement.intensity;
+        if !value.is_finite() {
+            return Err(invalid(
+                "summed species intensity is outside the finite f64 range",
+            ));
+        }
     }
-
-    let mut rows = rows.into_iter().collect::<Vec<_>>();
-    rows.sort_by_key(|(peptide, _)| peptide.get());
-    rows
+    Ok(rows.into_values().collect())
 }
 
-fn reference_peptide_row(
-    rows: &[(PeptideId, Vec<Option<f64>>)],
-    log_rows: &[Vec<Option<f64>>],
-) -> Option<usize> {
-    let max_support = log_rows
-        .iter()
-        .map(|values| values.iter().filter(|value| value.is_some()).count())
-        .max()?;
-    let mut candidates = log_rows
-        .iter()
-        .enumerate()
-        .filter_map(|(index, values)| {
-            (values.iter().filter(|value| value.is_some()).count() == max_support).then_some(index)
-        })
-        .collect::<Vec<_>>();
-    if candidates.len() == 1 {
-        return candidates.pop();
-    }
-
-    let trace_totals = candidates
-        .iter()
-        .map(|&index| {
-            let mut values = log_rows[index]
-                .iter()
-                .filter_map(|value| *value)
-                .collect::<Vec<_>>();
-            values.sort_by(f64::total_cmp);
-            (index, values.into_iter().sum::<f64>())
-        })
-        .collect::<Vec<_>>();
-    let max_total = trace_totals
-        .iter()
-        .map(|(_, total)| *total)
-        .max_by(f64::total_cmp)?;
-
-    trace_totals
-        .into_iter()
-        .filter(|(_, total)| *total == max_total)
-        .min_by_key(|(index, _)| rows[*index].0.get())
-        .map(|(index, _)| index)
+/// Sample-major logs and per-sample bitsets of observed species: each pair
+/// reads two contiguous columns and skips pairs that share too few species.
+struct SampleColumns {
+    species: usize,
+    words: usize,
+    logs: Vec<f64>,
+    observed: Vec<u64>,
 }
 
-fn align_to_reference(log_rows: &[Vec<Option<f64>>], reference: usize) -> Vec<Vec<Option<f64>>> {
-    let reference_trace = &log_rows[reference];
-    log_rows
-        .iter()
-        .enumerate()
-        .map(|(index, trace)| {
-            if index == reference {
-                return trace.clone();
+impl SampleColumns {
+    fn new(rows: &[Vec<f64>], n: usize) -> Self {
+        let species = rows.len();
+        let words = species.div_ceil(64);
+        let mut logs = vec![0.0; n * species];
+        let mut observed = vec![0_u64; n * words];
+        for (row_index, row) in rows.iter().enumerate() {
+            for (sample, value) in row.iter().enumerate() {
+                let log = value.log2();
+                logs[sample * species + row_index] = log;
+                if log.is_finite() {
+                    observed[sample * words + row_index / 64] |= 1 << (row_index % 64);
+                }
             }
-            let mut shifts = reference_trace
-                .iter()
-                .zip(trace)
-                .filter_map(|(reference_value, value)| Some((*reference_value)? - (*value)?))
-                .collect::<Vec<_>>();
-            let Some(shift) = median(&mut shifts) else {
-                return trace.clone();
-            };
-            trace
-                .iter()
-                .map(|value| value.map(|value| value + shift))
-                .collect()
-        })
-        .collect()
+        }
+        Self {
+            species,
+            words,
+            logs,
+            observed,
+        }
+    }
+
+    fn seen(&self, sample: usize) -> &[u64] {
+        &self.observed[sample * self.words..(sample + 1) * self.words]
+    }
+
+    fn shared(&self, i: usize, j: usize) -> usize {
+        self.seen(i)
+            .iter()
+            .zip(self.seen(j))
+            .map(|(a, b)| (a & b).count_ones() as usize)
+            .sum()
+    }
+
+    /// Log ratios of `j` over `i` for the species both observe, in species order.
+    fn ratios_into(&self, i: usize, j: usize, ratios: &mut Vec<f64>) {
+        let logs_i = &self.logs[i * self.species..(i + 1) * self.species];
+        let logs_j = &self.logs[j * self.species..(j + 1) * self.species];
+        ratios.clear();
+        for (word, (a, b)) in self.seen(i).iter().zip(self.seen(j)).enumerate() {
+            let mut both = a & b;
+            while both != 0 {
+                let row = word * 64 + both.trailing_zeros() as usize;
+                ratios.push(logs_j[row] - logs_i[row]);
+                both &= both - 1;
+            }
+        }
+    }
 }
 
-fn median_aligned_by_sample(aligned: &[Vec<Option<f64>>]) -> Vec<Option<f64>> {
-    let Some(sample_count) = aligned.first().map(Vec::len) else {
-        return Vec::new();
-    };
-    (0..sample_count)
-        .map(|sample| {
-            let mut values = aligned
-                .iter()
-                .filter_map(|trace| trace[sample])
-                .collect::<Vec<_>>();
-            median(&mut values)
-        })
-        .collect()
+fn pairwise_ratios(
+    rows: &[Vec<f64>],
+    n: usize,
+    min_count: usize,
+    stabilize: bool,
+) -> (Vec<RatioEdge>, usize) {
+    let columns = SampleColumns::new(rows, n);
+    let mut edges = Vec::new();
+    let mut stabilized_pairs = 0;
+    let mut ratios = Vec::with_capacity(rows.len());
+    for i in 0..n {
+        for j in i + 1..n {
+            let shared = columns.shared(i, j);
+            if shared < min_count {
+                continue;
+            }
+            columns.ratios_into(i, j, &mut ratios);
+            if let Some(ratio) = median(&mut ratios) {
+                let (ratio, applied) = if stabilize {
+                    stabilized_ratio(rows, (i, j), shared, ratio)
+                } else {
+                    (ratio, false)
+                };
+                stabilized_pairs += usize::from(applied);
+                edges.push((i, j, ratio));
+            }
+        }
+    }
+    (edges, stabilized_pairs)
+}
+
+fn stabilized_ratio(
+    rows: &[Vec<f64>],
+    (i, j): (usize, usize),
+    shared: usize,
+    median_ratio: f64,
+) -> (f64, bool) {
+    let count_i = rows.iter().filter(|row| row[i] > 0.0).count();
+    let count_j = rows.iter().filter(|row| row[j] > 0.0).count();
+    let x = count_i.max(count_j) as f64 / shared as f64;
+    let weight = ((x - 2.5) / 2.5).clamp(0.0, 1.0);
+    if weight == 0.0 {
+        return (median_ratio, false);
+    }
+    let sum_ratio = log_total(rows, std::iter::once(j)) - log_total(rows, std::iter::once(i));
+    ((1.0 - weight) * median_ratio + weight * sum_ratio, true)
+}
+
+fn connected_components(edges: &[RatioEdge], n: usize) -> Vec<Vec<usize>> {
+    // Union-find keeps memory linear in the samples, however many edges there are.
+    let mut parent = (0..n).collect::<Vec<_>>();
+    let mut linked = vec![false; n];
+    for &(i, j, _) in edges {
+        linked[i] = true;
+        linked[j] = true;
+        let (a, b) = (find_root(&mut parent, i), find_root(&mut parent, j));
+        parent[a.max(b)] = a.min(b);
+    }
+    // Components in the order of their first sample, each sorted ascending.
+    let mut slot = vec![usize::MAX; n];
+    let mut components = Vec::<Vec<usize>>::new();
+    for sample in (0..n).filter(|&sample| linked[sample]) {
+        let root = find_root(&mut parent, sample);
+        if slot[root] == usize::MAX {
+            slot[root] = components.len();
+            components.push(Vec::new());
+        }
+        components[slot[root]].push(sample);
+    }
+    components
+}
+
+fn find_root(parent: &mut [usize], mut node: usize) -> usize {
+    while parent[node] != node {
+        parent[node] = parent[parent[node]];
+        node = parent[node];
+    }
+    node
+}
+
+fn solve_component(component: &[usize], edges: &[RatioEdge], samples: usize) -> Result<Vec<f64>> {
+    let n = component.len() - 1;
+    let mut indices = vec![None; samples];
+    for (i, &sample) in component.iter().enumerate() {
+        indices[sample] = Some(i);
+    }
+    // Fix the first log intensity to zero. The reduced graph Laplacian is
+    // positive definite for a connected component; no ridge or fallback is used.
+    // Edges join ascending samples, so (j, i) lies in the lower triangle, the
+    // only part the factorization reads.
+    let mut matrix = Mat::<f64>::zeros(n, n);
+    let mut rhs = Mat::<f64>::zeros(n, 1);
+    for &(left, right, ratio) in edges {
+        if let (Some(i), Some(j)) = (indices[left], indices[right]) {
+            if i > 0 {
+                matrix[(i - 1, i - 1)] += 1.0;
+                rhs[(i - 1, 0)] -= ratio;
+            }
+            if j > 0 {
+                matrix[(j - 1, j - 1)] += 1.0;
+                rhs[(j - 1, 0)] += ratio;
+            }
+            if i > 0 && j > 0 {
+                matrix[(j - 1, i - 1)] -= 1.0;
+            }
+        }
+    }
+    // Proteins are solved in parallel, so each factorization runs on one thread.
+    let par = Par::Seq;
+    let mut buffer = MemBuffer::new(
+        llt::factor::cholesky_in_place_scratch::<f64>(n, par, Default::default())
+            .or(llt::solve::solve_in_place_scratch::<f64>(n, 1, par)),
+    );
+    llt::factor::cholesky_in_place(
+        matrix.as_mut(),
+        Default::default(),
+        par,
+        MemStack::new(&mut buffer),
+        Default::default(),
+    )
+    .map_err(|_| invalid("connected-component linear solve failed"))?;
+    llt::solve::solve_in_place(
+        matrix.as_ref(),
+        rhs.as_mut(),
+        par,
+        MemStack::new(&mut buffer),
+    );
+    Ok(std::iter::once(0.0)
+        .chain(rhs.col(0).iter().copied())
+        .collect())
+}
+
+fn log_sum_exp2(values: &[f64]) -> f64 {
+    let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    max + values.iter().map(|x| (x - max).exp2()).sum::<f64>().log2()
+}
+
+fn log_total(rows: &[Vec<f64>], columns: impl Iterator<Item = usize>) -> f64 {
+    let columns = columns.collect::<Vec<_>>();
+    let mut logs = rows
+        .iter()
+        .flat_map(|row| columns.iter().map(|&i| row[i].log2()))
+        .collect::<Vec<_>>();
+    // Stable under peptide and sample permutations, including rounding of sums.
+    logs.sort_by(f64::total_cmp);
+    log_sum_exp2(&logs)
+}
+
+fn invalid(message: &str) -> MokumeError {
+    MokumeError::InvalidInput {
+        message: format!("MaxLFQ: {message}"),
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{max_lfq_with_samples, reference_peptide_row};
-    use crate::PeptideMeasurement;
-    use mokume_core::{PeptideId, SampleId};
-
-    fn measurement(peptide: u32, sample: u32, intensity: f64) -> PeptideMeasurement {
-        PeptideMeasurement {
-            peptide: PeptideId::new(peptide),
-            sample: SampleId::new(sample),
-            intensity,
-        }
-    }
-
-    fn assert_profiles_close(actual: &[(SampleId, f64)], expected: &[(SampleId, f64)]) {
-        assert_eq!(actual.len(), expected.len());
-        for ((actual_sample, actual_value), (expected_sample, expected_value)) in
-            actual.iter().zip(expected)
-        {
-            assert_eq!(actual_sample, expected_sample);
-            let tolerance = expected_value.abs().max(1.0) * 1e-12;
-            assert!(
-                (actual_value - expected_value).abs() <= tolerance,
-                "sample {actual_sample:?}: {actual_value} vs {expected_value}"
-            );
-        }
-    }
-
-    #[test]
-    fn reference_selection_matches_python_tie_break_order() {
-        let rows = vec![
-            (
-                PeptideId::new(20),
-                vec![Some(128.0), None, Some(2.0), Some(64.0)],
-            ),
-            (PeptideId::new(10), vec![Some(1e30), None, None, Some(1e30)]),
-            (
-                PeptideId::new(30),
-                vec![Some(2.0), Some(32.0), Some(32.0), None],
-            ),
-            (
-                PeptideId::new(5),
-                vec![Some(16.0), Some(32.0), None, Some(32.0)],
-            ),
-        ];
-        let log_rows = vec![
-            vec![Some(7.0), None, Some(1.0), Some(6.0)],
-            vec![Some(100.0), None, None, Some(100.0)],
-            vec![Some(1.0), Some(5.0), Some(5.0), None],
-            vec![Some(4.0), Some(5.0), None, Some(5.0)],
-        ];
-
-        // Rows 0, 2, and 3 have the largest support (three samples). Rows 0
-        // and 3 then tie at a sorted log-total of 14, so the smallest stable
-        // peptide id wins the final tie, matching Python's peptide-name key
-        // once callers map names to lexical ids.
-        assert_eq!(reference_peptide_row(&rows, &log_rows), Some(3));
-    }
-
-    #[test]
-    fn max_lfq_is_invariant_to_encounter_order_ids() {
-        let samples = [
-            SampleId::new(0),
-            SampleId::new(1),
-            SampleId::new(2),
-            SampleId::new(3),
-        ];
-        let forward = vec![
-            measurement(0, 0, 128.0),
-            measurement(0, 2, 2.0),
-            measurement(0, 3, 64.0),
-            measurement(1, 0, 64.0),
-            measurement(1, 3, 4.0),
-            measurement(2, 0, 2.0),
-            measurement(2, 1, 32.0),
-            measurement(2, 2, 32.0),
-        ];
-        // Same physical peptide traces in reverse encounter order. The caller's
-        // insertion-order registry therefore assigns the first and last
-        // peptides opposite numeric ids.
-        let reversed = vec![
-            measurement(0, 2, 32.0),
-            measurement(0, 1, 32.0),
-            measurement(0, 0, 2.0),
-            measurement(1, 3, 4.0),
-            measurement(1, 0, 64.0),
-            measurement(2, 3, 64.0),
-            measurement(2, 2, 2.0),
-            measurement(2, 0, 128.0),
-        ];
-
-        let forward = max_lfq_with_samples(&forward, &samples);
-        let reversed = max_lfq_with_samples(&reversed, &samples);
-        assert_profiles_close(&forward, &reversed);
-        let expected = samples
-            .into_iter()
-            .zip([
-                173.941_622_437_385_3,
-                86.970_811_218_692_65,
-                15.374_412_594_508_161,
-                51.713_153_749_413_884,
-            ])
-            .collect::<Vec<_>>();
-        assert_profiles_close(&forward, &expected);
-    }
-}
+mod tests;

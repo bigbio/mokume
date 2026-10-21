@@ -11,5 +11,6 @@ description = "Core data model and configuration for mokume"
 workspace = true
 
 [dependencies]
+rayon = "1.12.0"
 serde = { workspace = true }
 thiserror = { workspace = true }

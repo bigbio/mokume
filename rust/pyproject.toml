@@ -55,8 +55,16 @@ Issues = "https://github.com/bigbio/mokume/issues"
 # pandas is a base dependency because the piBAQ digest path imports
 # mokume.core.constants, which needs it (newer pyOpenMS no longer pulls it in).
 [project.optional-dependencies]
-plotting = ["numpy", "pandas", "scipy", "matplotlib", "seaborn", "scikit-learn"]
-reports = ["numpy", "pandas", "plotly"]
+analysis = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "threadpoolctl",
+    "plotly",
+]
 tissuemap = [
     "numpy",
     "pandas",
@@ -70,10 +78,7 @@ tissuemap = [
     "seaborn",
     "pyarrow",
 ]
-# QC / workflow-comparison reports + the pure-Python method fallback
-# (missforest imputation) the Rust kernel does not reproduce.
-analysis = ["numpy", "pandas", "scipy", "scikit-learn"]
-agentic = [
+plugin = [
     "mcp>=1.23,<2",
     "numpy",
     "pandas",
@@ -90,13 +95,14 @@ all = [
     "matplotlib",
     "seaborn",
     "scikit-learn",
+    "threadpoolctl",
     "plotly",
     "scanpy",
     "anndata",
     "umap-learn",
     "combat",
     "pyarrow",
-    "PyYAML",
+    "PyYAML>=6.0",
     "mcp>=1.23,<2",
     "statsmodels>=0.13",
 ]
@@ -107,6 +113,7 @@ all = [
 manifest-path = "crates/mokume-py/Cargo.toml"
 module-name = "mokume._mokume"
 python-source = "python"
+include = ["python/mokume/agentic/knowledge_bundle/**"]
 exclude = ["python/**/__pycache__/**"]
 
 [tool.pylint.design]

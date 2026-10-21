@@ -196,7 +196,7 @@ sample lists:
 
 ## (c) Mokume Plugin
 
-Install `mokume[agentic]` and the [Mokume Plugin](../user-guide/agentic-plugin.md),
+Install `mokume[plugin]` and the [Mokume Plugin](../user-guide/agentic-plugin.md),
 then ask the host to use `$mokume:analyze-proteomics`. Provide absolute paths
 for the protein matrix, SDRF, and output directory plus the contrast and known
 acquisition metadata.

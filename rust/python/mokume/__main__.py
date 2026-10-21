@@ -24,8 +24,8 @@ Commands:
   quantify            Build peptide and protein expression matrices
   correct-batches     Correct batch effects in protein quantification output
   tissuemap           Build a tissue proteome atlas [requires: mokume[tissuemap]]
-  plot                Render PCA, t-SNE, and DE plots [requires: mokume[plotting]]
-  interactive-report  Build a DE HTML report [requires: mokume[reports]]
+  plot                Render PCA, t-SNE, and DE plots [requires: mokume[analysis]]
+  interactive-report  Build a DE HTML report [requires: mokume[analysis]]
   help                Print root or command-specific help
 
 Global options:
@@ -159,7 +159,7 @@ def main():
         except RuntimeError as exc:
             raise SystemExit(str(exc)) from None
     if routed_args and routed_args[0] == "mcp":
-        raise SystemExit("Usage: mokume mcp serve --knowledge PATH")
+        raise SystemExit("Usage: mokume mcp serve [--knowledge PATH]")
     package = importlib.import_module("mokume")
     if routed_args[:1] == ["help"]:
         args = [*routed_args[1:], "--help"]

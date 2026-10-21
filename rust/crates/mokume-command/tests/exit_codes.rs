@@ -28,7 +28,7 @@ fn features2proteins_missing_input_returns_error() {
 
 #[test]
 fn peptides2protein_command_writes_protein_tsv() -> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let peptides = root.join("peptides.csv");
     let output = root.join("protein.tsv");
@@ -61,8 +61,41 @@ P2,ALYAAEK,S1,A,500.0\n",
 }
 
 #[test]
+fn peptides2protein_maxlfq_command_applies_ratio_count() -> Result<(), Box<dyn std::error::Error>> {
+    let (_tempdir, root) = temp_root()?;
+    let peptides = root.join("peptides.csv");
+    let output = root.join("proteins.tsv");
+    write(
+        &peptides,
+        concat!(
+            "ProteinName,PeptideCanonical,SampleID,NormIntensity\n",
+            "P,PEPTIDEAK,S1,1\nP,PEPTIDEAK,S2,2\n",
+        ),
+    )?;
+    let args = [
+        "quantify",
+        "peptides2protein",
+        "--quant-method",
+        "maxlfq",
+        "--peptides",
+        path_str(&peptides)?,
+        "--output",
+        path_str(&output)?,
+        "--threads",
+        "1",
+        "--maxlfq-min-ratio-count",
+    ];
+    run(&[args.as_slice(), &["1"]].concat())?;
+    assert_eq!(std::fs::read_to_string(&output)?.lines().count(), 3);
+    run(&[args.as_slice(), &["2"]].concat())?;
+    assert_eq!(std::fs::read_to_string(&output)?.lines().count(), 1);
+    assert!(run(&[args.as_slice(), &["0"]].concat()).is_err());
+    Ok(())
+}
+
+#[test]
 fn correct_batches_command_writes_corrected_tsv() -> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     let input = root.join("input");
     create_dir_all(&input)?;
     write(
@@ -100,7 +133,7 @@ P1\tB2-s1\t20.0\nP2\tB2-s1\t8.0\nP1\tB2-s2\t21.0\nP2\tB2-s2\t7.5\n",
 
 #[test]
 fn correct_batches_rejects_input_output_collision() -> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     let input = root.join("input");
     create_dir_all(&input)?;
     let input_file = input.join("batchA_pibaq.tsv");
@@ -136,7 +169,7 @@ P1\tB2-s1\t20.0\nP1\tB2-s2\t21.0\n",
 
 #[test]
 fn correct_batches_export_anndata_writes_h5ad() -> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     let input = root.join("input");
     create_dir_all(&input)?;
     // Two batches (B1, B2) of two samples each, satisfying ComBat's minimum.
@@ -181,7 +214,7 @@ P1\tB2-s2\t21.0\nP2\tB2-s2\t7.5\nP3\tB2-s2\t2.5\n",
 
 #[test]
 fn features2peptides_generates_filter_config() -> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let yaml = root.join("filters.yaml");
     let json = root.join("filters.json");
@@ -226,9 +259,8 @@ fn features2peptides_generates_filter_config() -> Result<(), Box<dyn std::error:
 }
 
 #[test]
-fn unimplemented_features2proteins_options_return_stable_error(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_root()?;
+fn features2proteins_options_return_stable_errors() -> Result<(), Box<dyn std::error::Error>> {
+    let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("input.parquet");
     let sdrf = root.join("input.sdrf.tsv");
@@ -253,14 +285,11 @@ fn unimplemented_features2proteins_options_return_stable_error(
                 "--export-peptides",
                 "peptides.csv",
             ],
-            stage: "dataset-normalization-export-peptides",
+            expected: "stage `dataset-normalization-export-peptides` is not implemented yet",
         },
-        // The `--plot-*` / `--interactive-report` / `--report-output` flags were
-        // removed from the Rust command interface (plotting / reports moved to
-        // the Python periphery), so they are no longer exercised here.
         FeatureToProteinsCase {
             args: &["--quant-method", "sum", "--export-ions", "ions.csv"],
-            stage: "export-ions",
+            expected: "--export-ions requires --quant-method directlfq",
         },
     ] {
         let mut args = vec![
@@ -275,43 +304,22 @@ fn unimplemented_features2proteins_options_return_stable_error(
         ];
         args.extend_from_slice(case.args);
         let error = match run(&args) {
-            Ok(()) => panic!("unimplemented options must fail"),
+            Ok(()) => panic!("invalid or unimplemented options must fail"),
             Err(error) => error,
         };
         let message = error.to_string();
-        let expected = format!("stage `{}` is not implemented yet", case.stage);
         assert!(
-            message.contains(&expected),
+            message.contains(case.expected),
             "unexpected error for {:?}: {message}",
             case.args
         );
     }
-    let error = match run(&[
-        "quantify",
-        "features2proteins",
-        "--parquet",
-        parquet,
-        "--sdrf",
-        sdrf,
-        "--output",
-        "protein.csv",
-        "--quant-method",
-        "directlfq",
-        "--export-peptides",
-        "peptides.csv",
-    ]) {
-        Ok(()) => panic!("DirectLFQ peptide export must fail"),
-        Err(error) => error,
-    };
-    assert!(error
-        .to_string()
-        .contains("export-peptides is not supported by directlfq"));
     Ok(())
 }
 
 struct FeatureToProteinsCase<'a> {
     args: &'a [&'a str],
-    stage: &'a str,
+    expected: &'a str,
 }
 
 fn run(args: &[&str]) -> mokume_core::Result<()> {
@@ -321,12 +329,13 @@ fn run(args: &[&str]) -> mokume_core::Result<()> {
     run_from_args(argv)
 }
 
-fn temp_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn temp_root() -> Result<(tempfile::TempDir, PathBuf), Box<dyn std::error::Error>> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-    Ok(tempfile::Builder::new()
+    let directory = tempfile::Builder::new()
         .prefix(&format!("mokume-command-test-{timestamp}-"))
-        .tempdir()?
-        .keep())
+        .tempdir()?;
+    let path = directory.path().to_path_buf();
+    Ok((directory, path))
 }
 
 fn path_str(path: &Path) -> Result<&str, Box<dyn std::error::Error>> {

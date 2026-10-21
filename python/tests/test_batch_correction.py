@@ -1,6 +1,3 @@
-import logging
-from pathlib import Path
-
 import pytest
 import pandas as pd
 
@@ -8,12 +5,29 @@ from mokume.commands.batch_correct import (
     get_batch_id_from_sample_names,
     run_batch_correction,
 )
-from mokume.core.constants import PIBAQ_BEC, PROTEIN_NAME, SAMPLE_ID
+from mokume.core.constants import PIBAQ, PIBAQ_BEC, PROTEIN_NAME, SAMPLE_ID
 
-TESTS_DIR = Path(__file__).parent
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+@pytest.fixture(name="batch_input_dir")
+def _batch_input_dir(tmp_path):
+    """Create two batches with two samples and five complete proteins each."""
+    folder = tmp_path / "batches"
+    folder.mkdir()
+    samples = ["PXD1-A", "PXD1-B", "PXD2-A", "PXD2-B"]
+    intensities = {
+        "P1": [10.0, 11.0, 20.0, 22.0],
+        "P2": [30.0, 33.0, 45.0, 46.0],
+        "P3": [5.0, 8.0, 12.0, 15.0],
+        "P4": [100.0, 90.0, 150.0, 140.0],
+        "P5": [50.0, 55.0, 70.0, 80.0],
+    }
+    rows = [
+        {PROTEIN_NAME: protein, SAMPLE_ID: sample, PIBAQ: values[index]}
+        for protein, values in intensities.items()
+        for index, sample in enumerate(samples)
+    ]
+    pd.DataFrame(rows).to_csv(folder / "synthetic.ibaq.tsv", sep="\t", index=False)
+    return folder
 
 
 @pytest.mark.parametrize(
@@ -28,70 +42,92 @@ def test_get_batch_id_supports_python_and_pandas_sequences(samples):
     assert get_batch_id_from_sample_names(samples).tolist() == [0, 0, 1]
 
 
-def test_correct_batches(tmp_path):
-    """
-    Test the `run_batch_correction` function on historical iBAQ fixtures
-    from TSV files, generates the expected output files, and handles various error cases.
-
-    This test verifies:
-    - The creation and non-emptiness of the corrected output TSV file.
-    - The creation and correct shape of the AnnData object.
-    - Handling of invalid sample IDs by raising a ValueError.
-    - Handling of missing required columns by raising a ValueError.
-    - Handling of invalid file patterns by raising a ValueError.
-    """
+def test_correct_batches(tmp_path, batch_input_dir):
+    """Batch correction writes corrected long data and matching AnnData."""
     pytest.importorskip("inmoose", reason="inmoose is required for batch correction")
     anndata = pytest.importorskip(
         "anndata", reason="anndata is required for batch correction"
     )
 
-    args = {
-        "folder": TESTS_DIR / "ibaq-raw-hela",
-        "pattern": "*ibaq.tsv",
-        "comment": "#",
-        "sep": "\t",
-        "output": tmp_path / "pibaq_corrected_combined.tsv",
-        "sample_id_column": SAMPLE_ID,
-        "protein_id_column": PROTEIN_NAME,
-        "pibaq_raw_column": "Ibaq",
-        "pibaq_corrected_column": PIBAQ_BEC,
-        "export_anndata": True,
-    }
-    logging.debug("Arguments for run_batch_correction: %s", args)
-    run_batch_correction(**args)
+    source = pd.read_csv(batch_input_dir / "synthetic.ibaq.tsv", sep="\t")
+    output_path = tmp_path / "pibaq_corrected_combined.tsv"
+    corrected = run_batch_correction(
+        folder=batch_input_dir,
+        pattern="*ibaq.tsv",
+        comment="#",
+        sep="\t",
+        output=output_path,
+        pibaq_raw_column=PIBAQ,
+        export_anndata=True,
+    )
 
-    # Assert the output file is created and not empty
-    output_path = Path(args["output"])
-    assert output_path.exists(), f"Expected output file {output_path} was not created."
-    df = pd.read_csv(output_path, sep=args["sep"])
-    assert not df.empty, "The corrected output file is empty."
+    assert output_path.is_file()
+    assert corrected.shape == (20, 4)
+    assert corrected[PIBAQ_BEC].notna().all()
+    identity_columns = [PROTEIN_NAME, SAMPLE_ID]
+    assert set(corrected[identity_columns].itertuples(index=False, name=None)) == set(
+        source[identity_columns].itertuples(index=False, name=None)
+    )
+    pd.testing.assert_frame_equal(
+        corrected[[*identity_columns, PIBAQ]]
+        .sort_values(identity_columns)
+        .reset_index(drop=True),
+        source[[*identity_columns, PIBAQ]]
+        .sort_values(identity_columns)
+        .reset_index(drop=True),
+    )
 
-    # Assert the AnnData object is created
     adata_path = output_path.with_suffix(".h5ad")
-    assert adata_path.exists(), f"Expected AnnData file {adata_path} was not created."
-
-    # Read the AnnData object and check shape and layers
+    assert adata_path.is_file()
     adata = anndata.read_h5ad(adata_path)
-    logger.info(adata)
-    assert adata.shape == (46, 3476)
-    assert adata.layers[PIBAQ_BEC].shape == (46, 3476)
-
-    # Test invalid sample IDs
-    with pytest.raises(ValueError):
-        args["folder"] = TESTS_DIR / "invalid-samples"
-        run_batch_correction(**args)
-
-    # Test missing required columns
-    with pytest.raises(ValueError):
-        args["folder"] = TESTS_DIR / "ibaq-raw-hela"
-        args["sample_id_column"] = "NonexistentColumn"
-        run_batch_correction(**args)
-
-    # Test invalid file pattern
-    with pytest.raises(ValueError):
-        args["pattern"] = "nonexistent*.tsv"
-        run_batch_correction(**args)
+    assert adata.shape == (4, 5)
+    assert adata.layers[PIBAQ_BEC].shape == (4, 5)
+    assert set(adata.obs_names) == set(source[SAMPLE_ID])
+    assert set(adata.var_names) == set(source[PROTEIN_NAME])
 
 
-if __name__ == "__main__":
-    test_correct_batches()
+def test_correct_batches_rejects_invalid_sample_ids(tmp_path, batch_input_dir):
+    """Reject sample identifiers that cannot be assigned to a batch."""
+    input_path = batch_input_dir / "synthetic.ibaq.tsv"
+    data = pd.read_csv(input_path, sep="\t")
+    data.loc[data[SAMPLE_ID] == "PXD1-A", SAMPLE_ID] = "invalid sample"
+    data.to_csv(input_path, sep="\t", index=False)
+
+    with pytest.raises(ValueError, match="Invalid sample IDs found in the data"):
+        run_batch_correction(
+            folder=batch_input_dir,
+            pattern="*ibaq.tsv",
+            comment="#",
+            sep="\t",
+            output=tmp_path / "unused.tsv",
+            pibaq_raw_column=PIBAQ,
+        )
+
+
+def test_correct_batches_rejects_missing_required_column(tmp_path, batch_input_dir):
+    """Reject a configured sample column that is absent from the input."""
+    with pytest.raises(ValueError, match="NonexistentColumn"):
+        run_batch_correction(
+            folder=batch_input_dir,
+            pattern="*ibaq.tsv",
+            comment="#",
+            sep="\t",
+            output=tmp_path / "unused.tsv",
+            sample_id_column="NonexistentColumn",
+            pibaq_raw_column=PIBAQ,
+        )
+
+
+def test_correct_batches_rejects_empty_input_directory(tmp_path):
+    """Reject an input directory with no matching quantification files."""
+    folder = tmp_path / "empty"
+    folder.mkdir()
+
+    with pytest.raises(ValueError, match="Failed to load input files: No files found"):
+        run_batch_correction(
+            folder=folder,
+            pattern="*ibaq.tsv",
+            comment="#",
+            sep="\t",
+            output=tmp_path / "unused.tsv",
+        )

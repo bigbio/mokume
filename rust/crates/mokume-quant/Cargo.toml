@@ -12,4 +12,6 @@ workspace = true
 
 [dependencies]
 mokume-core = { path = "../mokume-core" }
+# Blocked Cholesky for the MaxLFQ sample-graph solve.
+faer = { version = "0.24", default-features = false, features = ["std"] }
 rayon = "1.12.0"

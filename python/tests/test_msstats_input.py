@@ -25,8 +25,8 @@ def test_msstats_parameter_preserves_positional_api():
         .arguments
     )
 
-    if arguments["quant_method"] != "sum" or "msstats" in arguments:
-        pytest.fail("MSstats input shifted the existing positional API")
+    assert arguments["quant_method"] == "sum"
+    assert "msstats" not in arguments
 
 
 def _write_sdrf(path: Path, rows: list[dict]) -> None:
@@ -79,6 +79,55 @@ def test_lfq_msstats_runs_end_to_end(tmp_path):
                 "Intensity": 200.0,
                 "Reference": "run.raw.two.mzML",
             },
+        ]
+    ).to_csv(msstats, index=False)
+
+    proteins = features_to_proteins(
+        parquet=None,
+        msstats=str(msstats),
+        sdrf=str(sdrf),
+        output=str(output),
+        quant_method="sum",
+        min_unique_peptides=1,
+        run_normalization="none",
+        sample_normalization="none",
+    )
+
+    row = proteins.set_index("ProteinName").loc["P1"]
+    assert row["S1"] == 100.0
+    assert row["S2"] == 200.0
+
+
+def test_numeric_factor_and_pooled_replicate_load(tmp_path):
+    """SDRF numeric factor values and pooled biological replicates load."""
+    sdrf = tmp_path / "input.sdrf.tsv"
+    msstats = tmp_path / "input_msstats_in.csv"
+    output = tmp_path / "proteins.csv"
+    _write_sdrf(
+        sdrf,
+        [
+            {
+                "source name": sample,
+                "comment[data file]": f"{sample}.raw",
+                "comment[label]": "label free sample",
+                "comment[technical replicate]": "1",
+                "comment[fraction identifier]": "1",
+                "characteristics[biological replicate]": replicate,
+                "factor value[dose]": dose,
+            }
+            for sample, replicate, dose in [("S1", "1", 10), ("S2", "pooled", 20)]
+        ],
+    )
+    pd.DataFrame(
+        [
+            {
+                "ProteinName": "P1",
+                "PeptideSequence": "PEPTIDEK",
+                "PrecursorCharge": 2,
+                "Intensity": intensity,
+                "Reference": f"{sample}.mzML",
+            }
+            for sample, intensity in [("S1", 100.0), ("S2", 200.0)]
         ]
     ).to_csv(msstats, index=False)
 
@@ -209,6 +258,50 @@ def test_partial_tmt11_uses_declared_channel_positions(tmp_path):
         feature.parquet_db.close()
 
     assert row == ("TMT131N",)
+
+
+def test_reference_names_the_file_when_run_is_a_design_index(tmp_path):
+    """quantms Run is a design index, so numeric file names must not claim it."""
+    sdrf = tmp_path / "input.sdrf.tsv"
+    msstats = tmp_path / "input_msstats_in.csv"
+    _write_sdrf(
+        sdrf,
+        [
+            {
+                "source name": sample,
+                "comment[data file]": data_file,
+                "comment[label]": "label free sample",
+            }
+            for sample, data_file in [("S1", "2.raw"), ("S2", "2_20221202203139.raw")]
+        ],
+    )
+    pd.DataFrame(
+        [
+            {
+                "ProteinName": "P1",
+                "PeptideSequence": "PEPTIDEK",
+                "Charge": 2,
+                "Run": run,
+                "Intensity": intensity,
+                "Reference": reference,
+            }
+            for run, reference, intensity in [
+                (1, "2.mzML", 100.0),
+                (2, "2_20221202203139.mzML", 200.0),
+            ]
+        ]
+    ).to_csv(msstats, index=False)
+
+    feature = Feature.from_msstats(str(msstats), str(sdrf))
+    try:
+        rows = feature.parquet_db.execute(
+            "SELECT intensities[1].intensity, run_file_name "
+            "FROM parquet_db_raw ORDER BY 1"
+        ).fetchall()
+    finally:
+        feature.parquet_db.close()
+
+    assert rows == [(100.0, "2.raw"), (200.0, "2_20221202203139.raw")]
 
 
 def test_msstats_rejects_nonfinite_intensity(tmp_path):

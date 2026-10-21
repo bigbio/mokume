@@ -59,6 +59,6 @@ the three six-panel README composites.
 
 ### [PXD030304 cancer cell-line atlas](pxd030304-cell-lines.md)
 
-Run native Rust DirectLFQ on 178.45 million DIA-NN QPX feature rows from 949
+Run native Rust DirectLFQ on 228.72 million DIA-NN QPX feature rows from 949
 cell lines, then reproduce the README overview and tissue-biology composites
 from the written matrix.

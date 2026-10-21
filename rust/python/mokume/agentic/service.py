@@ -166,10 +166,12 @@ def _validate_ground_truth_overlap(
 class RecommendationService:
     """Bind one immutable knowledge graph to the two public MCP operations."""
 
-    def __init__(self, knowledge: str) -> None:
-        knowledge_path = str(Path(knowledge).resolve())
-        _require_file(knowledge_path, "knowledge")
-        self._graph = load_knowledge_graph(knowledge_path)
+    def __init__(self, knowledge: str | Path | None = None) -> None:
+        if knowledge is not None:
+            knowledge_path = str(Path(knowledge).expanduser().resolve())
+            _require_file(knowledge_path, "knowledge")
+            knowledge = knowledge_path
+        self._graph = load_knowledge_graph(knowledge)
 
     def inspect_dataset(
         self,

@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 from mokume.model.labeling import QuantificationCategory
@@ -30,7 +31,9 @@ class TestSQLFilterBuilder:
         assert 'LENGTH("sequence") >= ?' in where_clause
         assert 7 in params
         # Should include unique peptide filter
-        assert '"unique" = 1' in where_clause
+        assert '("unique" = 1 OR ("unique" IS NULL AND len(pg_accessions) = 1))' in (
+            where_clause
+        )
         # Should include contaminant filters (parameterized with ? placeholders)
         assert "list_bool_and(list_transform(pg_accessions" in where_clause
         assert "CONTAMINANT" in params
@@ -189,9 +192,17 @@ class TestFeatureWideFormat:
         # Enrich with SDRF
         feature.enrich_with_sdrf(sdrf_path)
 
-        # After enrichment, conditions should be from SDRF
-        conditions_after = feature.get_unique_conditions()
-        assert len(conditions_after) > 0
+        assert set(feature.get_unique_samples()) == {
+            f"PXD020192-Sample-{number}" for number in range(10, 20)
+        }
+        assert set(feature.get_unique_conditions()) == {
+            "Brain",
+            "Cerebellum",
+            "Endometrium",
+            "Medulla oblongata",
+            "Placenta",
+            "Spinal cord",
+        }
 
     def test_iter_samples(self, feature_path):
         """Test that iter_samples works with wide format."""
@@ -364,8 +375,9 @@ class TestPeptideNormalizationWideFormat:
         assert set(keep_shared_df["ProteinName"]) == {"P1", "P1;P2"}
         assert captured_filter_builders[-1].require_unique is False
 
-    def test_normalization_without_sdrf(self):
+    def test_normalization_without_sdrf(self, tmp_path):
         """Test peptide normalization without SDRF (uses defaults)."""
+        out = tmp_path / "PXD020192-no-sdrf.csv"
         args = {
             "parquet": str(TESTS_DIR / "example/feature_wide.parquet"),
             "sdrf": None,
@@ -374,7 +386,7 @@ class TestPeptideNormalizationWideFormat:
             "remove_ids": None,
             "remove_decoy_contaminants": True,
             "remove_low_frequency_peptides": False,
-            "output": str(TESTS_DIR / "example" / "out" / "PXD020192-no-sdrf.csv"),
+            "output": str(out),
             "skip_normalization": False,
             "nmethod": "median",
             "pnmethod": "globalMedian",
@@ -382,22 +394,24 @@ class TestPeptideNormalizationWideFormat:
             "save_parquet": False,
         }
 
-        out = Path(args["output"])
-        if out.exists():
-            out.unlink()
-
-        # Should complete without errors
         peptide_normalization(**args)
 
-        # Output should exist
-        assert out.exists()
+        result = pd.read_csv(out)
+        assert result.columns.tolist() == [
+            "ProteinName",
+            "PeptideCanonical",
+            "SampleID",
+            "BioReplicate",
+            "Condition",
+            "NormIntensity",
+        ]
+        assert not result.empty
+        assert np.isfinite(result["NormIntensity"]).all()
+        assert result["Condition"].equals(result["SampleID"])
 
-        # Clean up
-        if out.exists():
-            out.unlink()
-
-    def test_normalization_with_sdrf(self):
+    def test_normalization_with_sdrf(self, tmp_path):
         """Test peptide normalization with SDRF enrichment."""
+        out = tmp_path / "PXD020192-with-sdrf.csv"
         args = {
             "parquet": str(TESTS_DIR / "example/feature_wide.parquet"),
             "sdrf": str(TESTS_DIR / "example/PXD020192.sdrf.tsv"),
@@ -406,7 +420,7 @@ class TestPeptideNormalizationWideFormat:
             "remove_ids": None,
             "remove_decoy_contaminants": True,
             "remove_low_frequency_peptides": False,
-            "output": str(TESTS_DIR / "example" / "out" / "PXD020192-with-sdrf.csv"),
+            "output": str(out),
             "skip_normalization": False,
             "nmethod": "median",
             "pnmethod": "globalMedian",
@@ -414,21 +428,30 @@ class TestPeptideNormalizationWideFormat:
             "save_parquet": False,
         }
 
-        out = Path(args["output"])
-        if out.exists():
-            out.unlink()
-
-        # Should complete without errors
         peptide_normalization(**args)
 
-        # Output should exist
-        assert out.exists()
+        result = pd.read_csv(out)
+        assert result.columns.tolist() == [
+            "ProteinName",
+            "PeptideCanonical",
+            "SampleID",
+            "BioReplicate",
+            "Condition",
+            "NormIntensity",
+        ]
+        assert not result.empty
+        assert np.isfinite(result["NormIntensity"]).all()
+        assert set(result["Condition"]) == {
+            "Brain",
+            "Cerebellum",
+            "Endometrium",
+            "Medulla oblongata",
+            "Placenta",
+            "Spinal cord",
+        }
+        assert set(result["BioReplicate"]) == {1, 2}
 
-        # Clean up
-        if out.exists():
-            out.unlink()
-
-    def test_normalization_with_filter_config(self):
+    def test_normalization_with_filter_config(self, tmp_path):
         """Test peptide normalization with PreprocessingFilterConfig."""
         from mokume.model.filters import PreprocessingFilterConfig
 
@@ -440,16 +463,19 @@ class TestPeptideNormalizationWideFormat:
         # Set contaminant removal
         filter_config.protein.remove_contaminants = True
         filter_config.protein.remove_decoys = True
+        filter_config.intensity.min_intensity = 100_000_000.0
 
+        out = tmp_path / "PXD020192-filtered.csv"
+        baseline_out = tmp_path / "PXD020192-unfiltered.csv"
         args = {
             "parquet": str(TESTS_DIR / "example/feature_wide.parquet"),
-            "sdrf": str(TESTS_DIR / "example/PXD020192.sdrf.tsv"),
+            "sdrf": None,
             "min_aa": 7,
             "min_unique": 1,
             "remove_ids": None,
             "remove_decoy_contaminants": True,
             "remove_low_frequency_peptides": False,
-            "output": str(TESTS_DIR / "example" / "out" / "PXD020192-filtered.csv"),
+            "output": str(out),
             "skip_normalization": False,
             "nmethod": "median",
             "pnmethod": "globalMedian",
@@ -458,16 +484,25 @@ class TestPeptideNormalizationWideFormat:
             "filter_config": filter_config,
         }
 
-        out = Path(args["output"])
-        if out.exists():
-            out.unlink()
-
-        # Should complete without errors
+        baseline_args = args.copy()
+        baseline_args["output"] = str(baseline_out)
+        baseline_args.pop("filter_config")
+        peptide_normalization(**baseline_args)
         peptide_normalization(**args)
 
-        # Output should exist
-        assert out.exists()
-
-        # Clean up
-        if out.exists():
-            out.unlink()
+        baseline = pd.read_csv(baseline_out)
+        result = pd.read_csv(out)
+        assert result.columns.tolist() == [
+            "ProteinName",
+            "PeptideCanonical",
+            "SampleID",
+            "BioReplicate",
+            "Condition",
+            "NormIntensity",
+        ]
+        assert not result.empty
+        assert np.isfinite(result["NormIntensity"]).all()
+        key_columns = ["ProteinName", "PeptideCanonical", "SampleID"]
+        baseline_keys = set(baseline[key_columns].itertuples(index=False, name=None))
+        filtered_keys = set(result[key_columns].itertuples(index=False, name=None))
+        assert filtered_keys < baseline_keys

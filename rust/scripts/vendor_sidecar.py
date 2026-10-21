@@ -111,6 +111,7 @@ SHARED_FILES: tuple[str, ...] = (
     "imputation/impseqrob.py",
     "imputation/qrilc.py",
     "imputation/seqknn.py",
+    "imputation/stochastic.py",
     "io/fasta.py",
     "model/__init__.py",
     "model/batch_correction.py",

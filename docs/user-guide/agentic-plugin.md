@@ -15,7 +15,7 @@ server manually.
 Install the default Rust-backed distribution with the plugin dependencies:
 
 ```bash
-pip install "mokume[agentic]"
+pip install "mokume[plugin]"
 ```
 
 The Rust-backed `mokume` distribution and this optional MCP workflow require
@@ -36,8 +36,8 @@ leave the sparse path empty. Start a new task after installation so Codex loads
 the skill and its MCP tools.
 
 The `mokume` executable must remain available on `PATH` to the Codex process.
-Installation is complete when the task exposes `mokume.inspect_dataset` and
-`mokume.evaluate_recommendation`.
+Installation is complete when the task exposes `mokume.inspect_dataset`,
+`mokume.evaluate_recommendation`, and `mokume.search_knowledge`.
 
 ### Claude Code
 
@@ -50,9 +50,9 @@ claude plugin install mokume@bigbio
 ```
 
 Start a new Claude Code session after installation. The plugin discovers the
-shared `analyze-proteomics` skill and starts the bundled Mokume MCP server with
-an installation-independent knowledge path. The `mokume` executable must be on
-the `PATH` inherited by Claude Code. No separate `/mcp` setup is required.
+shared `analyze-proteomics` skill and starts the Mokume MCP server, which loads
+its knowledge snapshot from the installed wheel. The `mokume` executable must
+be on the `PATH` inherited by Claude Code. No separate `/mcp` setup is required.
 
 ## Use
 
@@ -64,8 +64,10 @@ Ask Codex to use `$mokume:analyze-proteomics`, or invoke
 - an exact two-condition contrast from the selected SDRF factor;
 - the explicit protein-matrix scale (`linear` or `log2`);
 - an absolute peptide-count sidecar when testing DEqMS directly or in an ensemble;
-- the contrast and, when known, `LFQ`, `DIA`, or `TMT` data type;
-- the upstream quantification and engine when known;
+- the contrast and, when known, the `LFQ` (label-free DDA), `DIA`, or `TMT`
+  data type;
+- the upstream quantification and engine when known; a declared quantification
+  selects the benchmark preset measured on that quantification;
 - an absolute output directory; and
 - optionally, a ground-truth protein list for a spike-in benchmark.
 
@@ -74,6 +76,11 @@ the two requested conditions and binds compatible evidence into typed context
 blocks; unrelated SDRF conditions do not affect diagnostics or preprocessing.
 The host may then propose at most five configurations under the returned contract
 and pass the exact block to `evaluate_recommendation`.
+
+`search_knowledge` answers questions about methods, benchmark evidence, and the
+benchmark result of a named PXD dataset. Its results are explanation-only: a
+recommendation may cite only the `allowed_evidence_refs` that `inspect_dataset`
+returns.
 
 The comma- or tab-delimited protein matrix must use its first column for
 non-empty, unique protein identifiers and provide at least two numeric sample
@@ -152,10 +159,10 @@ input scale, diagnostics, measurements, and ranking status.
 plugins/mokume/
 ├── .codex-plugin/                      # Codex manifest and MCP adapter
 ├── .claude-plugin/plugin.json         # Claude Code manifest and MCP adapter
-├── knowledge/knowledge.yaml           # evidence index
-├── knowledge/sources/                 # immutable benchmark source artifacts
 └── skills/analyze-proteomics/          # shared workflow and output contract
-rust/python/mokume/agentic/             # deterministic MCP service
+rust/python/mokume/agentic/
+├── knowledge_bundle/                   # evidence index and source artifacts
+└── ...                                 # deterministic MCP service
 ```
 
 Update the knowledge index separately from model prompts. Every eligible

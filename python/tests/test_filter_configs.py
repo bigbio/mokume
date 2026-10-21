@@ -54,15 +54,12 @@ class TestFilterConfigurations:
         config = load_filter_config(config_file)
         pipeline = get_filter_pipeline(config)
 
-        assert pipeline is not None
-        assert len(pipeline) >= 0  # Some configs may have no active filters
+        assert pipeline.name == config.name
+        assert len(pipeline) > 0
 
     def test_basic_qc_config(self):
         """Test the basic QC configuration specifically."""
         config_path = EXAMPLE_FILTERS_DIR / "basic_qc.yaml"
-        if not config_path.exists():
-            pytest.skip("basic_qc.yaml not found")
-
         config = load_filter_config(config_path)
 
         assert config.name == "basic_qc"
@@ -73,9 +70,6 @@ class TestFilterConfigurations:
     def test_stringent_filtering_config(self):
         """Test the stringent filtering configuration specifically."""
         config_path = EXAMPLE_FILTERS_DIR / "stringent_filtering.yaml"
-        if not config_path.exists():
-            pytest.skip("stringent_filtering.yaml not found")
-
         config = load_filter_config(config_path)
 
         assert config.name == "stringent_filtering"

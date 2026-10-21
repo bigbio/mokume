@@ -45,6 +45,9 @@ def test_console_root_help_covers_the_installed_wheel(monkeypatch, capsys):
     assert "quantify" in output
     assert "plot" in output
     assert "interactive-report" in output
+    assert output.count("[requires: mokume[analysis]]") == 2
+    assert "mokume[plotting]" not in output
+    assert "mokume[reports]" not in output
     assert "--log-level <LEVEL>" in output
     assert "--log-file <FILE>" in output
     assert "mcp serve" not in output
@@ -158,7 +161,7 @@ def test_console_dispatches_periphery_arguments(monkeypatch):
     assert observed["args"] == ["--input", "datasets"]
 
 
-def test_console_dispatches_mcp_with_global_options(monkeypatch):
+def test_console_dispatches_mcp_without_knowledge_path(monkeypatch):
     """Global logging options must be consumed before MCP argparse runs."""
     observed = {}
     module = SimpleNamespace(
@@ -193,8 +196,6 @@ def test_console_dispatches_mcp_with_global_options(monkeypatch):
             "info",
             "mcp",
             "serve",
-            "--knowledge",
-            "knowledge.yaml",
             "--log-file",
             "mokume.log",
         ],
@@ -204,7 +205,7 @@ def test_console_dispatches_mcp_with_global_options(monkeypatch):
         entrypoint.main()
 
     assert exc_info.value.code == 0
-    assert observed["args"] == ["--knowledge", "knowledge.yaml"]
+    assert observed["args"] == []
     assert observed["logging"] == {"level": "info", "log_file": "mokume.log"}
 
 

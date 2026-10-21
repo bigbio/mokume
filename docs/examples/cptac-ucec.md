@@ -13,10 +13,10 @@ root of a local CPTAC archive that contains the PDC000125 QPX export.
 ## Install the runtime
 
 The helper needs PyArrow to read the QPX run column and Requests to query PDC.
-The plotting extra renders the final Mokume outputs.
+The analysis extra renders the final Mokume outputs.
 
 ```bash
-python -m pip install "mokume[plotting]" pyarrow requests
+python -m pip install "mokume[analysis]" pyarrow requests
 ```
 
 ## Build the analysis SDRF
@@ -64,7 +64,7 @@ mokume quantify features2proteins \
 normalization corrects sample-wide reporter loading shifts, then IRS aligns the
 17 plexes through their pooled channels and removes those references from the
 matrix. The 65% condition-wise coverage gate keeps a protein only when it is
-observed in at least 69 of 104 tumors and 32 of 49 normals. `ratio` is also a
+observed in at least 68 of 104 tumors and 32 of 49 normals. `ratio` is also a
 valid TMT quantification method, but its output is already
 log2(sample/reference); this example intentionally keeps a linear matrix for
 the downstream DE and plotting interfaces.
@@ -77,7 +77,6 @@ MPLCONFIGDIR="$CPTAC_OUT/matplotlib" \
 mokume plot de \
     --protein-matrix "$CPTAC_OUT/PDC000125.proteins.csv" \
     --outdir "$CPTAC_OUT/plots" \
-    --sdrf "$CPTAC_OUT/PDC000125.sdrf.tsv" \
     --volcano \
     --log2fc 0.5 \
     --fdr 0.05 \
@@ -211,8 +210,8 @@ profile. The independent Rust quantification paths share 4,647 protein effects
 not an independent validation set.*
 
 On the workstation used to render this figure (Intel Core Ultra 7 270K Plus,
-24 hardware threads, 125 GiB RAM), the four single runs took 48.76–72.80
-seconds with 2.05–3.16 GiB peak RSS. These measurements document this exact
+24 hardware threads, 125 GiB RAM), the four single runs took 22.97–42.53
+seconds with 2.01–3.15 GiB peak RSS. These measurements document this exact
 run; they are not a portable hardware benchmark.
 
 ![PDC000125 UCEC differential expression](../assets/cptac_ucec_biology.png)
@@ -232,7 +231,7 @@ samples by condition and then plex so this design structure stays visible.
 As a numerical cross-check, every reported `log2FC` was independently
 recomputed from the written linear matrix after replacing non-positive cells
 with missing values. The maximum absolute difference across all 4,665 proteins
-was `3.2e-14`, and every per-protein sample count matched the matrix exactly.
+was `2.8e-14`, and every per-protein sample count matched the matrix exactly.
 
 ## Data citation
 

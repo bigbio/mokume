@@ -54,7 +54,7 @@ levels. **mokume is Rust-first**: new computation lands in the Rust kernel, and
 overlapping supported paths are parity-tested where coverage exists. See
 [Maintenance scope](#maintenance-scope) below. The measured runtime/memory
 trade-off is workload-specific: on the current `sum` parity benchmark the Rust
-path is about 1.25–1.28× slower, while using about 4.9–6.2× less peak memory.
+path is about 1.4–1.5× faster, while using about 6.2–8.3× less peak memory.
 See [docs/architecture.md](docs/architecture.md) for the measured values.
 
 ## Installation
@@ -72,11 +72,9 @@ that runtime's complete protease catalog and passes the theoretical peptide map
 into the Rust kernel. Extras select Mokume's additional periphery stacks:
 
 ```bash
-pip install "mokume[plotting]"   # t-SNE, DE plots, and piBAQ QC
-pip install "mokume[reports]"    # interactive HTML reports
+pip install "mokume[analysis]"   # plots, reports, QC, comparison, and missforest
 pip install "mokume[tissuemap]"  # tissue-specificity pipeline
-pip install "mokume[analysis]"   # QC, workflow comparison, and missforest
-pip install "mokume[agentic]"    # local MCP service used by the Mokume Plugin
+pip install "mokume[plugin]"     # local MCP service used by the Mokume Plugin
 pip install "mokume[all]"        # all Python periphery dependencies
 ```
 
@@ -118,10 +116,14 @@ mokume quantify features2proteins \
   --output proteins.csv --de-output de_results.csv
 ```
 
+The wheel runs the same kernel in-process from Python:
+`mokume.features2proteins(parquet="features.parquet", sdrf="samples.sdrf.tsv", quant_method="maxlfq", output="proteins.csv")`.
+Each keyword argument maps to a CLI flag; see [Rust wheel](docs/rust-wheel.md).
+
 Both computation implementations expose the `features2proteins` command, but
 their CLIs and supported options are maintained separately. For scripting, the
-pure-Python package exposes component APIs — for example, quantifying a peptide
-table:
+pure-Python `mokume-py` package (installed instead of `mokume`) exposes
+component APIs — for example, quantifying a peptide table:
 
 ```python
 import pandas as pd
@@ -134,11 +136,9 @@ peptides = pd.read_csv("peptides.csv")
 proteins = TopNQuantification(n=3).quantify(peptides)
 ```
 
-Normalization, imputation, and differential expression have the same
-component-style API (see [below](#differential-expression) and the
-[Python package API reference](docs/reference/python-api-package.md)). The Rust
-wheel additionally exposes an in-process `mokume.features2proteins(...)` binding
-that runs the whole pipeline with no subprocess.
+In `mokume-py`, normalization, imputation, and differential expression have the
+same component-style API (see [below](#differential-expression) and the
+[Python package API reference](docs/reference/python-api-package.md)).
 
 ## Running different analyses
 
@@ -174,11 +174,11 @@ mokume quantify features2proteins \
   --parquet features.parquet --sdrf samples.sdrf.tsv \
   --quant-method maxlfq \
   --de-contrast "Treatment" "Control" \
-  --output proteins.csv --de-output de_results
+  --output proteins.csv --de-output de_results.csv
 ```
 
-**Pure-Python pipeline** — express the workflow as a configurable object that
-returns a `QpxDataset` you can inspect level by level:
+**Pure-Python pipeline** (`mokume-py`) — express the workflow as a
+configurable object that returns a `QpxDataset` you can inspect level by level:
 
 ```python
 from mokume.pipeline.config import PipelineConfig, InputConfig, QuantificationConfig
@@ -239,7 +239,8 @@ The full catalog lives in the [user guide](docs/user-guide/) and the
 ## Differential expression
 
 mokume ships several differential-expression methods behind one interface, with
-Benjamini-Hochberg (default) or IHW FDR control:
+Benjamini-Hochberg (default), IHW, BKY, or Storey FDR control and fixed or
+data-driven effect-size gates:
 
 - **LimROTS** — limma moderation with a ROTS bootstrap-optimized statistic; the
   best sensitivity on MaxLFQ data.
@@ -248,6 +249,8 @@ Benjamini-Hochberg (default) or IHW FDR control:
 - **proDA** — probabilistic dropout-aware DE that models missing values as
   informative, not random.
 - **limma**, **ROTS**, and a consensus **ensemble** are also wired.
+
+With `mokume-py`, the individual methods are available as a Python component:
 
 ```python
 from mokume.analysis import DifferentialExpression
@@ -269,7 +272,8 @@ not overwrite it. See [docs/concepts/differential-expression.md](docs/concepts/d
 The installable Mokume Plugin lets Codex or Claude Code inspect a protein
 matrix, bind traceable benchmark evidence, and evaluate bounded normalization,
 imputation, and differential-expression candidates through the Rust kernel.
-The host owns the model and credentials; Mokume contains no BYOK model client.
+For this Plugin path, the host owns the model and credentials; Mokume receives
+no host API key.
 Its bundled local MCP server starts automatically when the plugin is enabled.
 With ground truth it ranks the five Score A metrics by benchmark mean rank;
 without ground truth it reports
@@ -291,11 +295,11 @@ skill, a traceable knowledge snapshot, and automatic local MCP configuration;
 the MCP tools call the default wheel's Rust-backed matrix APIs.
 
 The wheel's Python API and console command share one compiled kernel, so a
-result computed through either interface is identical. On the 2026-08-23
+result computed through either interface is identical. On the 2026-10-18
 `sum` parity rerun (24 threads, one warm-up, median of three measured runs),
-Rust/Python wall times were 8.95/7.17 seconds on PXD003539 and 17.84/13.99
-seconds on PXD004701. Peak memory was 0.86/4.25 GiB and 1.29/8.02 GiB,
-respectively. Protein sets, sample sets, and all 390,540/544,008 matrix cells
+Rust/Python wall times were 6.43/9.38 seconds on PXD003539 and 11.84/16.48
+seconds on PXD004701. Peak memory was 0.73/4.51 GiB and 0.80/6.58 GiB,
+respectively. Protein sets, sample sets, and all 448,380/614,308 matrix cells
 were exact. For the full design, see [docs/architecture.md](docs/architecture.md).
 
 ## Maintenance scope
@@ -327,15 +331,15 @@ mokume is **Rust-first**:
 
 This scope covers the **computation implementations only**. The Python pipeline
 API and its shared post-processing, plotting, reporting, and TissueMap remain
-periphery. Agentic recommendation is maintained as a plugin over the default
-Rust-backed wheel, rather than as a second computation backend. Full policy:
+periphery. The installable Mokume Plugin is an interface over the default
+Rust-backed wheel, rather than an additional computation backend. Full policy:
 [docs/maintenance-scope.md](docs/maintenance-scope.md).
 
 ## Example: a tissue proteome atlas
 
-A full run on real data: **PXD030304**, 178.45 million DIA-NN QPX feature rows
+A full run on real data: **PXD030304**, 228.72 million DIA-NN QPX feature rows
 from 5,798 label-free runs representing 949 cancer cell lines. Native Rust
-DirectLFQ writes the 8,930 × 949 protein matrix; Mokume's Python periphery reads
+DirectLFQ writes the 9,530 × 949 protein matrix; Mokume's Python periphery reads
 that result to embed the samples, inspect detection depth, score AdaTiSS tissue
 specificity, and find tissue markers.
 
@@ -345,16 +349,16 @@ specificity, and find tissue markers.
 
 *All 949 cell lines: PCA and t-SNE by tissue of origin, tissue representation,
 technical-run depth versus protein detection, detection across major tissues,
-and the PCA variance profile. PC1 explains 20.6% and PC2 7.3% of the variance.*
+and the PCA variance profile. PC1 explains 19.5% and PC2 6.8% of the variance.*
 
 <p align="center">
   <img src="docs/assets/pxd030304_rust_biology.png" alt="Six-panel PXD030304 tissue-specificity and marker showcase" width="100%">
 </p>
 
-*Biological panels use the 790 cell lines in the 30 tissues with at least five
+*Biological panels use the 815 cell lines in the 34 tissues with at least five
 samples: Wilcoxon marker profiles, AdaTiSS scores, tissue-specific protein
 counts, and three marker-expression maps. The complete Rust command, renderer,
-result interpretation, and numerical comparison with the previous run are in
+result interpretation, and numerical comparison with the previous kernel are in
 [docs/examples/pxd030304-cell-lines.md](docs/examples/pxd030304-cell-lines.md).*
 
 ## Example: CPTAC UCEC total proteome

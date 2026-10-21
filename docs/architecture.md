@@ -15,9 +15,9 @@ periphery and fallback paths are documented separately below. The pure-Python
 package computes the same capabilities through its own implementation.
 
 > **Measured performance.** Performance is workload-specific. On the
-> 2026-08-23 `sum` parity rerun (PXD003539 / PXD004701, 24 threads, one warm-up,
-> median of three measured runs), Rust/Python wall times were 8.95/7.17 seconds
-> and 17.84/13.99 seconds; peak memory was 0.86/4.25 GiB and 1.29/8.02 GiB.
+> 2026-10-18 `sum` parity rerun (PXD003539 / PXD004701, 24 threads, one warm-up,
+> median of three measured runs), Rust/Python wall times were 6.43/9.38 seconds
+> and 11.84/16.48 seconds; peak memory was 0.73/4.51 GiB and 0.80/6.58 GiB.
 > Protein/sample sets and every matrix cell were exact. Quote these measured
 > trade-offs rather than an unbounded speed claim.
 
@@ -105,17 +105,19 @@ the runtime digest is traceable.
 ## The Mokume Plugin
 
 Agentic recommendation is shipped as an installable host plugin under
-`plugins/mokume/`, not as a model client inside either computation package. The
-bundle contains one skill, automatic local MCP configuration, and a committed
-knowledge snapshot. Its MCP process is provided by `mokume[agentic]` in the
-default Rust-backed wheel.
+`plugins/mokume/`. The bundle contains one skill, automatic local MCP
+configuration, and a committed knowledge snapshot. Its MCP process is provided
+by `mokume[plugin]` in the default Rust-backed wheel. This path uses the model
+and credentials already owned by Codex or Claude Code.
 
 The host model reads the skill and calls `mokume.inspect_dataset` with a
 two-condition contrast to receive a contrast-scoped typed profile, deterministic
 diagnostics, compatible evidence, and a bounded generation contract. It returns
 an exact recommendation block to
 `mokume.evaluate_recommendation`, which validates the block before running the
-Rust matrix APIs. Mokume never receives the host's model API key.
+Rust matrix APIs. A third tool, `mokume.search_knowledge`, returns
+explanation-only benchmark evidence and dataset summaries. Mokume never receives
+the Plugin host's model API key.
 
 The scientific boundary is explicit: ground-truth datasets may be ranked with
 Score A; unlabelled datasets remain exploratory and have no winner. The plugin

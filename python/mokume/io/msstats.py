@@ -42,18 +42,13 @@ def _run_key_sql(column: str) -> str:
 
 _RESOLVED_SQL = """
     CREATE TEMP VIEW _msstats_resolved AS
-    SELECT m.*, rr.run_file_name AS _reference_file,
-           ru.run_file_name AS _run_file,
-           COALESCE(rr.run_file_name, ru.run_file_name) AS _run_file_name
+    SELECT m.*, a.run_file_name AS _run_file_name
     FROM _msstats_input m
-    LEFT JOIN _msstats_run_aliases rr ON rr.alias_key = m._reference_key
-    LEFT JOIN _msstats_run_aliases ru ON ru.alias_key = m._run_key
+    LEFT JOIN _msstats_run_aliases a ON a.alias_key = m._run_key
 """
 _VALIDATION_SQL = """
     SELECT COUNT(*),
            COUNT_IF(_run_file_name IS NULL),
-           COUNT_IF(_reference_file IS NOT NULL AND _run_file IS NOT NULL
-                    AND _reference_file <> _run_file),
            COUNT_IF(NULLIF(trim(_protein), '') IS NULL
                     OR NULLIF(trim(_peptide), '') IS NULL
                     OR upper(regexp_replace(regexp_replace(regexp_replace(
@@ -293,15 +288,10 @@ def _load_msstats_input(
         )
         for alias, column in resolved.items()
     ]
-    reference = resolved["_reference"]
-    run = resolved["_run"]
-    projection.extend(
-        [
-            _run_key_sql(_quote_identifier(reference) if reference else "NULL")
-            + " AS _reference_key",
-            _run_key_sql(_quote_identifier(run) if run else "NULL") + " AS _run_key",
-        ]
-    )
+    # quantms writes Run as an OpenMS design index and the data file in
+    # Reference, so Run names the file only when there is no Reference column.
+    file_column = resolved["_reference"] or resolved["_run"]
+    projection.append(_run_key_sql(_quote_identifier(file_column)) + " AS _run_key")
     source.project(", ".join(projection)).create_view("_msstats_input")
     return resolved["_channel"] is not None
 
@@ -338,18 +328,12 @@ def _channel_labels(
 
 
 def _validate_resolved_rows(connection: duckdb.DuckDBPyConnection) -> None:
-    total, unresolved, conflicts, invalid = connection.execute(
-        _VALIDATION_SQL
-    ).fetchone()
+    total, unresolved, invalid = connection.execute(_VALIDATION_SQL).fetchone()
     if total == 0:
         raise ValueError("MSstats input contains no rows")
     if unresolved:
         raise ValueError(
             f"{unresolved} MSstats rows cannot be mapped to an SDRF data file"
-        )
-    if conflicts:
-        raise ValueError(
-            f"{conflicts} MSstats rows map Run and Reference to different SDRF files"
         )
     if invalid:
         raise ValueError(f"{invalid} MSstats rows contain invalid required values")

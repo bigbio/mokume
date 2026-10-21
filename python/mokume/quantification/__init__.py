@@ -142,6 +142,17 @@ _SIMPLE_METHODS = {
 __getattr__, __dir__ = module_api(_LAZY_EXPORTS, globals(), __name__)
 
 
+def _maxlfq_options(kwargs: dict) -> dict:
+    """Resolve the supported MaxLFQ constructor options and legacy aliases."""
+    return {
+        "min_peptides": kwargs.get("min_peptides", 2),
+        "min_ratio_count": kwargs.get("min_ratio_count"),
+        "stabilize": kwargs.get("stabilize", False),
+        "threads": kwargs.get("threads", kwargs.get("n_jobs", -1)),
+        "verbose": kwargs.get("verbose", 0),
+    }
+
+
 def get_quantification_method(method: str, **kwargs) -> ProteinQuantificationMethod:
     """
     Get a quantification method instance by name.
@@ -158,8 +169,10 @@ def get_quantification_method(method: str, **kwargs) -> ProteinQuantificationMet
         Additional arguments passed to the quantification method constructor.
 
         For MaxLFQ:
-            - min_peptides: int (default 2)
-            - n_jobs: int (default -1, all cores)
+            - min_ratio_count: int (default 2; shared species per sample pair)
+            - stabilize: bool (default False; Cox Eq. 5 large-ratio stabilization)
+            - min_peptides: legacy alias for min_ratio_count
+            - threads: int (default -1, all cores)
 
         For TopN:
             - n: int (default 3, can also be parsed from method name)
@@ -195,7 +208,7 @@ def get_quantification_method(method: str, **kwargs) -> ProteinQuantificationMet
 
     Examples
     --------
-    >>> method = get_quantification_method("maxlfq", min_peptides=2, n_jobs=4)
+    >>> method = get_quantification_method("maxlfq", min_ratio_count=2, threads=4)
     >>> result = method.quantify(peptide_df, ...)
 
     >>> # TopN with any N
@@ -206,6 +219,8 @@ def get_quantification_method(method: str, **kwargs) -> ProteinQuantificationMet
     >>> method = get_quantification_method("directlfq", min_nonan=2)
     """
     method_lower = method.lower()
+    if kwargs.get("stabilize", False) and method_lower != "maxlfq":
+        raise ValueError("stabilize only applies to MaxLFQ")
 
     if method_lower == "pibaq":
         registry_module = importlib.import_module("mokume.core.registry")
@@ -222,11 +237,7 @@ def get_quantification_method(method: str, **kwargs) -> ProteinQuantificationMet
         return __getattr__("TopNQuantification")(n=n)
 
     if method_lower == "maxlfq":
-        return __getattr__("MaxLFQQuantification")(
-            min_peptides=kwargs.get("min_peptides", 2),
-            threads=kwargs.get("threads", kwargs.get("n_jobs", -1)),
-            verbose=kwargs.get("verbose", 0),
-        )
+        return __getattr__("MaxLFQQuantification")(**_maxlfq_options(kwargs))
 
     if method_lower == "directlfq":
         return __getattr__("DirectLFQQuantification")(

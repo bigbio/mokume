@@ -1,7 +1,7 @@
 # PXD030304 cancer cell-line atlas
 
-This full-size example starts from the local QPX export for **PXD030304**:
-178,453,153 DIA-NN feature rows from 5,798 label-free runs representing 949
+This full-size example starts from the local QPX 1.1.4 export for **PXD030304**:
+228,721,586 DIA-NN feature rows from 5,798 label-free runs representing 949
 cancer cell lines. The native Rust kernel builds one DirectLFQ protein matrix;
 the Python periphery then reads that matrix to render the atlas, marker, and
 tissue-specificity panels. The plotting step does not re-quantify the data.
@@ -54,17 +54,17 @@ python docs/examples/render_pxd030304.py \
 The renderer changes positive DirectLFQ values to log2 scale, retains proteins
 observed in at least 5% of the 949 cell lines, applies MinDet only for the
 PCA/t-SNE embedding, and fixes the random seed at 42. All 949 cell lines enter
-the overview. Marker testing and AdaTiSS use the 790 cell lines in the 30
+the overview. Marker testing and AdaTiSS use the 815 cell lines in the 34
 tissues with at least five samples, so singleton and very small tissue groups
 cannot drive the biological panels.
 
 ## Reproduced result
 
-The Rust run accepted 163,871,510 feature measurements and wrote an 8,930 × 949
-protein matrix. Treating its zero sentinel as missing gives 49.56% missing
-cells. The visualization filter retains 7,092 proteins, of which 4,327 meet the
-stricter missingness threshold used for PCA and t-SNE. PC1 explains 20.6% and
-PC2 7.3% of the variance.
+The Rust run accepted 209,153,286 feature measurements and wrote a 9,530 × 949
+protein matrix. Treating its zero sentinel as missing gives 51.93% missing
+cells. The visualization filter retains 7,222 proteins, of which 4,468 meet the
+stricter missingness threshold used for PCA and t-SNE. PC1 explains 19.5% and
+PC2 6.8% of the variance.
 
 ![PXD030304 Rust DirectLFQ overview](../assets/pxd030304_rust_overview.png)
 
@@ -75,22 +75,22 @@ and the PCA variance profile.*
 ![PXD030304 tissue specificity and marker panels](../assets/pxd030304_rust_biology.png)
 
 *Wilcoxon marker profiles, the AdaTiSS distribution, tissue-specific protein
-counts, and three marker-expression maps. Across the 30 adequately represented
-tissues, AdaTiSS classifies 59 proteins as tissue-specific, 697 as
-tissue-enriched, 2,556 as housekeeping, and 3,780 as other.*
+counts, and three marker-expression maps. Across the 34 adequately represented
+tissues, AdaTiSS classifies 81 proteins as tissue-specific, 905 as
+tissue-enriched, 2,554 as housekeeping, and 3,682 as other.*
 
-## Numerical cross-check against the previous run
+## Numerical cross-check against the previous kernel
 
-The previous DirectLFQ table was used only after the new Rust run completed; it
-was never an input to the new matrix or figures. Both tables have the same
-8,930 proteins and 949 samples. Across 4,274,308 cells positive in both tables,
-the log2 Pearson correlation is 0.999121 and the Spearman correlation is
-0.999077, with a median log2 offset of 0. Detection status agrees for 99.99935%
-of all 8,474,570 protein-sample cells; the 55 disagreements are old-positive,
-new-zero cells spanning 22 proteins and 53 samples.
-
-The previous MaxLFQ table is a different quantification method and is therefore
-not expected to match cell by cell. On their shared positive values, its log2
-correlation with the new DirectLFQ matrix is 0.9803. These checks show no global
-scale, sample-order, protein-order, or detection-pattern failure in the new
-Rust result; they do not claim bit-for-bit identity between implementations.
+The same QPX input and SDRF were also quantified with the previous Rust kernel
+(commit `93c076e`); that table was used only for this comparison and was never
+an input to the new matrix or figures. The new table has 22 additional
+proteins, all human proteins whose group also names a contaminant entry (for
+example albumin P02768, catalase P04040, and cytochrome c P99999); the current
+kernel keeps these human entries instead of dropping the whole group. On the
+9,508 shared proteins and 949 samples, detection status agrees for all
+9,023,092 protein-sample cells. Across the 4,334,238 cells positive in both
+tables, the log2 Pearson and Spearman correlations both exceed 0.99999, the
+median log2 offset is −0.0003, and the largest absolute log2 difference is
+0.0065. These checks show no global scale, sample-order, protein-order, or
+detection-pattern failure in the new Rust result; they do not claim
+bit-for-bit identity between kernel versions.

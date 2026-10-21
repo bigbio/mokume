@@ -154,11 +154,6 @@ class TestQuantificationFactory:
 class TestQuantificationMethodEnum:
     """``QuantificationMethod`` enum exposes the new members."""
 
-    def test_new_members_exist(self):
-        assert QuantificationMethod.TMT_ABUNDANCE is not None
-        assert QuantificationMethod.TMT_REPORTER_INTENSITY is not None
-        assert QuantificationMethod.RATIO is not None
-
     @pytest.mark.parametrize(
         "name, expected",
         [

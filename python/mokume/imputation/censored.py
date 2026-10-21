@@ -4,8 +4,8 @@ Censored-aware missing value imputation for proteomics data.
 Implements multiple imputation strategies that account for the
 non-random nature of missingness in mass spectrometry data:
 
-- **MinProb**: Draws replacement values from the low tail of a
-  fitted normal distribution (Perseus-style).
+- **MinProb**: Draws replacement values from a normal centred on a low
+  quantile of each sample (imputeLCMD ``impute.MinProb``).
 - **MinDet**: Replaces missing values with a fixed quantile of the
   per-sample observed values.
 
@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from mokume.core.logger import get_logger
+from mokume.imputation.stochastic import check_tune_sigma, normals
 
 logger = get_logger("mokume.imputation.censored")
 
@@ -27,46 +28,55 @@ logger = get_logger("mokume.imputation.censored")
 def impute_minprob(
     data: pd.DataFrame,
     quantile: float = 0.01,
-    shift: float = 1.6,
-    scale: float = 0.3,
+    tune_sigma: float = 1.0,
     random_state: int = 42,
 ) -> pd.DataFrame:
-    """Perform MinProb imputation using a low-tail normal draw per sample.
+    """Perform imputeLCMD MinProb imputation, as the Rust kernel does.
 
-    Each missing entry is drawn from ``N(q_low - shift*sd, (scale*sd)**2)`` where
-    ``q_low`` is the ``quantile``-th observed value. The center is anchored at the
-    low observed quantile, which is more aggressive (lower) than Perseus's
-    mean-anchored MinProb; adjust ``quantile`` / ``shift`` / ``scale`` to match a
-    specific convention.
+    Each missing entry of a sample is drawn from ``N(q, sd**2)``: ``q`` is the
+    sample's ``quantile``-th observed value and ``sd`` is ``tune_sigma`` times
+    the median standard deviation of the proteins observed in more than half
+    of the samples. As in imputeLCMD, every sample draws a value for every
+    protein and keeps the draws of its missing cells.
 
-    ``random_state`` seeds the draws so repeated runs on the same matrix agree.
-    Without it a benchmark cannot rank this method against a deterministic one:
-    the run-to-run spread gets read as a difference between methods.
+    ``random_state`` seeds the draws (the kernel's ``seed``) so repeated runs
+    on the same matrix agree. Without it a benchmark cannot rank this method
+    against a deterministic one: the run-to-run spread gets read as a
+    difference between methods.
     """
-    result = data.copy()
-    rng = np.random.default_rng(random_state)
-    n_imputed = 0
+    check_tune_sigma(tune_sigma)
+    matrix = data.to_numpy(dtype=float)
+    observed = np.isfinite(matrix)
+    n_rows, n_cols = matrix.shape
+    if n_rows == 0 or n_cols == 0:
+        return data.copy()
 
-    for col in data.columns:
-        missing = data[col].isna()
-        if not missing.any():
-            continue
-        observed = data[col].dropna().values
-        if len(observed) == 0:
-            continue
+    sd = _median_protein_sd(np.where(observed, matrix, np.nan), observed) * tune_sigma
+    draws = normals(random_state, matrix.size).reshape(n_cols, n_rows).T
+    result = matrix.copy()
+    for col in range(n_cols):
+        values = matrix[observed[:, col], col]
+        if values.size == 0 or not 0.0 <= quantile <= 1.0:
+            raise ValueError(
+                "MinProb needs observed values in every sample and a quantile in [0,1]"
+            )
+        missing = ~observed[:, col]
+        result[missing, col] = np.quantile(values, quantile) + sd * draws[missing, col]
 
-        q_low = np.quantile(observed, quantile)
-        sd = np.std(observed) * scale
-        if sd < 1e-10:
-            sd = 0.1
-        mu = q_low - shift * sd
+    logger.info("MinProb imputation: %d values imputed", int((~observed).sum()))
+    return pd.DataFrame(result, index=data.index, columns=data.columns)
 
-        imputed = rng.normal(mu, sd, size=missing.sum())
-        result.loc[missing, col] = imputed
-        n_imputed += missing.sum()
 
-    logger.info("MinProb imputation: %d values imputed", n_imputed)
-    return result
+def _median_protein_sd(values: np.ndarray, observed: np.ndarray) -> float:
+    """Median SD of the proteins with values in more than half of the samples."""
+    counts = observed.sum(axis=1)
+    eligible = (counts * 2 > values.shape[1]) & (counts >= 2)
+    if not eligible.any():
+        raise ValueError(
+            "MinProb cannot estimate SD: no proteins with more than 50% observed "
+            "samples and at least two values"
+        )
+    return float(np.median(np.nanstd(values[eligible], axis=1, ddof=1)))
 
 
 def impute_mindet(

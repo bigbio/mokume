@@ -40,3 +40,25 @@ def contaminant_group_mask(
         return contam_re is not None and all(contam_re.search(m) for m in members)
 
     return groups.map(is_contaminant).astype(bool)
+
+
+def strip_contaminant_members(
+    groups: pd.Series,
+    patterns: Iterable[str],
+    case_sensitive: bool = False,
+) -> pd.Series:
+    """Drop matching members from groups that keep another member, as Rust does."""
+    patterns = list(patterns)
+    if not patterns:
+        return groups
+    flags = 0 if case_sensitive else re.IGNORECASE
+    member_re = re.compile("|".join(re.escape(p) for p in patterns), flags)
+
+    def strip(group):
+        if not isinstance(group, str):
+            return group
+        members = group.split(";")
+        kept = [m for m in members if not member_re.search(m)]
+        return ";".join(kept) if kept and len(kept) < len(members) else group
+
+    return groups.map(strip)

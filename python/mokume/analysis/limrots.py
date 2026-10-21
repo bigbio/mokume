@@ -20,7 +20,6 @@ import numpy as np
 import pandas as pd
 
 from mokume.analysis._helpers import (
-    bh_adjust,
     filter_testable,
     per_group_summary,
 )
@@ -30,6 +29,7 @@ from mokume.analysis.limma import (
     _lm_fit_with_na,
 )
 from mokume.analysis.rots import (
+    _calculate_fdr,
     _rank_abs,
     _reproducibility_score,
 )
@@ -206,12 +206,16 @@ def _pvalue_permutation(
     gene_names: list[str],
     coef_names: list[str],
 ) -> np.ndarray:
-    """Estimate p-values from permutation null of LimROTS d-statistic."""
+    """Permutation p-values of the LimROTS d-statistic, and the null statistics.
+
+    The null statistics hold one column per permutation for the native FDR.
+    """
     n_genes = len(d_obs)
     abs_d = np.abs(d_obs)
     count = np.ones(n_genes)
+    null = np.empty((n_genes, n_perm))
 
-    for _ in range(n_perm):
+    for permutation in range(n_perm):
         perm_idx = rng.permutation(design.shape[0])
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
@@ -224,10 +228,11 @@ def _pvalue_permutation(
                 coef_names,
             )
         d_p = _limrots_d_stat(bp, sp, up, a1, a2)
+        null[:, permutation] = d_p
         count += np.sum(np.abs(d_p)[:, np.newaxis] >= abs_d[np.newaxis, :], axis=0)
 
     pvalues = count / (n_genes * (n_perm + 1))
-    return np.minimum(pvalues, 1.0)
+    return np.minimum(pvalues, 1.0), null
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +295,7 @@ def run_limrots(
     d_stat = _limrots_d_stat(beta, s_post, u, best_a1, best_a2)
 
     n_perm = min(settings["n_boot"], 100)
-    pvalues = _pvalue_permutation(
+    pvalues, null = _pvalue_permutation(
         d_stat,
         mat,
         design,
@@ -314,7 +319,7 @@ def run_limrots(
 
     summary = per_group_summary(sub_matrix, samples_a, samples_b, cond_a, cond_b)
     merged = raw.merge(summary, on="ProteinName", how="left")
-    merged["adj_pvalue"] = bh_adjust(merged["pvalue"].values)
+    merged["adj_pvalue"] = _calculate_fdr(merged["t_stat"].to_numpy(dtype=float), null)
 
     columns = [
         "ProteinName",

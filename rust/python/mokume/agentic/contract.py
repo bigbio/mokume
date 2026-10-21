@@ -6,6 +6,8 @@ from collections.abc import Mapping
 import re
 from typing import Any
 
+# Acquisition types that knowledge records apply to; LFQ means label-free DDA.
+DATA_TYPES: tuple[str, ...] = ("LFQ", "DIA", "TMT")
 DE_METHODS: tuple[str, ...] = (
     "limrots",
     "limma",

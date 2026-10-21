@@ -20,6 +20,9 @@ mod h5ad;
 mod other_args;
 mod parsers;
 mod peptides2protein;
+mod schema;
+
+pub use schema::{command_schema, command_schema_json, CommandSpec, FlagSpec, ValueArity};
 
 use features_to_peptides::Features2PeptidesArgs;
 use features_to_proteins::Features2ProteinsArgs;
@@ -138,12 +141,17 @@ where
         Commands::Quantify(QuantifyArgs {
             command: QuantifyCommands::Peptides2Protein(args),
         }) if args.quant_method.eq_ignore_ascii_case("pibaq") && args.output.is_some() => {
+            let (enzyme, min_aa, max_aa) = (
+                args.pibaq_enzyme(),
+                args.pibaq_min_aa(),
+                args.pibaq_max_aa(),
+            );
             let fasta = args.fasta?;
             fasta.is_file().then_some(PibaqDigestRequest {
                 fasta,
-                enzyme: args.enzyme,
-                min_aa: args.min_aa,
-                max_aa: args.max_aa,
+                enzyme,
+                min_aa,
+                max_aa,
                 missed_cleavages: 0,
             })
         }
@@ -164,6 +172,27 @@ where
         message: error.to_string(),
     })?;
     dispatch(cli, None)
+}
+
+/// Parse an argument vector without dispatching or executing the selected command.
+pub fn validate_args<I, T>(args: I) -> mokume_core::Result<()>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    let cli = Cli::try_parse_from(args).map_err(|error| MokumeError::InvalidInput {
+        message: error.to_string(),
+    })?;
+    match cli.command {
+        Commands::Quantify(args) => match args.command {
+            QuantifyCommands::Features2Proteins(args) => args.into_config().map(|_| ()),
+            QuantifyCommands::Features2Peptides(args) => {
+                features_to_peptides::validate_options(&args)
+            }
+            QuantifyCommands::Peptides2Protein(args) => peptides2protein::validate_options(&args),
+        },
+        Commands::CorrectBatches(_) => Ok(()),
+    }
 }
 
 /// Parse and run a command with a runtime pyOpenMS theoretical-peptide map.

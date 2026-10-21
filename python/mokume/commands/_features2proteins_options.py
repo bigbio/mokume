@@ -75,6 +75,12 @@ def _validate_pibaq_options(ctx: click.Context, quant_method: str) -> None:
 
 
 def _validate_directlfq_options(ctx: click.Context, quant_method: str) -> None:
+    if quant_method != "maxlfq" and ctx.params.get("stabilize", False):
+        raise click.UsageError("--stabilize requires --quant-method maxlfq")
+    if quant_method != "maxlfq" and _supplied(ctx, "maxlfq_min_ratio_count"):
+        raise click.UsageError(
+            "--maxlfq-min-ratio-count requires --quant-method maxlfq"
+        )
     if quant_method != "directlfq" and _supplied(
         ctx, "directlfq_cores", "directlfq_min_nonan", "export_ions"
     ):
@@ -192,8 +198,8 @@ def _resolved_imputation_method(ctx: click.Context) -> str:
     impute_options = (
         "impute_method",
         "impute_quantile",
-        "impute_shift",
-        "impute_scale",
+        "impute_seed",
+        "impute_tune_sigma",
         "impute_n_neighbors",
     )
     if not params["impute"] and _supplied(ctx, *impute_options):
@@ -205,8 +211,13 @@ def _resolved_imputation_method(ctx: click.Context) -> str:
     method = params["impute_method"].lower()
     if _supplied(ctx, "impute_quantile") and method not in {"mindet", "minprob"}:
         raise click.UsageError("--impute-quantile only applies to mindet/minprob")
-    if _supplied(ctx, "impute_shift", "impute_scale") and method != "minprob":
-        raise click.UsageError("--impute-shift/--impute-scale only apply to minprob")
+    if _supplied(ctx, "impute_seed", "impute_tune_sigma") and method not in {
+        "minprob",
+        "qrilc",
+    }:
+        raise click.UsageError(
+            "--impute-seed/--impute-tune-sigma only apply to minprob/qrilc"
+        )
     if _supplied(ctx, "impute_n_neighbors") and method not in {"knn", "seqknn"}:
         raise click.UsageError("--impute-n-neighbors only applies to knn/seqknn")
     return method

@@ -360,7 +360,7 @@ def _plot_pibaq_report(
         logger.warning(
             "QC report skipped: plotting dependencies not installed. "
             "Install: pip install mokume-py[plotting] (pure Python) or "
-            "pip install mokume[plotting] (Rust wheel)"
+            "pip install mokume[analysis] (Rust wheel)"
         )
         return
     plotting = importlib.import_module("mokume.plotting")

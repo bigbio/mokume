@@ -352,7 +352,7 @@ def _render_native_qc(module: ModuleType, bound: Mapping[str, object]) -> None:
     if not is_plotting_available():
         logger.warning(
             "QC report skipped: plotting dependencies not installed. "
-            "Install: pip install mokume[plotting]"
+            "Install: pip install mokume[analysis]"
         )
         return
     qc_report = getattr(module, "peptides2protein_qc")

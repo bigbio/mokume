@@ -91,8 +91,8 @@ together safely.
 
     ---
 
-    Install the Mokume Plugin to bind benchmark evidence and evaluate bounded
-    candidate settings through the local Rust kernel, with no Mokume-owned API key.
+    Install the Mokume Plugin to inspect data and evaluate bounded candidate
+    settings through the Rust kernel.
 
     [:octicons-arrow-right-24: Mokume Plugin](user-guide/agentic-plugin.md)
 
@@ -105,7 +105,7 @@ together safely.
 - **Standard LFQ / TMT quantification** — start with [`features2proteins`](user-guide/features2proteins.md)
 - **Need more control before protein summarization** — use the two-step path via [`features2peptides`](user-guide/features2peptides.md) and [`peptides2protein`](user-guide/peptides2protein.md)
 - **Tissue atlas analysis** — use the [`tissuemap`](periphery/tissuemap.md) periphery command (wheel only, `tissuemap` extra)
-- **Evidence-bound method recommendation** — use the [Mokume Plugin](user-guide/agentic-plugin.md)
+- **Agent-host method recommendation** — use the [Mokume Plugin](user-guide/agentic-plugin.md)
 
 ## Quick Example
 

@@ -45,9 +45,10 @@ Provide `--parquet`, `--msstats`, or the paired `--psm` and `--parquet` inputs.
 The paired QPX inputs are used only by true `spectral-count` and require SDRF.
 MSstats input requires
 `ProteinName`, `PeptideSequence`, `Intensity`, `Charge` or `PrecursorCharge`,
-and `Run` or `Reference`; isobaric data also requires `Channel`. Ratio
-quantification requires PSM-level QPX evidence and does not accept MSstats
-feature tables.
+and `Run` or `Reference`; isobaric data also requires `Channel`. If both
+`Run` and `Reference` are present, `Reference` names the data file, because
+quantms writes `Run` as a design index. Ratio quantification requires
+PSM-level QPX evidence and does not accept MSstats feature tables.
 
 ### Metadata & Filtering
 
@@ -64,16 +65,22 @@ feature tables.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--quant-method` | `maxlfq` | Method: maxlfq, directlfq, pibaq, `top<N>`, sum, median, ratio, abd, intensity, peptide-count, spectral-count |
+| `--maxlfq-min-ratio-count` | `2` | Minimum shared peptide species per sample pair (MaxLFQ only) |
+| `--stabilize` | off | Enable overlap-dependent large-ratio stabilization (MaxLFQ only; may worsen some ratios) |
 | `-f/--fasta` | none | FASTA file (required for piBAQ) |
 | `-t/--threads` | auto | Shared Rust worker count for all methods, including DirectLFQ |
 | `--directlfq-min-nonan` | 1 | Min non-NaN values for DirectLFQ |
 | `--directlfq-num-samples-quadratic` | 50 | Maximum samples in DirectLFQ's quadratic global-alignment subset |
+| `--directlfq-no-sample-normalization` | off | Skip DirectLFQ's global sample normalization (directlfq `deactivate_normalization`) |
 | `--pibaq-enzyme` | `Trypsin` | Protease name from the installed pyOpenMS catalog |
 | `--pibaq-max-aa` | 30 | Maximum theoretical peptide length |
 | `--pibaq-missed-cleavages` | 0 | Missed cleavages in the theoretical digest |
 | `--pibaq-min-shared` | 2 | Minimum shared peptides for automatic family discovery |
 | `--pibaq-families` | none | YAML file with explicit family overrides |
-| `--pibaq-min-anchors` | 1 | Minimum unique-peptide anchors required before proportional family allocation |
+| `--pibaq-min-anchors` | 1 | Minimum unique-peptide anchors (in the dataset) for a family to have member-level evidence |
+| `--pibaq-shared` | `unique` | Shared-peptide handling: `unique` (member values from unique peptides only), `stable-ratio` (unique peptides plus shared signal split by cross-sample member ratios), `proportional` (legacy per-sample split) |
+| `--pibaq-family-rows` | `family-only` | Family-level rows (`A;B;C`): `family-only` (families with no unique-peptide evidence), `all`, `none`; `none` with `proportional` |
+| `--pibaq-evidence` | none | Write a per-row TSV side-car: row type, family, evidence class, theoretical/observed unique and shared peptide counts |
 
 !!! note "Write the N in the method name: `--quant-method top<N>`"
     TopN quantification takes its N from the method name — `--quant-method top3`,
@@ -91,7 +98,10 @@ DirectLFQ and Ratio manage normalization internally. `peptide-count` and
 `spectral-count` count evidence identities and do not use intensity
 normalization. All four therefore default both normalization layers to `none`;
 passing a non-`none` value is rejected. Other methods default to `median` /
-`global-median`.
+`global-median`, except that MaxLFQ's sample normalization defaults to
+`hierarchical` (`global-median` when `--normalization-proteins` is given): the
+median of a sample's detected features moves with detection depth and spike-in
+composition, while hierarchical alignment compares the peptides that samples share.
 
 ### IRS (Multi-Plex TMT)
 
@@ -105,6 +115,50 @@ passing a non-`none` value is rejected. Other methods default to `median` /
 | `--irs-stat` | `median` | Plex reference statistic: median or mean |
 | `--irs-remove-reference` | off | Remove reference samples from output |
 | `--irs-plex-column` | auto | SDRF column naming each channel's plex (default: channels sharing data files) |
+| `--irs-missing-reference` | `keep` | A protein with values but no reference value in a plex: `keep` (leave that plex unscaled), `drop` (remove those values), `plex-median` (scale by the plex's median IRS factor) |
+
+### TMT reporter corrections
+
+Applied to each QPX feature row (all reporter channels of one PSM/feature) before
+normalization and quantification. Label-free rows are untouched.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--tmt-row-merge` | `max` | Repeated rows of one peptidoform/charge in one plex (several PSMs, fractions): `max` takes the maximum per channel independently; `best-row` keeps the single row with the highest reporter sum, so all channels come from one spectrum |
+| `--tmt-impurity` | none | Isotope-impurity table for reporter correction (non-negative least squares per row) |
+| `--tmt-interference-floor` | none | Subtract an additive co-isolation floor: a fraction (e.g. `0.05`) or `auto` (estimated per plex) |
+| `--tmt-floor-quantile` | 0.01 | Ratio quantile used by `--tmt-interference-floor auto` |
+
+`max` picks the noisiest maximum in low channels when an ion is quantified in
+several spectra, which compresses ratios; `best-row` is the MSstatsTMT-style
+choice. The impurity table has one line per channel with the percentages
+leaking to the channels 2 and 1 Da lighter and 1 and 2 Da heavier (the lot's
+certificate of analysis), e.g.
+
+```text
+channel  -2   -1    +1    +2
+126      0.0  0.0   5.09  0.0
+127N     0.0  0.25  5.27  0.0
+```
+
+Fields may be separated by tabs, spaces, commas or semicolons. Lines that do
+not start with a channel name (such as the header) are skipped; every channel
+line needs exactly four numbers, otherwise the table is rejected.
+
+Channel names may carry a `TMT` prefix; `N`/`C` channels leak into the next
+channel of the same type (126 counts as `C`). With
+`--tmt-interference-floor`, each channel `c` of a row becomes
+`(I_c - f * m * L_c) / (1 - f)`, where `m` is the loading-adjusted row mean and
+`L_c` the plex's median channel loading, and is kept at or above
+`0.01 * m * L_c`. This assumes co-isolated signal is spread over the channels
+like the plex loading and scales with the row's own intensity (a constant
+precursor purity of `1 - f`). `auto` sets `f` per plex to the
+`--tmt-floor-quantile` of loading-adjusted channel ratios in the more intense
+half of complete rows.
+
+These options work on QPX feature rows, which hold every reporter channel of a
+spectrum; they are rejected with `--msstats` input, whose rows hold one channel
+each.
 
 IRS options require `--irs` and an SDRF. Reference detection must find usable
 reference samples and plex assignments; otherwise the command fails. IRS is
@@ -149,8 +203,8 @@ are errors rather than successful uncorrected outputs.
 |--------|---------|-------------|
 | `--impute-method` | none | Select a method and enable imputation; use `zero` for zero filling |
 | `--impute-quantile` | 0.01 | Quantile for MinProb/MinDet |
-| `--impute-shift` | 1.6 | MinProb shift in standard deviations |
-| `--impute-scale` | 0.3 | MinProb scale factor for the imputation distribution sigma |
+| `--impute-tune-sigma` | 1.0 | MinProb/QRILC multiplier of the fitted standard deviation |
+| `--impute-seed` | 42 | Seed of the MinProb/QRILC draws |
 | `--impute-n-neighbors` | 5 | Number of neighbours for KNN/SeqKNN |
 
 Imputation runs in log2 space (the matrix is transformed before imputation and back to linear afterwards) so that censored-aware methods like MinProb/MinDet/QRILC behave correctly. The imputation step is applied after coverage filtering and before batch correction in the pipeline.
@@ -179,30 +233,32 @@ output path must be supplied, so a completed calculation cannot be discarded.
 Inline and file contrasts can be combined.
 
 `--de-method auto` selects `deqms` for `directlfq` quantification and `limrots`
-for other quantification methods. All methods run in the native Rust kernel —
+for other quantification methods. LimROTS needs a complete matrix, so `auto`
+selects `deqms` when the protein matrix has missing values (for example, without
+imputation). All methods run in the native Rust kernel —
 no R or rpy2 required. ROTS and LimROTS retain permutation FDR and therefore
 reject alternative `--de-fdr-method` values. Deterministic methods (limma /
 deqms) are cell-exact against frozen Python-generated compatibility output;
 RNG/optimizer-driven methods (rots / limrots / proda) match log2 fold change
 cell-exactly and p-values at rank level.
 
-`--de-method ensemble` runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least `--de-ensemble-min-k` members agree on direction and the Fisher-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Fisher-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate.
+`--de-method ensemble` runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least `--de-ensemble-min-k` members agree on direction and the Fisher-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Fisher-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate. The default members are `limrots`, `deqms`, and `proda`; on a contrast with missing values they run `limma` in place of `limrots`, because LimROTS needs a complete matrix. An explicit `--de-ensemble-method limrots` member still needs a complete matrix.
 
 ### Plots & Reports
 
 `features2proteins` is pure compute and writes no figures. The kernel emits the protein-matrix CSV and (with `--de-output`) one DE result CSV per contrast; render plots and HTML reports from those CSVs with the wheel periphery:
 
 ```bash
-# PCA from the protein matrix (plotting extra)
+# PCA from the protein matrix (analysis extra)
 mokume plot pca --protein-matrix proteins.csv \
     --sdrf experiment.sdrf.tsv --output pca.pdf
 
-# DE volcano / heatmap from the kernel CSVs (plotting extra)
+# DE volcano / heatmap from the kernel CSVs (analysis extra)
 mokume plot de --protein-matrix proteins.csv --outdir plots \
     --sdrf experiment.sdrf.tsv --volcano --heatmap \
     --contrast c1 A B de.csv
 
-# Interactive HTML report (reports extra)
+# Interactive HTML report (analysis extra)
 mokume interactive-report --protein-matrix proteins.csv \
     --sdrf experiment.sdrf.tsv --output report.html \
     --contrast c1 A B de.csv
@@ -340,6 +396,8 @@ mokume quantify peptides2protein [OPTIONS]
 | `-p/--peptides` | required | Input peptide intensity file |
 | `-f/--fasta` | none | FASTA file (required for piBAQ) |
 | `--quant-method` | `pibaq` | Method: pibaq, `top<N>` (top3, top5, top10, ...), maxlfq, sum, directlfq |
+| `--maxlfq-min-ratio-count` | `2` | Minimum shared peptide species per sample pair (MaxLFQ only) |
+| `--stabilize` | off | Enable overlap-dependent large-ratio stabilization (MaxLFQ only; may worsen some ratios) |
 | `--enzyme` | `Trypsin` | Enzyme for in-silico digestion |
 | `--normalize` | off | Normalize quantification values |
 | `--min-aa` | 7 | Min amino acid length |
@@ -369,7 +427,7 @@ Use `--quant-method top5` or `--quant-method top10` for Top5 or Top10-style quan
 
 !!! note "`--qc-report` plots the native result table"
     Rust writes the piBAQ table first, then the wheel renders the density and box
-    plots from those exact values. Install `mokume[plotting]` to use this option.
+    plots from those exact values. Install `mokume[analysis]` to use this option.
 
 ---
 
@@ -410,7 +468,7 @@ These commands ship in the `pip install mokume` wheel but remain implemented in
 Python rather than the Rust compute kernel:
 
 ```bash
-pip install "mokume[plotting]"
+pip install "mokume[analysis]"
 mokume plot tsne --input ./proteins --pattern proteins.tsv --output tsne.pdf
 
 pip install "mokume[tissuemap]"

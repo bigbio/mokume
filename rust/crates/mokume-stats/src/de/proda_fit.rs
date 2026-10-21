@@ -1,8 +1,5 @@
-// Per-protein MLE for proDA. Included from `proda.rs`.
-//
-// Ports proda.py:178 `_pd_lm_fit` and its closures (`_neg_ll`, `_neg_ll_log`,
-// `_grad_log`), the optimizer chain (L-BFGS-B -> BFGS -> 5-step Newton polish),
-// and the analytic-Hessian variance with the CF calibration loop.
+// Per-protein proDA likelihood, analytic derivatives and posterior uncertainty.
+// The bounded original-coordinate optimizer follows R's default nlminb path.
 
 /// Result of [`pd_lm_fit`] — the proDA `pd_lm.fit` dict (proda.py:186), minus
 /// the `n_obs` entry, which the Rust DE output derives separately from the
@@ -12,7 +9,6 @@
 struct PdLmFit {
     coef: Vec<f64>,
     s2: f64,
-    se_coef: Vec<f64>,
     coef_var: Vec<Vec<f64>>,
     df: f64,
 }
@@ -23,7 +19,6 @@ impl PdLmFit {
         Self {
             coef: vec![f64::NAN; p],
             s2: f64::NAN,
-            se_coef: vec![f64::NAN; p],
             coef_var: vec![vec![f64::NAN; p]; p],
             df: f64::NAN,
         }
@@ -44,7 +39,6 @@ struct Priors {
 struct FitContext<'a> {
     p: usize,
     n: usize,
-    n_obs: usize,
     xo: Vec<Vec<f64>>,
     yo: Vec<f64>,
     x_full: &'a Design,
@@ -63,7 +57,7 @@ fn pd_lm_fit(y: &[f64], x: &Design, rho: &[f64], zeta: &[f64], priors: Option<Pr
     let n = y.len();
     let obs: Vec<bool> = y.iter().map(|v| !v.is_nan()).collect();
     let n_obs = obs.iter().filter(|b| **b).count();
-    if n_obs == 0 {
+    if n_obs == 0 && priors.is_none() {
         return PdLmFit::nan(p);
     }
 
@@ -87,18 +81,15 @@ fn pd_lm_fit(y: &[f64], x: &Design, rho: &[f64], zeta: &[f64], priors: Option<Pr
         }
     }
     let has_dropout = !all_obs && !xm_d.is_empty();
-    let nan_dc_all = !all_obs && xm_d.is_empty();
-    let no_dropout = all_obs || nan_dc_all;
 
     // proda.py:204 plain-OLS fast path: no dropout, no priors.
-    if no_dropout && !mod_var && !mod_loc {
+    if all_obs && !mod_var && !mod_loc {
         return ols_only_fit(x, &xo, &yo, n, p);
     }
 
     let ctx = FitContext {
         p,
         n,
-        n_obs,
         xo,
         yo,
         x_full: x,
@@ -123,7 +114,7 @@ fn pd_lm_fit(y: &[f64], x: &Design, rho: &[f64], zeta: &[f64], priors: Option<Pr
         None => 1.0,
     };
 
-    let Some(xopt) = optimize_log(&ctx, &beta_init, s2_init) else {
+    let Some(xopt) = optimize_original(&ctx, &beta_init, s2_init) else {
         return PdLmFit::nan(p);
     };
 
@@ -145,12 +136,10 @@ fn ols_only_fit(x: &Design, xo: &[Vec<f64>], yo: &[f64], n: usize, p: usize) -> 
         .iter()
         .map(|row| row.iter().map(|v| v * s2).collect())
         .collect();
-    let se: Vec<f64> = (0..p).map(|i| vcov[i][i].max(0.0).sqrt()).collect();
     let _ = x;
     PdLmFit {
         coef: beta,
         s2,
-        se_coef: se,
         coef_var: vcov,
         df: (n - p).max(1) as f64,
     }
@@ -170,8 +159,10 @@ fn neg_ll(ctx: &FitContext, par: &[f64]) -> f64 {
         }
     }
     if let Some(pr) = ctx.var {
-        ll += -(pr.df0 / 2.0 + 1.0) * sigma2.ln() - pr.df0 * pr.tau20 / (2.0 * sigma2)
-            + sigma2.ln();
+        let shape = pr.df0 / 2.0;
+        ll += shape * (pr.df0 * pr.tau20 / 2.0).ln() - libm::lgamma(shape);
+        ll +=
+            -(pr.df0 / 2.0 + 1.0) * sigma2.ln() - pr.df0 * pr.tau20 / (2.0 * sigma2) + sigma2.ln();
     }
     let sd = sigma2.sqrt();
     for (yi, mu) in ctx.yo.iter().zip(rows_times(&ctx.xo, beta)) {
@@ -187,19 +178,11 @@ fn neg_ll(ctx: &FitContext, par: &[f64]) -> f64 {
     -ll
 }
 
-/// proda.py:256 `_neg_ll_log`: `_neg_ll` with `sigma2 = exp(clip(par_log[p]))`.
-fn neg_ll_log(ctx: &FitContext, par_log: &[f64]) -> f64 {
+/// Analytic gradient in the original `[beta..., sigma2]` coordinates.
+fn gradient(ctx: &FitContext, par: &[f64]) -> Vec<f64> {
     let p = ctx.p;
-    let mut par = par_log.to_vec();
-    par[p] = par_log[p].clamp(-50.0, 50.0).exp();
-    neg_ll(ctx, &par)
-}
-
-/// proda.py:261 `_grad_log`: gradient of `_neg_ll_log` wrt `[beta..., log sigma2]`.
-fn grad_log(ctx: &FitContext, par_log: &[f64]) -> Vec<f64> {
-    let p = ctx.p;
-    let beta = &par_log[..p];
-    let sigma2 = par_log[p].clamp(-50.0, 50.0).exp();
+    let beta = &par[..p];
+    let sigma2 = par[p].max(1e-100);
     let mut g_b = vec![0.0; p];
     let mut g_s = 0.0;
 
@@ -236,98 +219,36 @@ fn grad_log(ctx: &FitContext, par_log: &[f64]) -> Vec<f64> {
         let mm = rows_times(&ctx.xm_d, beta);
         for (idx, (m, (r, z))) in mm.iter().zip(ctx.rm.iter().zip(&ctx.zm)).enumerate() {
             let zs2 = z * z + sigma2;
-            let zs_abs = zs2.sqrt();
-            let zval = (m - r) / zs_abs;
-            let ratio = norm_pdf(zval) / norm_sf(zval).max(SF_FLOOR);
+            let imr = inverse_mills(m - r, zs2);
             for (gk, xk) in g_b.iter_mut().zip(&ctx.xm_d[idx]) {
-                *gk += xk * ratio / zs_abs;
+                *gk -= xk * imr;
             }
-            g_s -= ratio * zval / (2.0 * zs2);
+            g_s += (m - r) / (2.0 * zs2) * imr;
         }
     }
-    g_s *= sigma2;
     let mut g = g_b;
     g.push(g_s);
     g
 }
 
-/// proda.py:293-343 — L-BFGS-B then BFGS in log-sigma2 space, then the 5-step
-/// Newton polish with a numerical Hessian. Returns `xopt` in `[beta..., sigma2]`
-/// (sigma2 already exponentiated), or `None` on a non-finite optimum.
-fn optimize_log(ctx: &FitContext, beta_init: &[f64], s2_init: f64) -> Option<Vec<f64>> {
-    let p = ctx.p;
-    let mut x0 = beta_init.to_vec();
-    x0.push(s2_init.max(1e-100).ln());
-
-    let f = |par: &[f64]| neg_ll_log(ctx, par);
-    let g = |par: &[f64]| grad_log(ctx, par);
-
-    let mut bounds = vec![(None, None); p];
-    bounds.push((Some(-50.0), Some(50.0)));
-    let res = lbfgsb(&f, &g, &x0, &bounds, 1e-15, 1e-12, 1000);
-    let mut x_bfgs = res.x.clone();
-    x_bfgs[p] = x_bfgs[p].clamp(-50.0, 50.0);
-    let res = bfgs(&f, &g, &x_bfgs, 1e-14, 200);
-
-    let mut xopt = res.x.clone();
-    xopt[p] = xopt[p].clamp(-50.0, 50.0);
-    if !xopt.iter().all(|v| v.is_finite()) {
-        return None;
-    }
-
-    newton_polish(ctx, &mut xopt);
-
-    // Convert back: res.x[p] = exp(xopt[p]) (proda.py:350).
-    let mut out = xopt.clone();
-    out[p] = xopt[p].exp();
-    Some(out)
-}
-
-/// proda.py:322-343 — 5 Newton iterations with a central-difference Hessian.
-fn newton_polish(ctx: &FitContext, xopt: &mut [f64]) {
-    let p = ctx.p;
-    let dim = xopt.len();
-    let eps_h = 1e-5;
-    for _ in 0..5 {
-        let g = grad_log(ctx, xopt);
-        if !g.iter().all(|v| v.is_finite()) || inf_norm(&g) < 1e-14 {
-            break;
-        }
-        let mut h = vec![vec![0.0; dim]; dim];
-        for j in 0..dim {
-            let mut plus = xopt.to_vec();
-            let mut minus = xopt.to_vec();
-            plus[j] += eps_h;
-            minus[j] -= eps_h;
-            let gp = grad_log(ctx, &plus);
-            let gm = grad_log(ctx, &minus);
-            for (i, hij) in h.iter_mut().enumerate() {
-                hij[j] = (gp[i] - gm[i]) / (2.0 * eps_h);
-            }
-        }
-        // Symmetrize: H = 0.5 (H + H^T). `split_at_mut` yields disjoint borrows
-        // of row `i` (the last row of the head) and rows `j > i` (the tail).
-        for i in 0..dim {
-            let (head, tail) = h.split_at_mut(i + 1);
-            let row_i = &mut head[i];
-            for (offset, row_j) in tail.iter_mut().enumerate() {
-                let j = i + 1 + offset;
-                let avg = 0.5 * (row_i[j] + row_j[i]);
-                row_i[j] = avg;
-                row_j[i] = avg;
-            }
-        }
-        let neg_g: Vec<f64> = g.iter().map(|v| -v).collect();
-        let Some(step) = solve(&h, &neg_g) else {
-            break;
-        };
-        if inf_norm(&step) < 1e-14 {
-            break;
-        }
-        for (xi, si) in xopt.iter_mut().zip(&step) {
-            *xi += si;
-        }
-        xopt[p] = xopt[p].clamp(-50.0, 50.0);
+/// The public upstream analytic-Hessian path uses `nlminb` on sigma2 itself.
+/// Failed convergence returns missing estimates, as `proDA::pd_lm.fit` does.
+fn optimize_original(ctx: &FitContext, beta_init: &[f64], s2_init: f64) -> Option<Vec<f64>> {
+    let mut start = beta_init.to_vec();
+    start.push(s2_init);
+    let mut lower = vec![f64::NEG_INFINITY; ctx.p];
+    lower.push(0.0);
+    let result = super::port::minimize(
+        &|par| neg_ll(ctx, par),
+        &|par| gradient(ctx, par),
+        &|par| full_analytic_hessian(ctx, par),
+        &start,
+        &lower,
+    );
+    if result.converged {
+        Some(result.x)
+    } else {
+        None
     }
 }
 
@@ -335,26 +256,37 @@ fn newton_polish(ctx: &FitContext, xopt: &mut [f64]) {
 /// the `df_approx` / `s2_approx` derivation. `xopt` here is `[beta..., sigma2]`.
 fn finalize_fit(ctx: &FitContext, xopt: &[f64]) -> PdLmFit {
     let p = ctx.p;
-    let beta: Vec<f64> = xopt[..p].to_vec();
+    let mut beta: Vec<f64> = xopt[..p].to_vec();
     let fit_sigma2 = xopt[p].max(1e-100);
 
     let fit_sigma2_var = sigma2_variance(ctx, &beta, fit_sigma2);
-    let approx = df_and_s2_approx(ctx, fit_sigma2, fit_sigma2_var);
+    if fit_sigma2_var < 0.0 {
+        return PdLmFit::nan(p);
+    }
+    let mut approx = df_and_s2_approx(ctx, fit_sigma2, fit_sigma2_var);
 
-    let (se, coef_var) = coef_variance(ctx, &beta, fit_sigma2, approx.s2_approx);
+    let (coef_var, unestimable) = coef_variance(ctx, &beta, fit_sigma2, approx.s2_approx);
+    for (value, missing) in beta.iter_mut().zip(&unestimable) {
+        if *missing {
+            *value = f64::NAN;
+        }
+    }
+    if unestimable.iter().all(|v| *v) {
+        approx.df_approx = f64::NAN;
+        approx.s2_approx = f64::NAN;
+    }
 
     PdLmFit {
         coef: beta,
         s2: approx.s2_approx,
-        se_coef: se,
         coef_var,
-        df: approx.df_approx.max(0.001),
+        df: approx.df_approx,
     }
 }
 
 /// proda.py:355-387 — variance of sigma2 from the negative second derivative of
-/// the log-likelihood wrt sigma2 (with the Python fallback on failure).
-fn sigma2_variance(ctx: &FitContext, beta: &[f64], fit_sigma2: f64) -> f64 {
+/// the log-likelihood wrt sigma2. Negative variance marks a failed fit.
+fn sigma2_hessian(ctx: &FitContext, beta: &[f64], fit_sigma2: f64) -> f64 {
     let resid: Vec<f64> = ctx
         .yo
         .iter()
@@ -371,10 +303,7 @@ fn sigma2_variance(ctx: &FitContext, beta: &[f64], fit_sigma2: f64) -> f64 {
         let mm = rows_times(&ctx.xm_d, beta);
         let zs2: Vec<f64> = ctx.zm.iter().map(|z| z * z + fit_sigma2).collect();
         for ((m, r), zs2_h) in mm.iter().zip(&ctx.rm).zip(&zs2) {
-            let zs_abs = zs2_h.sqrt();
-            let z_h = (m - r) / zs_abs;
-            let ratio = norm_pdf(z_h) / norm_sf(z_h).max(SF_FLOOR);
-            let imr = -ratio / zs_abs;
+            let imr = inverse_mills(m - r, *zs2_h);
             let diff = m - r;
             dss_m += diff / (4.0 * zs2_h * zs2_h) * imr * (3.0 - diff * imr - diff * diff / zs2_h);
         }
@@ -386,13 +315,54 @@ fn sigma2_variance(ctx: &FitContext, beta: &[f64], fit_sigma2: f64) -> f64 {
             - pr.df0 * pr.tau20 / fit_sigma2.powi(3)
             - 1.0 / fit_sigma2.powi(2);
     }
-    let neg_hess_s2 = -(dss_p + dss_o + dss_m);
-    let var = 1.0 / neg_hess_s2.max(1e-100);
-    if var < 0.0 || !var.is_finite() {
-        // proda.py:387 fallback.
-        return 2.0 * fit_sigma2.powi(2) / (ctx.n_obs.max(1)) as f64;
+    -(dss_p + dss_o + dss_m)
+}
+
+fn sigma2_variance(ctx: &FitContext, beta: &[f64], sigma2: f64) -> f64 {
+    1.0 / sigma2_hessian(ctx, beta, sigma2)
+}
+
+/// Complete negative-log-likelihood Hessian in original [beta..., sigma2]
+/// coordinates, matching proDA:::hess_fnc including beta/variance cross terms.
+fn full_analytic_hessian(ctx: &FitContext, par: &[f64]) -> Vec<Vec<f64>> {
+    let p = ctx.p;
+    let (beta, sigma2) = (&par[..p], par[p].max(1e-100));
+    let zstar = ctx.zm.iter().map(|z| z * z + sigma2).collect::<Vec<_>>();
+    let bb = analytic_hess_bb(ctx, beta, sigma2, &zstar);
+    let mut h = vec![vec![0.0; p + 1]; p + 1];
+    for i in 0..p {
+        for j in 0..p {
+            h[i][j] = -bb[i][j];
+        }
     }
-    var
+    h[p][p] = sigma2_hessian(ctx, beta, sigma2);
+    for (row, &y) in ctx.xo.iter().zip(&ctx.yo) {
+        let factor = (dot(row, beta) - y) / sigma2.powi(2);
+        for i in 0..p {
+            h[i][p] -= row[i] * factor;
+        }
+    }
+    for (j, row) in ctx.xm_d.iter().enumerate() {
+        let diff = dot(row, beta) - ctx.rm[j];
+        let z2 = zstar[j];
+        let imr = inverse_mills(diff, z2);
+        let factor =
+            diff / (2.0 * z2) * imr.powi(2) - (z2 - diff.powi(2)) / (2.0 * z2.powi(2)) * imr;
+        for i in 0..p {
+            h[i][p] -= row[i] * factor;
+        }
+    }
+    let (upper, last) = h.split_at_mut(p);
+    for (i, row) in upper.iter().enumerate() {
+        last[0][i] = row[p];
+    }
+    h
+}
+
+fn inverse_mills(diff: f64, variance: f64) -> f64 {
+    let sd = variance.sqrt();
+    let z = diff / sd;
+    -(norm_logpdf(z) - norm_logsf(z)).exp() / sd
 }
 
 /// proda.py:389-403 outputs.
@@ -405,9 +375,9 @@ struct DfApprox {
 /// its variance, with the edge cases for negative s2 / tiny df / huge df.
 fn df_and_s2_approx(ctx: &FitContext, fit_sigma2: f64, fit_sigma2_var: f64) -> DfApprox {
     let p = ctx.p as f64;
-    let mut n_approx_raw = 2.0 * fit_sigma2.powi(2) / fit_sigma2_var.max(1e-100);
-    let rss_approx = 2.0 * fit_sigma2.powi(3) / fit_sigma2_var.max(1e-100);
-    let mut s2_approx = rss_approx / (n_approx_raw - p).max(0.001);
+    let mut n_approx_raw = 2.0 * fit_sigma2.powi(2) / fit_sigma2_var;
+    let rss_approx = 2.0 * fit_sigma2.powi(3) / fit_sigma2_var;
+    let mut s2_approx = rss_approx / (n_approx_raw - p);
     let df_approx;
 
     if s2_approx < 0.0 || n_approx_raw <= p {
@@ -433,15 +403,14 @@ fn df_and_s2_approx(ctx: &FitContext, fit_sigma2: f64, fit_sigma2_var: f64) -> D
 }
 
 /// proda.py:405-477 — the analytic-Hessian coefficient variance with the CF
-/// calibration loop. Returns `(se, coef_var)`.
+/// calibration loop. Returns covariance and non-estimable coefficient flags.
 fn coef_variance(
     ctx: &FitContext,
     beta: &[f64],
     fit_sigma2: f64,
     s2_approx: f64,
-) -> (Vec<f64>, Vec<Vec<f64>>) {
+) -> (Vec<Vec<f64>>, Vec<bool>) {
     let p = ctx.p;
-    let nan = || (vec![f64::NAN; p], vec![vec![f64::NAN; p]; p]);
     let zetastar2: Vec<f64> = ctx.zm.iter().map(|z| z * z + fit_sigma2).collect();
 
     let hess_fit = analytic_hess_bb(ctx, beta, fit_sigma2, &zetastar2);
@@ -449,9 +418,7 @@ fn coef_variance(
         .iter()
         .map(|row| row.iter().map(|v| -v).collect())
         .collect();
-    let Some(var_coef_fit) = invert(&neg_hess_fit) else {
-        return nan();
-    };
+    let var_coef_fit = invert_hessian(&neg_hess_fit);
 
     let cf = cf_calibration(ctx, beta, fit_sigma2, &var_coef_fit);
 
@@ -464,11 +431,7 @@ fn coef_variance(
     if (0..p).any(|i| neg_hess_s2a[i][i] < 0.0) {
         neg_hess_s2a = vec![vec![0.0; p]; p];
     }
-    let var_coef_s2a = if (0..p).all(|i| neg_hess_s2a[i][i] > 0.0) {
-        invert(&neg_hess_s2a).unwrap_or_else(|| vec![vec![f64::INFINITY; p]; p])
-    } else {
-        vec![vec![f64::INFINITY; p]; p]
-    };
+    let var_coef_s2a = invert_hessian(&neg_hess_s2a);
 
     // Var_coef_unbiased = CF @ Var_coef_s2a @ CF (CF diagonal) => scale row/col.
     let mut coef_var = vec![vec![0.0; p]; p];
@@ -483,8 +446,29 @@ fn coef_variance(
             coef_var[i][i] = f64::INFINITY;
         }
     }
-    let se: Vec<f64> = (0..p).map(|i| coef_var[i][i].max(0.0).sqrt()).collect();
-    (se, coef_var)
+    (coef_var, (0..p).map(|i| var_coef_fit[i][i] > 1e6).collect())
+}
+
+/// proDA protects small diagonal entries and caps positive Hessian elements.
+fn invert_hessian(hessian: &[Vec<f64>]) -> Vec<Vec<f64>> {
+    let p = hessian.len();
+    let mut fallback = vec![vec![0.0; p]; p];
+    for (i, row) in fallback.iter_mut().enumerate() {
+        row[i] = f64::INFINITY;
+    }
+    if (0..p).all(|i| hessian[i][i] < 1e-10) {
+        return fallback;
+    }
+    let mut h = hessian.to_vec();
+    for (i, row) in h.iter_mut().enumerate() {
+        row[i] = row[i].max(1e-10);
+        for value in row {
+            if *value > 1e10 {
+                *value = 1e10;
+            }
+        }
+    }
+    invert(&h).unwrap_or(fallback)
 }
 
 /// proda.py:410-428 `_analytic_hess_bb(sigma2_val)`.
@@ -524,10 +508,7 @@ fn analytic_hess_bb(
         let mm = rows_times(&ctx.xm_d, beta);
         for (idx, (m, r)) in mm.iter().zip(&ctx.rm).enumerate() {
             let zs2 = zetastar2[idx];
-            let zs_abs = zs2.sqrt();
-            let z_c = (m - r) / zs_abs;
-            let rat = norm_pdf(z_c) / norm_sf(z_c).max(SF_FLOOR);
-            let imr = -rat / zs_abs;
+            let imr = inverse_mills(m - r, zs2);
             let w_m = imr * imr + (m - r) / zs2 * imr;
             let xm_row = &ctx.xm_d[idx];
             for (hi, &xi) in h.iter_mut().zip(xm_row) {
@@ -561,15 +542,14 @@ fn cf_calibration(
 
     for idx in 0..p {
         let vc_corr = conditional_variance(var_coef_fit, idx, p);
-        if vc_corr <= 0.0 || vc_corr.is_nan() {
+        if vc_corr < 0.0 || vc_corr.is_nan() {
+            cf[idx] = f64::NAN;
             continue;
         }
         let mut par_shift = par_fit.clone();
         par_shift[idx] += (out_factor * vc_corr).sqrt();
         let diff_ll = (neg_ll(ctx, &par_shift) - offset).abs();
-        if diff_ll > 0.0 {
-            cf[idx] = (diff_ll / (out_factor / 2.0)).powf(-0.5);
-        }
+        cf[idx] = (diff_ll / (out_factor / 2.0)).powf(-0.5);
     }
     cf
 }
@@ -591,7 +571,7 @@ fn conditional_variance(v: &[Vec<f64>], idx: usize, p: usize) -> f64 {
             let tmp = mat_vec(&inv, &v_cross);
             v[idx][idx] - dot(&v_cross, &tmp)
         }
-        None => v[idx][idx],
+        None => f64::NAN,
     }
 }
 
@@ -626,8 +606,4 @@ fn gram_inverse_rows(rows: &[Vec<f64>], p: usize) -> Option<Vec<Vec<f64>>> {
         }
     }
     invert(&gram)
-}
-
-fn inf_norm(v: &[f64]) -> f64 {
-    v.iter().fold(0.0_f64, |acc, x| acc.max(x.abs()))
 }

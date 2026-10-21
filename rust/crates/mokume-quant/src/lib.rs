@@ -4,10 +4,13 @@ mod directlfq_aligned;
 mod maxlfq;
 
 pub use directlfq_aligned::{
-    direct_lfq_aligned, direct_lfq_aligned_with_ions, DirectLfqIon, DirectLfqNormalizedIon,
-    DirectLfqResult,
+    direct_lfq_aligned, direct_lfq_aligned_with_ions, sample_shifts as direct_lfq_sample_shifts,
+    DirectLfqIon, DirectLfqNormalizedIon, DirectLfqResult,
 };
-pub use maxlfq::{max_lfq, max_lfq_with_samples};
+pub use maxlfq::{
+    max_lfq, max_lfq_with_samples, solve_max_lfq, solve_max_lfq_with_stabilization, MaxLfqResult,
+    DEFAULT_MAXLFQ_MIN_RATIO_COUNT,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PeptideMeasurement {
@@ -48,12 +51,18 @@ pub(crate) fn median(values: &mut Vec<f64>) -> Option<f64> {
     if values.is_empty() {
         return None;
     }
-    values.sort_by(f64::total_cmp);
+    // Selection yields the same order statistics as a full sort.
+    let even = values.len().is_multiple_of(2);
     let midpoint = values.len() / 2;
-    if values.len().is_multiple_of(2) {
-        Some((values[midpoint - 1] + values[midpoint]) / 2.0)
+    let (below, &mut upper, _) = values.select_nth_unstable_by(midpoint, f64::total_cmp);
+    if even {
+        below
+            .iter()
+            .copied()
+            .max_by(f64::total_cmp)
+            .map(|lower| (lower + upper) / 2.0)
     } else {
-        Some(values[midpoint])
+        Some(upper)
     }
 }
 
@@ -63,7 +72,7 @@ mod tests {
     use mokume_core::{PeptideId, SampleId};
 
     #[test]
-    fn max_lfq_preserves_two_sample_ratio() {
+    fn max_lfq_preserves_two_sample_ratio() -> mokume_core::Result<()> {
         let measurements = vec![
             PeptideMeasurement {
                 peptide: PeptideId::new(0),
@@ -87,13 +96,14 @@ mod tests {
             },
         ];
 
-        let quantities = max_lfq(&measurements);
+        let quantities = max_lfq(&measurements)?;
         let sample_0 = value_for(&quantities, SampleId::new(0));
         let sample_1 = value_for(&quantities, SampleId::new(1));
 
         assert!((sample_0 - 500.0).abs() < 1e-6);
         assert!((sample_1 - 1000.0).abs() < 1e-6);
         assert!((sample_1 / sample_0 - 2.0).abs() < 1e-6);
+        Ok(())
     }
 
     fn value_for(quantities: &[(SampleId, f64)], sample: SampleId) -> f64 {

@@ -15,6 +15,7 @@ import yaml
 
 from mokume.agentic.contract import (
     CONFIDENCE_LEVELS,
+    DATA_TYPES,
     DE_METHODS,
     ENSEMBLE_PRESETS,
     FDR_METHODS,
@@ -23,13 +24,18 @@ from mokume.agentic.contract import (
     is_supported_quantification,
     validate_config_values,
 )
+from mokume.agentic.dataset_knowledge import (
+    DATASET_ARTIFACT,
+    DatasetEvidence,
+    load_dataset_evidence,
+)
 
 if TYPE_CHECKING:
     from mokume.agentic.profiler import DataProfile
 
 
 _KNOWLEDGE_ENV = "MOKUME_AGENTIC_KNOWLEDGE"
-_DATA_TYPES = {"DIA", "LFQ", "TMT"}
+_BUNDLED_KNOWLEDGE = Path(__file__).with_name("knowledge_bundle") / "knowledge.yaml"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
@@ -61,11 +67,15 @@ class SourceEnvelope(NamedTuple):
 
 @dataclass(frozen=True)
 class Applicability:
-    """Dataset characteristics under which an evidence record applies."""
+    """Dataset characteristics under which an evidence record applies.
+
+    A record with a quantification applies only to a matrix that declares it.
+    """
 
     data_type: str
     setting: str | None = None
     upstream_engine: str | None = None
+    quantification: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize applicability fields."""
@@ -73,6 +83,7 @@ class Applicability:
             "data_type": self.data_type,
             "setting": self.setting,
             "upstream_engine": self.upstream_engine,
+            "quantification": self.quantification,
         }
 
 
@@ -181,28 +192,46 @@ class KnowledgeGraph:
     fingerprint: str
     sources: dict[str, SourceEnvelope]
     evidence: dict[str, EvidenceRecord]
+    datasets: dict[str, DatasetEvidence]
     edges: tuple[GraphEdge, ...]
 
     def matching(self, profile: DataProfile) -> list[EvidenceRecord]:
-        """Return eligible evidence matching the declared dataset type."""
+        """Return eligible evidence for the profile's data type and quantification.
+
+        Records for the declared quantification replace the general records of
+        their source; without a declaration only general records apply.
+        """
         data_type = profile.data_type.upper()
-        matches = [
+        candidates = [
             record
             for record in self.evidence.values()
             if record.eligible_as_prior
             and record.applicability.data_type.upper() == data_type
         ]
+        specific = {
+            record.source_id
+            for record in candidates
+            if profile.quantification is not None
+            and record.applicability.quantification == profile.quantification
+        }
+        matches = [
+            record
+            for record in candidates
+            if (
+                record.source_id not in specific
+                if record.applicability.quantification is None
+                else record.applicability.quantification == profile.quantification
+            )
+        ]
         return sorted(matches, key=lambda record: (record.priority, record.id))
 
 
 def load_knowledge_graph(path: str | Path | None = None) -> KnowledgeGraph:
-    """Load and validate the plugin-owned knowledge graph."""
-    selected = path or os.environ.get(_KNOWLEDGE_ENV)
-    if selected is None:
-        raise FileNotFoundError(
-            "No Mokume agentic knowledge catalog was supplied. Use the Mokume "
-            "Plugin or set MOKUME_AGENTIC_KNOWLEDGE."
-        )
+    """Load an explicit, environment-selected, or bundled knowledge graph."""
+    if path is not None:
+        selected = path
+    else:
+        selected = os.environ.get(_KNOWLEDGE_ENV, _BUNDLED_KNOWLEDGE)
     return _load_knowledge_graph(str(Path(selected).expanduser().resolve()))
 
 
@@ -218,6 +247,7 @@ def _load_knowledge_graph(path: str) -> KnowledgeGraph:
         )
     sources = _parse_sources(raw["sources"], knowledge_path.parent)
     evidence = _parse_evidence(raw["evidence"], sources)
+    datasets = _parse_dataset_sources(sources, knowledge_path.parent)
     edges = tuple(
         GraphEdge(record.id, "supported_by", record.source_id)
         for record in evidence.values()
@@ -229,8 +259,26 @@ def _load_knowledge_graph(path: str) -> KnowledgeGraph:
         fingerprint=hashlib.sha256(content).hexdigest(),
         sources=sources,
         evidence=evidence,
+        datasets=datasets,
         edges=edges,
     )
+
+
+def _parse_dataset_sources(
+    sources: dict[str, SourceEnvelope], knowledge_root: Path
+) -> dict[str, DatasetEvidence]:
+    """Load the dataset summaries bundled with validated sources."""
+    datasets: dict[str, DatasetEvidence] = {}
+    for source in sources.values():
+        if DATASET_ARTIFACT not in source.artifacts:
+            continue
+        artifact = (knowledge_root / source.locator / DATASET_ARTIFACT).resolve()
+        parsed = load_dataset_evidence(source.id, artifact)
+        duplicates = set(datasets) & set(parsed)
+        if duplicates:
+            raise ValueError(f"Duplicate dataset evidence ids: {sorted(duplicates)}")
+        datasets.update(parsed)
+    return datasets
 
 
 def _parse_sources(
@@ -475,9 +523,15 @@ def _validate_evidence(record: EvidenceRecord) -> None:
         for value in (record.id, record.kind, record.status, record.source_id)
     ):
         raise ValueError("Evidence identity fields must be non-empty")
-    if record.applicability.data_type.upper() not in _DATA_TYPES:
+    if record.applicability.data_type.upper() not in DATA_TYPES:
         raise ValueError(
             f"Unsupported evidence data type: {record.applicability.data_type!r}"
+        )
+    quantification = record.applicability.quantification
+    if quantification is not None and quantification != record.pipeline.quantification:
+        raise ValueError(
+            f"Evidence {record.id} applies to {quantification!r} matrices but its "
+            f"pipeline uses {record.pipeline.quantification!r}"
         )
     if any(
         not isinstance(item, str) or not item.strip() for item in record.limitations

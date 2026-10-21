@@ -35,7 +35,7 @@
 //! Jacobi rotations, and matrix inverses built column-by-column from
 //! [`solve_linear_system`]) is implemented here with no external crates.
 
-use mokume_core::{ProteinId, SampleId};
+use mokume_core::{MokumeError, ProteinId, Result, SampleId};
 
 use crate::linalg::solve_linear_system;
 
@@ -64,14 +64,14 @@ pub(crate) fn bpca_imputed_values<F>(
     proteins: &[ProteinId],
     samples: &[SampleId],
     value_at: &mut F,
-) -> Vec<(ProteinId, SampleId, f64)>
+) -> Result<Vec<(ProteinId, SampleId, f64)>>
 where
     F: FnMut(ProteinId, SampleId) -> Option<f64>,
 {
     let n = proteins.len();
     let p = samples.len();
     if n == 0 || p == 0 {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     // Read the matrix once. `None` marks a missing cell; non-finite reads are
@@ -91,10 +91,10 @@ where
         .map(|row| row.iter().map(Option::is_none).collect::<Vec<bool>>())
         .collect::<Vec<_>>();
     if missing.iter().all(|row| row.iter().all(|cell| !*cell)) {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
-    let filled = bpca_em(&data, n, p);
+    let filled = bpca_em(&data, n, p)?;
 
     let mut imputed = Vec::new();
     for (protein_index, protein) in proteins.iter().enumerate() {
@@ -108,13 +108,13 @@ where
             }
         }
     }
-    imputed
+    Ok(imputed)
 }
 
 /// BPCA EM imputation over the `n x p` matrix (`None` = missing). Returns a
 /// fully observed copy whose missing cells hold the BPCA reconstruction.
 /// Mirrors `mokume.imputation.bpca._bpca_em`.
-fn bpca_em(data: &[Vec<Option<f64>>], n: usize, p: usize) -> Vec<Vec<f64>> {
+fn bpca_em(data: &[Vec<Option<f64>>], n: usize, p: usize) -> Result<Vec<Vec<f64>>> {
     let smaller = n.min(p);
     // k = min(N_PCS, min(n, p) - 1), guarding the unsigned subtraction.
     let k = if smaller >= 1 {
@@ -138,7 +138,7 @@ fn bpca_em(data: &[Vec<Option<f64>>], n: usize, p: usize) -> Vec<Vec<f64>> {
                 };
             }
         }
-        return result;
+        return Ok(result);
     }
 
     // y = data - center (per column), preserving the missing pattern.
@@ -152,7 +152,7 @@ fn bpca_em(data: &[Vec<Option<f64>>], n: usize, p: usize) -> Vec<Vec<f64>> {
         })
         .collect::<Vec<_>>();
 
-    let mut model = BpcaModel::init(&centered, n, p, k);
+    let mut model = BpcaModel::init(&centered, n, p, k)?;
     let mut tau_old = 1000.0_f64;
     for step in 1..=MAX_STEPS {
         model.do_step(&centered, n, p, k);
@@ -182,7 +182,7 @@ fn bpca_em(data: &[Vec<Option<f64>>], n: usize, p: usize) -> Vec<Vec<f64>> {
             }
         }
     }
-    result
+    Ok(result)
 }
 
 /// Mutable BPCA model state, mirroring the dict returned by the Python
@@ -212,7 +212,7 @@ const GTAU0: f64 = 1e-10;
 impl BpcaModel {
     /// Initialise the model from the centered matrix `y` (`None` = missing),
     /// matching `_bpca_initmodel`.
-    fn init(y: &[Vec<Option<f64>>], n: usize, p: usize, k: usize) -> Self {
+    fn init(y: &[Vec<Option<f64>>], n: usize, p: usize, k: usize) -> Result<Self> {
         // yest = y with missing entries set to 0.
         let yest = y
             .iter()
@@ -228,7 +228,7 @@ impl BpcaModel {
 
         // SVD of a symmetric PSD matrix == eigendecomposition; eigenpairs sorted
         // by descending eigenvalue match numpy's singular-value ordering.
-        let (eigenvalues, eigenvectors) = symmetric_eigen_descending(&covy, p);
+        let (eigenvalues, eigenvectors) = symmetric_eigen_descending(&covy, p)?;
 
         // PA = U[:, :k] @ sqrt(diag(s[:k])).
         let mut pa = vec![vec![0.0; k]; p];
@@ -260,14 +260,14 @@ impl BpcaModel {
             })
             .collect::<Vec<f64>>();
 
-        BpcaModel {
+        Ok(BpcaModel {
             pa,
             tau,
             alpha,
             sig_w: identity(k),
             scores: vec![vec![0.0; k]; n],
             mean,
-        }
+        })
     }
 
     /// One EM step, mirroring `_bpca_dostep`. `y` is the centered matrix
@@ -653,84 +653,79 @@ fn invert(matrix: &[Vec<f64>], m: usize) -> Option<Vec<Vec<f64>>> {
 /// fill values depend only on the reconstruction `scores @ PA^T`, which is
 /// invariant to the sign of each eigenvector, so a sign convention is not
 /// required.
-fn symmetric_eigen_descending(matrix: &[Vec<f64>], m: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
+fn symmetric_eigen_descending(matrix: &[Vec<f64>], m: usize) -> Result<(Vec<f64>, Vec<Vec<f64>>)> {
     let mut a = matrix.to_vec();
     let mut vectors = identity(m);
-
+    let norm = matrix.iter().flatten().map(|v| v * v).sum::<f64>().sqrt();
+    let tolerance = norm * 1e-14;
     for _ in 0..JACOBI_SWEEPS {
-        // Largest-magnitude off-diagonal entry.
-        let mut off = 0.0;
-        let mut pivot_p = 0usize;
-        let mut pivot_q = if m > 1 { 1 } else { 0 };
-        for (i, row_i) in a.iter().enumerate() {
-            for (j, &entry) in row_i.iter().enumerate().skip(i + 1) {
-                let value = entry.abs();
-                if value > off {
-                    off = value;
-                    pivot_p = i;
-                    pivot_q = j;
-                }
+        if off_diagonal_norm(&a) <= tolerance {
+            break;
+        }
+        // A sweep rotates every pair; the previous implementation rotated only
+        // one pair and stopped before larger covariance matrices converged.
+        for p in 0..m {
+            for q in p + 1..m {
+                rotate_eigen_pair(&mut a, &mut vectors, p, q);
             }
         }
-        if off < 1e-300 {
-            break;
-        }
-
-        let app = a[pivot_p][pivot_p];
-        let aqq = a[pivot_q][pivot_q];
-        let apq = a[pivot_p][pivot_q];
-        if apq.abs() < 1e-300 {
-            break;
-        }
-        // Rotation angle, matching the reference `0.5 * arctan2(2 apq, aqq - app)`.
-        let phi = 0.5 * (2.0 * apq).atan2(aqq - app);
-        let (sin_phi, cos_phi) = phi.sin_cos();
-
-        // Rotate columns p and q of A.
-        for row in a.iter_mut() {
-            let aip = row[pivot_p];
-            let aiq = row[pivot_q];
-            row[pivot_p] = cos_phi * aip - sin_phi * aiq;
-            row[pivot_q] = sin_phi * aip + cos_phi * aiq;
-        }
-        // Rotate rows p and q of A. `pivot_p < pivot_q` always holds (the pivot
-        // search only sets `pivot_q = j` with `j > i = pivot_p`), so the two rows
-        // can be borrowed disjointly via `split_at_mut`.
-        let (lower_rows, upper_rows) = a.split_at_mut(pivot_q);
-        let row_p = &mut lower_rows[pivot_p];
-        let row_q = &mut upper_rows[0];
-        for column in 0..m {
-            let api = row_p[column];
-            let aqi = row_q[column];
-            row_p[column] = cos_phi * api - sin_phi * aqi;
-            row_q[column] = sin_phi * api + cos_phi * aqi;
-        }
-        // Accumulate the rotation into the eigenvectors.
-        for row in vectors.iter_mut() {
-            let vip = row[pivot_p];
-            let viq = row[pivot_q];
-            row[pivot_p] = cos_phi * vip - sin_phi * viq;
-            row[pivot_q] = sin_phi * vip + cos_phi * viq;
-        }
     }
+    if off_diagonal_norm(&a) > tolerance {
+        return Err(MokumeError::InvalidInput {
+            message: "BPCA covariance eigendecomposition did not converge in 100 sweeps".to_owned(),
+        });
+    }
+    let mut order = (0..m).collect::<Vec<_>>();
+    order.sort_by(|&left, &right| a[right][right].total_cmp(&a[left][left]));
+    let values = order.iter().map(|&i| a[i][i]).collect();
+    let vectors = vectors
+        .iter()
+        .map(|row| order.iter().map(|&j| row[j]).collect())
+        .collect();
+    Ok((values, vectors))
+}
 
-    // Eigenvalues sit on the diagonal; sort indices by descending eigenvalue.
-    let eigenvalues = (0..m).map(|i| a[i][i]).collect::<Vec<f64>>();
-    let mut order = (0..m).collect::<Vec<usize>>();
-    order.sort_by(|&left, &right| {
-        eigenvalues[right]
-            .partial_cmp(&eigenvalues[left])
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+fn off_diagonal_norm(a: &[Vec<f64>]) -> f64 {
+    (2.0 * a
+        .iter()
+        .enumerate()
+        .map(|(i, row)| row.iter().skip(i + 1).map(|v| v * v).sum::<f64>())
+        .sum::<f64>())
+    .sqrt()
+}
 
-    let sorted_values = order.iter().map(|&i| eigenvalues[i]).collect::<Vec<f64>>();
-    let sorted_vectors = (0..m)
-        .map(|row| {
-            order
-                .iter()
-                .map(|&col| vectors[row][col])
-                .collect::<Vec<f64>>()
-        })
+fn rotate_eigen_pair(a: &mut [Vec<f64>], vectors: &mut [Vec<f64>], p: usize, q: usize) {
+    let apq = a[p][q];
+    if apq == 0.0 {
+        return;
+    }
+    let theta = (a[q][q] - a[p][p]) / (2.0 * apq);
+    let t = theta.signum() / (theta.abs() + theta.hypot(1.0));
+    let t = if theta == 0.0 { 1.0 } else { t };
+    let c = 1.0 / t.hypot(1.0);
+    let s = t * c;
+    let app = a[p][p];
+    let aqq = a[q][q];
+    let rotated = a
+        .iter()
+        .enumerate()
+        .filter(|(k, _)| *k != p && *k != q)
+        .map(|(k, row)| (k, c * row[p] - s * row[q], s * row[p] + c * row[q]))
         .collect::<Vec<_>>();
-    (sorted_values, sorted_vectors)
+    for (k, left, right) in rotated {
+        a[k][p] = left;
+        a[p][k] = left;
+        a[k][q] = right;
+        a[q][k] = right;
+    }
+    a[p][p] = app - t * apq;
+    a[q][q] = aqq + t * apq;
+    a[p][q] = 0.0;
+    a[q][p] = 0.0;
+    for row in vectors {
+        let vip = row[p];
+        let viq = row[q];
+        row[p] = c * vip - s * viq;
+        row[q] = s * vip + c * viq;
+    }
 }

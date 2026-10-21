@@ -98,7 +98,7 @@ def _make_new_qpx_parquet(
             ],
             [
                 {
-                    "accession": "sp|P12345|PROT_HUMAN",
+                    "accession": "sp|CONTAMINANT_P99999|CONTAM_HUMAN",
                     "start": 10,
                     "end": 18,
                     "pre": "K",
@@ -109,11 +109,11 @@ def _make_new_qpx_parquet(
         "anchor_protein": [
             "sp|P12345|PROT_HUMAN",
             "sp|P67890|PROT2_HUMAN",
-            "sp|P12345|PROT_HUMAN",
+            "sp|CONTAMINANT_P99999|CONTAM_HUMAN",
         ],
         "charge": [2, 3, 2],
         "run_file_name": ["run1", "run1", "run2"],
-        "unique": [True, True, True],
+        "unique": [True, False, True],
         "is_decoy": [False, False, False],
         "intensities": [
             [
@@ -772,9 +772,7 @@ class TestNewQPXDeepCompat:
         # In new QPX, pg_accessions is list<struct{accession,...}>
         # mokume code does: df["pg_accessions"].str[0] then .split("|")
         first_elem = df["pg_accessions"].str[0]
-        # With struct, first_elem would be a dict, not a string
-        print(f"pg_accessions type: {type(first_elem.iloc[0])}")
-        print(f"pg_accessions[0]: {first_elem.iloc[0]}")
+        assert first_elem.map(type).eq(str).all()
 
         # This is what mokume ratio.py does:
         first_acc = df["pg_accessions"].str[0].fillna("")
@@ -783,7 +781,12 @@ class TestNewQPXDeepCompat:
             first_acc.str.split("|").str[1],
             first_acc,
         )
-        print(f"Parsed protein names: {result}")
+        assert sorted(result.tolist()) == ["CONTAMINANT_P99999"] * 2 + [
+            "P12345",
+            "P12345",
+            "P67890",
+            "P67890",
+        ]
 
     def test_unique_bool_filter_sql(self, tmp_path):
         """Verify 'unique = 1' SQL filter works with bool column."""
@@ -796,7 +799,11 @@ class TestNewQPXDeepCompat:
 
         # SQLFilterBuilder generates: "unique" = 1
         df = feat.parquet_db.execute('SELECT * FROM parquet_db WHERE "unique" = 1').df()
-        assert len(df) > 0, "unique=1 filter on bool column returned no rows"
+        assert df["unique"].tolist() == [True] * 4
+        assert set(df["pg_accessions"].str[0]) == {
+            "sp|P12345|PROT_HUMAN",
+            "sp|CONTAMINANT_P99999|CONTAM_HUMAN",
+        }
 
     def test_unique_bool_filter_pandas(self, tmp_path):
         """Verify unique == 1 Pandas filter works with bool column."""
@@ -810,12 +817,14 @@ class TestNewQPXDeepCompat:
         df = feat.parquet_db.execute("SELECT * FROM parquet_db").df()
         # stages.py and peptide.py do: dataset_df[dataset_df["unique"] == 1]
         filtered = df[df["unique"] == 1]
-        assert len(filtered) > 0, (
-            "unique==1 filter on bool column returned no rows in Pandas"
-        )
+        assert filtered["unique"].tolist() == [True] * 4
+        assert set(filtered["pg_accessions"].str[0]) == {
+            "sp|P12345|PROT_HUMAN",
+            "sp|CONTAMINANT_P99999|CONTAM_HUMAN",
+        }
 
     def test_get_low_frequency_peptides(self, tmp_path):
-        """Test get_low_frequency_peptides with struct pg_accessions."""
+        """Fully observed struct-backed peptides are not marked low frequency."""
         parquet_file = str(tmp_path / "new_qpx.feature.parquet")
         _make_new_qpx_parquet(parquet_file)
 
@@ -824,7 +833,8 @@ class TestNewQPXDeepCompat:
         feat = Feature(parquet_file)
 
         result = feat.get_low_frequency_peptides(percentage=0.2)
-        print(f"Low frequency peptides: {result}")
+        assert isinstance(result, tuple)
+        assert not result
 
     def test_contaminant_filter_with_struct(self, tmp_path):
         """Test SQL contaminant filter (pg_accessions::text LIKE) with struct type."""
@@ -833,16 +843,17 @@ class TestNewQPXDeepCompat:
 
         from mokume.io.feature import Feature, SQLFilterBuilder
 
-        fb = SQLFilterBuilder(remove_contaminants=True)
+        fb = SQLFilterBuilder(remove_contaminants=True, require_unique=False)
         feat = Feature(parquet_file, filter_builder=fb)
 
         where_clause, where_params = fb.build_where_clause()
         sql = "".join(["SELECT * FROM parquet_db WHERE ", where_clause])
         df = feat.parquet_db.execute(sql, where_params).df()
-        # Should still return rows since our test data has no contaminants
-        assert len(df) > 0, (
-            "Contaminant filter on struct pg_accessions returned no rows"
-        )
+        assert len(df) == 4
+        assert set(df["pg_accessions"].str[0]) == {
+            "sp|P12345|PROT_HUMAN",
+            "sp|P67890|PROT2_HUMAN",
+        }
 
 
 class TestBothFormatsProduceSameSchema:

@@ -1,0 +1,170 @@
+{
+  "upstream": "Bioconductor edgeR 4.8.2",
+  "entrypoint": "edgeR::calcNormFactors.default(method=\"TMM\")",
+  "scope": "canonical-peptide by sample, linear intensities; protein sum/median after sample-wise division by centered factors; not edgeR CPM",
+  "parameters": {
+    "refColumn": null,
+    "logratioTrim": 0.3,
+    "sumTrim": 0.05,
+    "doWeighting": true,
+    "Acutoff": -10000000000.0
+  },
+  "tolerances": {
+    "rtol": 1e-06,
+    "atol": 0.01
+  },
+  "input_contract": [
+    "load original Parquet intensities without rounding",
+    "max by protein/sample/peptidoform/charge across input rows",
+    "retain protein/sample cells with >=2 unique canonical sequences",
+    "sum charge states and peptidoforms into protein/canonical/sample cells",
+    "fit edgeR TMM on union of canonical rows and samples, missing filled with zero for fitting only",
+    "divide canonical values by centered composition factor, then sum or median per protein/sample",
+    "retain original missing-cell state; protein and sample labels sorted"
+  ],
+  "cases": [
+    {
+      "prefix": "feature_wide",
+      "original_parquet_sha256": "6dba1c87e4aad86e604853cbfb7d9ef1ebb4f2b15e9afd03313877f4ba0909eb",
+      "original_records": 500,
+      "canonical_shape": [
+        22,
+        10
+      ],
+      "allowed_protein_sample_cells": 20,
+      "input_matrix_sha256": "1712fd361c8e8da61bce28908450982936f234933af864c8263d5f4c7c60bd43",
+      "original_numeric_precision": "float",
+      "factors": {
+        "PXD020192-Sample-10": 7.271323504374433,
+        "PXD020192-Sample-11": 0.6397080008697096,
+        "PXD020192-Sample-12": 0.5631173691440275,
+        "PXD020192-Sample-13": 0.5631173691440275,
+        "PXD020192-Sample-14": 8.904645358414273,
+        "PXD020192-Sample-15": 0.6551549559664517,
+        "PXD020192-Sample-16": 0.6508028950294129,
+        "PXD020192-Sample-17": 0.5631173691440275,
+        "PXD020192-Sample-18": 0.5631173691440275,
+        "PXD020192-Sample-19": 0.5631173691440275
+      },
+      "factors_sha256": "307dcb5a82a73d9fd4c4cf244b3dc092e0ff5f559044677579c5f7bd1a563be8",
+      "outputs": {
+        "sum": {
+          "path": "feature_wide_sum_tmm_edger.csv",
+          "sha256": "0f3993460cbb5ee1ee4a52c84a89a3bb226d41372c5c6b69dd007995a058ac12",
+          "shape": [
+            11,
+            10
+          ],
+          "missing_cells": 90
+        },
+        "median": {
+          "path": "feature_wide_median_tmm_edger.csv",
+          "sha256": "461ae079af265a4be0204c02ca8ef8fdb17edc49071f353aa79fbc4d20da3a55",
+          "shape": [
+            11,
+            10
+          ],
+          "missing_cells": 90
+        }
+      },
+      "original_parquet": "rust/tests/example/feature_wide.parquet"
+    },
+    {
+      "prefix": "feature_wide_dense",
+      "original_parquet_sha256": "9677cba87180208eda1b42b9f15a01c98bde059f2511f11d6503a6a519d710a5",
+      "original_records": 200,
+      "canonical_shape": [
+        20,
+        10
+      ],
+      "allowed_protein_sample_cells": 30,
+      "input_matrix_sha256": "22b3c5ef48ef33b20b0222c291a4b649fbbc1b8fbbabef09bf400424d1d022d7",
+      "original_numeric_precision": "double",
+      "factors": {
+        "PXD020192-Sample-10": 0.9890319421565714,
+        "PXD020192-Sample-11": 1.0353674749470705,
+        "PXD020192-Sample-12": 1.0052085184034436,
+        "PXD020192-Sample-13": 1.001274921927734,
+        "PXD020192-Sample-14": 0.994514433795753,
+        "PXD020192-Sample-15": 1.0031827234451811,
+        "PXD020192-Sample-16": 0.9956333410233424,
+        "PXD020192-Sample-17": 0.996811264854883,
+        "PXD020192-Sample-18": 0.9565304804087543,
+        "PXD020192-Sample-19": 1.0244324994023946
+      },
+      "factors_sha256": "21dd65f6bb81ef2708742d28c8cf0696974f3c7dd113710b7929073c59abb982",
+      "outputs": {
+        "sum": {
+          "path": "feature_wide_dense_sum_tmm_edger.csv",
+          "sha256": "880436a556e464e43e26679b9c0d4d8ad1c08f39d598dc97402abac13574b9a7",
+          "shape": [
+            3,
+            10
+          ],
+          "missing_cells": 0
+        },
+        "median": {
+          "path": "feature_wide_dense_median_tmm_edger.csv",
+          "sha256": "950797052fb2ac23d9ff3b6db4eadbd871158b005a81f525e9ca631027578bc9",
+          "shape": [
+            3,
+            10
+          ],
+          "missing_cells": 0
+        }
+      },
+      "original_parquet": "rust/tests/example/feature_wide_dense.parquet"
+    },
+    {
+      "prefix": "feature_wide_multiform",
+      "original_parquet_sha256": "c74af447ab9fb3027b7828114474b28a2e67d0b00827bcccc248ec9a5b30ed4c",
+      "original_records": 400,
+      "canonical_shape": [
+        20,
+        10
+      ],
+      "allowed_protein_sample_cells": 30,
+      "input_matrix_sha256": "01d243a7f562ebda5cba77890651e9382e99350fb6bf7c6c1affe0b14259d19d",
+      "original_numeric_precision": "double",
+      "factors": {
+        "PXD020192-Sample-10": 0.9890320488559451,
+        "PXD020192-Sample-11": 1.0353671172060153,
+        "PXD020192-Sample-12": 1.0052095990569017,
+        "PXD020192-Sample-13": 1.001274626545167,
+        "PXD020192-Sample-14": 0.9945104245535357,
+        "PXD020192-Sample-15": 1.00318356972199,
+        "PXD020192-Sample-16": 0.995633744181592,
+        "PXD020192-Sample-17": 0.9968136997457059,
+        "PXD020192-Sample-18": 0.9565330934414026,
+        "PXD020192-Sample-19": 1.024429493704457
+      },
+      "factors_sha256": "48d59459f0000a753eedab9a432050790de71673c24003c0ef515e7d47c05a17",
+      "outputs": {
+        "sum": {
+          "path": "feature_wide_multiform_sum_tmm_edger.csv",
+          "sha256": "ba4b90ed954519b457ef33e440c9506e3bb62788a4f669a79b0f76555acfb659",
+          "shape": [
+            3,
+            10
+          ],
+          "missing_cells": 0
+        },
+        "median": {
+          "path": "feature_wide_multiform_median_tmm_edger.csv",
+          "sha256": "a14083e781e77cbd31dc1d035228da1dc4a59d776e16cf650b7fe3286d1ebfaf",
+          "shape": [
+            3,
+            10
+          ],
+          "missing_cells": 0
+        }
+      },
+      "original_parquet": "rust/tests/example/feature_wide_multiform.parquet"
+    }
+  ],
+  "generation_python_sha256": "772ff33e2ec8d3f1a9e1c51b88e059683b8d6ac406c96b6b915fa05de0d35666",
+  "generation_R_sha256": "f8b4f12477203c92fac32b9e80256e2b82b816476c7a44390c1db27d99c01f6d",
+  "official_package_url": "https://bioconductor.org/packages/edgeR/",
+  "runtime": "R 4.5.3; edgeR 4.8.2; limma 3.66.0",
+  "factor_application": "Composition-only scaling (divide by factor); library-size scaling is not requested by this pipeline."
+}

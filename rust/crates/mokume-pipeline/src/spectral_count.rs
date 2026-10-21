@@ -266,6 +266,7 @@ fn protein_set(accessions: &[String]) -> Option<BTreeSet<String>> {
         .iter()
         .map(|accession| super::parse_protein_accession(accession))
         .filter(|accession| !accession.is_empty())
+        .map(str::to_owned)
         .collect::<BTreeSet<_>>();
     (!proteins.is_empty()).then_some(proteins)
 }

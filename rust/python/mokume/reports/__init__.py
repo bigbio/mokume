@@ -3,7 +3,7 @@ Interactive report generation for mokume DE results.
 
 This module provides optional interactive HTML reports using plotly. Install
 the matching distribution extra with ``pip install mokume-py[reports]`` (pure
-Python) or ``pip install mokume[reports]`` (Rust wheel).
+Python) or ``pip install mokume[analysis]`` (Rust wheel).
 """
 
 import importlib.util
@@ -33,7 +33,7 @@ def _require_interactive():
         raise ImportError(
             "Interactive report dependencies (plotly) are not installed. "
             "Install the matching extra with: pip install mokume-py[reports] "
-            "(pure Python) or pip install mokume[reports] (Rust wheel)"
+            "(pure Python) or pip install mokume[analysis] (Rust wheel)"
         )
 
 

@@ -5,8 +5,8 @@ pure-Python APIs, output columns, and periphery workflows.
 
 ## [CLI Reference](cli.md)
 
-The four Rust-native compute commands and four Python periphery commands exposed
-by `pip install mokume`, with their options and dependency extras.
+The Rust-native compute commands and Python periphery commands exposed by
+`pip install mokume`, with their options and dependency extras.
 
 ## [Python API (wheel)](python-api.md)
 
@@ -18,8 +18,8 @@ The separately maintained pure-Python `mokume` package: its class-based
 pipeline, `QpxDataset`, plugin registry, differential-expression API, and
 runtime resource controls.
 
-Agentic recommendation is provided by the default Rust-backed wheel through the
-[Mokume Plugin](../user-guide/agentic-plugin.md), not by `mokume-py`.
+Evidence-bound recommendation is provided by the default Rust-backed wheel
+through the [Mokume Plugin](../user-guide/agentic-plugin.md), not by `mokume-py`.
 
 ## [Computed Values](computed-values.md)
 

@@ -99,6 +99,7 @@ def get_accession(identifier: str) -> str:
 
     Supports multiple formats:
     - Standard UniProt: ``sp|P12345|PROT_NAME`` or ``tr|Q12345|PROT_NAME`` → ``P12345``
+    - UPS database prefix: ``UPS|P02768ups|ALBU_HUMAN_UPS`` → ``P02768ups``
     - Non-standard 2-part: ``P02768ups|ALBU_HUMAN_UPS`` → ``P02768ups``
     - Plain accession: ``O13547`` → ``O13547``
 
@@ -112,7 +113,7 @@ def get_accession(identifier: str) -> str:
     str
         Protein accession.
     """
-    _DB_PREFIXES = {"sp", "tr", "sw", "nxp"}
+    _DB_PREFIXES = {"sp", "tr", "sw", "nxp", "ups"}
     identifier_lst = identifier.split("|")
     if len(identifier_lst) == 1:
         return identifier_lst[0]

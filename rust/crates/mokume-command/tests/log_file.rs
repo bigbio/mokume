@@ -11,7 +11,7 @@ use mokume_pipeline::{PibaqDigest, PibaqDigestProvenance};
 #[test]
 fn log_file_option_writes_file_and_preserves_command_errors(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_root()?;
+    let (_tempdir, root) = temp_root()?;
     let log_file = root.join("logs").join("mokume.log");
     let error = match run_from_args([
         "mokume",
@@ -138,12 +138,13 @@ P1,PEPTIDEAK,S1,A,100.0\n",
     Ok(())
 }
 
-fn temp_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn temp_root() -> Result<(tempfile::TempDir, PathBuf), Box<dyn std::error::Error>> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-    Ok(tempfile::Builder::new()
+    let directory = tempfile::Builder::new()
         .prefix(&format!("mokume-command-test-{timestamp}-"))
-        .tempdir()?
-        .keep())
+        .tempdir()?;
+    let path = directory.path().to_path_buf();
+    Ok((directory, path))
 }
 
 fn path_str(path: &Path) -> Result<&str, Box<dyn std::error::Error>> {

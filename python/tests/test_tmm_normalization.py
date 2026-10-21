@@ -42,30 +42,6 @@ class TestTMMNormalizer:
             index=[f"P{i}" for i in range(n_proteins)],
         )
 
-    @pytest.fixture
-    def biased_data(self):
-        """Data with composition bias (one sample has outlier proteins)."""
-        np.random.seed(42)
-        n_proteins = 50
-        base = np.ones(n_proteins) * 100
-
-        # S1 and S2 are normal
-        s1 = base.copy()
-        s2 = base.copy()
-
-        # S3 has a few highly abundant outlier proteins
-        s3 = base.copy()
-        s3[-5:] = 10000  # Last 5 proteins are 100x higher
-
-        return pd.DataFrame(
-            {
-                "S1": s1,
-                "S2": s2,
-                "S3": s3,
-            },
-            index=[f"P{i}" for i in range(n_proteins)],
-        )
-
     def test_fit_creates_factors(self, simple_data):
         """TMM fit should create normalization factors for each sample."""
         tmm = TMMNormalizer()
@@ -160,22 +136,9 @@ class TestTMMNormalizer:
         tmm = TMMNormalizer()
         result = tmm.fit_transform(data)
 
-        # Should complete without error
-        assert result is not None
-
-    def test_composition_bias_correction(self, biased_data):
-        """TMM should correct for composition bias from outlier proteins."""
-        tmm = TMMNormalizer()
-        tmm.fit(biased_data)
-
-        # S3 has the outlier, should have higher factor (to scale down)
-        # After rescaling to geometric mean = 1, S3 factor should be > 1
-        factors = tmm.get_norm_factors()
-
-        # S1 and S2 should have similar factors, S3 should be different
-        assert np.isclose(factors["S1"], factors["S2"], atol=0.1)
-        # S3 factor should be notably different due to outlier
-        assert not np.isclose(factors["S3"], factors["S1"], atol=0.2)
+        assert result.isna().equals(data.isna())
+        observed = result.to_numpy()[~data.isna().to_numpy()]
+        assert np.isfinite(observed).all()
 
     def test_trim_parameters(self, simple_data):
         """Different trim parameters should affect results."""
@@ -185,10 +148,7 @@ class TestTMMNormalizer:
         result1 = tmm1.fit_transform(simple_data)
         result2 = tmm2.fit_transform(simple_data)
 
-        # Results may or may not differ depending on data
-        # At minimum, both should complete successfully
-        assert result1 is not None
-        assert result2 is not None
+        assert not np.allclose(result1.to_numpy(), result2.to_numpy())
 
     def test_transform_without_fit_raises(self, simple_data):
         """Transform without fit should raise error."""
@@ -279,8 +239,11 @@ class TestTMMConvenienceFunction:
         )
 
         result = tmm_normalize(data, m_trim=0.2, a_trim=0.1, ref_sample="S1")
+        expected = TMMNormalizer(m_trim=0.2, a_trim=0.1, ref_sample="S1").fit_transform(
+            data
+        )
 
-        assert result is not None
+        pd.testing.assert_frame_equal(result, expected)
 
 
 class TestTMMNumericalAccuracy:
@@ -338,13 +301,12 @@ class TestTMMNumericalAccuracy:
 
         # S1 and S3 should have similar factors
         assert np.isclose(factors["S1"], factors["S3"], atol=0.1)
+        assert not np.isclose(factors["S2"], factors["S1"])
 
         # After normalization, the non-outlier proteins in S2 should be adjusted
         result = tmm.transform(data)
 
-        # The normalization should have happened (result is different from input)
-        # At minimum, the normalized data should preserve relative order within proteins
-        assert result is not None
+        assert not np.allclose(result["S2"].iloc[:-5], data["S2"].iloc[:-5])
 
 
 class TestTMMSampleNormalizationWiring:
@@ -366,10 +328,6 @@ class TestTMMSampleNormalizationWiring:
         choices = [p.name.lower() for p in PeptideNormalizationMethod]
         assert "tmm" in choices
 
-    @pytest.mark.skipif(
-        not (os.path.exists(_PARQUET) and os.path.exists(_SDRF)),
-        reason="Dev feature_wide fixture not available",
-    )
     def test_pipeline_runs_with_tmm_sample_normalization(self):
         """End-to-end: the pipeline runs TMM and yields a finite protein matrix.
 
@@ -431,7 +389,3 @@ class TestTMMSampleNormalizationWiring:
         diff = diff[~np.isnan(diff)]
         assert diff.size > 0
         assert np.nanmax(np.abs(diff)) > 0.0
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

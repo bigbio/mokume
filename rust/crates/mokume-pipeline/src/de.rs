@@ -19,7 +19,8 @@
 //!      rots carries a single `d_stat` column).
 //!
 //! `--de-method ensemble` is also wired: it runs each configured member method
-//! (default members `[limrots, deqms, proda]`, overridable via
+//! (default members `[limrots, deqms, proda]`, with `limma` in place of
+//! `limrots` on a contrast with missing values; overridable via
 //! repeated `--de-ensemble-method`), keeps the non-empty results, and fuses them with the
 //! deterministic top-k consensus combiner (`combine_de_results`), emitting the
 //! consensus column set (`n_methods_up`/`n_methods_down`/`methods_significant`).
@@ -36,14 +37,14 @@
 //! available explicitly.
 //!
 //! Unsupported methods and options are rejected upstream in
-//! `validate_de_subset`; this module never silently substitutes a different
-//! test. The in-pipeline deqms path feeds the per-protein
-//! unique-canonical-peptide counts captured at ingest (mirroring Python's
-//! `_load_de_peptide_counts` -> `_build_count_vector`), so the
-//! spectraCounteBayes count moderation runs when the data has a real spread of
-//! counts and at least 10 testable proteins; with all-equal counts (or fewer
-//! than 10 valid points) it falls back to plain eBayes (== limma), exactly as
-//! mokume does.
+//! `validate_de_subset`; this module never substitutes an explicitly requested
+//! test and logs the default-member swap above. The in-pipeline deqms path
+//! feeds, per protein, the smallest per-sample unique-canonical-peptide count
+//! over the contrast's samples plus 1 (the DEqMS vignette's and OpDEA's count),
+//! so the spectraCounteBayes count moderation runs when the data has a real
+//! spread of counts and at least 10 testable proteins; with all-equal counts (or
+//! fewer than 10 valid points) it falls back to plain eBayes (== limma), exactly
+//! as mokume does.
 
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -51,7 +52,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use mokume_core::{DifferentialExpressionConfig, MokumeError, Result, SampleId};
-use mokume_io::SdrfTable;
+use mokume_io::{normalize_file_key, SdrfTable};
 use mokume_stats::de::{
     adaptive_adjust, combine_de_results, deqms_two_group, estimate_effect_size_gate,
     ihw_correction, limma_two_group, limrots_two_group, proda_two_group, rots_two_group,
@@ -85,7 +86,6 @@ pub(crate) fn run_differential_expression(
     config: &DifferentialExpressionConfig,
     drop_empty_samples: bool,
 ) -> Result<()> {
-    validate_config(config, false)?;
     let Some(sdrf) = sdrf else {
         return Err(invalid_input(
             "differential expression requires an SDRF file (--sdrf)",
@@ -96,26 +96,21 @@ pub(crate) fn run_differential_expression(
         return Ok(());
     }
 
+    let method = de_method(config)?;
     let condition_by_sample = condition_by_sample(sdrf);
     let samples = matrix.sample_columns(drop_empty_samples);
 
     for contrast in &contrasts {
-        let results = run_one_contrast(matrix, &samples, &condition_by_sample, contrast, config)?;
-        if let Some(output) = de_output_path(config, contrast, contrasts.len()) {
-            match &results {
-                MatrixDifferentialExpressionResults::Standard(rows) => {
-                    let DeMethod::Member(method) = de_method(config)? else {
-                        return Err(invalid_input(
-                            "ensemble results cannot use the single-method writer",
-                        ));
-                    };
-                    write_de_csv(&output, rows, contrast, method, matrix)?;
-                }
-                MatrixDifferentialExpressionResults::Ensemble(rows) => {
-                    write_ensemble_csv(&output, rows, contrast)?;
-                }
-            }
-        }
+        let output = de_output_path(config, contrast, contrasts.len());
+        run_one_contrast(
+            matrix,
+            &samples,
+            &condition_by_sample,
+            contrast,
+            method,
+            output.as_deref(),
+            config,
+        )?;
     }
     Ok(())
 }
@@ -147,7 +142,7 @@ pub fn differential_expression_matrix(
     config: &DifferentialExpressionConfig,
     threads: Option<usize>,
 ) -> Result<MatrixDifferentialExpressionResults> {
-    validate_config(config, false)?;
+    validate_config(config)?;
     validate_matrix_de_inputs(proteins, values, n_a, n_b, peptide_counts, config)?;
 
     crate::threading::install(threads, || {
@@ -173,7 +168,7 @@ pub fn differential_expression_matrix(
                 &prepared, config,
             )?)),
             DeMethod::Member(method) => Ok(MatrixDifferentialExpressionResults::Standard(
-                run_member(method, &prepared, config),
+                run_member(method, &prepared, config)?,
             )),
         }
     })
@@ -302,8 +297,10 @@ fn run_one_contrast(
     samples: &[(SampleId, &str)],
     condition_by_sample: &HashMap<String, String>,
     contrast: &Contrast,
+    method: DeMethod,
+    output: Option<&Path>,
     config: &DifferentialExpressionConfig,
-) -> Result<MatrixDifferentialExpressionResults> {
+) -> Result<()> {
     let samples_a = group_samples(samples, condition_by_sample, &contrast.cond_a);
     let samples_b = group_samples(samples, condition_by_sample, &contrast.cond_b);
     if samples_a.is_empty() {
@@ -326,7 +323,7 @@ fn run_one_contrast(
     let ordered: Vec<SampleId> = samples_a.iter().chain(samples_b.iter()).copied().collect();
     let (proteins, rows) = matrix.log2_rows(&ordered)?;
     let row_refs = rows.iter().map(Vec::as_slice).collect::<Vec<_>>();
-    let peptide_counts = build_count_vector(matrix, &proteins);
+    let peptide_counts = build_count_vector(matrix, &proteins, &ordered);
     let prepared = Prepared {
         proteins: &proteins,
         rows: &row_refs,
@@ -335,21 +332,23 @@ fn run_one_contrast(
         n_b: samples_b.len(),
     };
 
-    // Method is validated upstream in `validate_de_subset`; only `limma`,
-    // `deqms`, `rots`, `limrots`, `proda`, and `ensemble` reach here.
-    match de_method(config)? {
-        DeMethod::Ensemble => Ok(MatrixDifferentialExpressionResults::Ensemble(run_ensemble(
-            &prepared, config,
-        )?)),
-        DeMethod::Member(method) => Ok(MatrixDifferentialExpressionResults::Standard(run_member(
-            method, &prepared, config,
-        ))),
+    match method {
+        DeMethod::Ensemble => {
+            let rows = run_ensemble(&prepared, config)?;
+            output.map_or(Ok(()), |path| write_ensemble_csv(path, &rows, contrast))
+        }
+        DeMethod::Member(method) => {
+            let rows = run_member(method, &prepared, config)?;
+            output.map_or(Ok(()), |path| {
+                write_de_csv(path, &rows, contrast, method, &prepared)
+            })
+        }
     }
 }
 
-/// The per-contrast inputs shared by every single-method run: the matrix (for
-/// deqms counts), the contrast-ordered protein names, the log2 rows, and the two
-/// group sizes.
+/// The per-contrast inputs shared by every single-method run: the
+/// contrast-ordered protein names, the log2 rows, the deqms count vector, and
+/// the two group sizes.
 struct Prepared<'a> {
     proteins: &'a [String],
     rows: &'a [&'a [f64]],
@@ -364,8 +363,8 @@ fn run_member(
     method: MemberMethod,
     prepared: &Prepared<'_>,
     config: &DifferentialExpressionConfig,
-) -> Vec<DeResult> {
-    let results = run_method_bh(method, prepared, config);
+) -> Result<Vec<DeResult>> {
+    let results = run_method_bh(method, prepared, config)?;
     finalize_member_results(method, results, config)
 }
 
@@ -373,19 +372,20 @@ fn finalize_member_results(
     method: MemberMethod,
     mut results: Vec<DeResult>,
     config: &DifferentialExpressionConfig,
-) -> Vec<DeResult> {
-    // LimROTS and ROTS preserve their own permutation FDR. All other methods
+) -> Result<Vec<DeResult>> {
+    // LimROTS preserves official BH.pvalue; ROTS preserves BH-adjusted permutation p-values.
+    // All other methods
     // apply the configured correction over the raw p-values.
     if !matches!(method, MemberMethod::Limrots | MemberMethod::Rots) {
         if is_ihw(config) {
-            apply_ihw(&mut results, config);
+            apply_ihw(&mut results, config)?;
         } else if let Some(adaptive_method) = adaptive_fdr_method(config) {
             apply_adaptive_fdr(&mut results, adaptive_method, config);
         }
     }
     let gate = resolved_effect_size_gate(&results, config);
     classify_and_sort(&mut results, gate, config);
-    results
+    Ok(results)
 }
 
 /// Run one single-method DE test with its built-in Benjamini-Hochberg
@@ -395,23 +395,19 @@ fn run_method_bh(
     method: MemberMethod,
     prepared: &Prepared<'_>,
     config: &DifferentialExpressionConfig,
-) -> Vec<DeResult> {
+) -> Result<Vec<DeResult>> {
     let (proteins, rows, n_a, n_b) = (prepared.proteins, prepared.rows, prepared.n_a, prepared.n_b);
     let (fdr, log2fc) = (config.fdr_threshold, config.log2fc_threshold);
-    match method {
+    Ok(match method {
         MemberMethod::Rots => rots_two_group(proteins, rows, n_a, n_b, fdr, log2fc),
-        MemberMethod::Limrots => limrots_two_group(proteins, rows, n_a, n_b, fdr, log2fc),
+        MemberMethod::Limrots => limrots_two_group(proteins, rows, n_a, n_b, fdr, log2fc)?,
         MemberMethod::Proda => proda_two_group(proteins, rows, n_a, n_b, fdr, log2fc),
         MemberMethod::Deqms => {
-            // Per-protein unique-canonical-peptide counts captured at ingest,
-            // aligned to the contrast's protein order and defaulting to 1 for any
-            // protein absent from the map -- mirroring Python's
-            // `_build_count_vector` (deqms.py:147), which reindexes the
-            // `_load_de_peptide_counts` Series onto the matrix protein order and
-            // fills missing entries with 1. With a real spread of counts the
-            // spectraCounteBayes moderation runs; an all-equal/all-ones vector
-            // still trips the `ptp(log2 counts) < 1e-10` guard and falls back to
-            // plain eBayes (== limma), so behaviour degrades gracefully.
+            // The contrast's count vector (`build_count_vector`), aligned to its
+            // protein order. With a real spread of counts the spectraCounteBayes
+            // moderation runs; an all-equal vector still trips the
+            // `ptp(log2 counts) < 1e-10` guard and falls back to plain eBayes
+            // (== limma), so behaviour degrades gracefully.
             deqms_two_group(
                 proteins,
                 rows,
@@ -423,12 +419,11 @@ fn run_method_bh(
             )
         }
         MemberMethod::Limma => limma_two_group(proteins, rows, n_a, n_b, fdr, log2fc),
-    }
+    })
 }
 
-/// IHW uses 5 covariate bins, matching mokume's `_ihw_correction(..., n_bins=5)`
-/// default (differential_expression.py:393).
-const IHW_N_BINS: usize = 5;
+/// Use the official IHW automatic bin-count rule (one bin below 3000 tests).
+const IHW_N_BINS: usize = 0;
 
 /// Whether the configured FDR method is IHW (case-insensitive, trimmed),
 /// matching mokume's `self.fdr_method = config["fdr_method"].lower()` and the
@@ -451,21 +446,22 @@ fn adaptive_fdr_method(config: &DifferentialExpressionConfig) -> Option<Adaptive
 /// The covariate is the per-protein row-mean of the two `mean_<cond>` columns
 /// (`_ihw_covariate`, differential_expression.py:328-330): mokume's
 /// `de_df[mean_cols].mean(axis=1)` skips NaN, so a protein observed in only one
-/// group uses that group's mean; both-NaN yields a NaN covariate (excluded from
-/// binning by `ihw_correction`). The fallback to `n_a + n_b`
+/// group uses that group's mean; a tested protein with no finite covariate is
+/// rejected by IHW instead of being silently excluded. The fallback to `n_a + n_b`
 /// (differential_expression.py:331-332) cannot trigger here because the
 /// two-group methods always emit both mean columns.
-fn apply_ihw(results: &mut [DeResult], config: &DifferentialExpressionConfig) {
+fn apply_ihw(results: &mut [DeResult], config: &DifferentialExpressionConfig) -> Result<()> {
     if results.is_empty() {
-        return;
+        return Ok(());
     }
     let pvalues: Vec<f64> = results.iter().map(|row| row.p_value).collect();
     let covariate: Vec<f64> = results.iter().map(ihw_covariate).collect();
-    let adjusted = ihw_correction(&pvalues, &covariate, config.fdr_threshold, IHW_N_BINS);
+    let adjusted = ihw_correction(&pvalues, &covariate, config.fdr_threshold, IHW_N_BINS)?;
 
     for (row, &adj_p_value) in results.iter_mut().zip(&adjusted) {
         row.adj_p_value = adj_p_value;
     }
+    Ok(())
 }
 
 fn apply_adaptive_fdr(
@@ -570,9 +566,9 @@ fn run_ensemble(
     config: &DifferentialExpressionConfig,
 ) -> Result<Vec<EnsembleResult>> {
     let mut members: Vec<(String, Vec<DeResult>)> = Vec::new();
-    for name in validated_ensemble_member_names(config)? {
+    for name in ensemble_member_names(prepared, config)? {
         let method = parse_ensemble_method(&name)?;
-        let result = run_member(method, prepared, config);
+        let result = run_member(method, prepared, config)?;
         // Python only adds members whose result is non-empty.
         if !result.is_empty() {
             members.push((name, result));
@@ -587,6 +583,34 @@ fn run_ensemble(
         config.fdr_threshold,
     );
     Ok(finalize_ensemble_results(combined, config))
+}
+
+/// The member methods for one contrast. The LimROTS kernel accepts only
+/// complete finite log2 matrices, so on a contrast with missing values the
+/// default member set runs `limma`, the moderated t-test that LimROTS builds
+/// on, in place of `limrots`. Python's LimROTS accepts missing values and keeps
+/// `limrots`; an explicitly requested `limrots` member still needs a complete
+/// matrix.
+fn ensemble_member_names(
+    prepared: &Prepared<'_>,
+    config: &DifferentialExpressionConfig,
+) -> Result<Vec<String>> {
+    let mut names = validated_ensemble_member_names(config)?;
+    let incomplete = || {
+        prepared
+            .rows
+            .iter()
+            .any(|row| row.iter().any(|value| !value.is_finite()))
+    };
+    if config.ensemble_methods.is_none() && incomplete() {
+        if let Some(name) = names.iter_mut().find(|name| name.as_str() == "limrots") {
+            *name = "limma".to_owned();
+        }
+        tracing::info!(
+            "ensemble default member limrots replaced by limma: the contrast has missing values"
+        );
+    }
+    Ok(names)
 }
 
 fn finalize_ensemble_results(
@@ -652,21 +676,20 @@ fn classify_ensemble(
     }
 }
 
-pub(crate) fn validate_config(
-    config: &DifferentialExpressionConfig,
-    allow_auto: bool,
-) -> Result<()> {
+/// Validate a matrix-DE request. Option applicability (which options were
+/// supplied) is checked by the caller; `auto` cannot be resolved without a
+/// quantification method and is rejected.
+pub(crate) fn validate_config(config: &DifferentialExpressionConfig) -> Result<()> {
     let method = config.method.trim().to_ascii_lowercase();
     let is_ensemble = method == "ensemble";
-    match method.as_str() {
-        "limma" | "deqms" | "rots" | "limrots" | "proda" | "ensemble" => {}
-        "auto" if allow_auto => {}
-        _ => {
-            return Err(invalid_input(format!(
-                "unknown DE method `{}`",
-                config.method
-            )))
-        }
+    if !matches!(
+        method.as_str(),
+        "limma" | "deqms" | "rots" | "limrots" | "proda" | "ensemble"
+    ) {
+        return Err(invalid_input(format!(
+            "unknown DE method `{}`",
+            config.method
+        )));
     }
     if !matches!(
         config.fdr_method.trim().to_ascii_lowercase().as_str(),
@@ -676,22 +699,9 @@ pub(crate) fn validate_config(
             stage: "differential-expression-fdr-method",
         });
     }
-    if matches!(method.as_str(), "rots" | "limrots")
-        && !config.fdr_method.trim().eq_ignore_ascii_case("bh")
-    {
-        return Err(invalid_input(format!(
-            "--de-fdr-method {} does not apply to {method}, which retains its permutation FDR",
-            config.fdr_method
-        )));
-    }
     if config.ensemble_methods.is_some() && !is_ensemble {
         return Err(invalid_input(
             "--de-ensemble-method only applies to --de-method ensemble",
-        ));
-    }
-    if !is_ensemble && config.ensemble_min_k != 2 {
-        return Err(invalid_input(
-            "--de-ensemble-min-k only applies to --de-method ensemble",
         ));
     }
     if is_ensemble {
@@ -770,48 +780,22 @@ pub(crate) fn validated_ensemble_member_names(
 }
 
 /// Build the DEqMS per-protein count vector aligned to `proteins` (the contrast
-/// row order), defaulting to `1` for any protein absent from the matrix's
-/// per-protein count map. This is the Rust port of Python's `_build_count_vector`
-/// (deqms.py:147): `counts = np.ones(...); counts[valid] = aligned[valid]`, where
-/// `aligned = peptide_counts.reindex(proteins)`.
+/// row order), as the DEqMS vignette and OpDEA (`DEqMS_DE.R`) do: the smallest
+/// per-sample count of unique canonical peptides over the contrast's `samples`,
+/// plus 1, so a protein missing from one sample still gets a positive count.
 ///
-/// Count semantics vs Python (verified by cross-language pairing on a synthetic
-/// 15-protein, 3-vs-3 dataset):
-///   * KERNEL (counts agree, single-accession proteins): both sides count the
-///     distinct canonical-peptide sequences per protein, keyed by the parsed
-///     protein name `proteins` carries. Here `peptide_counts_by_name` resolves
-///     the same key the matrix uses, so the count vector matches Python.
-///   * Niche 1 -- accession format. Python's `_load_de_peptide_counts`
-///     (stages.py:1810) groups the RAW parquet by the un-parsed `anchor_protein`
-///     column (`sp|P1000|NAME`), but the matrix `ProteinName` is run through
-///     `parse_uniprot_accession` (aggregation.py:207) to `P1000`. With the
-///     standard `db|ACC|NAME` UniProt format the reindex therefore matches
-///     nothing, every count collapses to the all-ones default, and Python's
-///     spectraCounteBayes degrades to plain eBayes ("all counts identical").
-///     This Rust port keys both the count map and `proteins` by the same parsed
-///     name, so it does NOT degrade -- it runs real count-aware moderation.
-///   * Niche 2 -- protein groups. For a multi-accession group the matrix name is
-///     the `;`-joined parsed group (`P1000;P1001`), while Python's
-///     `anchor_protein` is a single accession, so the reindex misses and Python
-///     keeps the all-ones default for that group; this port carries the real
-///     group-level count.
-///   * Niche 3 -- data pipeline. Python counts distinct sequences from the raw
-///     parquet (pre-filter), this port from the post-filter accepted stream
-///     (`unique_peptides`, lib.rs:`protein_peptide_counts`). A shared / dropped
-///     peptide can shift a single-accession count by one.
-///
-/// In all three niches only the DEqMS-specific `peptide_count` / `sca_t` /
-/// `sca_pvalue` columns differ; the limma layer (`log2FC` / `pvalue`) and the
-/// protein quantification matrix remain cell-for-cell identical.
-fn build_count_vector(matrix: &ProteinMatrix, proteins: &[String]) -> Vec<f64> {
-    let counts_by_name = matrix.peptide_counts_by_name();
+/// The pure-Python pipeline (`_load_de_peptide_counts`) still counts all unique
+/// sequences per raw `anchor_protein`; only the DEqMS-specific `peptide_count` /
+/// `sca_t` / `sca_pvalue` columns differ, while the limma layer (`log2FC` /
+/// `pvalue`) and the protein quantification matrix are unaffected.
+fn build_count_vector(
+    matrix: &ProteinMatrix,
+    proteins: &[String],
+    samples: &[SampleId],
+) -> Vec<f64> {
     proteins
         .iter()
-        .map(|protein| {
-            counts_by_name
-                .get(protein)
-                .map_or(1.0, |count| *count as f64)
-        })
+        .map(|protein| (matrix.min_sample_peptide_count(protein, samples) + 1) as f64)
         .collect()
 }
 
@@ -866,6 +850,19 @@ fn parse_ensemble_method(name: &str) -> Result<MemberMethod> {
     }
 }
 
+/// Condition of a matrix column: an exact key (a source name) first, else the
+/// column normalized like an SDRF data file, which is how run-level matrices name
+/// their columns.
+fn sample_condition<'a>(
+    condition_by_sample: &'a HashMap<String, String>,
+    name: &str,
+) -> Option<&'a str> {
+    condition_by_sample
+        .get(name)
+        .or_else(|| condition_by_sample.get(&normalize_file_key(name)))
+        .map(String::as_str)
+}
+
 /// Sample ids whose condition equals `condition`, in matrix column order.
 fn group_samples(
     samples: &[(SampleId, &str)],
@@ -874,7 +871,7 @@ fn group_samples(
 ) -> Vec<SampleId> {
     samples
         .iter()
-        .filter(|(_, name)| condition_by_sample.get(*name).map(String::as_str) == Some(condition))
+        .filter(|(_, name)| sample_condition(condition_by_sample, name) == Some(condition))
         .map(|(sample, _)| *sample)
         .collect()
 }
@@ -964,7 +961,7 @@ fn de_output_path(
 /// `factor value[*]` column, reduced by `_shorten_factor_label`, keyed by both
 /// the `source name` and the `comment[data file]` name. The data-file keys let
 /// run-level protein matrices (whose columns are run-file stems, not source
-/// names) resolve their conditions.
+/// names) resolve their conditions through `sample_condition`.
 fn condition_by_sample(sdrf: &SdrfTable) -> HashMap<String, String> {
     let mut map = HashMap::new();
     // Pass 1: source name -> condition (Python's dedup'd source-name loop, first
@@ -976,11 +973,10 @@ fn condition_by_sample(sdrf: &SdrfTable) -> HashMap<String, String> {
         map.entry(record.sample_accession.clone())
             .or_insert_with(|| shorten_factor_label(condition));
     }
-    // Pass 2: data-file name + extension-stripped stem (+ uppercase variants),
+    // Pass 2: the data file keyed like mokume-io's SDRF lookup (basename,
+    // lowercase, run extension stripped, also inside `.d.zip` or `.raw.gz`),
     // filling only keys not already mapped so source-name entries win
-    // (irs.py:393-401). The stem strips `.raw`/`.mzML`/`.d`/`.wiff`
-    // case-insensitively so the key matches the extension-less `run_file_name`
-    // the protein matrix uses as its sample columns.
+    // (irs.py:393-401).
     for record in sdrf.records() {
         let Some(condition) = record.condition.as_deref() else {
             continue;
@@ -989,38 +985,13 @@ fn condition_by_sample(sdrf: &SdrfTable) -> HashMap<String, String> {
         if raw.is_empty() {
             continue;
         }
-        let short = shorten_factor_label(condition);
-        let stem = strip_run_extension(raw);
-        for variant in [
-            raw.to_owned(),
-            stem.clone(),
-            raw.to_uppercase(),
-            stem.to_uppercase(),
-        ] {
-            if !variant.is_empty() {
-                map.entry(variant).or_insert_with(|| short.clone());
-            }
+        let key = normalize_file_key(raw);
+        if !key.is_empty() {
+            map.entry(key)
+                .or_insert_with(|| shorten_factor_label(condition));
         }
     }
     map
-}
-
-/// Strip a single trailing run extension (case-insensitive). Beyond Python's
-/// `re.sub(r"\.(raw|mzML|d)$", ...)` this also strips `.wiff`: the protein-matrix
-/// sample columns come from the QPX `run_file_name`, which is already
-/// extension-less, so the SDRF `comment[data file]` key must drop the run
-/// extension to match it. Without `.wiff`, DE on Sciex (`.wiff`) datasets finds
-/// no samples for any contrast even though the conditions are present.
-fn strip_run_extension(name: &str) -> String {
-    let lower = name.to_ascii_lowercase();
-    for ext in [".raw", ".mzml", ".d", ".wiff"] {
-        if lower.ends_with(ext) {
-            if let Some(stem) = name.get(..name.len() - ext.len()) {
-                return stem.to_owned();
-            }
-        }
-    }
-    name.to_owned()
 }
 
 /// Port of `mokume.normalization.irs._shorten_factor_label`. Verbose
@@ -1062,15 +1033,14 @@ fn shorten_factor_label(raw: &str) -> String {
 ///  significance`. Here
 /// `pvalue == sca_pvalue` and `adj_pvalue == sca_adj_pvalue` (both BH of
 /// `sca_pvalue`), exactly as Python sets them, and `peptide_count` is the
-/// per-protein unique-canonical-peptide count captured at ingest, aligned by
-/// protein name (default 1 for any protein with no recorded count -- see
-/// `build_count_vector`).
+/// count vector the test used (see `build_count_vector`), aligned by protein
+/// name.
 fn write_de_csv(
     path: &Path,
     results: &[DeResult],
     contrast: &Contrast,
     method: MemberMethod,
-    matrix: &ProteinMatrix,
+    prepared: &Prepared,
 ) -> Result<()> {
     create_parent_dir(path)?;
     let file = File::create(path).map_err(|source| MokumeError::Io {
@@ -1104,14 +1074,14 @@ fn write_de_csv(
         .write_record(&header)
         .map_err(|source| crate::csv_error(path, source))?;
 
-    // deqms emits a per-protein `peptide_count` column; resolve the same aligned
-    // count map `build_count_vector` uses (default 1 for absent proteins) so the
-    // written value matches Python's `counts` column exactly. Other methods never
-    // read this map.
-    let counts_by_name = match method {
-        MemberMethod::Deqms => matrix.peptide_counts_by_name(),
-        _ => HashMap::new(),
-    };
+    // deqms emits a per-protein `peptide_count` column: the count vector the
+    // test used. Other methods never read this map.
+    let counts_by_name: HashMap<&str, f64> = prepared
+        .proteins
+        .iter()
+        .map(String::as_str)
+        .zip(prepared.peptide_counts.iter().copied())
+        .collect();
 
     for row in results {
         let mut record = vec![
@@ -1144,9 +1114,9 @@ fn write_de_csv(
         if method == MemberMethod::Deqms {
             record.extend([
                 counts_by_name
-                    .get(&row.protein)
+                    .get(row.protein.as_str())
                     .copied()
-                    .unwrap_or(1)
+                    .unwrap_or(1.0)
                     .to_string(),
                 format_float(row.log_p_value),
             ]);
@@ -1258,15 +1228,15 @@ mod tests {
     use std::error::Error;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use mokume_core::{DifferentialExpressionConfig, MokumeError, ProteinId, SampleId};
+    use mokume_core::{DifferentialExpressionConfig, ProteinId, SampleId};
     use mokume_io::SdrfTable;
     use mokume_stats::de::{DeResult, EnsembleResult, Significance};
 
     use super::{
         available_conditions, build_count_vector, classify_significance, condition_by_sample,
         differential_expression_matrix, finalize_ensemble_results, finalize_member_results,
-        run_differential_expression, shorten_factor_label, split_contrast, validate_config,
-        validated_ensemble_member_names, write_de_csv, Contrast, MemberMethod,
+        run_differential_expression, sample_condition, shorten_factor_label, split_contrast,
+        validated_ensemble_member_names, write_de_csv, Contrast, MemberMethod, Prepared,
     };
     use crate::{CellKey, ProteinMatrix, ProteinValues};
 
@@ -1357,12 +1327,13 @@ mod tests {
         ("P6", 8.954019282642177),
     ];
 
-    fn temp_dir(tag: &str) -> TestResult<std::path::PathBuf> {
+    fn temp_dir(tag: &str) -> TestResult<(tempfile::TempDir, std::path::PathBuf)> {
         let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-        Ok(tempfile::Builder::new()
+        let directory = tempfile::Builder::new()
             .prefix(&format!("mokume-de-{tag}-{nanos}-"))
-            .tempdir()?
-            .keep())
+            .tempdir()?;
+        let path = directory.path().to_path_buf();
+        Ok((directory, path))
     }
 
     /// Build a `ProteinMatrix` directly from the raw fixture, with every protein
@@ -1372,12 +1343,12 @@ mod tests {
         let mut samples = mokume_core::StringIdRegistry::<SampleId>::new();
         let mut sample_ids = Vec::with_capacity(SAMPLES.len());
         for name in SAMPLES {
-            sample_ids.push(samples.get_or_insert(name).ok_or("sample id overflow")?);
+            sample_ids.push(samples.get_or_insert(name).expect("sample id overflow"));
         }
         let mut values = HashMap::new();
         let mut allowed = HashSet::new();
         for (row, name) in PROTEINS.iter().enumerate() {
-            let protein = proteins.get_or_insert(name).ok_or("protein id overflow")?;
+            let protein = proteins.get_or_insert(name).expect("protein id overflow");
             allowed.insert(protein);
             for (col, sample) in sample_ids.iter().enumerate() {
                 values.insert(
@@ -1394,9 +1365,9 @@ mod tests {
             samples,
             allowed_proteins: allowed,
             excluded_samples: HashSet::new(),
-            // No recorded peptide counts: the deqms path then defaults every
-            // protein to 1 (the all-ones `_build_count_vector` fallback), which is
-            // what this 6-protein fixture exercises (< 10 valid points -> eBayes).
+            // No recorded peptide counts: the deqms path then gives every
+            // protein 0 + 1, which is what this 6-protein fixture exercises
+            // (< 10 valid points -> eBayes).
             peptide_counts: HashMap::new(),
             values: ProteinValues::Cells(values),
         })
@@ -1404,9 +1375,8 @@ mod tests {
 
     #[test]
     fn standard_de_csv_quotes_identifiers_and_dynamic_headers() -> TestResult<()> {
-        let dir = temp_dir("quoted-standard-csv")?;
+        let (_tempdir, dir) = temp_dir("quoted-standard-csv")?;
         let output = dir.join("quoted.csv");
-        let matrix = fixture_matrix()?;
         let rows = vec![DeResult {
             protein: "P,\"quoted\"\nline".to_owned(),
             log2_fold_change: 1.0,
@@ -1426,55 +1396,65 @@ mod tests {
             cond_a: "A,one".to_owned(),
             cond_b: "B\"two".to_owned(),
         };
-        write_de_csv(&output, &rows, &contrast, MemberMethod::Limma, &matrix)?;
+        let prepared = Prepared {
+            proteins: &[],
+            rows: &[],
+            peptide_counts: &[],
+            n_a: 3,
+            n_b: 3,
+        };
+        write_de_csv(&output, &rows, &contrast, MemberMethod::Limma, &prepared)?;
 
         let mut reader = csv::Reader::from_path(&output)?;
         let headers = reader.headers()?.clone();
         assert!(headers.iter().any(|value| value == "mean_A,one"));
         assert!(headers.iter().any(|value| value == "mean_B\"two"));
-        let record = reader.records().next().ok_or("missing DE row")??;
+        let record = reader.records().next().expect("missing DE row")?;
         assert_eq!(record.get(0), Some("P,\"quoted\"\nline"));
         assert_eq!(record.len(), headers.len());
         Ok(())
     }
 
-    // KERNEL pin for the DEqMS count vector: when a protein name is present in
-    // the matrix's per-protein unique-canonical count map, `build_count_vector`
-    // carries that real count, aligned by the parsed name the contrast row order
-    // uses. A name absent from the map keeps the all-ones default -- the same
-    // fallback Python reaches when its `anchor_protein`-keyed reindex misses (the
-    // niche documented on `build_count_vector`). Single-accession proteins with a
-    // recorded count are the cell-for-cell-consistent KERNEL; the all-ones
-    // fallback is the niche boundary.
+    // DEqMS count vector: per protein, the fewest unique canonical peptides over
+    // the contrast's samples, plus 1 (DEqMS vignette, OpDEA). A sample outside
+    // the contrast does not count; a protein missing from one of its samples, or
+    // unknown, gets 0 + 1.
     #[test]
-    fn deqms_count_vector_uses_real_count_and_defaults_missing_to_one() -> TestResult<()> {
+    fn deqms_count_vector_takes_the_fewest_peptides_per_sample_plus_one() -> TestResult<()> {
         let mut proteins = mokume_core::StringIdRegistry::<ProteinId>::new();
-        let p1 = proteins.get_or_insert("P1").ok_or("protein id overflow")?;
-        let p2 = proteins.get_or_insert("P2").ok_or("protein id overflow")?;
-        // P3 is a contrast row with no recorded count (e.g. a `;`-joined group or
-        // a protein Python's anchor reindex would miss): it must default to 1.
-        let _p3 = proteins.get_or_insert("P3").ok_or("protein id overflow")?;
+        let p1 = proteins.get_or_insert("P1").expect("protein id overflow");
+        let p2 = proteins.get_or_insert("P2").expect("protein id overflow");
+        let p3 = proteins.get_or_insert("P3").expect("protein id overflow");
+        let mut samples = mokume_core::StringIdRegistry::<SampleId>::new();
+        let s1 = samples.get_or_insert("S1").expect("sample id overflow");
+        let s2 = samples.get_or_insert("S2").expect("sample id overflow");
+        let s3 = samples.get_or_insert("S3").expect("sample id overflow");
 
         let mut peptide_counts = HashMap::new();
-        peptide_counts.insert(p1, 4usize);
-        peptide_counts.insert(p2, 2usize);
+        for (protein, sample, count) in [
+            (p1, s1, 4usize),
+            (p1, s2, 3),
+            (p1, s3, 1),
+            (p2, s1, 2),
+            (p2, s2, 5),
+            (p3, s1, 6),
+        ] {
+            peptide_counts.insert(CellKey { protein, sample }, count);
+        }
 
         let matrix = ProteinMatrix {
             proteins,
-            samples: mokume_core::StringIdRegistry::<SampleId>::new(),
+            samples,
             allowed_proteins: HashSet::new(),
             excluded_samples: HashSet::new(),
             peptide_counts,
             values: ProteinValues::Cells(HashMap::new()),
         };
 
-        let order = vec!["P1".to_owned(), "P2".to_owned(), "P3".to_owned()];
-        let counts = build_count_vector(&matrix, &order);
-
+        let order = ["P1", "P2", "P3", "P4"].map(str::to_owned);
         assert_eq!(
-            counts,
-            vec![4.0, 2.0, 1.0],
-            "real counts for recorded proteins, all-ones default for the missing one"
+            build_count_vector(&matrix, &order, &[s1, s2]),
+            vec![4.0, 3.0, 1.0, 1.0]
         );
         Ok(())
     }
@@ -1503,7 +1483,7 @@ mod tests {
     }
 
     #[test]
-    fn adaptive_fdr_and_auto_gate_are_wired_into_member_finalization() {
+    fn adaptive_fdr_and_auto_gate_are_wired_into_member_finalization() -> mokume_core::Result<()> {
         let mut pvalues = (0..900)
             .map(|index| (index as f64 + 0.5) / 900.0)
             .collect::<Vec<_>>();
@@ -1542,10 +1522,10 @@ mod tests {
             effect_size_gate: Some("mixture".to_string()),
             ..DifferentialExpressionConfig::default()
         };
-        let bky = finalize_member_results(MemberMethod::Limma, rows.clone(), &bky_config);
+        let bky = finalize_member_results(MemberMethod::Limma, rows.clone(), &bky_config)?;
         assert_eq!(bky.iter().filter(|row| row.adj_p_value < 0.05).count(), 168);
 
-        let finalized = finalize_member_results(MemberMethod::Limma, rows, &storey_config);
+        let finalized = finalize_member_results(MemberMethod::Limma, rows, &storey_config)?;
         assert_eq!(
             finalized
                 .iter()
@@ -1559,6 +1539,7 @@ mod tests {
         assert!(finalized
             .iter()
             .all(|row| { row.significance != Significance::Up || row.log2_fold_change < 0.5 }));
+        Ok(())
     }
 
     #[test]
@@ -1608,32 +1589,34 @@ mod tests {
     #[test]
     fn condition_by_sample_maps_data_file_stems() -> TestResult<()> {
         // source name != run-file stem, so run-level matrix columns (the stems)
-        // only resolve via the data-file pass. `.raw`/`.mzML`/`.wiff` are all
-        // stripped (case-insens) so the stem matches the extension-less
-        // run_file_name the protein matrix uses as columns.
+        // only resolve via the data-file keys, which follow mokume-io's
+        // normalize_file_key: any case, with or without the run extension, and
+        // through archives such as `.d.zip`.
         let tsv = concat!(
             "source name\tcomment[data file]\tfactor value[phenotype]\n",
             "Sample-1\trun_alpha.raw\tgroupA\n",
             "Sample-2\tRUN_BETA.mzML\tgroupB\n",
             "Sample-3\trun_gamma.wiff\tgroupA\n",
+            "Sample-4\tRun_Delta.d.zip\tgroupB\n",
         );
         let sdrf = SdrfTable::from_reader(tsv.as_bytes())?;
         let map = condition_by_sample(&sdrf);
+        let condition = |name| sample_condition(&map, name);
 
         // Source names still resolve.
-        assert_eq!(map.get("Sample-1").map(String::as_str), Some("groupA"));
-        // `.raw` stem resolves (the run-level fix).
-        assert_eq!(map.get("run_alpha").map(String::as_str), Some("groupA"));
-        assert_eq!(map.get("run_alpha.raw").map(String::as_str), Some("groupA"));
-        // `.mzML` stem strips case-insensitively; uppercase variant present too.
-        assert_eq!(map.get("RUN_BETA").map(String::as_str), Some("groupB"));
-        // `.wiff` is stripped too, so the extension-less stem (the protein-matrix
-        // column form) and the full name both resolve.
-        assert_eq!(map.get("run_gamma").map(String::as_str), Some("groupA"));
-        assert_eq!(
-            map.get("run_gamma.wiff").map(String::as_str),
-            Some("groupA")
-        );
+        assert_eq!(condition("Sample-1"), Some("groupA"));
+        for (name, expected) in [
+            ("run_alpha", "groupA"),
+            ("run_alpha.raw", "groupA"),
+            ("RUN_BETA", "groupB"),
+            ("run_beta", "groupB"),
+            ("run_gamma", "groupA"),
+            ("run_gamma.wiff", "groupA"),
+            ("Run_Delta", "groupB"),
+        ] {
+            assert_eq!(condition(name), Some(expected), "condition of {name}");
+        }
+        assert_eq!(condition("run_epsilon"), None);
         Ok(())
     }
 
@@ -1791,6 +1774,50 @@ mod tests {
     }
 
     #[test]
+    fn default_ensemble_runs_limma_for_limrots_on_missing_values() {
+        let proteins = vec!["P1".to_owned(), "P2".to_owned(), "P3".to_owned()];
+        let complete = vec![
+            vec![1.0, 2.0, 4.0, 8.0],
+            vec![8.0, 4.0, 2.0, 1.0],
+            vec![2.0, 3.0, 2.5, 3.5],
+        ];
+        let mut incomplete = complete.clone();
+        incomplete[2][0] = f64::NAN;
+        let counts = vec![1.0, 2.0, 3.0];
+        let default_members = DifferentialExpressionConfig {
+            enabled: true,
+            method: "ensemble".to_owned(),
+            ..DifferentialExpressionConfig::default()
+        };
+        let run = |values: &[Vec<f64>], config: &DifferentialExpressionConfig| {
+            differential_expression_matrix(&proteins, values, 2, 2, Some(&counts), config, Some(2))
+        };
+
+        // On a complete contrast the default members still run LimROTS, which
+        // rejects this three-protein matrix as too small for its search grid.
+        let Err(error) = run(&complete, &default_members) else {
+            panic!("LimROTS accepted a three-protein search grid");
+        };
+        assert!(error
+            .to_string()
+            .contains("LimROTS has an empty search grid"));
+        assert!(run(&incomplete, &default_members).is_ok());
+
+        let explicit = DifferentialExpressionConfig {
+            ensemble_methods: Some(vec![
+                "limrots".to_owned(),
+                "deqms".to_owned(),
+                "proda".to_owned(),
+            ]),
+            ..default_members.clone()
+        };
+        let Err(error) = run(&incomplete, &explicit) else {
+            panic!("an explicitly requested LimROTS member accepted missing values");
+        };
+        assert!(error.to_string().contains("complete finite log2 matrices"));
+    }
+
+    #[test]
     fn classification_marks_non_finite_results_not_tested() {
         assert_eq!(
             classify_significance(f64::NAN, 1.0, 0.05, 0.5),
@@ -1827,7 +1854,7 @@ mod tests {
     // relative 1e-6.
     #[test]
     fn de_dispatcher_matches_python_limma_oracle() -> TestResult<()> {
-        let dir = temp_dir("oracle")?;
+        let (_tempdir, dir) = temp_dir("oracle")?;
         let output = dir.join("de_results.csv");
         let matrix = fixture_matrix()?;
         let sdrf = fixture_sdrf()?;
@@ -1836,7 +1863,7 @@ mod tests {
 
         let text = std::fs::read_to_string(&output)?;
         let mut lines = text.lines();
-        let header = lines.next().ok_or("missing header")?;
+        let header = lines.next().expect("missing header");
         assert_eq!(
             header,
             "ProteinName,log2FC,pvalue,adj_pvalue,t_stat,AveExpr,B,mean_groupA,mean_groupB,n_a,n_b,significance"
@@ -1846,7 +1873,7 @@ mod tests {
         let mut order: Vec<String> = Vec::new();
         for line in lines {
             let fields = line.split(',').map(ToOwned::to_owned).collect::<Vec<_>>();
-            let protein = fields.first().ok_or("empty row")?.clone();
+            let protein = fields.first().expect("empty row").clone();
             order.push(protein.clone());
             rows.insert(protein, fields);
         }
@@ -1896,26 +1923,6 @@ mod tests {
         Ok(())
     }
 
-    // LimROTS and ROTS retain their permutation FDR, so accepting another FDR
-    // method would create a user-visible no-op. Reject that combination.
-    #[test]
-    fn de_dispatcher_rejects_unused_fdr_for_limrots_and_rots() -> TestResult<()> {
-        for method in ["limrots", "rots"] {
-            for fdr_method in ["ihw", "bky", "storey"] {
-                let config = DifferentialExpressionConfig {
-                    method: method.to_string(),
-                    fdr_method: fdr_method.to_string(),
-                    ..DifferentialExpressionConfig::default()
-                };
-                assert!(matches!(
-                    validate_config(&config, false),
-                    Err(MokumeError::InvalidInput { .. })
-                ));
-            }
-        }
-        Ok(())
-    }
-
     // Pipeline wiring test for `--de-method deqms`. The 6-protein fixture has
     // fewer than 10 valid points, so the in-pipeline deqms (with its all-ones
     // default counts) falls back to plain eBayes and reproduces the limma oracle
@@ -1927,7 +1934,7 @@ mod tests {
     // covered cell-by-cell in mokume-stats' deqms unit tests with explicit counts.
     #[test]
     fn de_dispatcher_deqms_falls_back_to_limma_oracle() -> TestResult<()> {
-        let dir = temp_dir("oracle-deqms")?;
+        let (_tempdir, dir) = temp_dir("oracle-deqms")?;
         let output = dir.join("de_results.csv");
         let matrix = fixture_matrix()?;
         let sdrf = fixture_sdrf()?;
@@ -1936,7 +1943,7 @@ mod tests {
 
         let text = std::fs::read_to_string(&output)?;
         let mut lines = text.lines();
-        let header = lines.next().ok_or("missing header")?;
+        let header = lines.next().expect("missing header");
         assert_eq!(
             header,
             "ProteinName,log2FC,pvalue,adj_pvalue,sca_t,sca_pvalue,sca_adj_pvalue,mean_groupA,mean_groupB,n_a,n_b,peptide_count,log_pvalue,significance"
@@ -1946,7 +1953,7 @@ mod tests {
         let mut order: Vec<String> = Vec::new();
         for line in lines {
             let fields = line.split(',').map(ToOwned::to_owned).collect::<Vec<_>>();
-            let protein = fields.first().ok_or("empty row")?.clone();
+            let protein = fields.first().expect("empty row").clone();
             order.push(protein.clone());
             rows.insert(protein, fields);
         }
@@ -1991,7 +1998,7 @@ mod tests {
     // grids/rank_abs) are covered cell-by-cell in mokume-stats' rots unit tests.
     #[test]
     fn de_dispatcher_rots_wires_dstat_column_and_log2fc() -> TestResult<()> {
-        let dir = temp_dir("oracle-rots")?;
+        let (_tempdir, dir) = temp_dir("oracle-rots")?;
         let output = dir.join("de_results.csv");
         let matrix = fixture_matrix()?;
         let sdrf = fixture_sdrf()?;
@@ -2000,7 +2007,7 @@ mod tests {
 
         let text = std::fs::read_to_string(&output)?;
         let mut lines = text.lines();
-        let header = lines.next().ok_or("missing header")?;
+        let header = lines.next().expect("missing header");
         // rots header: a single d_stat column between adj_pvalue and the means.
         assert_eq!(
             header,
@@ -2011,7 +2018,7 @@ mod tests {
         let mut order: Vec<String> = Vec::new();
         for line in lines {
             let fields = line.split(',').map(ToOwned::to_owned).collect::<Vec<_>>();
-            let protein = fields.first().ok_or("empty row")?.clone();
+            let protein = fields.first().expect("empty row").clone();
             order.push(protein.clone());
             rows.insert(protein, fields);
         }
@@ -2027,71 +2034,68 @@ mod tests {
         Ok(())
     }
 
-    // LimROTS log2FC is `beta` = the full-data eBayes contrast coefficient
-    // (mean_A - mean_B, the SAME sign convention as limma, the OPPOSITE of rots),
-    // so P1 (low in A, high in B) is -2.0 here. Captured from limrots' full-data
-    // eBayes on log2(RAW) (see scratchpad limrots oracle). Deterministic and
-    // cell-exact regardless of the RNG.
-    const EXPECTED_LIMROTS_LOG2FC: &[(&str, f64)] = &[
-        ("P1", -2.0004868432854863),
-        ("P2", 2.0090616097754097),
-        ("P3", 0.015910691677655464),
-        ("P4", -1.0),
-        ("P5", -1.0),
-        ("P6", 0.09175595082658106),
-    ];
-
-    // Pipeline wiring test for `--de-method limrots`. LimROTS is a faithful
-    // RNG-based port (fixed internal PRNG), so its permutation p-values are
-    // deterministic run-to-run but NOT bit-matched to Python (Python is itself
-    // seed-unstable). This test asserts the structural contract that IS
-    // deterministic:
-    //   (1) the limrots-specific header (a single `t_stat` extra column, no
-    //       AveExpr/B, no peptide_count);
-    //   (2) log2FC cell-exact vs Python (the deterministic full-data eBayes beta,
-    //       in limrots' mean_A - mean_B convention);
-    //   (3) every pvalue/adj_pvalue in [0,1] and the rows sorted by adj_pvalue;
-    //   (4) the t_stat (== d_stat) column is finite.
-    // The deterministic LimROTS helpers (d_stat / boot_ebayes reorder /
-    // p-value counting / s2_post) are covered cell-by-cell in mokume-stats'
-    // limrots unit tests.
     #[test]
-    fn de_dispatcher_limrots_wires_tstat_column_and_log2fc() -> TestResult<()> {
-        let dir = temp_dir("oracle-limrots")?;
+    fn de_dispatcher_limrots_rejects_empty_official_search_grid() -> TestResult<()> {
+        let (_tempdir, dir) = temp_dir("limrots-empty-grid")?;
         let output = dir.join("de_results.csv");
-        let matrix = fixture_matrix()?;
-        let sdrf = fixture_sdrf()?;
-
-        run_differential_expression(&matrix, Some(&sdrf), &de_config(&output, "limrots"), false)?;
-
-        let text = std::fs::read_to_string(&output)?;
-        let mut lines = text.lines();
-        let header = lines.next().ok_or("missing header")?;
-        // limrots header: a single t_stat column between adj_pvalue and the means.
-        assert_eq!(
-            header,
-            "ProteinName,log2FC,pvalue,adj_pvalue,t_stat,mean_groupA,mean_groupB,n_a,n_b,significance"
+        let result = run_differential_expression(
+            &fixture_matrix()?,
+            Some(&fixture_sdrf()?),
+            &de_config(&output, "limrots"),
+            false,
         );
+        let error = result.expect_err("expected LimROTS search-grid error");
+        assert!(error.to_string().contains("empty search grid"));
+        assert!(
+            !output.exists(),
+            "failed analysis must not write a result table"
+        );
+        Ok(())
+    }
 
-        let mut rows: HashMap<String, Vec<String>> = HashMap::new();
-        let mut order: Vec<String> = Vec::new();
-        for line in lines {
-            let fields = line.split(',').map(ToOwned::to_owned).collect::<Vec<_>>();
-            let protein = fields.first().ok_or("empty row")?.clone();
-            order.push(protein.clone());
-            rows.insert(protein, fields);
+    #[test]
+    fn matrix_limrots_preserves_ids_and_signed_fold_changes() -> TestResult<()> {
+        let (_tempdir, dir) = temp_dir("limrots-valid-grid")?;
+        let proteins = (1..=60).map(|i| format!("P{i:03}")).collect::<Vec<_>>();
+        let log_rows = (1..=60)
+            .map(|i| {
+                (1..=8)
+                    .map(|j| {
+                        let (i, j) = (i as f64, j as f64);
+                        20.0 + i / 100.0
+                            + (i * 0.21).sin().exp()
+                                * ((i * j * 0.31).sin() + 0.3 * (i * j * 0.47).cos())
+                            + if j <= 4.0 {
+                                (i - 1.0) * 3.0 / 59.0
+                            } else {
+                                0.0
+                            }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let values = log_rows
+            .iter()
+            .map(|r| r.iter().map(|v| v.exp2()).collect())
+            .collect::<Vec<_>>();
+        let config = de_config(&dir.join("unused.csv"), "limrots");
+        let output =
+            differential_expression_matrix(&proteins, &values, 4, 4, None, &config, Some(4))?;
+        let super::MatrixDifferentialExpressionResults::Standard(results) = output else {
+            return Err("expected standard LimROTS results".into());
+        };
+        assert_eq!(results.len(), proteins.len());
+        for result in results {
+            let i = proteins
+                .iter()
+                .position(|p| p == &result.protein)
+                .expect("unknown protein");
+            let expected = log_rows[i][..4].iter().sum::<f64>() / 4.0
+                - log_rows[i][4..].iter().sum::<f64>() / 4.0;
+            assert!((result.log2_fold_change - expected).abs() < 1e-12);
+            assert!(result.t_statistic >= 0.0);
+            assert!((0.0..=1.0).contains(&result.p_value));
         }
-        assert_eq!(rows.len(), EXPECTED_LIMROTS_LOG2FC.len(), "row count");
-
-        // The limrots field layout matches rots (single extra column at index 4),
-        // so the rots row assertions apply unchanged.
-        for &(protein, log2fc) in EXPECTED_LIMROTS_LOG2FC {
-            let fields = rows
-                .get(protein)
-                .ok_or_else(|| format!("missing {protein}"))?;
-            assert_rots_row(fields, protein, log2fc)?;
-        }
-        assert_rots_sorted_by_adj_pvalue(&order, &rows)?;
         Ok(())
     }
 
@@ -2125,7 +2129,7 @@ mod tests {
     ) -> TestResult<()> {
         let mut prev = f64::NEG_INFINITY;
         for name in order {
-            let adj = parse(rows.get(name).ok_or("row")?, 3)?;
+            let adj = parse(rows.get(name).expect("row"), 3)?;
             assert!(adj >= prev, "rots rows not sorted by adj_pvalue at {name}");
             prev = adj;
         }
@@ -2234,7 +2238,8 @@ mod tests {
 
     #[test]
     fn ensemble_members_are_canonicalized_once() -> TestResult<()> {
-        let output = temp_dir("ensemble-member-canonicalization")?.join("de.csv");
+        let (_tempdir, dir) = temp_dir("ensemble-member-canonicalization")?;
+        let output = dir.join("de.csv");
         let mut config = ensemble_config(&output, &[" LimMA ", "DeQMS"]);
         config.ensemble_min_k = 1;
 
@@ -2260,7 +2265,7 @@ mod tests {
     //   (5) median log2FC is finite for every protein both members reported.
     #[test]
     fn de_dispatcher_ensemble_with_rng_member_is_valid() -> TestResult<()> {
-        let dir = temp_dir("oracle-ensemble-rng")?;
+        let (_tempdir, dir) = temp_dir("oracle-ensemble-rng")?;
         let output = dir.join("de_results.csv");
         let matrix = fixture_matrix()?;
         let sdrf = fixture_sdrf()?;
@@ -2274,7 +2279,7 @@ mod tests {
 
         let text = std::fs::read_to_string(&output)?;
         let mut lines = text.lines();
-        let header = lines.next().ok_or("missing header")?;
+        let header = lines.next().expect("missing header");
         assert_eq!(
             header,
             "ProteinName,log2FC,pvalue,n_methods_up,n_methods_down,methods_significant,adj_pvalue,significance"
@@ -2305,16 +2310,16 @@ mod tests {
     /// the member counts) and return the row's adjusted p-value when present, so
     /// the caller can check the global BH sort order.
     fn assert_ensemble_row_valid(fields: &[String]) -> TestResult<Option<f64>> {
-        let protein = fields.first().ok_or("empty row")?.clone();
+        let protein = fields.first().expect("empty row").clone();
         assert!(parse(fields, 1)?.is_finite(), "{protein} log2FC not finite");
         assert_unit_interval(field(fields, 2), &protein, "pvalue")?;
         let adj = assert_unit_interval(field(fields, 6), &protein, "adj_pvalue")?;
 
         // Consensus: UP requires n_methods_up >= 2, DOWN requires
         // n_methods_down >= 2, and never both directions at once.
-        let n_up = field(fields, 3).ok_or("n_up")?.parse::<usize>()?;
-        let n_down = field(fields, 4).ok_or("n_down")?.parse::<usize>()?;
-        let sig = field(fields, 7).ok_or("sig")?;
+        let n_up = field(fields, 3).expect("n_up").parse::<usize>()?;
+        let n_down = field(fields, 4).expect("n_down").parse::<usize>()?;
+        let sig = field(fields, 7).expect("sig");
         assert!(
             !(n_up >= 2 && n_down >= 2),
             "{protein} cannot be both UP and DOWN consensus"

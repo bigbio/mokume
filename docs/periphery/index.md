@@ -31,20 +31,19 @@ libraries. Install just the extra for the command you run.
 
 | Command | Extra | Third-party libraries |
 | --- | --- | --- |
-| `mokume plot tsne` | `plotting` | numpy, pandas, scipy, scikit-learn, matplotlib, seaborn |
-| `mokume.peptides2protein_qc` | `plotting` | numpy, pandas, matplotlib, seaborn |
-| `mokume plot pca` / `mokume plot de` | `plotting` | numpy, pandas, matplotlib, seaborn, scikit-learn |
-| `mokume interactive-report` | `reports` | numpy, pandas, plotly |
+| `mokume plot tsne` | `analysis` | numpy, pandas, scipy, scikit-learn, matplotlib, seaborn |
+| `mokume.peptides2protein_qc` | `analysis` | numpy, pandas, matplotlib, seaborn |
+| `mokume plot pca` / `mokume plot de` | `analysis` | numpy, pandas, matplotlib, seaborn, scikit-learn |
+| `mokume interactive-report` | `analysis` | numpy, pandas, plotly |
 | `mokume tissuemap` | `tissuemap` | scanpy, anndata, umap-learn, combat, matplotlib, seaborn, pyarrow |
 | `mokume.qc_report` / `mokume.workflow_comparison` | `analysis` | numpy, pandas, scipy, scikit-learn |
 | `mokume.impute` | `analysis` | numpy, pandas, scipy, scikit-learn |
 
 ```bash
 pip install mokume                 # compute kernel + Python API
-pip install "mokume[plotting]"     # + t-SNE / DE plots / piBAQ QC report
-pip install "mokume[reports]"      # + interactive HTML DE report
+pip install "mokume[analysis]"     # + plots, reports, QC, comparison, and missforest
 pip install "mokume[tissuemap]"    # + per-dataset tissue proteome analysis
-pip install "mokume[analysis]"     # + QC/comparison reports + missforest
+pip install "mokume[plugin]"       # + local MCP service
 pip install "mokume[all]"          # everything
 ```
 

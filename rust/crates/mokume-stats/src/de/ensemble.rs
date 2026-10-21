@@ -205,7 +205,7 @@ fn combine_p_values(p_values: &[f64]) -> f64 {
 /// numpy-compatible median over a non-empty slice: for an even count it is the
 /// mean of the two middle order statistics (Python `np.median`). Sorts in place
 /// with `total_cmp`; the member fold changes are finite in every wired path.
-fn median(values: &mut [f64]) -> f64 {
+pub(super) fn median(values: &mut [f64]) -> f64 {
     values.sort_by(f64::total_cmp);
     let n = values.len();
     let mid = n / 2;
@@ -511,7 +511,7 @@ mod tests {
         let q1 = combined
             .iter()
             .find(|r| r.protein == "Q1")
-            .ok_or("Q1 present")?;
+            .expect("Q1 present");
         // Single finite p passes through; BH over a single value leaves it.
         assert!((q1.p_value - 0.001).abs() <= 1e-12);
         // Only 1 UP member, min_k=2 -> Unchanged despite a tiny p.
@@ -520,7 +520,7 @@ mod tests {
         let q2 = combined
             .iter()
             .find(|r| r.protein == "Q2")
-            .ok_or("Q2 present")?;
+            .expect("Q2 present");
         assert!(q2.p_value.is_nan(), "Q2 combined p should be NaN");
         assert!(q2.adj_p_value.is_nan(), "Q2 adj p should be NaN");
         assert_eq!(q2.significance, NotTested);

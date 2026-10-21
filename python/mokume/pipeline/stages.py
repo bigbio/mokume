@@ -19,7 +19,7 @@ import pyarrow as pa
 from pathlib import Path
 from typing import Optional
 
-from mokume.io.feature import Feature, SQLFilterBuilder
+from mokume.io.feature import Feature, SQLFilterBuilder, unique_peptide_rows
 from mokume.preprocessing.sdrf import analyse_sdrf
 from mokume.preprocessing.aggregation import (
     remove_contaminants_entrapments_decoys,
@@ -87,7 +87,9 @@ _SQLFIRST_LOAD_QUERY_PREFIX = """
             SELECT
                 array_to_string(
                     list_transform(
-                        pg_accessions,
+                        """
+
+_SQLFIRST_LOAD_QUERY_AFTER_MEMBERS = """,
                         x -> CASE
                             WHEN length(string_split(x, '|')) = 3
                                 THEN string_split(x, '|')[2]
@@ -167,12 +169,24 @@ _LFQ_DIRECTLFQ_QUERY_SUFFIX = """
         GROUP BY "ProteinName", "PeptideCanonical", "SampleID"
         """
 
+_MAXLFQ_SPECIES_QUERY_SUFFIX = """
+            ) WHERE _rn = 1
+        )
+        SELECT "ProteinName", "PeptideCanonical", "PeptideSequence", "PrecursorCharge",
+               "SampleID", "BioReplicate", "Condition", SUM("Intensity") AS "NormIntensity"
+        FROM peptidoform_max
+        GROUP BY "ProteinName", "PeptideCanonical", "PeptideSequence", "PrecursorCharge",
+                 "SampleID", "BioReplicate", "Condition"
+        """
+
 _RUN_SCALE_QUERY_PREFIX = """
         WITH base AS (
             SELECT
                 array_to_string(
                     list_transform(
-                        pg_accessions,
+                        """
+
+_RUN_SCALE_QUERY_AFTER_MEMBERS = """,
                         x -> CASE
                             WHEN length(string_split(x, '|')) = 3
                                 THEN string_split(x, '|')[2]
@@ -265,16 +279,20 @@ _RUN_SCALE_QUERY_SUFFIX = """ AS rm
 
 
 def _build_sqlfirst_load_query(
-    where_clause: str,
+    filter_builder: SQLFilterBuilder,
     scale_select: str,
     scale_orderby: str,
     scale_join_clause: str,
     query_suffix: str = _SQLFIRST_LOAD_QUERY_SUFFIX,
-) -> str:
-    """Build the SQL-first peptide loading query from trusted fragments."""
-    return "".join(
+) -> tuple[str, list]:
+    """Build the SQL-first peptide loading query and its filter parameters."""
+    members, member_params = filter_builder.build_protein_members()
+    where_clause, where_params = filter_builder.build_where_clause()
+    query = "".join(
         [
             _SQLFIRST_LOAD_QUERY_PREFIX,
+            members,
+            _SQLFIRST_LOAD_QUERY_AFTER_MEMBERS,
             where_clause,
             _SQLFIRST_LOAD_QUERY_AFTER_WHERE,
             scale_select,
@@ -285,19 +303,57 @@ def _build_sqlfirst_load_query(
             query_suffix,
         ]
     )
+    return query, [*member_params, *where_params]
 
 
-def _build_run_scale_query(where_clause: str, metric_expr: str) -> str:
-    """Build the run normalization scale-factor query from trusted fragments."""
-    return "".join(
+def _build_run_scale_query(
+    filter_builder: SQLFilterBuilder, metric_expr: str
+) -> tuple[str, list]:
+    """Build the run normalization scale-factor query and its filter parameters."""
+    members, member_params = filter_builder.build_protein_members()
+    where_clause, where_params = filter_builder.build_where_clause()
+    query = "".join(
         [
             _RUN_SCALE_QUERY_PREFIX,
+            members,
+            _RUN_SCALE_QUERY_AFTER_MEMBERS,
             where_clause,
             _RUN_SCALE_QUERY_AFTER_WHERE,
             metric_expr,
             _RUN_SCALE_QUERY_SUFFIX,
         ]
     )
+    return query, [*member_params, *where_params]
+
+
+def _sum_maxlfq_species(dataset_df: pd.DataFrame) -> pd.DataFrame:
+    """Combine contextual maxima without merging modification/charge species."""
+    species_keys = [
+        PROTEIN_NAME,
+        PEPTIDE_CANONICAL,
+        "PeptideSequence",
+        "PrecursorCharge",
+        SAMPLE_ID,
+        CONDITION,
+        "BioReplicate",
+    ]
+    dataset_df = dataset_df.groupby(species_keys, observed=True, as_index=False)[
+        NORM_INTENSITY
+    ].sum()
+    return dataset_df
+
+
+def _require_rows_passing_filters(
+    feature: Feature, filter_builder: SQLFilterBuilder
+) -> None:
+    """Fail before loading, with the reason, when the filters keep no rows."""
+    where_clause, where_params = filter_builder.build_where_clause()
+    sql = "".join(["SELECT 1 FROM parquet_db WHERE ", where_clause, " LIMIT 1"])
+    if feature.parquet_db.execute(sql, where_params).fetchone() is None:
+        raise ValueError(
+            "No features pass the input filters (intensity > 0, peptide "
+            "length, unique peptides, contaminants, decoys and scores)"
+        )
 
 
 class LoadingStage:
@@ -357,6 +413,8 @@ class LoadingStage:
                 _sample_names,
                 choice,
             ) = feature.experimental_inference
+
+        _require_rows_passing_filters(feature, filter_builder)
 
         # Build normalization config snapshot (shared between both load paths).
         run_norm = self.config.normalization.run_method.lower()
@@ -438,7 +496,6 @@ class LoadingStage:
         registered SQL metric and ``technical_repetitions > 1`` (matching the
         global guard in :meth:`FeatureNormalizationMethod.normalize_runs`).
         """
-        where_clause, where_params = feature.filter_builder.build_where_clause()
         min_aa = self.config.filtering.min_aa
         min_unique = (
             0
@@ -470,13 +527,18 @@ class LoadingStage:
 
         # Protein-accession parsing is shared with _compute_run_scale_map via
         # the SQL query builders above.
-        query = _build_sqlfirst_load_query(
-            where_clause,
+        query, filter_params = _build_sqlfirst_load_query(
+            feature.filter_builder,
             scale_select,
             scale_orderby,
             scale_join_clause,
+            query_suffix=(
+                _MAXLFQ_SPECIES_QUERY_SUFFIX
+                if self.config.quantification.method.lower() == "maxlfq"
+                else _SQLFIRST_LOAD_QUERY_SUFFIX
+            ),
         )
-        query_params = [*where_params, min_aa, min_unique]
+        query_params = [*filter_params, min_aa, min_unique]
         try:
             combined_df = feature.parquet_db.execute(query, query_params).df()
         finally:
@@ -520,7 +582,6 @@ class LoadingStage:
         table and never materialises a full-sized scaled-intensity CTE, which
         is what drove the >95 GB peak resident set on PXD030304.
         """
-        where_clause, where_params = feature.filter_builder.build_where_clause()
         min_aa = self.config.filtering.min_aa
         min_unique = (
             0
@@ -536,8 +597,8 @@ class LoadingStage:
         #
         # Protein-accession parsing mirrors _load_for_mokume_sqlfirst through
         # the shared SQL query builders.
-        sql = _build_run_scale_query(where_clause, metric_expr)
-        sql_params = [*where_params, min_aa, min_unique]
+        sql, filter_params = _build_run_scale_query(feature.filter_builder, metric_expr)
+        sql_params = [*filter_params, min_aa, min_unique]
         return feature.parquet_db.execute(sql, sql_params).df()
 
     def _load_for_mokume_legacy_pandas(
@@ -564,7 +625,7 @@ class LoadingStage:
             for sample in samples:
                 dataset_df = df[df["sample_accession"] == sample].copy()
                 if self.config.quantification.method.lower() != "pibaq":
-                    dataset_df = dataset_df[dataset_df["unique"] == 1]
+                    dataset_df = dataset_df[unique_peptide_rows(dataset_df)]
                 dataset_df = dataset_df[PARQUET_COLUMNS]
 
                 dataset_df = reformat_quantms_feature_table_quant_labels(
@@ -595,9 +656,12 @@ class LoadingStage:
                     dataset_df = run_method(dataset_df, technical_repetitions)
 
                 dataset_df = get_peptidoform_normalize_intensities(dataset_df)
-                dataset_df = sum_peptidoform_intensities(
-                    dataset_df, AGGREGATION_LEVEL_SAMPLE
-                )
+                if self.config.quantification.method.lower() == "maxlfq":
+                    dataset_df = _sum_maxlfq_species(dataset_df)
+                else:
+                    dataset_df = sum_peptidoform_intensities(
+                        dataset_df, AGGREGATION_LEVEL_SAMPLE
+                    )
 
                 # Apply per-sample normalization (skip dataset-level methods)
                 if not sample_norm_method.is_dataset_level and sample_norm != "none":
@@ -639,93 +703,13 @@ class LoadingStage:
 
         return combined_df
 
-    def load_for_maxlfq_directlfq(self) -> pa.Table:
-        """Load MaxLFQ input through SQL-first Arrow without pandas long table."""
-        filter_builder = SQLFilterBuilder(
-            remove_contaminants=self.config.filtering.remove_contaminants,
-            min_peptide_length=self.config.filtering.min_aa,
-            require_unique=True,
-        )
-        feature = self._open_feature(filter_builder)
-
-        try:
-            if self.config.input.sdrf:
-                feature.enrich_with_sdrf(self.config.input.sdrf)
-                technical_repetitions, label, _sample_names, _choice = analyse_sdrf(
-                    self.config.input.sdrf
-                )
-            else:
-                technical_repetitions, label, _sample_names, _choice = (
-                    feature.experimental_inference
-                )
-
-            run_norm = self.config.normalization.run_method.lower()
-            if label != QuantificationCategory.LFQ:
-                raise ValueError(
-                    f"MaxLFQ DirectLFQ-streaming path requires LFQ input; got {label}."
-                )
-            if run_norm not in _SQL_RUN_NORM_SUPPORTED:
-                raise ValueError(
-                    "MaxLFQ DirectLFQ-streaming path requires SQL-supported "
-                    f"run normalization; got {run_norm}."
-                )
-
-            logger.info(
-                "Loading MaxLFQ DirectLFQ input with SQL-first Arrow path "
-                "(label=%s, tech_reps=%d, run_norm=%s)",
-                label,
-                technical_repetitions,
-                run_norm,
-            )
-
-            where_clause, where_params = filter_builder.build_where_clause()
-            min_aa = self.config.filtering.min_aa
-            min_unique = self.config.filtering.min_unique_peptides
-            run_norm_active = (
-                run_norm in _SQL_RUN_METRIC_EXPR and technical_repetitions > 1
-            )
-
-            scale_df = None
-            scale_join_clause = ""
-            scale_select = "mu.*"
-            scale_orderby = 'mu."Intensity"'
-            if run_norm_active:
-                scale_df = self._compute_run_scale_map(feature, run_norm)
-                feature.parquet_db.register("run_scale_map", scale_df)
-                scale_join_clause = (
-                    "LEFT JOIN run_scale_map rsm "
-                    'ON rsm."SampleID" = mu."SampleID" '
-                    'AND rsm."Run" = mu."Run"'
-                )
-                scale_expr = '(mu."Intensity" * COALESCE(rsm.scale_factor, 1.0))'
-                scale_select = f'mu.* REPLACE ({scale_expr} AS "Intensity")'
-                scale_orderby = scale_expr
-
-            query = _build_sqlfirst_load_query(
-                where_clause,
-                scale_select,
-                scale_orderby,
-                scale_join_clause,
-                query_suffix=_LFQ_DIRECTLFQ_QUERY_SUFFIX,
-            )
-            query_params = [*where_params, min_aa, min_unique]
-            try:
-                result = feature.parquet_db.execute(query, query_params)
-                reader = result.to_arrow_reader(batch_size=1_000_000)
-                return pa.Table.from_batches(reader, schema=reader.schema)
-            finally:
-                if scale_df is not None:
-                    feature.parquet_db.unregister("run_scale_map")
-        finally:
-            feature.parquet_db.close()
-
-    def convert_maxlfq_to_directlfq_format(self, table: pa.Table) -> pd.DataFrame:
-        """Convert MaxLFQ SQL-first Arrow output to DirectLFQ wide log2 format."""
+    def convert_to_directlfq_format(self, table: pa.Table) -> pd.DataFrame:
+        """Pivot aggregated DirectLFQ ion rows into the wide log2 input matrix."""
         try:
             import polars as pl
         except ImportError as exc:
             raise ImportError(
-                "polars is required for MaxLFQ DirectLFQ-streaming conversion. "
+                "polars is required for DirectLFQ streaming conversion. "
                 "Install it with `pip install polars` or "
                 "`pip install mokume-py[directlfq]`."
             ) from exc
@@ -786,16 +770,15 @@ class LoadingStage:
             if self.config.input.sdrf:
                 feature.enrich_with_sdrf(self.config.input.sdrf)
 
-            where_clause, where_params = filter_builder.build_where_clause()
-            query = _build_sqlfirst_load_query(
-                where_clause,
+            query, filter_params = _build_sqlfirst_load_query(
+                filter_builder,
                 "mu.*",
                 'mu."Intensity"',
                 "",
                 query_suffix=_LFQ_DIRECTLFQ_QUERY_SUFFIX,
             )
             query_params = [
-                *where_params,
+                *filter_params,
                 self.config.filtering.min_aa,
                 self.config.filtering.min_unique_peptides,
             ]
@@ -808,14 +791,6 @@ class LoadingStage:
             return pa.Table.from_batches(reader, schema=reader.schema)
         finally:
             feature.parquet_db.close()
-
-    def convert_to_directlfq_format(self, table: pa.Table) -> pd.DataFrame:
-        """Convert long-format Arrow Table into the DirectLFQ wide log2 frame.
-
-        Feature aggregation is completed by :meth:`load_for_directlfq`; this
-        method only pivots the canonical-ion rows and applies the log2 transform.
-        """
-        return self.convert_maxlfq_to_directlfq_format(table)
 
     def load_for_ratio(self) -> tuple:
         """Load PSM data and detect references for ratio quantification.
@@ -880,6 +855,19 @@ class NormalizationStage:
     def __init__(self, config: PipelineConfig):
         self.config = config
 
+    def _peptide_index(self, df: pd.DataFrame) -> list[str]:
+        if self.config.quantification.method.lower() == "maxlfq" and {
+            "PeptideSequence",
+            "PrecursorCharge",
+        }.issubset(df.columns):
+            return [
+                PROTEIN_NAME,
+                PEPTIDE_CANONICAL,
+                "PeptideSequence",
+                "PrecursorCharge",
+            ]
+        return [PROTEIN_NAME, PEPTIDE_CANONICAL]
+
     def apply_hierarchical(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply hierarchical sample normalization."""
         logger.info("Applying hierarchical sample normalization...")
@@ -887,7 +875,7 @@ class NormalizationStage:
         # Convert to wide format for normalization. observed=True avoids the
         # Cartesian-product blowup when SAMPLE_ID is Categorical.
         wide = df.pivot_table(
-            index=[PROTEIN_NAME, PEPTIDE_CANONICAL],
+            index=self._peptide_index(df),
             columns=SAMPLE_ID,
             values=NORM_INTENSITY,
             aggfunc="sum",
@@ -920,7 +908,7 @@ class NormalizationStage:
 
         # Convert back to long format
         normalized_long = normalized_wide.reset_index().melt(
-            id_vars=[PROTEIN_NAME, PEPTIDE_CANONICAL],
+            id_vars=self._peptide_index(df),
             var_name=SAMPLE_ID,
             value_name=NORM_INTENSITY,
         )
@@ -944,7 +932,7 @@ class NormalizationStage:
         """Pivot peptide-level long DataFrame to wide, fit_transform, melt back."""
         logger.info("Applying %s sample normalization...", name)
         wide = df.pivot_table(
-            index=[PROTEIN_NAME, PEPTIDE_CANONICAL],
+            index=self._peptide_index(df),
             columns=SAMPLE_ID,
             values=NORM_INTENSITY,
             aggfunc="sum",
@@ -958,7 +946,7 @@ class NormalizationStage:
         normalized_long = (
             normalized_wide.reset_index()
             .melt(
-                id_vars=[PROTEIN_NAME, PEPTIDE_CANONICAL],
+                id_vars=self._peptide_index(df),
                 var_name=SAMPLE_ID,
                 value_name=NORM_INTENSITY,
             )
@@ -1181,15 +1169,8 @@ class QuantificationStage:
             "peptide_count",
             "peptidecount",
         ):
-            # Propagate the global parallelism budget so MaxLFQ -> DirectLFQ
-            # does not silently default to cpu_count workers (each forked
-            # worker COW-copies the wide pivot table; on PXD030304-scale
-            # inputs that path was OOM-killing the 125 GB host).
-            # RuntimeConfig.effective_workers() also reasons about
-            # ``duckdb_memory`` so the worker count drops automatically when
-            # the memory budget cannot absorb cpu_count concurrent fork-COW
-            # copies.
-            quant_kwargs = {}
+            # Keep per-protein MaxLFQ workers inside the pipeline resource budget.
+            quant_kwargs = self._quantification_options(quant_method)
             effective = self.config.runtime.effective_workers()
             if effective is not None:
                 quant_kwargs["n_jobs"] = effective
@@ -1222,6 +1203,15 @@ class QuantificationStage:
         if quant_method == "median":
             return self._quantify_median(peptide_df)
         raise ValueError(f"Unknown quantification method: {quant_method}")
+
+    def _quantification_options(self, method: str) -> dict:
+        """Method-specific solver settings, independent of worker allocation."""
+        if method == "maxlfq":
+            return {
+                "min_ratio_count": self.config.quantification.maxlfq_min_ratio_count,
+                "stabilize": self.config.quantification.stabilize,
+            }
+        return {}
 
     def to_wide_format(self, long_df: pd.DataFrame, method_name: str) -> pd.DataFrame:
         """Convert long format quantification results to wide format."""
@@ -1448,7 +1438,10 @@ class ImputationStage:
             from mokume.imputation.censored import impute_minprob
 
             return impute_minprob(
-                wide, quantile=cfg.quantile, shift=cfg.shift, scale=cfg.scale
+                wide,
+                quantile=cfg.quantile,
+                tune_sigma=cfg.tune_sigma,
+                random_state=cfg.seed,
             )
 
         if method == "mindet":
@@ -1459,7 +1452,7 @@ class ImputationStage:
         if method == "qrilc":
             from mokume.imputation.qrilc import impute_qrilc
 
-            return impute_qrilc(wide)
+            return impute_qrilc(wide, tune_sigma=cfg.tune_sigma, random_state=cfg.seed)
 
         if method == "missforest":
             from mokume.imputation.missforest import impute_missforest

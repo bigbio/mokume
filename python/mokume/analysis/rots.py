@@ -254,6 +254,35 @@ def _calculate_p(
     return result
 
 
+def _calculate_fdr(observed: np.ndarray, permuted: np.ndarray) -> np.ndarray:
+    """Native permutation FDR matching R ROTS::calculateFDR.
+
+    For each permutation (a column of ``permuted``), the statistic ranked k-th
+    by ``|d|`` gets the number of permuted ``|d|`` above it (an equal value
+    counts once) divided by k. The FDR is the median over permutations, capped
+    at 1 and made monotone from the least extreme statistic upwards. Unlike a
+    pooled estimate, the median is not floored by the permutations that
+    reproduce the observed grouping, which are frequent in small designs.
+    """
+    fdr = np.full(len(observed), np.nan)
+    finite = np.flatnonzero(~np.isnan(observed))
+    if len(finite) == 0 or permuted.shape[1] == 0:
+        return fdr
+    order = finite[np.argsort(-np.abs(observed[finite]), kind="stable")]
+    values = np.abs(observed[order])
+    ranks = np.arange(1, len(order) + 1)
+    ratios = np.empty((len(order), permuted.shape[1]))
+    for column in range(permuted.shape[1]):
+        null = np.abs(permuted[:, column])
+        null = np.sort(null[~np.isnan(null)])
+        above = len(null) - np.searchsorted(null, values, side="right")
+        tied = np.isin(values, null)
+        ratios[:, column] = (above + tied) / ranks
+    median = np.minimum(np.median(ratios, axis=1), 1.0)
+    fdr[order] = np.minimum.accumulate(median[::-1])[::-1]
+    return fdr
+
+
 # ---------------------------------------------------------------------------
 # Public API: run_rots
 # ---------------------------------------------------------------------------
@@ -318,6 +347,7 @@ def run_rots(
             "log2FC": logfc,
             "d_stat": d_stat,
             "pvalue": pvalues,
+            "adj_pvalue": _calculate_fdr(d_stat, pD_mat),
         }
     )
 

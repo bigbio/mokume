@@ -94,279 +94,177 @@ fn sample_medians(sample_values: HashMap<String, Vec<f64>>) -> HashMap<String, f
         .collect()
 }
 
-/// TMM (Trimmed Mean of M-values) trimming proportions and reference-selection
-/// defaults, matching `TMMNormalizer(m_trim=0.3, a_trim=0.05, ref_sample=None,
-/// log_transform=False)` in `python/mokume/normalization/tmm.py`.
+/// edgeR `calcNormFactors(method="TMM")` defaults.
 const TMM_M_TRIM: f64 = 0.3;
 const TMM_A_TRIM: f64 = 0.05;
 
-/// Compute per-sample TMM normalization factors for a raw-intensity wide matrix.
+/// Compute edgeR TMM composition factors for a column-major non-negative matrix.
 ///
-/// This reproduces `TMMNormalizer` (`python/mokume/normalization/tmm.py`) with
-/// `m_trim=0.3, a_trim=0.05, ref_sample=None, log_transform=False`. The matrix
-/// is given column-major: `columns[j]` is the name of sample `j`, and
-/// `matrix[j]` holds that sample's per-feature raw intensities in a fixed row
-/// order shared across every column (row `i` is the same feature in every
-/// column). Missing/zero entries must be encoded as `0.0` or a non-finite value
-/// (`NaN`/`inf`), exactly matching Python's `replace(0, NaN)` semantics.
-///
-/// Returns the rescaled factors keyed by sample name (`factor_s /
-/// geometric_mean`, tmm.py:296-299). Samples with no valid data still receive a
-/// factor (defaulting to 1.0 before rescaling, tmm.py:159/175/231). Divide each
-/// sample column by its returned factor to obtain the normalized intensities
-/// (tmm.py:334-343 uses division, not multiplication).
-///
-/// All math is done in `f64` to match NumPy's float64, even when the caller's
-/// intensities originate from `f32` cells.
+/// The columns have a shared feature order. Non-finite entries are treated as
+/// absent counts (zero) for fitting; edgeR itself requires the caller to perform
+/// this conversion. All-zero rows are excluded from reference selection. The
+/// factors have geometric mean one. Dividing intensities by these factors is
+/// Mokume's application convention, not edgeR's library-size scaling or CPM.
 pub fn tmm_norm_factors(columns: &[String], matrix: &[Vec<f64>]) -> HashMap<String, f64> {
-    let n_samples = columns.len();
-    if n_samples == 0 || matrix.len() != n_samples {
+    if columns.is_empty() || matrix.len() != columns.len() {
         return HashMap::new();
     }
-
-    // Library sizes and reference-sample selection (extracted into helpers to
-    // keep this function within the complexity budget; each mirrors tmm.py).
-    let lib_sizes = sample_library_sizes(matrix);
-    let ref_index = select_reference_index(matrix);
-
-    // Per-sample factor vs the reference (`_compute_tmm_factor`, tmm.py:134-245).
-    let mut raw_factors = vec![1.0f64; n_samples];
-    for sample_index in 0..n_samples {
-        raw_factors[sample_index] = if sample_index == ref_index {
-            1.0
-        } else {
+    let n_features = matrix[0].len();
+    if matrix.iter().any(|column| column.len() != n_features) {
+        return HashMap::new();
+    }
+    let active: Vec<_> = (0..n_features)
+        .filter(|&row| {
+            matrix
+                .iter()
+                .any(|column| column[row].is_finite() && column[row] > 0.0)
+        })
+        .collect();
+    let observed: Vec<Vec<f64>> = matrix
+        .iter()
+        .map(|column| {
+            active
+                .iter()
+                .map(|&row| {
+                    if column[row].is_finite() {
+                        column[row]
+                    } else {
+                        0.0
+                    }
+                })
+                .collect()
+        })
+        .collect();
+    if active.is_empty() || columns.len() == 1 {
+        return columns.iter().map(|name| (name.clone(), 1.0)).collect();
+    }
+    let lib_sizes = sample_library_sizes(&observed);
+    let ref_index = select_reference_index(&observed, &lib_sizes);
+    let factors: Vec<_> = observed
+        .iter()
+        .enumerate()
+        .map(|(index, column)| {
             compute_tmm_factor(
-                &matrix[sample_index],
-                &matrix[ref_index],
-                lib_sizes[sample_index],
+                column,
+                &observed[ref_index],
+                lib_sizes[index],
                 lib_sizes[ref_index],
             )
-        };
-    }
-
-    rescale_factors(columns, &raw_factors)
+        })
+        .collect();
+    rescale_factors(columns, &factors)
 }
 
-/// Library sizes: sum of the non-zero finite values per sample
-/// (`X_raw.replace(0, np.nan).sum(skipna=True)`, tmm.py:287). Zeros and
-/// non-finite entries are treated as missing.
 fn sample_library_sizes(matrix: &[Vec<f64>]) -> Vec<f64> {
-    matrix
-        .iter()
-        .map(|column| {
-            column
-                .iter()
-                .filter(|value| value.is_finite() && **value != 0.0)
-                .sum::<f64>()
-        })
-        .collect()
+    matrix.iter().map(|column| column.iter().sum()).collect()
 }
 
-/// Reference sample selection (`_select_reference_sample`, tmm.py:100-132): the
-/// upper quartile (75th percentile, linear interpolation) of the non-zero finite
-/// values per sample, then the sample whose UQ is closest to the mean UQ. NaN UQ
-/// columns are excluded from the mean; `(uq - mean).abs().idxmin()` over a Series
-/// that still contains NaN never selects a NaN, so we mirror that by skipping NaN
-/// columns and breaking ties toward the first column in order.
-fn select_reference_index(matrix: &[Vec<f64>]) -> usize {
-    let upper_quartiles: Vec<f64> = matrix
+/// edgeR uses library-size-normalized upper quartiles, including zero counts.
+/// With sparse quartiles it instead maximizes the sum of square-root counts.
+fn select_reference_index(matrix: &[Vec<f64>], lib_sizes: &[f64]) -> usize {
+    let mut upper_quartiles: Vec<f64> = matrix
         .iter()
-        .map(|column| {
-            let mut vals: Vec<f64> = column
-                .iter()
-                .copied()
-                .filter(|value| value.is_finite() && *value != 0.0)
-                .collect();
-            if vals.is_empty() {
-                f64::NAN
-            } else {
-                percentile_linear(&mut vals, 75.0)
-            }
-        })
+        .zip(lib_sizes)
+        .map(|(column, size)| percentile_linear(&mut column.clone(), 75.0) / size)
         .collect();
-
-    let finite_uqs: Vec<f64> = upper_quartiles
+    let center = upper_quartiles.iter().sum::<f64>() / upper_quartiles.len() as f64;
+    if median(&mut upper_quartiles.clone()).unwrap_or(0.0) < 1e-20 {
+        let scores: Vec<f64> = matrix
+            .iter()
+            .map(|column| column.iter().map(|v| v.sqrt()).sum())
+            .collect();
+        return scores
+            .iter()
+            .enumerate()
+            .max_by(|(i, a), (j, b)| a.total_cmp(b).then_with(|| j.cmp(i)))
+            .map_or(0, |(index, _)| index);
+    }
+    for value in &mut upper_quartiles {
+        *value = (*value - center).abs();
+    }
+    upper_quartiles
         .iter()
-        .copied()
-        .filter(|value| value.is_finite())
-        .collect();
-    if finite_uqs.is_empty() {
-        return 0;
-    }
-    let mean_uq = finite_uqs.iter().sum::<f64>() / finite_uqs.len() as f64;
-    let mut best_index = 0usize;
-    let mut best_distance = f64::INFINITY;
-    for (index, uq) in upper_quartiles.iter().enumerate() {
-        if !uq.is_finite() {
-            continue;
-        }
-        let distance = (uq - mean_uq).abs();
-        if distance < best_distance {
-            best_distance = distance;
-            best_index = index;
-        }
-    }
-    best_index
+        .enumerate()
+        .min_by(|(i, a), (j, b)| a.total_cmp(b).then(i.cmp(j)))
+        .map_or(0, |(index, _)| index)
 }
 
-/// Rescale so the geometric mean of the factors is 1 (`geometric_mean =
-/// exp(mean(log(factor)))`, `norm = factor / geometric_mean`, tmm.py:296-299).
-/// `np.log` of a non-positive factor is NaN in NumPy; guard against it so the
-/// rescale stays finite.
 fn rescale_factors(columns: &[String], raw_factors: &[f64]) -> HashMap<String, f64> {
-    let n_samples = raw_factors.len();
-    let log_sum: f64 = raw_factors
-        .iter()
-        .map(|factor| if *factor > 0.0 { factor.ln() } else { 0.0 })
-        .sum();
-    let geometric_mean = (log_sum / n_samples as f64).exp();
-
+    let geometric_mean = (raw_factors.iter().map(|factor| factor.ln()).sum::<f64>()
+        / raw_factors.len() as f64)
+        .exp();
     columns
         .iter()
-        .zip(raw_factors.iter())
-        .map(|(name, factor)| {
-            let rescaled = if geometric_mean > 0.0 && geometric_mean.is_finite() {
-                factor / geometric_mean
-            } else {
-                *factor
-            };
-            (name.clone(), rescaled)
-        })
+        .zip(raw_factors)
+        .map(|(name, factor)| (name.clone(), factor / geometric_mean))
         .collect()
-}
-
-/// TMM factor for one sample vs the reference (`_compute_tmm_factor`,
-/// tmm.py:134-245). Both slices are per-feature raw intensities in the same row
-/// order; `n_sample`/`n_ref` are the library sizes.
-/// A feature is usable in the fold-change when it is strictly positive and
-/// finite in both the sample and reference columns (tmm.py:171-173).
-fn tmm_valid_pair(a: f64, b: f64) -> bool {
-    a.is_finite() && b.is_finite() && a > 0.0 && b > 0.0
 }
 
 fn compute_tmm_factor(y_sample: &[f64], y_ref: &[f64], n_sample: f64, n_ref: f64) -> f64 {
-    // Valid features: strictly positive and finite in both columns
-    // (tmm.py:171-173). Fewer than 10 -> factor 1.0 (tmm.py:175).
-    let (ys, yr) = collect_valid_pairs(y_sample, y_ref);
-    let n = ys.len();
-    if n < 10 {
+    let mut m_values = Vec::new();
+    let mut a_values = Vec::new();
+    let mut variances = Vec::new();
+    for (&observed, &reference) in y_sample.iter().zip(y_ref) {
+        let m = ((observed / n_sample) / (reference / n_ref)).log2();
+        let a = ((observed / n_sample).log2() + (reference / n_ref).log2()) / 2.0;
+        if m.is_finite() && a.is_finite() && a > -1e10 {
+            m_values.push(m);
+            a_values.push(a);
+            variances.push(
+                (n_sample - observed) / n_sample / observed
+                    + (n_ref - reference) / n_ref / reference,
+            );
+        }
+    }
+    if m_values.iter().all(|m| m.abs() < 1e-6) {
         return 1.0;
     }
-
-    // M-values (log2 fold-change), A-values (average log expression) and
-    // weights (inverse asymptotic variance) (tmm.py:187-199).
-    let m_values: Vec<f64> = (0..n)
-        .map(|i| ((ys[i] / n_sample) / (yr[i] / n_ref)).log2())
-        .collect();
-    let a_values: Vec<f64> = (0..n)
-        .map(|i| 0.5 * ((ys[i] / n_sample).log2() + (yr[i] / n_ref).log2()))
-        .collect();
-    let weights: Vec<f64> = (0..n)
-        .map(|i| {
-            let w = (n_sample - ys[i]) / (n_sample * ys[i]) + (n_ref - yr[i]) / (n_ref * yr[i]);
-            if w > 0.0 {
-                1.0 / w
-            } else {
-                0.0
+    let keep_m = trimmed_rank_mask(&m_values, TMM_M_TRIM);
+    let keep_a = trimmed_rank_mask(&a_values, TMM_A_TRIM);
+    let mut weighted_sum = 0.0;
+    let mut weight_sum = 0.0;
+    for index in 0..m_values.len() {
+        if keep_m[index] && keep_a[index] {
+            let term = m_values[index] / variances[index];
+            let weight = 1.0 / variances[index];
+            // R's sum(..., na.rm=TRUE) drops NaN, but retains infinities.
+            if !term.is_nan() {
+                weighted_sum += term;
             }
-        })
-        .collect();
-
-    // Double trimming on M and A; fewer than 5 survivors -> factor 1.0
-    // (tmm.py:202-231).
-    let keep = match select_kept_features(&m_values, &a_values) {
-        Some(keep) => keep,
-        None => return 1.0,
-    };
-
-    // Weighted mean of M over the kept features -> linear factor (tmm.py:233-243).
-    let tmm_log = weighted_mean_over_kept(&keep, &weights, &m_values);
-    2.0f64.powf(tmm_log)
-}
-
-/// Features strictly positive and finite in both the sample and reference
-/// columns (tmm.py:171-173).
-fn collect_valid_pairs(y_sample: &[f64], y_ref: &[f64]) -> (Vec<f64>, Vec<f64>) {
-    let mut ys = Vec::<f64>::new();
-    let mut yr = Vec::<f64>::new();
-    for (a, b) in y_sample.iter().zip(y_ref.iter()) {
-        if tmm_valid_pair(*a, *b) {
-            ys.push(*a);
-            yr.push(*b);
+            if !weight.is_nan() {
+                weight_sum += weight;
+            }
         }
     }
-    (ys, yr)
-}
-
-/// Double trimming (tmm.py:202-231): keep features whose M-rank and A-rank both
-/// fall in the half-open `[lo, hi)` window of an ascending stable argsort. Fall
-/// back to the M-only set if fewer than 5 survive the intersection; return `None`
-/// if still fewer than 5 (the caller then uses factor 1.0).
-fn select_kept_features(m_values: &[f64], a_values: &[f64]) -> Option<Vec<bool>> {
-    let n = m_values.len();
-    let n_f = n as f64;
-    let m_lo = (n_f * TMM_M_TRIM).floor() as usize;
-    let m_hi = (n_f * (1.0 - TMM_M_TRIM)).ceil() as usize;
-    let a_lo = (n_f * TMM_A_TRIM).floor() as usize;
-    let a_hi = (n_f * (1.0 - TMM_A_TRIM)).ceil() as usize;
-
-    let m_order = stable_argsort(m_values);
-    let a_order = stable_argsort(a_values);
-    let mut keep_m = vec![false; n];
-    for &feature in m_order.iter().take(m_hi).skip(m_lo) {
-        keep_m[feature] = true;
-    }
-    let mut keep_a = vec![false; n];
-    for &feature in a_order.iter().take(a_hi).skip(a_lo) {
-        keep_a[feature] = true;
-    }
-
-    let mut keep: Vec<bool> = (0..n).map(|i| keep_m[i] && keep_a[i]).collect();
-    if keep.iter().filter(|k| **k).count() < 5 {
-        keep = keep_m;
-    }
-    if keep.iter().filter(|k| **k).count() < 5 {
-        return None;
-    }
-    Some(keep)
-}
-
-/// Weighted mean of the M-values over the kept features; if the kept weights sum
-/// to zero fall back to the unweighted mean (tmm.py:233-243).
-fn weighted_mean_over_kept(keep: &[bool], weights: &[f64], m_values: &[f64]) -> f64 {
-    let mut weighted_sum = 0.0f64;
-    let mut weight_sum = 0.0f64;
-    let mut m_sum = 0.0f64;
-    let mut kept_count = 0usize;
-    for (i, &kept) in keep.iter().enumerate() {
-        if kept {
-            weighted_sum += weights[i] * m_values[i];
-            weight_sum += weights[i];
-            m_sum += m_values[i];
-            kept_count += 1;
-        }
-    }
-    if weight_sum > 0.0 {
-        weighted_sum / weight_sum
+    let average = weighted_sum / weight_sum;
+    if average.is_nan() {
+        1.0
     } else {
-        m_sum / kept_count as f64
+        average.exp2()
     }
 }
 
-/// Ascending argsort with a deterministic, stable tie-break (ties broken by
-/// original index), sorting values with `f64::total_cmp`. On DISTINCT keys this
-/// matches `np.argsort`. On exactly-equal keys it does NOT: numpy's default
-/// `kind="quicksort"` is an unstable introsort, so tied elements may land in a
-/// different order. TMM's double trimming can therefore keep a different subset
-/// of features from the Python reference when M/A values tie exactly at a trim
-/// boundary — rare for continuous intensities, possible for quantized/duplicated
-/// values (spectral counts, imputed floors, identical peptidoform sums). edgeR
-/// itself averages ranks over ties, so no tie order is uniquely correct;
-/// original-index order is chosen here for reproducibility.
-fn stable_argsort(values: &[f64]) -> Vec<usize> {
-    let mut indices: Vec<usize> = (0..values.len()).collect();
-    indices.sort_by(|&a, &b| values[a].total_cmp(&values[b]).then(a.cmp(&b)));
-    indices
+/// One-based average ranks retain or discard whole tie groups at trim limits.
+fn trimmed_rank_mask(values: &[f64], trim: f64) -> Vec<bool> {
+    let n = values.len();
+    let lower = (n as f64 * trim).floor() + 1.0;
+    let upper = n as f64 + 1.0 - lower;
+    let mut order: Vec<_> = (0..n).collect();
+    order.sort_by(|&i, &j| values[i].total_cmp(&values[j]));
+    let mut keep = vec![false; n];
+    let mut start = 0;
+    while start < n {
+        let mut end = start + 1;
+        while end < n && values[order[start]] == values[order[end]] {
+            end += 1;
+        }
+        let rank = (start + 1 + end) as f64 / 2.0;
+        for &index in &order[start..end] {
+            keep[index] = rank >= lower && rank <= upper;
+        }
+        start = end;
+    }
+    keep
 }
 
 /// 75th-percentile-style linear interpolation matching `np.percentile(vals, q)`
@@ -415,12 +313,10 @@ mod tmm_tests {
         }
     }
 
-    /// Golden factors computed with the pure-Python `TMMNormalizer` on the same
-    /// tiny matrix (see the crate test module's docstring for the recipe). The
-    /// matrix has 12 features across 3 samples so the >=10 valid-feature guard
-    /// is satisfied; `Sample1` is the reference (UQ closest to the mean UQ).
+    /// Independent edgeR 4.8.2 `calcNormFactors(X, method="TMM")` on this
+    /// 12-feature matrix, with all other options at their defaults.
     #[test]
-    fn tmm_factors_match_python() {
+    fn tmm_factors_match_edger() {
         let columns = vec![
             "Sample1".to_string(),
             "Sample2".to_string(),
@@ -446,7 +342,7 @@ mod tmm_tests {
             .collect();
 
         let factors = tmm_norm_factors(&columns, &matrix);
-        // Expected values frozen from the Python reference implementation.
+        // Independently verified with edgeR; tolerance applies to factors.
         let expected = [
             ("Sample1", 0.999_723_651_114_078_7),
             ("Sample2", 1.002_352_970_935_732_2),

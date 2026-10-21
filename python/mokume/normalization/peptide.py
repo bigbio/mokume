@@ -36,7 +36,7 @@ from mokume.core.write_queue import WriteParquetTask, WriteCSVTask
 from mokume.core.logger import get_logger, log_execution_time
 
 # Re-export from new locations for backward compatibility
-from mokume.io.feature import Feature, SQLFilterBuilder
+from mokume.io.feature import Feature, SQLFilterBuilder, unique_peptide_rows
 from mokume.preprocessing.sdrf import analyse_sdrf
 from mokume.preprocessing.aggregation import (
     parse_uniprot_accession,
@@ -284,7 +284,7 @@ def peptide_normalization(
             dataset_df = df[df["sample_accession"] == sample].copy()
 
             if not keep_shared_peptides:
-                dataset_df = dataset_df[dataset_df["unique"] == 1]
+                dataset_df = dataset_df[unique_peptide_rows(dataset_df)]
             _ensure_qvalue_columns(dataset_df)
             dataset_df = dataset_df[PARQUET_COLUMNS]
 

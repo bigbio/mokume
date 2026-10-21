@@ -15,7 +15,7 @@ For most workflows, `pip install mokume` is enough. The wheel runs the Rust
 compute kernel in-process and installs the `mokume` console command. If you want
 the TissueMap periphery command, install `mokume[tissuemap]` first.
 
-For evidence-bound method recommendation, install `mokume[agentic]` and the
+For evidence-bound method recommendation, install `mokume[plugin]` and the
 [Mokume Plugin](user-guide/agentic-plugin.md). Do not configure a second MCP
 entry or put a model API key in Mokume.
 
@@ -117,7 +117,7 @@ The `features2proteins` command handles everything: loading, filtering, normaliz
     the DE result CSVs. Render figures from those tables with the Python
     periphery: `mokume plot de` for volcano/heatmap, `mokume plot pca` for PCA,
     and `mokume interactive-report` for the HTML report. These commands need the
-    `plotting` / `reports` extras.
+    `analysis` extra.
 
 ## Two-Step Pipeline
 

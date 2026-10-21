@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "mokume",
   "displayName": "Mokume",
-  "version": "0.1.0+codex.20260821052825",
+  "version": "0.1.0+codex.20260901123829",
   "description": "Traceable proteomics method selection and evaluation with Mokume",
   "author": {
     "name": "BigBio",
@@ -15,12 +15,7 @@
   "mcpServers": {
     "mokume": {
       "command": "mokume",
-      "args": [
-        "mcp",
-        "serve",
-        "--knowledge",
-        "${CLAUDE_PLUGIN_ROOT}/knowledge/knowledge.yaml"
-      ]
+      "args": ["mcp", "serve"]
     }
   }
 }

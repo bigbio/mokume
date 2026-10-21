@@ -38,9 +38,9 @@ zero.
 
 | Method | Classified proteins observed | Matrix completeness | Median within-condition CV |
 |--------|------------------------------|---------------------|----------------------------|
-| piBAQ | 8,662 | 83.2% | 20.5% |
-| MaxLFQ | 6,179 | 86.3% | 6.8% |
-| DirectLFQ | 6,910 | 92.3% | 6.8% |
+| piBAQ | 8,662 | 83.2% | 20.1% |
+| MaxLFQ | 6,179 | 86.3% | 6.7% |
+| DirectLFQ | 6,233 | 86.2% | 6.7% |
 | Sum | 6,629 | 81.6% | 19.6% |
 | Top3 | 6,629 | 81.6% | 17.8% |
 | Top5 | 6,629 | 81.6% | 17.3% |
@@ -80,7 +80,7 @@ QPX feature table. They do not represent imputed values.
 Install the Rust-backed distribution with plotting dependencies:
 
 ```bash
-python -m pip install "mokume[plotting]"
+python -m pip install "mokume[analysis]"
 ```
 
 From the repository root, run:

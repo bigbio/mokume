@@ -21,6 +21,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score as sklearn_silhouette_score
+from threadpoolctl import threadpool_limits
 
 from mokume.core.logger import get_logger
 
@@ -182,7 +183,10 @@ def _compute_tsne(log2_matrix, samples, sample_to_condition, sample_to_plex):
 
     perplexity = min(5, data.shape[0] - 1)
     tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42)
-    coords = tsne.fit_transform(data)
+    # t-SNE embeds samples (a few to a few hundred points), so extra OpenMP threads
+    # only contend; on a busy many-core host they stall every iteration.
+    with threadpool_limits(limits=1):
+        coords = tsne.fit_transform(data)
 
     return {
         "samples": list(data.index),

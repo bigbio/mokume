@@ -36,14 +36,12 @@ pip install mokume
 
 pyOpenMS and its numpy, pandas, and matplotlib dependencies are installed with
 the base wheel so piBAQ can use every protease in the runtime catalog. Optional
-plotting, reporting, tissue-map, and analysis stacks remain extras:
+analysis, tissue-map, and Plugin stacks remain extras:
 
 ```bash
-pip install "mokume[plotting]"   # matplotlib / seaborn figures
-pip install "mokume[reports]"    # interactive plotly QC reports
+pip install "mokume[analysis]"   # plots, reports, QC, comparison, and missforest
 pip install "mokume[tissuemap]"  # tissue-map + AnnData export
-pip install "mokume[analysis]"   # QC/comparison reports + missforest
-pip install "mokume[agentic]"    # local MCP service for the Mokume Plugin
+pip install "mokume[plugin]"     # local MCP service for the Mokume Plugin
 pip install "mokume[all]"        # everything above
 ```
 
@@ -51,7 +49,7 @@ Mokume and the optional Plugin/MCP workflow require Python 3.10 or newer.
 
 The wheel also installs the `mokume` console command. A conda/mamba environment
 is provided in `environment.yaml`. See
-[Installation](../docs/installation.md) for details.
+[Installation](https://github.com/bigbio/mokume/blob/main/docs/installation.md) for details.
 
 ## Quick start
 
@@ -106,12 +104,12 @@ produced through either interface is the same.
 
 mokume covers the common protein quantification strategies and the analysis
 steps around them. The full catalog of methods is documented in the
-[user guide](../docs/user-guide/).
+[user guide](https://github.com/bigbio/mokume/tree/main/docs/user-guide).
 
 `features2proteins` runs these stages in order:
 
 <p align="center">
-  <img src="../docs/assets/pipeline.svg" alt="The mokume quantify features2proteins pipeline: source data through quantify, normalize, impute, batch-correct, and differential expression, with the best-known methods at each stage" width="100%">
+  <img src="https://raw.githubusercontent.com/bigbio/mokume/main/docs/assets/pipeline.svg" alt="The mokume quantify features2proteins pipeline: source data through quantify, normalize, impute, batch-correct, and differential expression, with the best-known methods at each stage" width="100%">
 </p>
 
 - **Quantification:** `maxlfq`, `directlfq`, `pibaq`, `top<N>`, `sum`
@@ -144,49 +142,48 @@ A thin Python periphery adds plots and reports on top. You never need to know it
 is Rust to use it. The repository also contains the separately maintained
 pure-Python `mokume-py` distribution. The Rust kernel leads new native
 computation work. For the full design and maintenance policy, see
-[Architecture](../docs/architecture.md) and
-[Maintenance scope](../docs/maintenance-scope.md).
+[Architecture](https://github.com/bigbio/mokume/blob/main/docs/architecture.md) and
+[Maintenance scope](https://github.com/bigbio/mokume/blob/main/docs/maintenance-scope.md).
 
-Agentic method recommendation is an installable plugin over this wheel. Its
-bundled local MCP configuration calls deterministic profile, policy, and
-evaluation services; the agent host owns the model and credentials. See the
-[Mokume Plugin guide](../docs/user-guide/agentic-plugin.md).
+The installable Mokume Plugin calls the deterministic profile, policy, and
+evaluation services, and uses the model and credentials owned by Codex or
+Claude Code. See the [Mokume Plugin guide](https://github.com/bigbio/mokume/blob/main/docs/user-guide/agentic-plugin.md).
 
 ## Example
 
-A full run on real data: **PXD030304**, 178.45 million DIA-NN QPX feature rows
+A full run on real data: **PXD030304**, 228.72 million DIA-NN QPX feature rows
 from 5,798 label-free runs representing 949 cancer cell lines. Native Rust
-DirectLFQ writes the 8,930 × 949 protein matrix; Mokume's Python periphery reads
+DirectLFQ writes the 9,530 × 949 protein matrix; Mokume's Python periphery reads
 that result to embed the samples, inspect detection depth, score AdaTiSS tissue
 specificity, and find tissue markers.
 
 <p align="center">
-  <img src="../docs/assets/pxd030304_rust_overview.png" alt="Six-panel PXD030304 Rust DirectLFQ overview with PCA, t-SNE, tissue representation, detection depth, and variance panels" width="100%">
+  <img src="https://raw.githubusercontent.com/bigbio/mokume/main/docs/assets/pxd030304_rust_overview.png" alt="Six-panel PXD030304 Rust DirectLFQ overview with PCA, t-SNE, tissue representation, detection depth, and variance panels" width="100%">
 </p>
 
 *All 949 cell lines: PCA and t-SNE by tissue of origin, tissue representation,
 technical-run depth versus protein detection, detection across major tissues,
-and the PCA variance profile. PC1 explains 20.7% and PC2 6.9% of the variance.*
+and the PCA variance profile. PC1 explains 19.5% and PC2 6.8% of the variance.*
 
 <p align="center">
-  <img src="../docs/assets/pxd030304_rust_biology.png" alt="Six-panel PXD030304 tissue-specificity and marker showcase" width="100%">
+  <img src="https://raw.githubusercontent.com/bigbio/mokume/main/docs/assets/pxd030304_rust_biology.png" alt="Six-panel PXD030304 tissue-specificity and marker showcase" width="100%">
 </p>
 
-*Biological panels use the 790 cell lines in the 30 tissues with at least five
+*Biological panels use the 815 cell lines in the 34 tissues with at least five
 samples: Wilcoxon marker profiles, AdaTiSS scores, tissue-specific protein
 counts, and three marker-expression maps. The complete Rust command, renderer,
-result interpretation, and numerical comparison with the previous run are in
-[`docs/examples/pxd030304-cell-lines.md`](../docs/examples/pxd030304-cell-lines.md).*
+result interpretation, and numerical comparison with the previous kernel are in
+[`docs/examples/pxd030304-cell-lines.md`](https://github.com/bigbio/mokume/blob/main/docs/examples/pxd030304-cell-lines.md).*
 
 ## Documentation
 
-- [Documentation home](../docs/index.md)
-- [Quick start](../docs/quickstart.md)
-- [Installation](../docs/installation.md)
-- [Rust wheel](../docs/rust-wheel.md)
-- [Architecture](../docs/architecture.md)
-- [Maintenance scope](../docs/maintenance-scope.md)
-- [Benchmarks](../benchmarks/)
+- [Documentation home](https://github.com/bigbio/mokume/blob/main/docs/index.md)
+- [Quick start](https://github.com/bigbio/mokume/blob/main/docs/quickstart.md)
+- [Installation](https://github.com/bigbio/mokume/blob/main/docs/installation.md)
+- [Rust wheel](https://github.com/bigbio/mokume/blob/main/docs/rust-wheel.md)
+- [Architecture](https://github.com/bigbio/mokume/blob/main/docs/architecture.md)
+- [Maintenance scope](https://github.com/bigbio/mokume/blob/main/docs/maintenance-scope.md)
+- [Benchmarks](https://github.com/bigbio/mokume/tree/main/benchmarks)
 
 ## Citation
 
@@ -199,6 +196,6 @@ their current citation details and DOIs.
 
 mokume is developed by the [bigbio](https://github.com/bigbio) community as part
 of the quantms ecosystem. Contributions are welcome; see
-[the community guide](../docs/community.md) for development setup and guidelines.
+[the community guide](https://github.com/bigbio/mokume/blob/main/docs/community.md) for development setup and guidelines.
 
-Licensed under the [MIT License](../LICENSE).
+Licensed under the [MIT License](https://github.com/bigbio/mokume/blob/main/LICENSE).

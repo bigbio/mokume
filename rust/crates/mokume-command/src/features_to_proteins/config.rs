@@ -1,12 +1,25 @@
 use mokume_core::{
     BatchCorrectionConfig, DifferentialExpressionConfig, DirectLfqConfig, FeatureToProteinsConfig,
     FilterConfig, ImputationConfig, InputConfig, IrsConfig, MaxLfqConfig, MokumeError,
-    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, QuantMethod, RatioConfig,
-    RuntimeConfig,
+    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, PibaqFamilyRows, PibaqSharedMode,
+    QuantMethod, RatioConfig, RuntimeConfig, TmtConfig, TmtRowMerge,
 };
 
+mod differential_expression;
+mod imputation;
+mod irs;
+
 use super::Features2ProteinsArgs;
-use crate::parsers::{DeLog2FcArg, QuantMethodArg, DEFAULT_TOPN_PEPTIDES};
+use crate::parsers::{QuantMethodArg, DEFAULT_TOPN_PEPTIDES};
+use differential_expression::resolve_differential_expression;
+use imputation::resolve_imputation;
+use irs::resolve_irs;
+
+fn invalid_input(message: impl Into<String>) -> MokumeError {
+    MokumeError::InvalidInput {
+        message: message.into(),
+    }
+}
 
 struct QuantificationOptions {
     method: QuantMethod,
@@ -19,6 +32,7 @@ struct ResolvedOptions {
     quantification: QuantificationOptions,
     batch: BatchCorrectionConfig,
     irs: IrsConfig,
+    tmt: TmtConfig,
     ratio: RatioConfig,
     imputation: ImputationConfig,
     differential_expression: DifferentialExpressionConfig,
@@ -30,6 +44,7 @@ pub(super) fn into_config(
     let quantification = resolve_quantification(&args)?;
     let batch = resolve_batch(&args)?;
     let irs = resolve_irs(&args, quantification.method)?;
+    let tmt = resolve_tmt(&args)?;
     let ratio = resolve_ratio(&args, quantification.method)?;
     let imputation = resolve_imputation(&args)?;
     let differential_expression = resolve_differential_expression(&args, quantification.method)?;
@@ -39,6 +54,7 @@ pub(super) fn into_config(
             quantification,
             batch,
             irs,
+            tmt,
             ratio,
             imputation,
             differential_expression,
@@ -58,6 +74,8 @@ fn resolve_quantification(
         });
     }
     validate_input_for_quantification(args, method)?;
+    validate_protein_fdr_request(args, method)?;
+    validate_method_requirements(args, method)?;
     let manages_normalization = matches!(
         method,
         QuantMethod::DirectLfq
@@ -65,32 +83,49 @@ fn resolve_quantification(
             | QuantMethod::PeptideCount
             | QuantMethod::SpectralCount
     );
-    let run_normalization = args.run_normalization.clone().map_or_else(
-        || {
-            if manages_normalization {
-                "none".to_owned()
-            } else {
-                "median".to_owned()
-            }
-        },
-        |method| method.replace('-', "_"),
-    );
-    let sample_normalization = args.sample_normalization.clone().map_or_else(
-        || {
-            if manages_normalization {
-                "none".to_owned()
-            } else {
-                "globalmedian".to_owned()
-            }
-        },
-        |method| method.replace('-', ""),
-    );
+    let (run_default, sample_default) = default_normalization(args, method, manages_normalization);
+    let run_normalization = args
+        .run_normalization
+        .as_deref()
+        .map_or(run_default, |method| method.replace('-', "_"));
+    let sample_normalization = args
+        .sample_normalization
+        .as_deref()
+        .map_or(sample_default, |method| method.replace('-', ""));
+    validate_normalization_options(
+        args,
+        method,
+        manages_normalization,
+        &run_normalization,
+        &sample_normalization,
+    )?;
     Ok(QuantificationOptions {
         method,
         topn_peptides: topn.unwrap_or(DEFAULT_TOPN_PEPTIDES),
         run_normalization,
         sample_normalization,
     })
+}
+
+/// Default run and sample normalization for `method`. Global-median takes the
+/// median of each sample's detected features, which moves with detection depth
+/// and spike-in composition, so MaxLFQ defaults to the hierarchical (DirectLFQ)
+/// alignment of shared peptide species unless normalization proteins ask for a
+/// median over those proteins.
+fn default_normalization(
+    args: &Features2ProteinsArgs,
+    method: QuantMethod,
+    manages_normalization: bool,
+) -> (String, String) {
+    if manages_normalization {
+        return ("none".to_owned(), "none".to_owned());
+    }
+    let defaults = NormalizationConfig::default();
+    if method == QuantMethod::MaxLfq && args.normalization_proteins.is_none() {
+        (defaults.run_method, "hierarchical".to_owned())
+    } else {
+        (defaults.run_method, defaults.sample_method)
+    }
 }
 
 fn validate_input_for_quantification(
@@ -109,6 +144,146 @@ fn validate_input_for_quantification(
             message: "--psm only applies to --quant-method spectral_count".to_owned(),
         });
     }
+    if args.sdrf.is_none()
+        && args
+            .sample_normalization
+            .as_deref()
+            .is_some_and(|method| method.eq_ignore_ascii_case("condition-median"))
+    {
+        return Err(MokumeError::InvalidInput {
+            message: "conditionmedian sample normalization requires --sdrf option".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+/// `--filter-protein-fdr` needs QPX feature input with `pg_global_qvalue`; the
+/// MSstats table carries no protein q-values and spectral-count builds its
+/// matrix outside the feature ingest, so both are rejected rather than silently
+/// ignoring the requested filter.
+fn validate_protein_fdr_request(
+    args: &Features2ProteinsArgs,
+    method: QuantMethod,
+) -> mokume_core::Result<()> {
+    if args.filter_protein_fdr.is_none() {
+        return Ok(());
+    }
+    if args.msstats.is_some() {
+        return Err(invalid_input(
+            "--filter-protein-fdr requires QPX --parquet input with a populated `pg_global_qvalue` column; MSstats input carries no protein q-values",
+        ));
+    }
+    if method == QuantMethod::SpectralCount {
+        return Err(invalid_input(
+            "--filter-protein-fdr is not supported with --quant-method spectral-count",
+        ));
+    }
+    Ok(())
+}
+
+/// Inputs, outputs, and FASTA options that only some quantification methods use.
+fn validate_method_requirements(
+    args: &Features2ProteinsArgs,
+    method: QuantMethod,
+) -> mokume_core::Result<()> {
+    if method == QuantMethod::Ratio && args.msstats.is_some() {
+        return Err(invalid_input(
+            "Ratio quantification requires PSM-level QPX input; MSstats feature tables do not contain PSM evidence",
+        ));
+    }
+    if method == QuantMethod::Pibaq && args.fasta.is_none() {
+        return Err(invalid_input(
+            "piBAQ quantification requires --fasta option",
+        ));
+    }
+    if method != QuantMethod::Pibaq && pibaq_options_supplied(args) {
+        return Err(invalid_input(
+            "piBAQ FASTA/digestion options require --quant-method pibaq",
+        ));
+    }
+    if pibaq_family_rows_with_proportional(args) {
+        return Err(invalid_input(
+            "--pibaq-family-rows requires --pibaq-shared unique or stable-ratio",
+        ));
+    }
+    if method == QuantMethod::Ratio && args.sdrf.is_none() {
+        return Err(invalid_input("Ratio quantification requires --sdrf option"));
+    }
+    if args.export_peptides.is_some()
+        && matches!(
+            method,
+            QuantMethod::DirectLfq | QuantMethod::Ratio | QuantMethod::SpectralCount
+        )
+    {
+        return Err(invalid_input(format!(
+            "export-peptides is not supported by {method} quantification"
+        )));
+    }
+    if args.coverage_threshold.is_some() && args.sdrf.is_none() {
+        return Err(invalid_input("coverage-threshold requires --sdrf option"));
+    }
+    Ok(())
+}
+
+fn pibaq_options_supplied(args: &Features2ProteinsArgs) -> bool {
+    args.fasta.is_some()
+        || args.pibaq_enzyme.is_some()
+        || args.pibaq_max_aa.is_some()
+        || args.pibaq_min_shared.is_some()
+        || args.pibaq_families_yaml.is_some()
+        || args.pibaq_min_anchors.is_some()
+        || args.pibaq_missed_cleavages.is_some()
+        || args.pibaq_shared.is_some()
+        || args.pibaq_family_rows.is_some()
+        || args.pibaq_evidence.is_some()
+}
+
+/// Proportional piBAQ has no family rows, so only `none` may be requested.
+fn pibaq_family_rows_with_proportional(args: &Features2ProteinsArgs) -> bool {
+    args.pibaq_shared
+        .as_deref()
+        .is_some_and(|mode| mode.eq_ignore_ascii_case("proportional"))
+        && args
+            .pibaq_family_rows
+            .as_deref()
+            .is_some_and(|rows| !rows.eq_ignore_ascii_case("none"))
+}
+
+fn validate_normalization_options(
+    args: &Features2ProteinsArgs,
+    method: QuantMethod,
+    manages_normalization: bool,
+    run_normalization: &str,
+    sample_normalization: &str,
+) -> mokume_core::Result<()> {
+    if args.normalization_proteins.is_some()
+        && !matches!(
+            sample_normalization.to_ascii_lowercase().as_str(),
+            "globalmedian" | "conditionmedian"
+        )
+    {
+        return Err(invalid_input(
+            "--normalization-proteins requires globalmedian or conditionmedian sample normalization",
+        ));
+    }
+    if manages_normalization
+        && (!run_normalization.eq_ignore_ascii_case("none")
+            || !sample_normalization.eq_ignore_ascii_case("none")
+            || args.normalization_proteins.is_some())
+    {
+        let reason = if matches!(
+            method,
+            QuantMethod::PeptideCount | QuantMethod::SpectralCount
+        ) {
+            "does not use intensity normalization"
+        } else {
+            "manages normalization internally"
+        };
+        return Err(invalid_input(format!(
+            "{method} {reason}; use --run-normalization none and --sample-normalization \
+             none, and do not pass --normalization-proteins"
+        )));
+    }
     Ok(())
 }
 
@@ -116,17 +291,34 @@ fn validate_lfq_options(
     args: &Features2ProteinsArgs,
     method: QuantMethod,
 ) -> mokume_core::Result<()> {
+    if method != QuantMethod::DirectLfq && args.export_ions.is_some() {
+        return Err(MokumeError::InvalidInput {
+            message: "--export-ions requires --quant-method directlfq".to_owned(),
+        });
+    }
     if method != QuantMethod::DirectLfq && args.directlfq_min_nonan.is_some() {
         return Err(MokumeError::InvalidInput {
             message: "--directlfq-min-nonan requires --quant-method directlfq".to_owned(),
         });
     }
-    if !matches!(method, QuantMethod::DirectLfq | QuantMethod::MaxLfq)
-        && args.directlfq_num_samples_quadratic.is_some()
-    {
+    if method != QuantMethod::DirectLfq && args.directlfq_num_samples_quadratic.is_some() {
         return Err(MokumeError::InvalidInput {
-            message: "--directlfq-num-samples-quadratic only applies to DirectLFQ/MaxLFQ"
-                .to_owned(),
+            message: "--directlfq-num-samples-quadratic only applies to DirectLFQ".to_owned(),
+        });
+    }
+    if method != QuantMethod::DirectLfq && args.directlfq_no_sample_normalization {
+        return Err(MokumeError::InvalidInput {
+            message: "--directlfq-no-sample-normalization only applies to DirectLFQ".to_owned(),
+        });
+    }
+    if method != QuantMethod::MaxLfq && args.maxlfq_min_ratio_count.is_some() {
+        return Err(MokumeError::InvalidInput {
+            message: "--maxlfq-min-ratio-count requires --quant-method maxlfq".to_owned(),
+        });
+    }
+    if method != QuantMethod::MaxLfq && args.stabilize {
+        return Err(MokumeError::InvalidInput {
+            message: "--stabilize requires --quant-method maxlfq".to_owned(),
         });
     }
     Ok(())
@@ -135,7 +327,7 @@ fn validate_lfq_options(
 fn resolve_batch(args: &Features2ProteinsArgs) -> mokume_core::Result<BatchCorrectionConfig> {
     let method_supplied = args.batch_method.is_some();
     let method = args.batch_method.clone().map_or_else(
-        || "sample_prefix".to_owned(),
+        || BatchCorrectionConfig::default().method,
         |value| value.replace('-', "_"),
     );
     if !args.batch_correction
@@ -150,6 +342,9 @@ fn resolve_batch(args: &Features2ProteinsArgs) -> mokume_core::Result<BatchCorre
             message: "batch options require --batch-correction".to_owned(),
         });
     }
+    if args.batch_correction {
+        validate_batch_columns(args, &method)?;
+    }
     Ok(BatchCorrectionConfig {
         enabled: args.batch_correction,
         method,
@@ -161,89 +356,22 @@ fn resolve_batch(args: &Features2ProteinsArgs) -> mokume_core::Result<BatchCorre
     })
 }
 
-fn resolve_irs(
-    args: &Features2ProteinsArgs,
-    quantification: QuantMethod,
-) -> mokume_core::Result<IrsConfig> {
-    let reference_samples =
-        (!args.irs_reference_sample.is_empty()).then(|| args.irs_reference_sample.clone());
-    let selector_count = validate_irs_selectors(args, reference_samples.is_some())?;
-    validate_irs_mode(args, quantification, selector_count)?;
-    Ok(IrsConfig {
-        enabled: args.irs,
-        reference_samples,
-        sdrf_column: args.irs_sdrf_column.clone(),
-        sdrf_values: (!args.irs_sdrf_value.is_empty()).then(|| args.irs_sdrf_value.clone()),
-        reference_regex: args
-            .irs_reference_regex
-            .clone()
-            .unwrap_or_else(|| "pool|powder|ref|reference|bridge".to_owned()),
-        stat: args.irs_stat.clone().unwrap_or_else(|| "median".to_owned()),
-        remove_reference: args.irs_remove_reference,
-        plex_column: args.irs_plex_column.clone(),
-    })
-}
-
-fn validate_irs_selectors(
-    args: &Features2ProteinsArgs,
-    has_reference_samples: bool,
-) -> mokume_core::Result<usize> {
-    if args.irs_sdrf_column.is_some() == args.irs_sdrf_value.is_empty() {
-        return Err(MokumeError::InvalidInput {
-            message: "--irs-sdrf-column and --irs-sdrf-value must be provided together".to_owned(),
-        });
+fn validate_batch_columns(args: &Features2ProteinsArgs, method: &str) -> mokume_core::Result<()> {
+    let column_method = method.eq_ignore_ascii_case("column");
+    if column_method && args.batch_column.is_none() {
+        return Err(invalid_input(
+            "Batch correction with method 'column' requires --batch-column option",
+        ));
     }
-    let selector_count = usize::from(has_reference_samples)
-        + usize::from(args.irs_sdrf_column.is_some())
-        + usize::from(args.irs_reference_regex.is_some());
-    if selector_count > 1 {
-        return Err(MokumeError::InvalidInput {
-            message: "choose one reference selector: samples, SDRF column+values, or regex"
-                .to_owned(),
-        });
+    if !column_method && args.batch_column.is_some() {
+        return Err(invalid_input(
+            "--batch-column requires --batch-method column",
+        ));
     }
-    Ok(selector_count)
-}
-
-fn validate_irs_mode(
-    args: &Features2ProteinsArgs,
-    quantification: QuantMethod,
-    selector_count: usize,
-) -> mokume_core::Result<()> {
-    if matches!(
-        quantification,
-        QuantMethod::PeptideCount | QuantMethod::SpectralCount
-    ) && args.irs
-    {
-        return Err(MokumeError::InvalidInput {
-            message: format!("{quantification} quantification cannot apply IRS"),
-        });
-    }
-    if quantification == QuantMethod::Ratio {
-        if args.irs {
-            return Err(MokumeError::InvalidInput {
-                message: "Ratio quantification cannot also apply IRS".to_owned(),
-            });
-        }
-        if args.irs_sdrf_column.is_some()
-            || !args.irs_sdrf_value.is_empty()
-            || args.irs_stat.is_some()
-            || args.irs_remove_reference
-        {
-            return Err(MokumeError::InvalidInput {
-                message: "Ratio accepts --irs-reference-sample or --irs-reference-regex; IRS-only options require --irs"
-                    .to_owned(),
-            });
-        }
-    } else if !args.irs
-        && (selector_count > 0
-            || args.irs_stat.is_some()
-            || args.irs_remove_reference
-            || args.irs_plex_column.is_some())
-    {
-        return Err(MokumeError::InvalidInput {
-            message: "IRS options require --irs".to_owned(),
-        });
+    if args.sdrf.is_none() && (args.batch_column.is_some() || !args.batch_covariate.is_empty()) {
+        return Err(invalid_input(
+            "Batch correction with --batch-column or --batch-covariate requires --sdrf option",
+        ));
     }
     Ok(())
 }
@@ -261,151 +389,8 @@ fn resolve_ratio(
         fraction_merge: args
             .ratio_fraction_merge
             .clone()
-            .unwrap_or_else(|| "mean".to_owned()),
+            .unwrap_or_else(|| RatioConfig::default().fraction_merge),
     })
-}
-
-fn resolve_imputation(args: &Features2ProteinsArgs) -> mokume_core::Result<ImputationConfig> {
-    let tuning_supplied = args.impute_quantile.is_some()
-        || args.impute_shift.is_some()
-        || args.impute_scale.is_some()
-        || args.impute_n_neighbors.is_some();
-    if tuning_supplied && args.impute_method.is_none() {
-        return Err(MokumeError::InvalidInput {
-            message: "imputation tuning options require --impute-method".to_owned(),
-        });
-    }
-    let method = args
-        .impute_method
-        .clone()
-        .map_or_else(|| "none".to_owned(), |value| value.replace('-', "_"));
-    let enabled = args.impute_method.is_some();
-    validate_imputation_method(args, &method)?;
-    Ok(ImputationConfig {
-        enabled,
-        method,
-        quantile: args.impute_quantile.unwrap_or(0.01),
-        shift: args.impute_shift.unwrap_or(1.6),
-        scale: args.impute_scale.unwrap_or(0.3),
-        n_neighbors: args.impute_n_neighbors.unwrap_or(5),
-    })
-}
-
-fn validate_imputation_method(
-    args: &Features2ProteinsArgs,
-    method: &str,
-) -> mokume_core::Result<()> {
-    let method = method.to_ascii_lowercase();
-    if args.impute_quantile.is_some() && !matches!(method.as_str(), "mindet" | "minprob") {
-        return Err(MokumeError::InvalidInput {
-            message: "--impute-quantile only applies to mindet/minprob".to_owned(),
-        });
-    }
-    if (args.impute_shift.is_some() || args.impute_scale.is_some()) && method != "minprob" {
-        return Err(MokumeError::InvalidInput {
-            message: "--impute-shift/--impute-scale only apply to minprob".to_owned(),
-        });
-    }
-    if args.impute_n_neighbors.is_some() && !matches!(method.as_str(), "knn" | "seqknn") {
-        return Err(MokumeError::InvalidInput {
-            message: "--impute-n-neighbors only applies to knn/seqknn".to_owned(),
-        });
-    }
-    Ok(())
-}
-
-fn resolve_differential_expression(
-    args: &Features2ProteinsArgs,
-    quantification: QuantMethod,
-) -> mokume_core::Result<DifferentialExpressionConfig> {
-    let enabled = de_options_supplied(args);
-    let method = args.de_method.clone().unwrap_or_else(|| "auto".to_owned());
-    let resolved_method = resolved_de_method(&method, quantification);
-    validate_de_method_options(args, &method, resolved_method)?;
-    let (log2fc_threshold, auto_effect_size_gate) = args
-        .de_log2fc_threshold
-        .unwrap_or(DeLog2FcArg::Fixed(0.5))
-        .into_config();
-    Ok(DifferentialExpressionConfig {
-        enabled,
-        contrasts: de_contrasts(args),
-        contrasts_file: args.de_contrast_file.clone(),
-        method,
-        ensemble_methods: (!args.de_ensemble_method.is_empty())
-            .then(|| args.de_ensemble_method.clone()),
-        ensemble_min_k: args.de_ensemble_min_k.unwrap_or(2),
-        log2fc_threshold,
-        effect_size_gate: args
-            .de_effect_size_gate
-            .clone()
-            .map(|value| value.replace('-', "_"))
-            .or(auto_effect_size_gate),
-        fdr_threshold: args.de_fdr_threshold.unwrap_or(0.05),
-        fdr_method: args
-            .de_fdr_method
-            .clone()
-            .unwrap_or_else(|| "bh".to_owned()),
-        output: args.de_output.clone(),
-    })
-}
-
-fn de_options_supplied(args: &Features2ProteinsArgs) -> bool {
-    !args.de_contrast.is_empty()
-        || args.de_contrast_file.is_some()
-        || args.de_method.is_some()
-        || !args.de_ensemble_method.is_empty()
-        || args.de_ensemble_min_k.is_some()
-        || args.de_log2fc_threshold.is_some()
-        || args.de_effect_size_gate.is_some()
-        || args.de_fdr_threshold.is_some()
-        || args.de_fdr_method.is_some()
-        || args.de_output.is_some()
-}
-
-fn de_contrasts(args: &Features2ProteinsArgs) -> Option<Vec<String>> {
-    (!args.de_contrast.is_empty()).then(|| {
-        args.de_contrast
-            .chunks_exact(2)
-            .map(|groups| format!("{} vs {}", groups[0], groups[1]))
-            .collect()
-    })
-}
-
-fn resolved_de_method(method: &str, quantification: QuantMethod) -> &str {
-    if method.eq_ignore_ascii_case("auto") {
-        if quantification == QuantMethod::DirectLfq {
-            "deqms"
-        } else {
-            "limrots"
-        }
-    } else {
-        method
-    }
-}
-
-fn validate_de_method_options(
-    args: &Features2ProteinsArgs,
-    method: &str,
-    resolved_method: &str,
-) -> mokume_core::Result<()> {
-    if args.de_ensemble_min_k.is_some() && !method.eq_ignore_ascii_case("ensemble") {
-        return Err(MokumeError::InvalidInput {
-            message: "--de-ensemble-min-k only applies to --de-method ensemble".to_owned(),
-        });
-    }
-    if args.de_fdr_method.is_some()
-        && matches!(
-            resolved_method.to_ascii_lowercase().as_str(),
-            "rots" | "limrots"
-        )
-    {
-        return Err(MokumeError::InvalidInput {
-            message: format!(
-                "--de-fdr-method does not apply to {resolved_method}, which retains its permutation FDR"
-            ),
-        });
-    }
-    Ok(())
 }
 
 fn build_config(
@@ -422,7 +407,7 @@ fn build_config(
                 if quantification.method == QuantMethod::Pibaq {
                     0
                 } else {
-                    2
+                    FilterConfig::default().min_unique_peptides
                 },
             ),
             remove_contaminants: !args.keep_contaminants,
@@ -435,13 +420,16 @@ fn build_config(
         quantification: quantification.method,
         topn_peptides: quantification.topn_peptides,
         maxlfq: MaxLfqConfig {
-            ion_alignment: None,
-            force_builtin: false,
+            min_ratio_count: args
+                .maxlfq_min_ratio_count
+                .unwrap_or(MaxLfqConfig::default().min_ratio_count),
+            stabilize: args.stabilize,
         },
         pibaq: pibaq_config(args),
         directlfq: directlfq_config(args),
         batch: resolved.batch,
         irs: resolved.irs,
+        tmt: resolved.tmt,
         coverage_threshold: args.coverage_threshold,
         sample_correlation_threshold: args.min_sample_correlation,
         protein_fdr_threshold: args.filter_protein_fdr,
@@ -475,21 +463,72 @@ fn output_config(args: &Features2ProteinsArgs) -> OutputConfig {
 }
 
 fn pibaq_config(args: &Features2ProteinsArgs) -> PibaqConfig {
+    let defaults = PibaqConfig::default();
     PibaqConfig {
-        enzyme: args.pibaq_enzyme.clone(),
-        max_aa: args.pibaq_max_aa,
-        min_shared: args.pibaq_min_shared,
+        enzyme: args.pibaq_enzyme.clone().unwrap_or(defaults.enzyme),
+        max_aa: args.pibaq_max_aa.unwrap_or(defaults.max_aa),
+        min_shared: args.pibaq_min_shared.unwrap_or(defaults.min_shared),
         families_yaml: args.pibaq_families_yaml.clone(),
-        min_anchors: args.pibaq_min_anchors,
-        high_anchor_threshold: PibaqConfig::default().high_anchor_threshold,
-        missed_cleavages: args.pibaq_missed_cleavages,
+        min_anchors: args.pibaq_min_anchors.unwrap_or(defaults.min_anchors),
+        high_anchor_threshold: defaults.high_anchor_threshold,
+        missed_cleavages: args
+            .pibaq_missed_cleavages
+            .unwrap_or(defaults.missed_cleavages),
+        shared_mode: match args
+            .pibaq_shared
+            .as_deref()
+            .map(str::to_ascii_lowercase)
+            .as_deref()
+        {
+            Some("proportional") => PibaqSharedMode::Proportional,
+            Some("stable-ratio") => PibaqSharedMode::StableRatio,
+            _ => PibaqSharedMode::Unique,
+        },
+        family_rows: args
+            .pibaq_family_rows
+            .as_deref()
+            .map(str::to_ascii_lowercase)
+            .map(|value| match value.as_str() {
+                "all" => PibaqFamilyRows::All,
+                "none" => PibaqFamilyRows::None,
+                _ => PibaqFamilyRows::FamilyOnly,
+            }),
+        evidence_output: args.pibaq_evidence.clone(),
     }
 }
 
+fn resolve_tmt(args: &Features2ProteinsArgs) -> mokume_core::Result<TmtConfig> {
+    let tmt = TmtConfig {
+        row_merge: if args
+            .tmt_row_merge
+            .as_deref()
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("best-row"))
+        {
+            TmtRowMerge::BestRow
+        } else {
+            TmtRowMerge::MaxPerChannel
+        },
+        impurity_table: args.tmt_impurity.clone(),
+        interference_floor: args.tmt_interference_floor,
+        floor_quantile: args
+            .tmt_floor_quantile
+            .unwrap_or(TmtConfig::default().floor_quantile),
+    };
+    if args.msstats.is_some() && tmt.is_active() {
+        return Err(invalid_input(
+            "TMT reporter corrections (--tmt-row-merge best-row, --tmt-impurity, --tmt-interference-floor) require QPX input; MSstats tables hold one reporter channel per row",
+        ));
+    }
+    Ok(tmt)
+}
+
 fn directlfq_config(args: &Features2ProteinsArgs) -> DirectLfqConfig {
+    let defaults = DirectLfqConfig::default();
     DirectLfqConfig {
-        cores: None,
-        min_nonan: args.directlfq_min_nonan.unwrap_or(1),
-        num_samples_quadratic: args.directlfq_num_samples_quadratic.unwrap_or(50),
+        min_nonan: args.directlfq_min_nonan.unwrap_or(defaults.min_nonan),
+        num_samples_quadratic: args
+            .directlfq_num_samples_quadratic
+            .unwrap_or(defaults.num_samples_quadratic),
+        normalize_samples: !args.directlfq_no_sample_normalization,
     }
 }

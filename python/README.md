@@ -19,7 +19,7 @@ library is an evolution of [ibaqpy](https://github.com/bigbio/ibaqpy).
 This directory contains the separately maintained pure-Python implementation.
 The Rust kernel under `../rust/` leads new native computation work, so supported
 options can differ between the two implementations. See the repository's
-[maintenance policy](../docs/maintenance-scope.md).
+[maintenance policy](https://github.com/bigbio/mokume/blob/main/docs/maintenance-scope.md).
 
 ## Installation
 
@@ -39,7 +39,7 @@ pip install mokume-py[analysis]
 # KNN / missForest imputation (scikit-learn)
 pip install mokume-py[imputation]
 
-# DirectLFQ backend for MaxLFQ
+# DirectLFQ quantification method
 pip install mokume-py[directlfq]
 
 # Plotting support (QC reports and visualizations)
@@ -76,102 +76,11 @@ pip install ./python
 
 ## Library Structure
 
-```text
-mokume/
-├── core/                    # Core utilities and constants
-│   ├── constants.py         # Column names, mappings, utility functions
-│   ├── logger.py            # Logging utilities
-│   └── write_queue.py       # Async file writing
-│
-├── model/                   # Data models and enums
-│   ├── labeling.py          # TMT/iTRAQ/LFQ labeling types
-│   ├── normalization.py     # Normalization method enums
-│   ├── organism.py          # Organism metadata (histones, genome size)
-│   ├── quantification.py    # Quantification method enums
-│   ├── summarization.py     # Summarization strategy enums
-│   └── filters.py           # Filter configuration dataclasses
-│
-├── normalization/           # Normalization implementations
-│   ├── feature.py           # Feature-level normalization
-│   ├── peptide.py           # Peptide-level normalization pipeline
-│   ├── protein.py           # Protein-level normalization
-│   └── loess.py             # LOESS regression normalization
-│
-├── preprocessing/           # Preprocessing filters
-│   └── filters/             # Quality control filters
-│       ├── base.py          # Base filter class
-│       ├── intensity.py     # Intensity-based filters
-│       ├── peptide.py       # Peptide-level filters
-│       ├── protein.py       # Protein-level filters
-│       ├── run_qc.py        # Run/sample QC filters
-│       ├── pipeline.py      # Filter pipeline orchestration
-│       ├── factory.py       # Filter factory functions
-│       └── io.py            # YAML/JSON config loading
-│
-├── quantification/          # Protein quantification methods
-│   ├── base.py              # Abstract base class
-│   ├── pibaq.py             # canonical piBAQ implementation
-│   ├── topn.py              # TopN quantification (generic, supports any N)
-│   ├── top3.py              # Top3 alias for TopN with N=3
-│   ├── maxlfq.py            # MaxLFQ algorithm (parallelized)
-│   ├── directlfq.py         # DirectLFQ wrapper (optional)
-│   └── all_peptides.py      # Sum of all peptides
-│
-├── summarization/           # Intensity summarization strategies
-│   ├── base.py              # Abstract base class
-│   ├── median.py            # Median summarization
-│   ├── mean.py              # Mean summarization
-│   └── sum.py               # Sum summarization
-│
-├── analysis/                # Differential expression analysis
-│   ├── differential_expression.py  # Main DE orchestrator (LimROTS, DEqMS, proDA)
-│   ├── limrots.py           # LimROTS: limma + ROTS bootstrap-optimized test
-│   ├── deqms.py             # DEqMS peptide-count-weighted eBayes
-│   └── proda.py             # proDA probabilistic dropout-aware DE
-│
-├── imputation/              # Missing value handling
-│   ├── methods.py           # Standard imputation (KNN, etc.)
-│   └── censored.py          # Censored-aware imputation (MinProb, MinDet, KNN)
-│
-├── postprocessing/          # Data reshaping and correction
-│   ├── reshape.py           # Pivot operations (wide/long format)
-│   ├── batch_correction.py  # ComBat batch correction
-│   └── combiner.py          # Multi-file combining
-│
-├── plotting/                # Visualization (optional: pip install mokume-py[plotting])
-│   ├── distributions.py     # Distribution and box plots
-│   └── pca.py               # PCA and t-SNE plots
-│
-├── io/                      # Input/Output utilities
-│   ├── parquet.py           # Parquet/TSV reading, AnnData creation
-│   └── fasta.py             # FASTA file handling
-│
-├── commands/                # CLI commands
-│   ├── features2peptides.py # Feature to peptide conversion
-│   ├── peptides2protein.py  # Protein quantification
-│   ├── batch_correct.py     # Batch correction
-│   ├── tissuemap.py         # TissueMap pipeline CLI
-│   └── visualize.py         # t-SNE visualization
-│
-├── tissuemap/               # Per-dataset tissue proteome analysis
-│   ├── config.py            # YAML-based pipeline configuration
-│   ├── loader.py            # QPX parquet dataset loading + GIS auto-detect
-│   ├── preprocessing.py     # Log2+median normalization, tissue harmonization
-│   ├── protein_selection.py # NaN/contaminant protein filtering
-│   ├── batch_correction.py  # pyCombat batch correction (NaN-safe)
-│   ├── tissue_specificity.py# AdaTiSS scoring + GMM thresholding
-│   ├── embedding.py         # PCA + t-SNE dimensionality reduction
-│   ├── pipeline.py          # 9-step pipeline orchestrator
-│   └── plotting/            # Visualization modules
-│       ├── atlas.py         # Tissue atlas + dendrogram
-│       ├── embedding.py     # PCA scree plot
-│       ├── markers.py       # Marker heatmap, t-SNE, dotplot
-│       └── specificity.py   # TS score distribution
-│
-└── data/                    # Static data resources
-    ├── organisms.py         # Organism histone data
-    └── organisms.json       # Organism registry
-```
+The import package is `mokume`, organised by stage: `quantification`,
+`normalization`, `imputation`, `analysis`, `pipeline`, `preprocessing`,
+`tissuemap`, and others. The
+[Python API (package) reference](https://github.com/bigbio/mokume/blob/main/docs/reference/python-api-package.md)
+lists the modules and their public functions.
 
 ## Quantification Methods
 
@@ -186,26 +95,32 @@ mokume/
 | **Ratio** | Log2 sample/reference per plex (PS protocol, TMT) | No | `RatioQuantification` | No |
 | **TMT Abundance** (`abd`) | Median of log2 peptide intensities | No | `TMTAbundanceQuantification` | No |
 | **TMT Reporter** (`intensity`) | Sum of raw reporter intensities | No | `TMTReporterIntensityQuantification` | No |
-| **Spectral Count** | Count of peptidoforms per (protein, sample) | No | `SpectralCountQuantification` | No |
+| **Spectral Count** | Count of PSM rows per (protein, sample) | No | `SpectralCountQuantification` | No |
+| **Peptide Count** | Count of distinct peptides per (protein, sample) | No | `PeptideCountQuantification` | No |
 
-MaxLFQ automatically uses DirectLFQ when installed for best accuracy, falling
-back to the built-in implementation otherwise.
+MaxLFQ and DirectLFQ are separate methods: `maxlfq` never dispatches to the
+DirectLFQ package.
 
 > **Note:** `Top3Quantification` is an alias for `TopNQuantification(n=3)`.
 
 ### MaxLFQ Algorithm Details
 
-The `MaxLFQQuantification` class provides two implementations:
+`MaxLFQQuantification` is an independent MaxLFQ ratio solver for prepared
+linear intensities:
 
-1. **DirectLFQ backend** (default when installed): Uses the DirectLFQ package for maximum accuracy with variance-guided pairwise alignment.
+- Computes the median log ratio for each sample pair from the peptide species
+  they share, requiring `min_ratio_count` shared species per pair (default 2;
+  `min_peptides` is its legacy alias)
+- Solves the pairwise ratios for one profile per protein and scales it to the
+  protein's total input intensity; samples without a valid ratio stay missing
+  rather than falling back to a median
+- Uses `PeptideSequence` + `PrecursorCharge` as the species when both columns
+  are present
+- Runs proteins in parallel with joblib (`threads`, `-1` for all cores);
+  `stabilize=True` enables the overlap-dependent large-ratio stabilization of
+  Eq. 5 in the MaxLFQ paper
 
-2. **Built-in fallback**: A parallelized implementation using peptide trace alignment:
-   - Aligns peptide intensity traces within each protein using median shifts
-   - Aggregates aligned traces using median per sample
-   - Scales results to preserve total peptide intensity
-   - Achieves ~0.95 Spearman correlation with DIA-NN's MaxLFQ values
-
-Use `force_builtin=True` to always use the built-in implementation, or check `maxlfq.using_directlfq` to see which backend is active.
+`force_builtin` is accepted only for compatibility and has no effect.
 
 ## Differential Expression Analysis
 
@@ -261,8 +176,8 @@ Standalone API examples:
 ```python
 from mokume.imputation.censored import impute_censored
 
-# MinProb: draw from left-shifted normal (recommended for MNAR)
-imputed = impute_censored(log2_matrix, method="minprob", quantile=0.01, shift=1.6, scale=0.3)
+# MinProb: draw from a normal at a low per-sample quantile (recommended for MNAR)
+imputed = impute_censored(log2_matrix, method="minprob", quantile=0.01, tune_sigma=1.0)
 
 # MinDet: replace NaN with per-column quantile
 imputed = impute_censored(log2_matrix, method="mindet", quantile=0.01)
@@ -343,7 +258,6 @@ mokume peptides2protein --method top10 \
     -o proteins-top10.tsv
 
 # Using MaxLFQ with parallelization
-# Automatically uses DirectLFQ backend if installed, otherwise built-in
 mokume peptides2protein --method maxlfq \
     --threads 4 \
     -p peptides.csv \
@@ -534,23 +448,13 @@ top10 = TopNQuantification(n=10)
 result = top10.quantify(peptides, protein_column="ProteinName", ...)
 
 # --- MaxLFQ Quantification ---
-# Automatically uses DirectLFQ if installed, otherwise falls back to built-in
 maxlfq = MaxLFQQuantification(
-    min_peptides=2,         # Minimum peptides required for MaxLFQ (uses median for fewer)
+    min_ratio_count=2,      # Shared peptide species required for each sample pair
     threads=4,              # Use 4 parallel cores (-1 for all cores)
 )
 result = maxlfq.quantify(peptides, protein_column="ProteinName", ...)
 
-# Check which implementation is being used
-print(f"Using DirectLFQ: {maxlfq.using_directlfq}")
-print(f"Implementation: {maxlfq.name}")  # "MaxLFQ (DirectLFQ)" or "MaxLFQ (built-in)"
-
-# For best accuracy, install DirectLFQ: pip install mokume-py[directlfq]
-
-# Force built-in implementation (for testing/comparison)
-maxlfq_builtin = MaxLFQQuantification(min_peptides=2, force_builtin=True)
-
-# Run-level quantification (uses built-in implementation)
+# Run-level quantification
 result = maxlfq.quantify(
     peptides,
     protein_column="ProteinName",
@@ -986,15 +890,15 @@ mokume provides a comprehensive filter system for quality control. Filters can b
 
 ### Example Filter Configurations
 
-We provide several pre-configured filter templates for common use cases in [`tests/example/filters/`](tests/example/filters/):
+We provide several pre-configured filter templates for common use cases in [`tests/example/filters/`](https://github.com/bigbio/mokume/tree/main/python/tests/example/filters):
 
 | Configuration | Use Case | Description |
 |---------------|----------|-------------|
-| [`basic_qc.yaml`](tests/example/filters/basic_qc.yaml) | General QC | Minimal filtering for standard experiments |
-| [`stringent_filtering.yaml`](tests/example/filters/stringent_filtering.yaml) | Publication | High-confidence results with strict thresholds |
-| [`tmt_labeling.yaml`](tests/example/filters/tmt_labeling.yaml) | TMT/iTRAQ | Optimized for multiplexed labeling experiments |
-| [`dia_analysis.yaml`](tests/example/filters/dia_analysis.yaml) | DIA | Optimized for DIA-NN, Spectronaut analysis |
-| [`exploratory_analysis.yaml`](tests/example/filters/exploratory_analysis.yaml) | Exploration | Minimal filtering for data exploration |
+| [`basic_qc.yaml`](https://github.com/bigbio/mokume/blob/main/python/tests/example/filters/basic_qc.yaml) | General QC | Minimal filtering for standard experiments |
+| [`stringent_filtering.yaml`](https://github.com/bigbio/mokume/blob/main/python/tests/example/filters/stringent_filtering.yaml) | Publication | High-confidence results with strict thresholds |
+| [`tmt_labeling.yaml`](https://github.com/bigbio/mokume/blob/main/python/tests/example/filters/tmt_labeling.yaml) | TMT/iTRAQ | Optimized for multiplexed labeling experiments |
+| [`dia_analysis.yaml`](https://github.com/bigbio/mokume/blob/main/python/tests/example/filters/dia_analysis.yaml) | DIA | Optimized for DIA-NN, Spectronaut analysis |
+| [`exploratory_analysis.yaml`](https://github.com/bigbio/mokume/blob/main/python/tests/example/filters/exploratory_analysis.yaml) | Exploration | Minimal filtering for data exploration |
 
 #### Example: Basic QC Configuration
 
@@ -1118,9 +1022,9 @@ pipeline.run()
 ## Agentic Recommendation
 
 Agentic recommendation is provided by the installable Mokume Plugin over the
-default Rust-backed `mokume[agentic]` distribution. The plugin host owns the
+default Rust-backed `mokume[plugin]` distribution. The plugin host owns the
 model and credentials. See the
-[Mokume Plugin guide](../docs/user-guide/agentic-plugin.md).
+[Mokume Plugin guide](https://github.com/bigbio/mokume/blob/main/docs/user-guide/agentic-plugin.md).
 
 ## Citation
 
@@ -1130,7 +1034,7 @@ model and credentials. See the
 
 ## License
 
-MIT License - see [LICENSE](../LICENSE) for details.
+MIT License - see [LICENSE](https://github.com/bigbio/mokume/blob/main/LICENSE) for details.
 
 ## Credits
 

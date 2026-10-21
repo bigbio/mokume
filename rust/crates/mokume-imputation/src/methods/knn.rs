@@ -20,32 +20,21 @@ where
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let column_means = samples
-        .iter()
-        .enumerate()
-        .map(|(sample_index, _)| {
-            mean_finite(
-                &matrix
-                    .iter()
-                    .filter_map(|row| row[sample_index])
-                    .collect::<Vec<_>>(),
-            )
-            .unwrap_or(0.0)
-        })
-        .collect::<Vec<_>>();
+    let column_means = column_means(&matrix, samples.len());
 
     let mut imputed = Vec::new();
     for (receiver_index, protein) in proteins.iter().enumerate() {
+        let receiver = &matrix[receiver_index];
+        if receiver.iter().all(Option::is_some) {
+            continue;
+        }
+        let ranked = ranked_donors(&matrix, receiver);
         for (sample_index, sample) in samples.iter().enumerate() {
-            if matrix[receiver_index][sample_index].is_some() {
+            if receiver[sample_index].is_some() {
                 continue;
             }
-            let donors = knn_donors(&matrix, receiver_index, sample_index, n_neighbors);
-            let fill = if donors.is_empty() {
-                column_means[sample_index]
-            } else {
-                donors.iter().map(|(_, value)| value).sum::<f64>() / donors.len() as f64
-            };
+            let fill = neighbour_mean(&matrix, &ranked, sample_index, n_neighbors)
+                .unwrap_or(column_means[sample_index]);
             if fill.is_finite() {
                 imputed.push((*protein, *sample, fill));
             }
@@ -54,19 +43,30 @@ where
     imputed
 }
 
-fn knn_donors(
-    matrix: &[Vec<Option<f64>>],
-    receiver_index: usize,
-    sample_index: usize,
-    n_neighbors: usize,
-) -> Vec<(f64, f64)> {
+/// Mean of each sample's observed values, 0 for a sample without any.
+fn column_means(matrix: &[Vec<Option<f64>>], n_samples: usize) -> Vec<f64> {
+    (0..n_samples)
+        .map(|sample_index| {
+            mean_finite(
+                &matrix
+                    .iter()
+                    .filter_map(|row| row[sample_index])
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap_or(0.0)
+        })
+        .collect()
+}
+
+/// Rows with a distance to `receiver`, nearest first and ties by row index.
+/// Distances do not depend on the missing cell, so a protein ranks them once
+/// and each of its missing cells takes the nearest rows observed in that sample.
+fn ranked_donors(matrix: &[Vec<Option<f64>>], receiver: &[Option<f64>]) -> Vec<usize> {
     let mut donors = matrix
         .iter()
         .enumerate()
         .filter_map(|(donor_index, donor)| {
-            let value = donor[sample_index]?;
-            let distance = nan_euclidean_distance(&matrix[receiver_index], donor)?;
-            Some((distance, donor_index, value))
+            nan_euclidean_distance(receiver, donor).map(|distance| (distance, donor_index))
         })
         .collect::<Vec<_>>();
     donors.sort_by(|left, right| {
@@ -76,9 +76,23 @@ fn knn_donors(
     });
     donors
         .into_iter()
-        .take(n_neighbors)
-        .map(|(distance, _, value)| (distance, value))
+        .map(|(_, donor_index)| donor_index)
         .collect()
+}
+
+/// Mean of the first `n_neighbors` ranked rows observed in the sample, if any.
+fn neighbour_mean(
+    matrix: &[Vec<Option<f64>>],
+    ranked: &[usize],
+    sample_index: usize,
+    n_neighbors: usize,
+) -> Option<f64> {
+    let values = ranked
+        .iter()
+        .filter_map(|&donor_index| matrix[donor_index][sample_index])
+        .take(n_neighbors)
+        .collect::<Vec<_>>();
+    (!values.is_empty()).then(|| values.iter().sum::<f64>() / values.len() as f64)
 }
 
 fn nan_euclidean_distance(left: &[Option<f64>], right: &[Option<f64>]) -> Option<f64> {

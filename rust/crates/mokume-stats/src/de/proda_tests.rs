@@ -5,7 +5,6 @@
 // `conda run -n Bigbio python`. The optimizer-driven fixed point is covered by
 // the end-to-end parity tests in the golden-tests crate.
 mod proda_unit_tests {
-    use super::super::optimize::OptimizeResult;
     use super::*;
 
     fn close(actual: f64, expected: f64, tol: f64) {
@@ -50,8 +49,16 @@ mod proda_unit_tests {
         let cases: [(&[f64], f64, f64); 8] = [
             (&[1.0, 2.0, 3.0, 4.0, 5.0], 0.2, 3.0),
             (&[1.0, 2.0, 3.0, 4.0, 5.0], 0.0, 3.0),
-            (&[10.0, -1.0, 3.0, 2.0, 8.0, 7.0, 0.0, 5.0, 4.0, 6.0], 0.2, 4.5),
-            (&[10.0, -1.0, 3.0, 2.0, 8.0, 7.0, 0.0, 5.0, 4.0, 6.0], 0.0, 4.4),
+            (
+                &[10.0, -1.0, 3.0, 2.0, 8.0, 7.0, 0.0, 5.0, 4.0, 6.0],
+                0.2,
+                4.5,
+            ),
+            (
+                &[10.0, -1.0, 3.0, 2.0, 8.0, 7.0, 0.0, 5.0, 4.0, 6.0],
+                0.0,
+                4.4,
+            ),
             (&[nan, 2.0, 3.0, nan, 1.0, 5.0, 4.0], 0.2, 3.0),
             (&[nan, 2.0, 3.0, nan, 1.0, 5.0, 4.0], 0.0, 3.0),
             (&[42.0], 0.2, 42.0),
@@ -151,7 +158,6 @@ mod proda_unit_tests {
         FitContext {
             p: 2,
             n: 6,
-            n_obs: 5,
             xo,
             yo,
             x_full: x,
@@ -164,23 +170,27 @@ mod proda_unit_tests {
         }
     }
 
-    // proda.py:235 _neg_ll at fixed [beta0, beta1, sigma2].
+    // proDA 1.24.0 negative_log_likelihood, including the prior constant.
     #[test]
-    fn neg_ll_matches_python() {
+    fn neg_ll_matches_official_proda() {
         let x = two_group_design();
         let ctx = fixed_context(&x);
         let par = [11.5, 11.7, 0.3];
-        close(neg_ll(&ctx, &par), 17.247980787196386, 1e-9);
+        close(neg_ll(&ctx, &par), 20.466856612064582, 1e-9);
     }
 
-    // proda.py:261 _grad_log at fixed [beta0, beta1, log sigma2].
+    // Analytic gradient at fixed [beta0, beta1, sigma2].
     #[test]
-    fn grad_log_matches_python() {
+    fn gradient_at_fixed_parameters() {
         let x = two_group_design();
         let ctx = fixed_context(&x);
-        let par_log = [11.5, 11.7, 0.3_f64.ln()];
-        let g = grad_log(&ctx, &par_log);
-        let expected = [13.725761679476664, 0.24324324324323499, -3.6368896571234006];
+        let par = [11.5, 11.7, 0.3];
+        let g = gradient(&ctx, &par);
+        let expected = [
+            13.725761679476664,
+            0.24324324324323499,
+            -3.6368896571234006 / 0.3,
+        ];
         for (got, want) in g.iter().zip(expected) {
             close(*got, want, 1e-9);
         }
@@ -224,13 +234,5 @@ mod proda_unit_tests {
         close(prod[1][1], 1.0, 1e-12);
         let singular = [vec![1.0, 2.0], vec![2.0, 4.0]];
         assert!(invert(&singular).is_none());
-    }
-
-    // Keep `OptimizeResult` referenced from the test module so an unused-import
-    // refactor in `optimize` surfaces here too.
-    #[test]
-    fn optimize_result_is_constructible() {
-        let r = OptimizeResult { x: vec![1.0] };
-        assert_eq!(r.x.len(), 1);
     }
 }

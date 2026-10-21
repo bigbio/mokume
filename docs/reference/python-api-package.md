@@ -113,6 +113,7 @@ dataset = run_pipeline(config)
 ## Agentic recommendation
 
 Agentic recommendation is not part of `mokume-py`. Install the default
-Rust-backed `mokume[agentic]` distribution and the
-[Mokume Plugin](../user-guide/agentic-plugin.md); use the plugin in a separate
-environment because both distributions provide the same `mokume` import name.
+Rust-backed distribution with the
+[Mokume Plugin](../user-guide/agentic-plugin.md) (`mokume[plugin]`). Use it in a
+separate environment because both distributions provide the same `mokume`
+import name.

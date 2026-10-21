@@ -240,6 +240,8 @@ class QuantificationConfig:
     coverage_threshold: Optional[float] = None
     sample_correlation_threshold: Optional[float] = None
     ratio_fraction_merge: str = "mean"
+    maxlfq_min_ratio_count: int = 2
+    stabilize: bool = False
     # DirectLFQ-specific
     directlfq_num_cores: Optional[int] = None
     directlfq_min_nonan: int = 1
@@ -253,6 +255,16 @@ class QuantificationConfig:
     pibaq_high_anchor_threshold: int = 3
 
     def __post_init__(self) -> None:
+        if not isinstance(self.stabilize, bool):
+            raise ValueError("stabilize must be a boolean")
+        if self.stabilize and self.method.lower() != "maxlfq":
+            raise ValueError("stabilize only applies to MaxLFQ")
+        if (
+            isinstance(self.maxlfq_min_ratio_count, bool)
+            or not isinstance(self.maxlfq_min_ratio_count, int)
+            or self.maxlfq_min_ratio_count < 1
+        ):
+            raise ValueError("maxlfq_min_ratio_count must be a positive integer")
         if self.sample_correlation_threshold is not None and not (
             -1.0 <= self.sample_correlation_threshold <= 1.0
         ):
@@ -305,10 +317,11 @@ class ImputationConfig:
 
     enabled: bool = False
     method: str = "none"
-    # MinProb parameters
+    # MinProb / MinDet parameter
     quantile: float = 0.01
-    shift: float = 1.6
-    scale: float = 0.3
+    # MinProb / QRILC draws
+    seed: int = 42
+    tune_sigma: float = 1.0
     # KNN parameters
     n_neighbors: int = 5
 

@@ -43,7 +43,7 @@ Recomputes the 11-sample PXD007683 LFQ arm with the current Rust kernel.
 ## Running Benchmarks
 
 ```bash
-pip install "mokume[plotting]"      # Rust kernel + plotting dependencies
+pip install "mokume[analysis]"      # Rust kernel + plotting dependencies
 cd benchmarks/<benchmark-name>
 # Follow the input paths and entry point documented in that benchmark's README.
 ```

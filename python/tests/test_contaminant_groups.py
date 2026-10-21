@@ -20,6 +20,8 @@ GROUPS = [
     "P12345",
 ]
 KEPT = ["CONTAM_P05787;P05787", "P02768;CONTAM_P02769", "P12345"]
+# Kept groups named without their contaminant members, as Rust names them.
+STRIPPED = ["P05787", "P02768", "P12345"]
 
 
 def test_mask_rule():
@@ -30,22 +32,32 @@ def test_mask_rule():
 def test_contaminant_filter_keeps_twins():
     df = pd.DataFrame({"ProteinName": GROUPS})
     out, _ = ContaminantFilter(DEFAULT_CONTAMINANT_PATTERNS).apply(df)
-    assert list(out["ProteinName"]) == KEPT
+    assert list(out["ProteinName"]) == STRIPPED
 
 
 def test_remove_contaminants_entrapments_decoys_keeps_twins():
     df = pd.DataFrame({"ProteinName": GROUPS})
     out = remove_contaminants_entrapments_decoys(df, "ProteinName")
-    assert list(out["ProteinName"]) == KEPT
+    assert list(out["ProteinName"]) == STRIPPED
 
 
 def test_sql_filter_keeps_twins():
-    clause, params = SQLFilterBuilder(
-        min_peptide_length=0, require_unique=False
-    ).build_where_clause()
+    builder = SQLFilterBuilder(min_peptide_length=0, require_unique=False)
+    clause, params = builder.build_where_clause()
+    members, member_params = builder.build_protein_members()
     con = duckdb.connect()
     con.execute("CREATE TABLE t (pg_accessions VARCHAR[], intensity DOUBLE)")
     for group in GROUPS:
         con.execute("INSERT INTO t VALUES (?, 1.0)", [group.split(";")])
-    rows = con.execute(f"SELECT pg_accessions FROM t WHERE {clause}", params).fetchall()
+    con.execute("INSERT INTO t VALUES (NULL, 1.0)")
+    rows = con.execute(
+        f"SELECT pg_accessions, {members} FROM t WHERE {clause}",
+        [*member_params, *params],
+    ).fetchall()
     assert [";".join(row[0]) for row in rows] == KEPT
+    assert [";".join(row[1]) for row in rows] == STRIPPED
+
+
+def test_protein_members_unchanged_without_contaminant_filter():
+    builder = SQLFilterBuilder(remove_contaminants=False)
+    assert builder.build_protein_members() == ("pg_accessions", [])

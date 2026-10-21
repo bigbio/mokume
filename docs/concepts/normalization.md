@@ -65,11 +65,13 @@ Applied after all samples are loaded, operating on the complete dataset:
 | `hierarchical` | DirectLFQ-style hierarchical clustering normalization |
 
 !!! tip "When to use hierarchical normalization"
-    Use `--sample-normalization hierarchical` when you want DirectLFQ-style normalization **combined with a different quantification method** (e.g., piBAQ). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.
+    Use `--sample-normalization hierarchical` when you want DirectLFQ-style normalization **combined with a different quantification method** (e.g., MaxLFQ or Sum; piBAQ accepts only `quantile` among the dataset-level methods). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.
 
 ### Global Median
 
-The default method. For each sample, computes:
+The default for most intensity methods; MaxLFQ defaults to hierarchical
+normalization (below) unless `--normalization-proteins` is given. For each
+sample, computes:
 
 $$\text{normalized} = \frac{\text{intensity}}{\text{sample\_median} / \text{global\_median}}$$
 
@@ -77,19 +79,14 @@ This ensures all samples have comparable median intensities.
 
 ### Hierarchical Normalization
 
-Uses the DirectLFQ hierarchical clustering approach (Ammar et al., 2023) implemented natively in mokume:
+Uses the DirectLFQ hierarchical clustering approach (Ammar et al., 2023) implemented natively in mokume. MaxLFQ uses it by default: a sample with less material loses its weakest features, so the median of its detected features stays high and global-median under-corrects, while hierarchical alignment compares the peptides that samples share.
 
 1. Convert to log2 scale
 2. Align samples using variance-guided pairwise normalization
 3. Convert back to linear scale
 
-You can optionally specify a set of proteins to use for normalization:
-
-```bash
-mokume quantify features2proteins -p data.parquet -o out.csv \
-    --sample-normalization hierarchical \
-    --normalization-proteins housekeeping_proteins.txt
-```
+`--normalization-proteins` applies only to `global-median` and
+`condition-median`; the CLI rejects it with `hierarchical`.
 
 ### LOESS Normalization
 

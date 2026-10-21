@@ -67,9 +67,11 @@ mokume quantify features2proteins \
 ```
 
 An MSstats CSV must contain `ProteinName`, `PeptideSequence`, `Intensity`,
-`Charge` or `PrecursorCharge`, and `Run` or `Reference`. Isobaric data also
-requires `Channel`. `--quant-method ratio` requires PSM-level QPX evidence and
-therefore cannot use an MSstats feature table.
+`Charge` or `PrecursorCharge`, and `Run` or `Reference`. If both `Run` and
+`Reference` are present, `Reference` names the data file, because quantms
+writes `Run` as a design index. Isobaric data also requires `Channel`.
+`--quant-method ratio` requires PSM-level QPX evidence and therefore cannot
+use an MSstats feature table.
 
 ## Quantification Methods
 
@@ -229,10 +231,12 @@ It is unavailable for DirectLFQ, Ratio, peptide-count, and spectral-count.
     `mokume.normalization.tmm.TMMNormalizer`) is robust to composition bias from
     highly abundant proteins.
 
-    MaxLFQ and piBAQ currently accept `quantile` as their dataset-level method;
-    requesting RLR, LOESS, hierarchical, centering, or TMM with either method
-    is rejected before input loading. For MaxLFQ + quantile, Mokume selects the
-    built-in MaxLFQ path so the requested normalization is actually applied.
+    MaxLFQ accepts `quantile` and `hierarchical` as dataset-level methods,
+    applied to its peptide species, and piBAQ accepts `quantile`; requesting
+    RLR, LOESS, centering, or TMM with either method, or `hierarchical` with
+    piBAQ, is rejected before input loading. For MaxLFQ + quantile or
+    hierarchical, Mokume selects the built-in MaxLFQ path so the requested
+    normalization is actually applied.
 
 - `global-median` is the default and a good general-purpose starting point.
 - `hierarchical` is useful when you want DirectLFQ-style normalization with a non-DirectLFQ quantification method.
@@ -414,12 +418,17 @@ enables differential expression without a separate switch.
 
 !!! tip
     `--de-method auto` chooses `deqms` for `directlfq`
-    quantification and `limrots` for all others. All methods
+    quantification and `limrots` for all others; LimROTS needs a
+    complete matrix, so a protein matrix with missing values also
+    gets `deqms`. All methods
     run in the native Rust kernel — no R or rpy2 required.
     BKY and Storey fall back to BH when their pi0 estimate is not reliable.
     ROTS and LimROTS retain their own permutation FDR, so alternative
     `--de-fdr-method` values are rejected for those methods. Ensemble applies
-    the selected correction to the combined result.
+    the selected correction to the combined result. On a contrast with
+    missing values, the default ensemble members run `limma` in place of
+    `limrots`; an explicit `--de-ensemble-method limrots` member needs a
+    complete (for example, imputed) matrix.
     See [Differential Expression
     concepts](../concepts/differential-expression.md) for a
     detailed comparison of methods.
@@ -446,12 +455,12 @@ Imputation runs in log2 space so that censored-aware methods (MinProb,
 MinDet, QRILC) behave correctly.
 
 ```bash
-# MinProb low-tail draw (Perseus style)
+# MinProb low-quantile draw (imputeLCMD)
 mokume quantify features2proteins \
     -p features.parquet -o proteins.csv -s experiment.sdrf.tsv \
     --quant-method maxlfq \
     --impute-method minprob \
-    --impute-quantile 0.01 --impute-shift 1.6 --impute-scale 0.3
+    --impute-quantile 0.01 --impute-tune-sigma 1.0
 
 # KNN imputation
 mokume quantify features2proteins \
@@ -464,13 +473,13 @@ mokume quantify features2proteins \
 |-------------------|---------|-------------|
 | `--impute-method` | none | Select a method and enable imputation; use `zero` for zero filling |
 | `--impute-quantile` | 0.01 | Quantile for MinProb/MinDet |
-| `--impute-shift` | 1.6 | MinProb shift in standard deviations |
-| `--impute-scale` | 0.3 | MinProb scale factor for sigma |
+| `--impute-tune-sigma` | 1.0 | MinProb/QRILC multiplier of the fitted SD |
+| `--impute-seed` | 42 | Seed of the MinProb/QRILC draws |
 | `--impute-n-neighbors` | 5 | Neighbours for KNN/SeqKNN |
 
 Imputation tuning options are method-scoped: quantile applies to MinDet/MinProb,
-shift and scale to MinProb, and neighbour count to KNN/SeqKNN. Passing them to
-another method is rejected.
+tune sigma and seed to MinProb/QRILC, and neighbour count to KNN/SeqKNN.
+Passing them to another method is rejected.
 
 !!! warning "`missforest` is Python analysis periphery"
     `missforest` is not offered by the Rust compute command because it wraps
@@ -488,8 +497,8 @@ another method is rejected.
 Plotting and the interactive HTML report are **not** part of the `features2proteins`
 CLI — there are no `--plot-*` / `--interactive-report` flags. The kernel writes the
 protein matrix and, with `--de-output`, one DE result CSV per contrast; the Python
-periphery then reads those CSVs and renders the figures. Install the `plotting`
-and/or `reports` extra:
+periphery then reads those CSVs and renders the figures. Install the `analysis`
+extra:
 
 ```python
 import mokume
@@ -504,7 +513,7 @@ mokume.de_plots([
     "--contrast", "NASH-HL", "NASH", "HL", "de_results.csv",
 ])
 
-# Interactive HTML report from the same kernel CSVs (reports extra).
+# Interactive HTML report from the same kernel CSVs (analysis extra).
 mokume.interactive_report([
     "--protein-matrix", "proteins.csv",
     "--sdrf", "experiment.sdrf.tsv",

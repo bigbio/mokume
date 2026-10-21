@@ -56,7 +56,7 @@ class BPCAImputation(ImputationMethod):
 
 @PluginRegistry.register("imputation", "qrilc")
 class QRILCImputation(ImputationMethod):
-    """QRILC-style left-tail imputation (delegates to ``impute_qrilc``).
+    """imputeLCMD QRILC imputation (delegates to ``impute_qrilc``).
 
     Left-censored (MNAR) fill; expects log-space input.
 
@@ -83,7 +83,7 @@ class SeqKNNImputation(ImputationMethod):
     Parameters (via ``impute`` kwargs)
     ----------------------------------
     k : int
-        Neighbour count (default 10). ``n_neighbors`` is accepted as an
+        Neighbour count (default 5). ``n_neighbors`` is accepted as an
         alias for compatibility with the sklearn-style callers.
     """
 
@@ -92,7 +92,7 @@ class SeqKNNImputation(ImputationMethod):
         return "SeqKNN"
 
     def impute(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        k = kwargs.get("k", kwargs.get("n_neighbors", 10))
+        k = kwargs.get("k", kwargs.get("n_neighbors", 5))
         return impute_seqknn(df, k=k)
 
 
@@ -143,14 +143,8 @@ class ImpSeqRobImputation(ImputationMethod):
 class GMSImputation(ImputationMethod):
     """Gaussian Mixture Sampling imputation (delegates to ``impute_gms``).
 
-    Per-sample two-component GMM MNAR fill from the lower component.
-
-    Parameters (via ``impute`` kwargs)
-    ----------------------------------
-    n_components : int
-        Number of Gaussian components (default 2).
-    random_state : int
-        Seed for reproducibility (default 42).
+    Per-sample two-component GMM MNAR fill with the lower component's
+    centre. Takes no tuning parameters.
     """
 
     @property
@@ -158,11 +152,7 @@ class GMSImputation(ImputationMethod):
         return "GMS"
 
     def impute(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        return impute_gms(
-            df,
-            n_components=kwargs.get("n_components", 2),
-            random_state=kwargs.get("random_state", 42),
-        )
+        return impute_gms(df)
 
 
 @PluginRegistry.register("imputation", "missforest")

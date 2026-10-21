@@ -13,7 +13,6 @@ import pytest
 from mokume.quantification.maxlfq import (
     MaxLFQQuantification,
     _maxlfq_solve_protein,
-    _select_reference_peptide,
 )
 
 
@@ -39,42 +38,6 @@ def test_solve_is_invariant_to_row_permutation(seed):
     perm = rng.permutation(m.shape[0])
     permuted = _maxlfq_solve_protein(m[perm, :])
     np.testing.assert_allclose(permuted, base, rtol=0, atol=0)
-
-
-def test_reference_selection_is_invariant_to_row_permutation():
-    """The chosen reference must be the same PEPTIDE regardless of its position."""
-    m = _matrix()
-    with np.errstate(divide="ignore", invalid="ignore"):
-        log_m = np.log2(m)
-    counts = np.sum(~np.isnan(log_m), axis=1)
-    chosen = log_m[_select_reference_peptide(log_m, counts)]
-
-    for seed in range(8):
-        perm = np.random.default_rng(seed).permutation(m.shape[0])
-        pm = log_m[perm, :]
-        pc = np.sum(~np.isnan(pm), axis=1)
-        np.testing.assert_allclose(pm[_select_reference_peptide(pm, pc)], chosen)
-
-
-def test_reference_prefers_most_measured_then_most_intense():
-    log_m = np.array(
-        [
-            [1.0, 1.0, np.nan],  # fewer measurements - never chosen
-            [2.0, 2.0, 2.0],  # full, total 6
-            [3.0, 3.0, 3.0],  # full, total 9 -> the reference
-        ]
-    )
-    counts = np.sum(~np.isnan(log_m), axis=1)
-    assert _select_reference_peptide(log_m, counts) == 2
-
-
-def test_identical_rows_are_interchangeable():
-    """Fully tied rows are numerically identical, so any choice is equivalent."""
-    log_m = np.array([[2.0, 2.0], [2.0, 2.0]])
-    counts = np.sum(~np.isnan(log_m), axis=1)
-    idx = _select_reference_peptide(log_m, counts)
-    assert idx in (0, 1)
-    np.testing.assert_allclose(log_m[idx], [2.0, 2.0])
 
 
 @pytest.mark.parametrize("seed", range(5))

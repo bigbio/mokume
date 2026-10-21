@@ -1,35 +1,19 @@
-//! proDA probabilistic-dropout differential expression (faithful Rust port).
+//! Two-group probabilistic-dropout differential expression following proDA 1.24.0.
 //!
-//! Ports `mokume/mokume/analysis/proda.py`: the sigmoidal dropout-curve model,
-//! EM parameter estimation with empirical-Bayes location/variance priors, and a
-//! per-protein Wald test for differential abundance, with no R / rpy2 / SciPy
-//! dependency. Citations below reference `proda.py` by line.
-//!
-//! ## Fidelity
-//! The deterministic kernels (`_invprobit`, `_trimmed_mean`, `_ols_per_protein`,
-//! `_neg_ll`, `_grad_log`, the analytic Hessian, and the prior objectives at
-//! fixed inputs) reproduce the Python values to ~1e-9. The per-protein MLE in
-//! [`pd_lm_fit`] (proda.py:178) is optimizer-driven: proDA chains SciPy's
-//! L-BFGS-B -> BFGS, then its own 5-step Newton polish with a numerical Hessian.
-//! The Stage-1 optimizers in [`super::optimize`] reach the same *stationary
-//! point* as SciPy on this likelihood, but the path differs, so end-to-end the
-//! fully-observed (near-OLS) proteins agree tightly while dropout-heavy proteins
-//! can diverge more. The initial imputation (proda.py:545) uses the in-crate
-//! [`super::rots::SplitMix64`] PRNG rather than numpy's MT19937: proDA only seeds
-//! the EM trajectory with it, and the user accepted a non-bit-exact RNG.
+//! The common scope is an unpaired two-group log2 matrix, moderated location
+//! and variance, analytic-Hessian `nlminb`, and a two-sided Wald test with BH.
+//! Missing values remain in the likelihood. Initial normal draws use SplitMix64
+//! and Box-Muller rather than R's generator, so identical seeds do not imply
+//! identical missing-data results. Shared-initialization fixtures independently
+//! verify the deterministic EM path against the Bioconductor package.
 
-use super::optimize::{bfgs, brentq, lbfgsb, nelder_mead};
+include!("proda_optim.rs");
 use super::rots::SplitMix64;
-use super::special::{
-    f_logpdf, norm_cdf, norm_logcdf, norm_logpdf, norm_logsf, norm_pdf, norm_sf, t_logpdf,
-};
+use super::special::{f_logpdf, norm_cdf, norm_logcdf, norm_logpdf, norm_logsf, norm_sf, t_logpdf};
 use super::student_t::student_t_sf;
 
 /// A floor mirroring `np.maximum(np.abs(zeta), 1e-100)` (proda.py:40).
 const ZETA_FLOOR: f64 = 1e-100;
-/// Mirrors `np.maximum(sp_norm.sf(z), 1e-300)` (proda.py:279) to bound the
-/// inverse-Mills ratio.
-const SF_FLOOR: f64 = 1e-300;
 /// `loc_df` default for the location-prior Student-t (proda.py:178).
 const LOC_DF: f64 = 3.0;
 /// Number of design columns for the two-group contrast (intercept-per-group).
@@ -144,7 +128,7 @@ fn ols_per_protein(mat: &[Vec<f64>], x: &Design) -> OlsFit {
 }
 
 /// proda.py:114 `_location_prior`. Estimates `(mu0, sigma20)` for the location
-/// prior via the fixed-point objective `_obj` solved with [`brentq`] when it
+/// prior via the fixed-point objective solved with R-compatible uniroot when it
 /// changes sign on `[0, 1000]`, else the closed-form mean of `p^2`.
 fn location_prior(
     pred_reg: &[Vec<f64>],
@@ -166,7 +150,7 @@ fn location_prior(
             let pvr = pred_var_reg[i][j];
             let pvu = pred_var_unreg[i][j];
             let pred_flat = if pu.is_nan() { pr } else { pu };
-            let pv_flat = if pvu.is_nan() { pvr } else { pvu };
+            let pv_flat = if pu.is_nan() { pvr } else { pvu };
             // above = pr > mu0 (proda.py:127); `p` is built from pred_flat - mu0.
             if pr > mu0 {
                 p.push(pred_flat - mu0);
@@ -193,7 +177,7 @@ fn location_prior(
         let f_lo = obj(lo);
         let f_hi = obj(hi);
         if f_lo.is_finite() && f_hi.is_finite() && f_lo.signum() != f_hi.signum() {
-            let root = brentq(&obj, lo, hi, 2e-12, 200);
+            let root = r_uniroot(&obj, lo, hi);
             if root.is_finite() {
                 root
             } else {
@@ -213,7 +197,7 @@ fn fallback_sigma20(p: &[f64]) -> f64 {
 }
 
 /// proda.py:148 `_variance_prior`. Empirical-Bayes `(tau20, df0)` by minimizing
-/// the F-distribution negative log-likelihood with [`nelder_mead`]. Filters to
+/// the F-distribution negative log-likelihood with [`r_nelder_mead`]. Filters to
 /// finite, positive `(s2, df)` pairs; returns `(1.0, 1.0)` if fewer than two.
 fn variance_prior(s2_arr: &[f64], df_arr: &[f64]) -> (f64, f64) {
     let mut s2 = Vec::new();
@@ -231,7 +215,7 @@ fn variance_prior(s2_arr: &[f64], df_arr: &[f64]) -> (f64, f64) {
     let neg_ll = |par: &[f64]| -> f64 {
         let (tau, dfinv) = (par[0], par[1]);
         if tau <= 0.0 || dfinv <= 0.0 {
-            return 1e10;
+            return f64::INFINITY;
         }
         let df0 = 1.0 / dfinv;
         let mut ll = 0.0;
@@ -241,14 +225,14 @@ fn variance_prior(s2_arr: &[f64], df_arr: &[f64]) -> (f64, f64) {
         -ll
     };
 
-    let res = nelder_mead(&neg_ll, &[1.0, 1.0], 1e-8, 1e-8, 10000);
-    let tau20 = res.x[0].max(1e-10);
-    let df0 = 1.0 / res.x[1].max(1e-10);
+    let (par, _converged) = r_nelder_mead(&neg_ll, &[1.0, 1.0]);
+    let tau20 = par[0];
+    let df0 = 1.0 / par[1];
     (tau20, df0)
 }
 
 /// proda.py:66 `_fit_dropout_curves`. Per-sample sigmoidal dropout curve
-/// `(rho, zeta)` fit by [`nelder_mead`] on the `_neg_ll` of proda.py:87. Samples
+/// `(rho, zeta)` fit by [`r_nelder_mead`] on the `_neg_ll` of proda.py:87. Samples
 /// with no missing values keep `NaN` rho/zeta (no dropout to fit).
 fn fit_dropout_curves(
     y: &[Vec<f64>],
@@ -275,7 +259,7 @@ fn fit_dropout_curves(
         for i in 0..y.len() {
             if y[i][col].is_nan() {
                 predm.push(pred[i][col]);
-                pvm.push(pred_var[i][col].max(1e-10));
+                pvm.push(pred_var[i][col]);
             } else {
                 yo.push(y[i][col]);
             }
@@ -286,10 +270,10 @@ fn fit_dropout_curves(
 
         let neg_ll = |par: &[f64]| dropout_neg_ll(par, &yo, &predm, &pvm, mu0, sigma20);
         let x0 = [mu0, -1.0 / sigma20.sqrt()];
-        let res = nelder_mead(&neg_ll, &x0, 1e-8, 1e-8, 1000);
-        rho[col] = res.x[0];
-        let zinv = if res.x[1].abs() <= 10000.0 {
-            res.x[1]
+        let (par, _converged) = r_nelder_mead(&neg_ll, &x0);
+        rho[col] = par[0];
+        let zinv = if par[1].abs() <= 10000.0 {
+            par[1]
         } else {
             -10000.0
         };
@@ -310,7 +294,7 @@ fn dropout_neg_ll(
 ) -> f64 {
     let (r, zinv) = (par[0], par[1]);
     if zinv >= 0.0 {
-        return 1e10;
+        return f64::INFINITY;
     }
     let z = 1.0 / zinv;
     let mut ll = norm_logpdf_scaled(r, mu0, sigma20.sqrt());
@@ -467,18 +451,15 @@ fn invert(a: &[Vec<f64>]) -> Option<Vec<Vec<f64>>> {
     Some(m.iter().map(|row| row[n..].to_vec()).collect())
 }
 
-/// Solve `A x = b` for a small square `A` (used by the Newton step). `None` if
-/// singular, mirroring `np.linalg.LinAlgError`.
-fn solve(a: &[Vec<f64>], b: &[f64]) -> Option<Vec<f64>> {
-    invert(a).map(|inv| mat_vec(&inv, b))
-}
-
 fn mat_vec(m: &[Vec<f64>], v: &[f64]) -> Vec<f64> {
     m.iter().map(|row| dot(row, v)).collect()
 }
 
 fn dot(a: &[f64], b: &[f64]) -> f64 {
-    a.iter().zip(b).map(|(x, y)| x * y).sum()
+    a.iter()
+        .zip(b)
+        .map(|(x, y)| if *x == 0.0 || *y == 0.0 { 0.0 } else { x * y })
+        .sum()
 }
 
 /// `X beta` for the full design.
@@ -496,3 +477,7 @@ include!("proda_run.rs");
 
 #[cfg(test)]
 include!("proda_tests.rs");
+
+#[cfg(test)]
+#[path = "proda_official_tests.rs"]
+mod official_tests;

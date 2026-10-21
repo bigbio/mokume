@@ -17,6 +17,8 @@ pub struct FeatureToProteinsConfig {
     pub directlfq: DirectLfqConfig,
     pub batch: BatchCorrectionConfig,
     pub irs: IrsConfig,
+    #[serde(default)]
+    pub tmt: TmtConfig,
     pub coverage_threshold: Option<f64>,
     /// Minimum mean pairwise Pearson correlation to same-condition peers,
     /// computed on pairwise-complete log2 protein intensities.
@@ -378,17 +380,27 @@ impl Default for NormalizationConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaxLfqConfig {
-    pub ion_alignment: Option<String>,
-    /// Force the built-in MaxLFQ implementation instead of delegating to the
-    /// DirectLFQ-aligned path. Mirrors Python's `MaxLFQQuantification.force_builtin`:
-    /// Python delegates `--quant-method maxlfq` to DirectLFQ whenever the directlfq
-    /// package is installed (the default in the reference environment), and only
-    /// uses the built-in fallback when it is absent. The Rust DirectLFQ core is
-    /// always available, so the faithful default is to delegate; this flag exposes
-    /// the built-in fallback for testing and comparison.
-    pub force_builtin: bool,
+    /// Minimum shared peptide species for each sample-pair ratio (Cox et al., Fig. 2).
+    #[serde(default = "default_maxlfq_min_ratio_count")]
+    pub min_ratio_count: usize,
+    /// Enable Cox et al. Eq. 5 large-ratio stabilization for low-overlap sample pairs.
+    #[serde(default)]
+    pub stabilize: bool,
+}
+
+fn default_maxlfq_min_ratio_count() -> usize {
+    2
+}
+
+impl Default for MaxLfqConfig {
+    fn default() -> Self {
+        Self {
+            min_ratio_count: default_maxlfq_min_ratio_count(),
+            stabilize: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -401,6 +413,71 @@ pub struct PibaqConfig {
     pub high_anchor_threshold: usize,
     #[serde(default)]
     pub missed_cleavages: usize,
+    #[serde(default)]
+    pub shared_mode: PibaqSharedMode,
+    /// `None` resolves to [`PibaqSharedMode::default_family_rows`].
+    #[serde(default)]
+    pub family_rows: Option<PibaqFamilyRows>,
+    /// Optional per-row evidence side-car (TSV).
+    #[serde(default)]
+    pub evidence_output: Option<PathBuf>,
+}
+
+/// How piBAQ assigns peptides shared by members of one family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum PibaqSharedMode {
+    /// Legacy: per-sample proportional split, equal split without anchors.
+    Proportional,
+    /// Member values from unique peptides only.
+    #[default]
+    Unique,
+    /// Unique peptides plus shared signal split by cross-sample member ratios.
+    StableRatio,
+}
+
+impl PibaqSharedMode {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Proportional => "proportional",
+            Self::Unique => "unique",
+            Self::StableRatio => "stable-ratio",
+        }
+    }
+
+    pub const fn default_family_rows(self) -> PibaqFamilyRows {
+        match self {
+            Self::Proportional => PibaqFamilyRows::None,
+            Self::Unique | Self::StableRatio => PibaqFamilyRows::FamilyOnly,
+        }
+    }
+}
+
+/// Which multi-member families also get one family-level output row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PibaqFamilyRows {
+    None,
+    /// Only families where no member has a unique peptide.
+    FamilyOnly,
+    All,
+}
+
+impl PibaqFamilyRows {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::FamilyOnly => "family-only",
+            Self::All => "all",
+        }
+    }
+}
+
+impl PibaqConfig {
+    pub fn resolved_family_rows(&self) -> PibaqFamilyRows {
+        self.family_rows
+            .unwrap_or_else(|| self.shared_mode.default_family_rows())
+    }
 }
 
 impl Default for PibaqConfig {
@@ -413,23 +490,34 @@ impl Default for PibaqConfig {
             min_anchors: 1,
             high_anchor_threshold: 3,
             missed_cleavages: 0,
+            shared_mode: PibaqSharedMode::default(),
+            family_rows: None,
+            evidence_output: None,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DirectLfqConfig {
-    pub cores: Option<usize>,
     pub min_nonan: usize,
     pub num_samples_quadratic: usize,
+    /// DirectLFQ's global sample normalization (the inverse of directlfq's
+    /// `deactivate_normalization`). Without it, sample loading differences stay
+    /// in the protein intensities.
+    #[serde(default = "default_directlfq_normalize_samples")]
+    pub normalize_samples: bool,
+}
+
+fn default_directlfq_normalize_samples() -> bool {
+    true
 }
 
 impl Default for DirectLfqConfig {
     fn default() -> Self {
         Self {
-            cores: None,
             min_nonan: 1,
             num_samples_quadratic: 50,
+            normalize_samples: default_directlfq_normalize_samples(),
         }
     }
 }
@@ -473,6 +561,99 @@ pub struct IrsConfig {
     /// SDRF column naming each channel's plex; `None` derives plexes from shared data files.
     #[serde(default)]
     pub plex_column: Option<String>,
+    #[serde(default)]
+    pub missing_reference: IrsMissingReference,
+}
+
+/// What IRS does with a protein that has no reference value in a plex.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum IrsMissingReference {
+    /// Leave that plex unscaled (legacy).
+    #[default]
+    Keep,
+    /// Remove the protein's values in that plex.
+    Drop,
+    /// Scale by the plex's median factor over proteins with a reference.
+    PlexMedian,
+}
+
+impl IrsMissingReference {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Keep => "keep",
+            Self::Drop => "drop",
+            Self::PlexMedian => "plex-median",
+        }
+    }
+}
+
+/// Reporter-ion (TMT) feature corrections applied per QPX row before quantification.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TmtConfig {
+    #[serde(default)]
+    pub row_merge: TmtRowMerge,
+    /// Isotope-impurity table (channel, -2, -1, +1, +2 in percent).
+    #[serde(default)]
+    pub impurity_table: Option<PathBuf>,
+    #[serde(default)]
+    pub interference_floor: Option<TmtInterferenceFloor>,
+    /// Quantile of loading-adjusted channel ratios used by the `auto` floor.
+    #[serde(default = "default_floor_quantile")]
+    pub floor_quantile: f64,
+}
+
+fn default_floor_quantile() -> f64 {
+    0.01
+}
+
+impl Default for TmtConfig {
+    fn default() -> Self {
+        Self {
+            row_merge: TmtRowMerge::default(),
+            impurity_table: None,
+            interference_floor: None,
+            floor_quantile: default_floor_quantile(),
+        }
+    }
+}
+
+impl TmtConfig {
+    pub fn is_active(&self) -> bool {
+        self.row_merge != TmtRowMerge::MaxPerChannel
+            || self.impurity_table.is_some()
+            || self.interference_floor.is_some()
+    }
+}
+
+/// How repeated rows of one ion in one plex (PSMs, fractions) are combined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum TmtRowMerge {
+    /// Max per channel independently (legacy).
+    #[default]
+    MaxPerChannel,
+    /// Keep the whole row with the highest summed reporter intensity.
+    BestRow,
+}
+
+impl TmtRowMerge {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::MaxPerChannel => "max",
+            Self::BestRow => "best-row",
+        }
+    }
+}
+
+/// Additive co-isolation floor removed from every reporter channel.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TmtInterferenceFloor {
+    /// Fraction of the loading-adjusted row mean.
+    Fixed(f64),
+    /// Estimated per plex.
+    Auto,
 }
 
 impl Default for IrsConfig {
@@ -486,6 +667,7 @@ impl Default for IrsConfig {
             stat: "median".to_string(),
             remove_reference: false,
             plex_column: None,
+            missing_reference: IrsMissingReference::Keep,
         }
     }
 }
@@ -508,9 +690,20 @@ pub struct ImputationConfig {
     pub enabled: bool,
     pub method: String,
     pub quantile: f64,
-    pub shift: f64,
-    pub scale: f64,
     pub n_neighbors: usize,
+    /// Seed for stochastic imputation (cross-language random streams may differ).
+    #[serde(default = "default_imputation_seed")]
+    pub seed: u64,
+    /// Official imputeLCMD tune.sigma for QRILC and MinProb.
+    #[serde(default = "default_imputation_tune_sigma")]
+    pub tune_sigma: f64,
+}
+
+fn default_imputation_seed() -> u64 {
+    42
+}
+fn default_imputation_tune_sigma() -> f64 {
+    1.0
 }
 
 impl Default for ImputationConfig {
@@ -519,9 +712,9 @@ impl Default for ImputationConfig {
             enabled: false,
             method: "none".to_string(),
             quantile: 0.01,
-            shift: 1.6,
-            scale: 0.3,
             n_neighbors: 5,
+            seed: default_imputation_seed(),
+            tune_sigma: default_imputation_tune_sigma(),
         }
     }
 }

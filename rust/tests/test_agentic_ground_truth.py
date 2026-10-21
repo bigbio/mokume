@@ -16,8 +16,7 @@ from mokume.agentic.service import (
 from mokume.agentic.state import CandidateConfig
 
 REPOSITORY = Path(__file__).resolve().parents[2]
-KNOWLEDGE = REPOSITORY / "plugins" / "mokume" / "knowledge" / "knowledge.yaml"
-SERVICE = RecommendationService(str(KNOWLEDGE))
+SERVICE = RecommendationService()
 METADATA = {
     "data_type": "LFQ",
     "quantification": "directlfq",

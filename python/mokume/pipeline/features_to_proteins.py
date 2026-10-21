@@ -23,7 +23,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Optional
 
-from mokume.core.constants import PROTEIN_NAME, load_sdrf
+from mokume.core.constants import load_sdrf
 from mokume.core.dataset import QpxDataset
 from mokume.core.logger import get_logger
 from mokume.model.normalization import parse_normalization_methods
@@ -216,8 +216,8 @@ class QuantificationPipeline:
             (
                 self.config.imputation.method.lower() != "none",
                 self.config.imputation.quantile != 0.01,
-                self.config.imputation.shift != 1.6,
-                self.config.imputation.scale != 0.3,
+                self.config.imputation.seed != 42,
+                self.config.imputation.tune_sigma != 1.0,
                 self.config.imputation.n_neighbors != 5,
             )
         )
@@ -333,8 +333,6 @@ class QuantificationPipeline:
 
         if quant_method == "directlfq":
             protein_df = self._run_directlfq_pipeline()
-        elif quant_method == "maxlfq" and self._can_run_maxlfq_directlfq_pipeline():
-            protein_df = self._run_maxlfq_directlfq_pipeline()
         elif quant_method == "ratio":
             protein_df = self._run_ratio_pipeline()
         else:
@@ -517,76 +515,6 @@ class QuantificationPipeline:
         logger.info("DirectLFQ complete: %d proteins", len(protein_df))
         return protein_df
 
-    def _can_run_maxlfq_directlfq_pipeline(self) -> bool:
-        """Return whether MaxLFQ can use the low-memory DirectLFQ path."""
-        if self.config.output.export_peptides or self.config.output.export_ions:
-            logger.info(
-                "MaxLFQ DirectLFQ-streaming path disabled because intermediate "
-                "peptide/ion export was requested"
-            )
-            return False
-        if self.config.normalization.sample_method.lower() != "none":
-            logger.info(
-                "MaxLFQ DirectLFQ-streaming path disabled for sample normalization: %s",
-                self.config.normalization.sample_method,
-            )
-            return False
-        try:
-            from mokume.quantification.directlfq import is_directlfq_available
-        except ImportError:
-            return False
-        return is_directlfq_available()
-
-    def _run_maxlfq_directlfq_pipeline(self) -> pd.DataFrame:
-        """Run MaxLFQ through the low-memory DirectLFQ-compatible path."""
-        try:
-            import directlfq.config as lfq_config
-            import directlfq.normalization as lfq_norm
-        except ImportError as exc:
-            raise ImportError(
-                "MaxLFQ DirectLFQ-streaming path requires the directlfq package.\n"
-                "Install with: pip install directlfq\n"
-                "Or: pip install mokume-py[directlfq]"
-            ) from exc
-
-        logger.info("Loading and filtering data for MaxLFQ DirectLFQ-streaming...")
-        filtered_table = self.loading.load_for_maxlfq_directlfq()
-        logger.info("Filtered MaxLFQ input rows: %d", filtered_table.num_rows)
-
-        logger.info("Converting MaxLFQ input to DirectLFQ wide format...")
-        directlfq_input = self.loading.convert_maxlfq_to_directlfq_format(
-            filtered_table
-        )
-        logger.info("MaxLFQ DirectLFQ input shape: %s", directlfq_input.shape)
-        del filtered_table
-        gc.collect()
-
-        lfq_config.set_global_protein_and_ion_id(protein_id="protein", quant_id="ion")
-        lfq_config.set_compile_normalized_ion_table(False)
-
-        logger.info("Running DirectLFQ sample normalization for MaxLFQ...")
-        normed_df = lfq_norm.NormalizationManagerSamplesOnSelectedProteins(
-            directlfq_input,
-            num_samples_quadratic=self.config.quantification.directlfq_num_samples_quadratic,
-        ).complete_dataframe
-        del directlfq_input
-        gc.collect()
-
-        logger.info("Running DirectLFQ protein estimation for MaxLFQ...")
-        protein_df = estimate_protein_intensities_streamed(
-            normed_df,
-            min_nonan=self.config.quantification.directlfq_min_nonan,
-            num_samples_quadratic=self.config.quantification.directlfq_num_samples_quadratic,
-            num_cores=self.config.quantification.directlfq_num_cores,
-        )
-        if "protein" in protein_df.columns:
-            protein_df = protein_df.rename(columns={"protein": PROTEIN_NAME})
-        sample_cols = [c for c in protein_df.columns if c != PROTEIN_NAME]
-        protein_df[sample_cols] = protein_df[sample_cols].replace(0, pd.NA)
-
-        logger.info("MaxLFQ DirectLFQ-streaming complete: %d proteins", len(protein_df))
-        return protein_df
-
     def _run_mokume_pipeline(self) -> pd.DataFrame:
         """Run pipeline using mokume's native implementations."""
         logger.info("Loading and filtering data...")
@@ -717,8 +645,8 @@ def features_to_proteins(
     impute: bool = False,
     impute_method: str = "none",
     impute_quantile: float = 0.01,
-    impute_shift: float = 1.6,
-    impute_scale: float = 0.3,
+    impute_seed: int = 42,
+    impute_tune_sigma: float = 1.0,
     impute_n_neighbors: int = 5,
     # Interactive report parameters
     interactive_report: bool = False,
@@ -728,6 +656,8 @@ def features_to_proteins(
     duckdb_threads: Optional[int] = None,
     *,
     msstats: Optional[str] = None,
+    maxlfq_min_ratio_count: int = 2,
+    stabilize: bool = False,
 ) -> pd.DataFrame:
     """
     Quantify proteins from QPX feature parquet or legacy SDRF+MSstats data.
@@ -755,6 +685,10 @@ def features_to_proteins(
         - 'top5': Top 5 peptides per protein
         - 'sum': Sum of all peptides
         - 'median': Median of peptides
+    stabilize : bool
+        Enable Cox Eq. 5 large-ratio stabilization (MaxLFQ only). Default False.
+    maxlfq_min_ratio_count : int
+        Minimum shared peptide species per MaxLFQ sample pair. Default 2.
     min_aa : int
         Minimum amino acid length for peptides. Default: 7.
     min_unique_peptides : int
@@ -861,6 +795,8 @@ def features_to_proteins(
             proteins_file=normalization_proteins_file,
         ),
         quantification=QuantificationConfig(
+            maxlfq_min_ratio_count=maxlfq_min_ratio_count,
+            stabilize=stabilize,
             method=quant_method,
             ion_alignment=ion_alignment,
             coverage_threshold=coverage_threshold,
@@ -897,8 +833,8 @@ def features_to_proteins(
             enabled=impute,
             method=impute_method,
             quantile=impute_quantile,
-            shift=impute_shift,
-            scale=impute_scale,
+            seed=impute_seed,
+            tune_sigma=impute_tune_sigma,
             n_neighbors=impute_n_neighbors,
         ),
         de=DEConfig(

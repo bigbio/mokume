@@ -1,66 +1,28 @@
-//! ROTS (Reproducibility-Optimised Test Statistic) two-group differential
-//! expression.
+//! ROTS (Reproducibility-Optimised Test Statistic), unpaired two-group core.
 //!
-//! This is a FAITHFUL ALGORITHM PORT of mokume's `analysis/rots.py` (a pure
-//! numpy reimplementation of R `ROTS`), NOT a cell-for-cell match. ROTS is an
-//! RNG-driven method: it bootstraps each class and permutes the labels to score
-//! how reproducible the top-k feature ranking is across a grid of variance-
-//! shrinkage parameters, picks the best `(a1, a2, k)`, then computes the final
-//! `d_stat = fc / max(a1 + a2*s, 1e-10)` and a permutation p-value. Because the
-//! optimisation and the p-value both consume random draws, Python's own output
-//! is unstable across seeds (the selected `a1` moves, the top-20 ranks reshuffle,
-//! and `adj_pvalue` differs by ~1e-1 between seeds). Bit-matching numpy's PCG64
-//! is therefore neither possible without reproducing its exact stream nor
-//! meaningful, so it is intentionally NOT attempted.
+//! The bootstrap/permutation statistics, half-to-half reproducibility pairing,
+//! threshold-aware ties and column-major parameter selection follow ROTS 2.2.0.
+//! The optimization permutations are reused for the final pooled p-values.
+//! The adjusted p-value is the package's native permutation FDR (the median
+//! over permutations of `calculateFDR`), not a BH adjustment of the pooled
+//! p-values: with few samples per group, many random permutations reproduce the
+//! observed grouping, and a pooled estimate cannot fall below their share.
 //!
-//! WHAT IS MATCHED EXACTLY (cell-exact, 1e-9, RNG-independent):
-//!   - `_compute_d_stat` (rots.py:36): `d = fc / max(a1 + a2*s, 1e-10)`.
-//!   - `_group_stats` (rots.py:48): unpaired two-group `d = my - mx` and pooled
-//!     `s`, with the `nx<2 || ny<2 -> d=0, s=1` edge and nan-aware means/sums.
-//!   - `_reproducibility_score` (rots.py:77): top-k index-set overlap / k.
-//!   - `_build_ssq_grid` (rots.py:90) and `_build_n_grid` (rots.py:101): exact
-//!     grid lengths and values.
-//!   - `_rank_abs` (rots.py:222): rank by descending |x|, 1 = largest, with
-//!     numpy `argsort` STABLE tie order (ties broken by ascending original
-//!     index).
-//!   - `_calculate_p` (rots.py:230): two-pointer count of permuted |d| values
-//!     `>=` each observed |d|, scattered back to original order.
-//!   - `log2FC` (rots.py:313): `nanmean(A) - nanmean(B)`, deterministic.
-//!
-//! WHAT IS NOT MATCHED: the exact stochastic stream. The bootstrap/permutation
-//! here uses a small self-contained splitmix64 PRNG (no external `rand`
-//! dependency, the workspace deliberately has none) seeded by a fixed constant.
-//! The result therefore matches Python in ALGORITHM and DISTRIBUTION (within
-//! ROTS's own seed-noise), not cell-for-cell. The stochastic wrapper is covered
-//! by property tests (p in [0,1], finite `d_stat`, the selected `(a1,a2,k)` lands
-//! on a valid grid point), and `log2FC` is asserted cell-exact since it is
-//! RNG-independent.
-//!
-//! Reference
-//! ---------
-//! Suomi T, Seyednasrollah F, Jaakkola MK, Faux T, Elo LL. ROTS: An R package
-//! for reproducibility-optimized statistical testing. *PLoS Comput Biol*.
-//! 2017;13(5):e1005562.
+//! SplitMix64 deliberately supplies an independent random stream. Shared-sample
+//! official fixtures verify deterministic steps; equal seeds do not imply equal
+//! final output across languages. Paired, multi-group and survival ROTS are not
+//! supported by this two-group entry point.
 
-use super::correct::bh_adjust;
+use super::correct::permutation_fdr;
 use super::{classify, DeResult};
 use rayon::prelude::*;
 
 /// Default bootstrap iterations, matching `run_rots(n_boot=100)` (rots.py:268).
 const DEFAULT_N_BOOT: usize = 100;
 
-/// Fixed PRNG seed for the bootstrap/permutation draws. ROTS is seed-unstable,
-/// so this is a deterministic constant rather than `run_rots`'s `seed=42`
-/// (which only makes sense against numpy's PCG64 stream). A fixed seed keeps the
-/// Rust output reproducible run-to-run.
+/// Existing public-entrypoint seed; the private seeded path supports controlled
+/// stochastic validation. This stream is independent of the official R stream.
 const PRNG_SEED: u64 = 0x9E37_79B9_7F4A_7C15;
-
-/// Lower clamp on the d-statistic denominator (rots.py:44).
-const DENOM_FLOOR: f64 = 1e-10;
-
-/// Minimum standard deviation in the reproducibility table, matching
-/// `sd[sd < 1e-10] = 1e-10` (rots.py:183).
-const SD_FLOOR: f64 = 1e-10;
 
 /// Minimum finite observations per group required for a protein to be testable,
 /// matching `filter_testable(min_per_group=2)` (\_helpers.py:59).
@@ -98,11 +60,11 @@ impl SplitMix64 {
             return 0;
         }
         let bound64 = bound as u64;
-        // Reject the top `2^64 mod bound` values so the remainder is uniform.
+        // The accepted half-open interval contains a multiple of bound values.
         let zone = u64::MAX - (u64::MAX % bound64);
         loop {
             let candidate = self.next_u64();
-            if candidate <= zone {
+            if candidate < zone {
                 return (candidate % bound64) as usize;
             }
         }
@@ -147,20 +109,11 @@ impl SplitMix64 {
     }
 }
 
-/// Port of `_compute_d_stat` (rots.py:36): `d = fc / max(a1 + a2*s, 1e-10)`,
-/// element-wise.
+/// ROTS statistic; a zero standard error retains the upstream IEEE value.
 fn compute_d_stat(fc: &[f64], s: &[f64], a1: f64, a2: f64) -> Vec<f64> {
     fc.iter()
         .zip(s)
-        .map(|(fold, sdev)| {
-            let denom = a1 + a2 * sdev;
-            let denom = if denom < DENOM_FLOOR {
-                DENOM_FLOOR
-            } else {
-                denom
-            };
-            fold / denom
-        })
+        .map(|(fold, sdev)| fold / (a1 + a2 * sdev))
         .collect()
 }
 
@@ -195,46 +148,35 @@ fn group_stats(mat: &[Vec<f64>], n_a: usize) -> (Vec<f64>, Vec<f64>) {
 /// `np.nanmean` plus the finite count (`np.sum(np.isfinite(x))`). An all-nan
 /// slice yields a NaN mean and a zero count (handled by the `nx<2` edge).
 fn nan_mean_count(values: &[f64]) -> (f64, usize) {
-    let mut sum = 0.0;
-    let mut count = 0usize;
-    for value in values {
-        if value.is_finite() {
-            sum += value;
-            count += 1;
-        }
-    }
+    let (sum, correction, count) = compensated_sum(values.iter().copied());
     if count == 0 {
-        (f64::NAN, 0)
-    } else {
-        (sum / count as f64, count)
+        return (f64::NAN, 0);
     }
+    let n = count as f64;
+    let mean = sum / n;
+    // R rowMeans accumulates and divides in long double. Corrected division
+    // avoids changing exact permutation ties through intermediate rounding.
+    (mean + ((-mean).mul_add(n, sum) + correction) / n, count)
 }
 
-/// `np.nansum((x - mean)**2)` over the finite entries.
+fn compensated_sum(values: impl Iterator<Item = f64>) -> (f64, f64, usize) {
+    let (mut sum, mut correction, mut count) = (0.0_f64, 0.0_f64, 0);
+    for value in values.filter(|x| x.is_finite()) {
+        let next = sum + value;
+        correction += if sum.abs() >= value.abs() {
+            (sum - next) + value
+        } else {
+            (value - next) + sum
+        };
+        sum = next;
+        count += 1;
+    }
+    (sum, correction, count)
+}
+
 fn nan_sum_sq_dev(values: &[f64], mean: f64) -> f64 {
-    values
-        .iter()
-        .filter(|value| value.is_finite())
-        .map(|value| {
-            let dev = value - mean;
-            dev * dev
-        })
-        .sum()
-}
-
-/// Port of `_reproducibility_score` (rots.py:77): size of the top-k index-set
-/// overlap divided by `k`. `ranks` are 1-based (`1 = largest |d|`).
-pub(crate) fn reproducibility_score(ranks1: &[usize], ranks2: &[usize], k: usize) -> f64 {
-    if k == 0 {
-        return 0.0;
-    }
-    let mut overlap = 0usize;
-    for (rank1, rank2) in ranks1.iter().zip(ranks2) {
-        if *rank1 <= k && *rank2 <= k {
-            overlap += 1;
-        }
-    }
-    overlap as f64 / k as f64
+    let (sum, correction, _) = compensated_sum(values.iter().map(|v| (v - mean).powi(2)));
+    sum + correction
 }
 
 /// Port of `_build_ssq_grid` (rots.py:90): `c((0:20)/100, (11:50)/50, (6:25)/5)`.
@@ -270,31 +212,6 @@ pub(crate) fn build_n_grid(k_max: usize) -> Vec<usize> {
     grid.into_iter().filter(|value| *value < k_max).collect()
 }
 
-/// Port of `_rank_abs` (rots.py:222): 1-based rank by descending `|x|`, `1` =
-/// largest. Returns `ranks` aligned to the input order.
-///
-/// TIE NOTE: Python uses `np.argsort(-|x|)` with numpy's DEFAULT quicksort,
-/// which is NOT stable; on exact magnitude ties it produces an internal,
-/// version-specific order that no simple rule reproduces (verified: it neither
-/// preserves nor reverses tie runs uniformly). This port instead uses a STABLE
-/// sort (ties broken by ascending original index). On DISTINCT magnitudes -- the
-/// only case that arises on real continuous float data -- stable and numpy's
-/// quicksort give IDENTICAL ranks (verified over 2000 random vectors), so this
-/// matches Python wherever it matters. `_rank_abs` only feeds the RNG-driven
-/// reproducibility scoring, never the final p-value, so the contrived-tie
-/// difference cannot affect a real result.
-pub(crate) fn rank_abs(x: &[f64]) -> Vec<usize> {
-    let mut order = (0..x.len()).collect::<Vec<_>>();
-    // `sort_by` is stable: sorting by |x| descending breaks magnitude ties by
-    // ascending original index.
-    order.sort_by(|&i, &j| x[j].abs().total_cmp(&x[i].abs()));
-    let mut ranks = vec![0usize; x.len()];
-    for (position, &index) in order.iter().enumerate() {
-        ranks[index] = position + 1;
-    }
-    ranks
-}
-
 /// Port of `_calculate_p` (rots.py:230): permutation p-values. For each observed
 /// `|d|` (descending), count how many permuted `|d|` values are `>=` it, divided
 /// by the total permuted count; scatter back to the original protein order.
@@ -312,18 +229,22 @@ fn calculate_p(observed: &[f64], permuted: &[Vec<f64>]) -> Vec<f64> {
     let mut perm_flat = permuted
         .iter()
         .flat_map(|row| row.iter().map(|value| value.abs()))
+        .filter(|value| !value.is_nan())
         .collect::<Vec<_>>();
     perm_flat.sort_by(|a, b| b.total_cmp(a));
     let n_perm = perm_flat.len();
 
     let mut p_sorted = vec![0.0; n];
     if n_perm == 0 {
-        // No permutations: every count is 0 -> p = 0 (matches j/n_perm with j=0,
-        // though Python would divide by zero; guard defensively).
-        return scatter(&obs_order, &p_sorted);
+        // No usable null statistics cannot establish a permutation probability.
+        return vec![f64::NAN; n];
     }
     let mut j = 0usize;
     for (position, obs) in obs_sorted.iter().enumerate() {
+        if obs.is_nan() {
+            p_sorted[position] = f64::NAN;
+            continue;
+        }
         while j < n_perm && perm_flat[j] >= *obs {
             j += 1;
         }
@@ -373,34 +294,29 @@ fn bootstrap_optimize(
     n_a: usize,
     n_boot: usize,
     rng: &mut SplitMix64,
-) -> (f64, f64, usize) {
+) -> (f64, f64, usize, Vec<Vec<f64>>) {
     let n_genes = mat.len();
     let n_total = if n_genes == 0 { 0 } else { mat[0].len() };
     let k_max = n_genes / 4;
     if k_max < 1 {
-        return (0.0, 1.0, 1);
+        return (0.0, 1.0, 1, Vec::new());
     }
 
-    let ssq = build_ssq_grid();
     let mut n_grid = build_n_grid(k_max);
     if n_grid.is_empty() {
         n_grid = vec![1];
     }
-    let n_ssq = ssq.len();
-    let n_k = n_grid.len();
     let two_b = 2 * n_boot;
 
-    // Generate random indices serially in the original order, then parallelize
-    // the independent matrix/statistic work. The RNG stream is therefore
-    // bit-for-bit independent of the Rayon thread count.
-    let resamples = (0..two_b)
-        .map(|_| {
-            (
-                bootstrap_indices(rng, n_a, n_total),
-                rng.permutation(n_total),
-            )
-        })
+    // ROTS generates all bootstrap samples before all permutations. The
+    // streams remain serial so changing Rayon concurrency cannot change draws.
+    let boots = (0..two_b)
+        .map(|_| bootstrap_indices(rng, n_a, n_total))
         .collect::<Vec<_>>();
+    let perms = (0..two_b)
+        .map(|_| rng.permutation(n_total))
+        .collect::<Vec<_>>();
+    let resamples = boots.into_iter().zip(perms).collect::<Vec<_>>();
     let bootstrap_stats = resamples
         .into_par_iter()
         .map(|(boot_idx, perm_idx)| {
@@ -422,44 +338,42 @@ fn bootstrap_optimize(
         s_perm.push(sp);
     }
 
-    // reprotable / reprotable_p / reprotable_sd over (n_ssq + 1) x n_k.
-    let mut reprotable = vec![vec![0.0; n_k]; n_ssq + 1];
-    let mut reprotable_p = vec![vec![0.0; n_k]; n_ssq + 1];
-    let mut reprotable_sd = vec![vec![0.0; n_k]; n_ssq + 1];
+    let (a1, a2, k) = optimize_statistics(n_boot, &n_grid, &d_boot, &s_boot, &d_perm, &s_perm);
+    let permuted = d_perm
+        .iter()
+        .zip(&s_perm)
+        .map(|(d, s)| compute_d_stat(d, s, a1, a2))
+        .collect();
+    (a1, a2, k, permuted)
+}
 
-    let rows = ssq
+fn optimize_statistics(
+    n_boot: usize,
+    n_grid: &[usize],
+    d_boot: &[Vec<f64>],
+    s_boot: &[Vec<f64>],
+    d_perm: &[Vec<f64>],
+    s_perm: &[Vec<f64>],
+) -> (f64, f64, usize) {
+    let ssq = build_ssq_grid();
+    let n_ssq = ssq.len();
+    let n_k = n_grid.len();
+    let mut rows = ssq
         .par_iter()
-        .map(|value| {
-            fill_repro_row(
-                Some(*value),
-                n_boot,
-                &n_grid,
-                &d_boot,
-                &s_boot,
-                &d_perm,
-                &s_perm,
-            )
-        })
+        .map(|value| fill_repro_row(Some(*value), n_boot, n_grid, d_boot, s_boot, d_perm, s_perm))
         .collect::<Vec<_>>();
-    for (si, row) in rows.into_iter().enumerate() {
-        reprotable[si] = row.reprotable;
-        reprotable_p[si] = row.reprotable_p;
-        reprotable_sd[si] = row.reprotable_sd;
-    }
-    let last = n_ssq;
-    let row = fill_repro_row(None, n_boot, &n_grid, &d_boot, &s_boot, &d_perm, &s_perm);
-    reprotable[last] = row.reprotable;
-    reprotable_p[last] = row.reprotable_p;
-    reprotable_sd[last] = row.reprotable_sd;
+    rows.push(fill_repro_row(
+        None, n_boot, n_grid, d_boot, s_boot, d_perm, s_perm,
+    ));
 
     // ztable = (reprotable - reprotable_p) / reprotable_sd; non-finite -> -inf;
-    // argmax via unravel_index (row-major, first max wins) (rots.py:205-209).
+    // R which(..., arr.ind=TRUE) visits column-major; the first finite max wins.
     let mut best_value = f64::NEG_INFINITY;
     let mut best_si = 0usize;
     let mut best_ki = 0usize;
-    for si in 0..=n_ssq {
-        for ki in 0..n_k {
-            let z = (reprotable[si][ki] - reprotable_p[si][ki]) / reprotable_sd[si][ki];
+    for ki in 0..n_k {
+        for (si, row) in rows.iter().enumerate() {
+            let z = (row.reprotable[ki] - row.reprotable_p[ki]) / row.reprotable_sd[ki];
             let z = if z.is_finite() { z } else { f64::NEG_INFINITY };
             if z > best_value {
                 best_value = z;
@@ -502,18 +416,14 @@ fn fill_repro_row(
     let mut overlaps = vec![vec![0.0; n_k]; n_boot];
     let mut overlaps_p = vec![vec![0.0; n_k]; n_boot];
     for b in 0..n_boot {
-        let col1 = 2 * b;
-        let col2 = 2 * b + 1;
+        let col1 = b;
+        let col2 = b + n_boot;
         let d1 = shrink(&d_boot[col1], &s_boot[col1], ssq);
         let d2 = shrink(&d_boot[col2], &s_boot[col2], ssq);
-        let dp = shrink(&d_perm[col1], &s_perm[col1], ssq);
-        let r1 = rank_abs(&d1);
-        let r2 = rank_abs(&d2);
-        let rp = rank_abs(&dp);
-        for (ki, &k) in n_grid.iter().enumerate() {
-            overlaps[b][ki] = reproducibility_score(&r1, &r2, k);
-            overlaps_p[b][ki] = reproducibility_score(&r1, &rp, k);
-        }
+        let dp1 = shrink(&d_perm[col1], &s_perm[col1], ssq);
+        let dp2 = shrink(&d_perm[col2], &s_perm[col2], ssq);
+        overlaps[b] = official_overlaps(&d1, &d2, n_grid);
+        overlaps_p[b] = official_overlaps(&dp1, &dp2, n_grid);
     }
     let mut reprotable = vec![0.0; n_k];
     let mut reprotable_p = vec![0.0; n_k];
@@ -523,14 +433,37 @@ fn fill_repro_row(
         let col_p = overlaps_p.iter().map(|row| row[ki]).collect::<Vec<_>>();
         reprotable[ki] = mean(&col);
         reprotable_p[ki] = mean(&col_p);
-        let sd = std_ddof1(&col);
-        reprotable_sd[ki] = if sd < SD_FLOOR { SD_FLOOR } else { sd };
+        reprotable_sd[ki] = std_ddof1(&col);
     }
     ReproRow {
         reprotable,
         reprotable_p,
         reprotable_sd,
     }
+}
+
+/// NeedForSpeed1/2 sort pairs descending by (abs(first), abs(second)),
+/// then count second values >= its kth largest value. Ties at the threshold
+/// therefore count even when an arbitrary index ranking would exclude them.
+fn official_overlaps(first: &[f64], second: &[f64], sizes: &[usize]) -> Vec<f64> {
+    let mut pairs = first
+        .iter()
+        .zip(second)
+        .map(|(a, b)| (a.abs(), b.abs()))
+        .collect::<Vec<_>>();
+    pairs.sort_by(|a, b| b.0.total_cmp(&a.0).then_with(|| b.1.total_cmp(&a.1)));
+    let mut thresholds = second.iter().map(|v| v.abs()).collect::<Vec<_>>();
+    thresholds.sort_by(|a, b| b.total_cmp(a));
+    sizes
+        .iter()
+        .map(|&k| {
+            pairs[..k]
+                .iter()
+                .filter(|(_, b)| *b >= thresholds[k - 1])
+                .count() as f64
+                / k as f64
+        })
+        .collect()
 }
 
 /// `D / (ssq + S)` element-wise (rots.py:171), or raw `D` when `ssq` is `None`
@@ -570,12 +503,11 @@ fn std_ddof1(values: &[f64]) -> f64 {
 /// dropped before testing (matching `filter_testable`). Returns one [`DeResult`]
 /// per testable protein, sorted by adjusted p-value ascending (BH), reproducing
 /// mokume's `DifferentialExpression(method="rots")` output contract: `pvalue`
-/// carries the permutation p-value, `adj_pvalue` its BH adjustment, and
+/// carries the permutation p-value, `adj_pvalue` the native permutation FDR, and
 /// `t_statistic` carries the ROTS `d_stat` (the method's extra column).
 ///
-/// NOTE: this is a faithful algorithm port; with the internal fixed-seed PRNG the
-/// p-values match Python in distribution (within ROTS's seed-noise), not
-/// cell-for-cell. `log2_fold_change` IS deterministic and matches Python exactly.
+/// The independent Rust random stream can select different parameters from R.
+/// Shared-sample fixtures verify the deterministic official calculation.
 pub fn rots_two_group(
     proteins: &[String],
     rows: &[&[f64]],
@@ -622,29 +554,16 @@ fn rots_two_group_seeded(
     }
 
     let mat = kept.iter().map(|(_, row)| row.clone()).collect::<Vec<_>>();
-    let n_total = n_a + n_b;
     let mut rng = SplitMix64::new(seed);
 
-    let (best_a1, best_a2, _best_k) = bootstrap_optimize(&mat, n_a, n_boot, &mut rng);
+    let (best_a1, best_a2, _best_k, perm_d) = bootstrap_optimize(&mat, n_a, n_boot, &mut rng);
 
     let (d_obs, s_obs) = group_stats(&mat, n_a);
     let d_stat = compute_d_stat(&d_obs, &s_obs, best_a1, best_a2);
 
-    // Final permutation null: 2*n_boot relabelings -> permuted d-statistics.
-    let two_b = 2 * n_boot;
-    let permutations = (0..two_b)
-        .map(|_| rng.permutation(n_total))
-        .collect::<Vec<_>>();
-    let perm_d = permutations
-        .into_par_iter()
-        .map(|perm_idx| {
-            let perm_mat = permute_columns(&mat, &perm_idx);
-            let (dp, sp) = group_stats(&perm_mat, n_a);
-            compute_d_stat(&dp, &sp, best_a1, best_a2)
-        })
-        .collect::<Vec<_>>();
+    // The official p-value pools the permutations already used for optimization.
     let p_values = calculate_p(&d_stat, &perm_d);
-    let adjusted = bh_adjust(&p_values);
+    let adjusted = permutation_fdr(&d_stat, &perm_d);
 
     let mut results = Vec::with_capacity(kept.len());
     for (position, (original_index, row)) in kept.iter().enumerate() {
@@ -701,12 +620,23 @@ fn testable(row: &[f64], n_a: usize, n_b: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_n_grid, build_ssq_grid, calculate_p, compute_d_stat, group_stats, rank_abs,
-        reproducibility_score, rots_two_group, rots_two_group_seeded, SplitMix64,
+        build_n_grid, build_ssq_grid, calculate_p, compute_d_stat, group_stats, rots_two_group,
+        rots_two_group_seeded, SplitMix64,
     };
     use crate::de::{Significance, DEFAULT_FDR_THRESHOLD, DEFAULT_LOG2FC_THRESHOLD};
 
     const TOL: f64 = 1e-9;
+
+    #[test]
+    fn bounded_rng_rejects_the_exclusive_upper_boundary() {
+        // This seed first produces the rejection boundary for bound=10.
+        // Accepting it would add an extra zero to the uniform remainder set.
+        let seed = 8_187_556_910_047_604_162;
+        let mut probe = SplitMix64::new(seed);
+        assert_eq!(probe.next_u64(), 18_446_744_073_709_551_610);
+        assert_eq!(probe.next_u64() % 10, 3);
+        assert_eq!(SplitMix64::new(seed).next_below(10), 3);
+    }
 
     fn assert_close(actual: f64, expected: f64, label: &str) {
         assert!(
@@ -737,9 +667,8 @@ mod tests {
         for (i, (a, e)) in raw.iter().zip(fc).enumerate() {
             assert_close(*a, e, &format!("d_stat[{i}] a1=1 a2=0"));
         }
-        // denom clamp: fc/1e-10 = 1e10.
-        let clamped = compute_d_stat(&[1.0], &[0.0], 0.0, 0.0);
-        assert_close(clamped[0], 1e10, "d_stat clamp");
+        // ROTS retains an infinite statistic when the denominator is zero.
+        assert!(compute_d_stat(&[1.0], &[0.0], 0.0, 0.0)[0].is_infinite());
     }
 
     // ---- _group_stats incl. nx<2 edge (oracle: rots_oracle.py) ----
@@ -768,21 +697,6 @@ mod tests {
         for (i, (a, e)) in s.iter().zip(expected_s).enumerate() {
             assert_close(*a, e, &format!("group_stats s[{i}]"));
         }
-    }
-
-    // ---- _reproducibility_score (oracle: rots_oracle.py) ----
-    #[test]
-    fn reproducibility_score_matches_python_oracle() {
-        let ranks1 = [1usize, 2, 3, 4, 5];
-        let ranks2 = [2usize, 1, 5, 3, 4];
-        assert_close(reproducibility_score(&ranks1, &ranks2, 2), 1.0, "repro k=2");
-        assert_close(
-            reproducibility_score(&ranks1, &ranks2, 3),
-            0.6666666666666666,
-            "repro k=3",
-        );
-        assert_close(reproducibility_score(&ranks1, &ranks2, 0), 0.0, "repro k=0");
-        assert_close(reproducibility_score(&ranks1, &ranks2, 5), 1.0, "repro k=5");
     }
 
     // ---- _build_ssq_grid: exact length + values (oracle: rots_oracle.py) ----
@@ -823,45 +737,6 @@ mod tests {
         assert!(g1000.contains(&525) && g1000.contains(&975));
         // kmax=3 keeps nothing (< 3 leaves the grid empty).
         assert!(build_n_grid(3).is_empty(), "n_grid kmax=3 empty");
-    }
-
-    // ---- _rank_abs (oracle: rots_oracle.py) ----
-    //
-    // On DISTINCT magnitudes this is cell-exact vs numpy `argsort(-|x|)`. On
-    // exact ties, numpy's default quicksort order is a non-portable internal
-    // artifact (it gave [6,1,2,5,4,3] on the tie vector below), so this port
-    // documents the STABLE-sort result instead -- which matches numpy on every
-    // tie-free input (the only case real float data produces). See the rank_abs
-    // doc comment.
-    #[test]
-    fn rank_abs_matches_python_oracle() {
-        // Distinct magnitudes: |x| = [2.5, 0.1, 4.0, 1.7, 3.3] -> descending
-        // order is idx 2(4.0),4(3.3),0(2.5),3(1.7),1(0.1); ranks = [3,5,1,4,2].
-        // Captured from numpy argsort -- cell-exact (no ties).
-        let distinct = [2.5, -0.1, 4.0, 1.7, -3.3];
-        assert_eq!(
-            rank_abs(&distinct),
-            vec![3, 5, 1, 4, 2],
-            "rank_abs distinct magnitudes (cell-exact vs numpy)"
-        );
-        // Tie vector: |0.5|(idx 0,3), |3|(idx 1,2), |1|(idx 4,5). STABLE order
-        // breaks every tie by ascending original index -> ranks [5,1,2,6,3,4]
-        // (matches numpy `argsort(kind='stable')`). numpy's DEFAULT quicksort
-        // instead returns [6,1,2,5,4,3] here -- a non-portable pivot artifact we
-        // intentionally do not reproduce (it cannot affect a real p-value; see
-        // the rank_abs doc comment).
-        let tied = [0.5, -3.0, 3.0, -0.5, 1.0, -1.0];
-        assert_eq!(
-            rank_abs(&tied),
-            vec![5, 1, 2, 6, 3, 4],
-            "rank_abs stable ties"
-        );
-        // All-equal magnitudes -> stable ranks follow original order.
-        assert_eq!(
-            rank_abs(&[2.0, 2.0, 2.0]),
-            vec![1, 2, 3],
-            "rank_abs all-tie"
-        );
     }
 
     // ---- _calculate_p with FIXED observed + FIXED permuted matrix (isolates the
@@ -1046,7 +921,7 @@ mod tests {
         let n_grid = build_n_grid(rows.len() / 4);
         for seed in [super::PRNG_SEED, 1, 7, 2024] {
             let mut rng = SplitMix64::new(seed);
-            let (a1, a2, k) = super::bootstrap_optimize(&mat, 4, 20, &mut rng);
+            let (a1, a2, k, _) = super::bootstrap_optimize(&mat, 4, 20, &mut rng);
             let on_ssq = a2 == 1.0 && ssq.iter().any(|value| (value - a1).abs() <= 1e-12);
             let raw_branch = a1 == 1.0 && a2 == 0.0;
             assert!(
@@ -1128,3 +1003,7 @@ mod tests {
         [7.748736592956661, 9.198414429430384, 11.333241659298887, 10.199085261163354, 10.141273124012217, 8.684032816429761, 10.146431651468244, 7.724827688217122],
     ];
 }
+
+#[cfg(test)]
+#[path = "rots_official_tests.rs"]
+mod official_tests;

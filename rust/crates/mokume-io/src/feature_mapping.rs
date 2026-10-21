@@ -301,12 +301,12 @@ mod tests {
         proteins
             .values()
             .field_builder::<StringBuilder>(0)
-            .ok_or("missing accession builder")?
+            .expect("missing accession builder")
             .append_value("sp|P12345|PROT_HUMAN");
         proteins
             .values()
             .field_builder::<Int32Builder>(1)
-            .ok_or("missing start builder")?
+            .expect("missing start builder")
             .append_value(1);
         proteins.values().append(true);
         proteins.append(true);

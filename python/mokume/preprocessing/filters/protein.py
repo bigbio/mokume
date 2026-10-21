@@ -8,7 +8,10 @@ import pandas as pd
 
 from mokume.core.logger import get_logger
 from mokume.core.constants import PROTEIN_NAME, PEPTIDE_CANONICAL
-from mokume.core.contaminants import contaminant_group_mask
+from mokume.core.contaminants import (
+    contaminant_group_mask,
+    strip_contaminant_members,
+)
 from mokume.preprocessing.filters.base import BaseFilter, FilterResult
 from mokume.preprocessing.filters.enums import FilterLevel, RazorPeptideHandling
 
@@ -75,6 +78,9 @@ class ContaminantFilter(BaseFilter):
 
         mask = ~contaminant_group_mask(df[self.protein_column], active_patterns)
         filtered_df = df[mask].copy()
+        filtered_df[self.protein_column] = strip_contaminant_members(
+            filtered_df[self.protein_column], active_patterns
+        )
 
         output_count = len(filtered_df)
 

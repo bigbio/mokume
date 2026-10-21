@@ -41,6 +41,22 @@ fn run(args: Vec<String>) -> PyResult<()> {
     mokume_command::run_from_args(argv).map_err(|error| PyRuntimeError::new_err(error.to_string()))
 }
 
+/// Return the machine-readable Rust command schema as JSON.
+#[pyfunction]
+fn command_schema() -> PyResult<String> {
+    mokume_command::command_schema_json()
+        .map_err(|error| PyRuntimeError::new_err(error.to_string()))
+}
+
+/// Parse an argv vector without dispatching or executing the command.
+#[pyfunction]
+fn validate_args(args: Vec<String>) -> PyResult<()> {
+    let mut argv = Vec::with_capacity(args.len() + 1);
+    argv.push("mokume".to_string());
+    argv.extend(args);
+    mokume_command::validate_args(argv).map_err(|error| PyRuntimeError::new_err(error.to_string()))
+}
+
 /// Return the runtime pyOpenMS digestion request for a parsed piBAQ command.
 #[pyfunction]
 fn pibaq_digest_request(args: Vec<String>) -> Option<(String, String, usize, usize, usize)> {
@@ -228,9 +244,9 @@ fn impute_matrix_py(
         enabled: !matches!(method.trim().to_ascii_lowercase().as_str(), "" | "none"),
         method,
         quantile: options.quantile,
-        shift: options.shift,
-        scale: options.scale,
         n_neighbors: options.n_neighbors,
+        seed: options.seed,
+        tune_sigma: options.tune_sigma,
     };
     let imputed =
         py.detach(move || mokume_pipeline::impute_matrix(&matrix, &config, options.threads));
@@ -241,60 +257,75 @@ fn impute_matrix_py(
 
 struct ImputationOptions {
     quantile: f64,
-    shift: f64,
-    scale: f64,
     n_neighbors: usize,
+    seed: u64,
+    tune_sigma: f64,
     threads: Option<usize>,
     quantile_supplied: bool,
     shift_supplied: bool,
     scale_supplied: bool,
     n_neighbors_supplied: bool,
+    stochastic_supplied: bool,
 }
 
 impl ImputationOptions {
     fn from_dict(options: Option<&Bound<'_, PyDict>>) -> PyResult<Self> {
+        let defaults = ImputationConfig::default();
         let mut parsed = Self {
-            quantile: 0.01,
-            shift: 1.6,
-            scale: 0.3,
-            n_neighbors: 5,
+            quantile: defaults.quantile,
+            n_neighbors: defaults.n_neighbors,
+            seed: defaults.seed,
+            tune_sigma: defaults.tune_sigma,
             threads: None,
             quantile_supplied: false,
             shift_supplied: false,
             scale_supplied: false,
             n_neighbors_supplied: false,
+            stochastic_supplied: false,
         };
         let Some(options) = options else {
             return Ok(parsed);
         };
         for (key, value) in options.iter() {
-            let key = key.extract::<String>()?;
-            match key.as_str() {
-                "quantile" => {
-                    parsed.quantile = value.extract()?;
-                    parsed.quantile_supplied = true;
-                }
-                "shift" => {
-                    parsed.shift = value.extract()?;
-                    parsed.shift_supplied = true;
-                }
-                "scale" => {
-                    parsed.scale = value.extract()?;
-                    parsed.scale_supplied = true;
-                }
-                "n_neighbors" => {
-                    parsed.n_neighbors = value.extract()?;
-                    parsed.n_neighbors_supplied = true;
-                }
-                "threads" => parsed.threads = value.extract()?,
-                _ => {
-                    return Err(PyTypeError::new_err(format!(
-                        "unknown imputation option `{key}`"
-                    )))
-                }
-            }
+            parsed.set(&key.extract::<String>()?, &value)?;
         }
         Ok(parsed)
+    }
+
+    fn set(&mut self, key: &str, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        match key {
+            "quantile" => {
+                self.quantile = value.extract()?;
+                self.quantile_supplied = true;
+            }
+            "shift" => {
+                value.extract::<f64>()?;
+                self.shift_supplied = true;
+            }
+            "scale" => {
+                value.extract::<f64>()?;
+                self.scale_supplied = true;
+            }
+            "n_neighbors" => {
+                self.n_neighbors = value.extract()?;
+                self.n_neighbors_supplied = true;
+            }
+            "seed" => {
+                self.seed = value.extract()?;
+                self.stochastic_supplied = true;
+            }
+            "tune_sigma" => {
+                self.tune_sigma = value.extract()?;
+                self.stochastic_supplied = true;
+            }
+            "threads" => self.threads = value.extract()?,
+            _ => {
+                return Err(PyTypeError::new_err(format!(
+                    "unknown imputation option `{key}`"
+                )))
+            }
+        }
+        Ok(())
     }
 
     fn validate_for_method(&self, method: &str) -> PyResult<()> {
@@ -304,9 +335,14 @@ impl ImputationOptions {
                 "`quantile` only applies to mindet/minprob imputation",
             ));
         }
-        if (self.shift_supplied || self.scale_supplied) && method != "minprob" {
+        if self.shift_supplied || self.scale_supplied {
             return Err(PyTypeError::new_err(
-                "`shift` and `scale` only apply to minprob imputation",
+                "MinProb now follows imputeLCMD; use `tune_sigma` instead of legacy `shift`/`scale`",
+            ));
+        }
+        if self.stochastic_supplied && !matches!(method.as_str(), "minprob" | "qrilc") {
+            return Err(PyTypeError::new_err(
+                "`seed` and `tune_sigma` only apply to minprob/qrilc imputation",
             ));
         }
         if self.n_neighbors_supplied && !matches!(method.as_str(), "knn" | "seqknn") {
@@ -411,14 +447,15 @@ struct DifferentialExpressionOptions {
 
 impl DifferentialExpressionOptions {
     fn from_dict(options: Option<&Bound<'_, PyDict>>) -> PyResult<Self> {
+        let defaults = DifferentialExpressionConfig::default();
         let mut parsed = Self {
             peptide_counts: None,
             ensemble_methods: None,
-            ensemble_min_k: 2,
-            log2fc_threshold: 0.5,
+            ensemble_min_k: defaults.ensemble_min_k,
+            log2fc_threshold: defaults.log2fc_threshold,
             effect_size_gate: None,
-            fdr_threshold: 0.05,
-            fdr_method: "bh".to_owned(),
+            fdr_threshold: defaults.fdr_threshold,
+            fdr_method: defaults.fdr_method,
             condition_a: "A".to_owned(),
             condition_b: "B".to_owned(),
             threads: None,
@@ -586,12 +623,19 @@ fn register_pibaq_functions(module: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-/// The `mokume._mokume` extension module.
-#[pymodule]
-fn _mokume(module: &Bound<'_, PyModule>) -> PyResult<()> {
+fn register_command_functions(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(version, module)?)?;
     module.add_function(wrap_pyfunction!(run, module)?)?;
     module.add_function(wrap_pyfunction!(run_cli, module)?)?;
+    module.add_function(wrap_pyfunction!(command_schema, module)?)?;
+    module.add_function(wrap_pyfunction!(validate_args, module)?)?;
+    Ok(())
+}
+
+/// The `mokume._mokume` extension module.
+#[pymodule]
+fn _mokume(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    register_command_functions(module)?;
     register_pibaq_functions(module)?;
     module.add_function(wrap_pyfunction!(normalize_matrix_py, module)?)?;
     module.add_function(wrap_pyfunction!(impute_matrix_py, module)?)?;

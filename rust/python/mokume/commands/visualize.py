@@ -6,8 +6,8 @@ kernel; it reads the protein files and draws the t-SNE plot through the mokume
 plotting helpers. Exposed as ``mokume plot tsne`` and in-process as
 ``mokume.tsne_visualization``.
 
-Run requirements: the ``plotting`` extra (matplotlib + seaborn + scikit-learn):
-``pip install mokume[plotting]``.
+Run requirements: the ``analysis`` extra (matplotlib + seaborn + scikit-learn):
+``pip install mokume[analysis]``.
 
 argv contract:
     --input/-i    PATH   folder that contains the protein files (required)
@@ -95,7 +95,7 @@ def main(argv: list[str]) -> int:
     except ImportError as exc:  # pragma: no cover - environment dependent
         print(
             "error: failed to import mokume plotting dependencies: "
-            f"{exc}\nInstall them with: pip install mokume[plotting]",
+            f"{exc}\nInstall them with: pip install mokume[analysis]",
             file=sys.stderr,
         )
         return 1
@@ -103,7 +103,7 @@ def main(argv: list[str]) -> int:
     if not is_plotting_available():
         print(
             "error: plotting dependencies (matplotlib, seaborn) are not "
-            "installed. Install them with: pip install mokume[plotting]",
+            "installed. Install them with: pip install mokume[analysis]",
             file=sys.stderr,
         )
         return 1

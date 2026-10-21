@@ -116,7 +116,7 @@ jobs:
           name: wheel-${{ matrix.os }}-${{ matrix.target }}
           path: rust/dist/*.whl
 
-  # Install the built Linux wheel (+ the plotting extra) on a host runner and run
+  # Install the built Linux wheel (+ the analysis extra) on a host runner and run
   # the Python test suite against it -- exercises the binding, the relocated
   # periphery commands, and the in-wheel `mokume` CLI on a real installed wheel.
   test:
@@ -132,11 +132,11 @@ jobs:
         with:
           name: wheel-linux-x86_64
           path: dist
-      - name: Install the built wheel + plotting extra + pytest
+      - name: Install the built wheel + analysis extra + pytest
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install "$(ls dist/*.whl)[plotting,agentic]" pytest pyarrow
+          pip install "$(ls dist/*.whl)[analysis,plugin]" pytest pyarrow
       - name: Run the Python test suite
         run: pytest rust/tests -q
 

@@ -36,19 +36,20 @@ methods (MinProb / MinDet / QRILC) which assume log-normal intensities.
 
 ### MinProb
 
-Draws replacement values from the low tail of a per-sample normal
-distribution (Perseus-style):
+Follows imputeLCMD `impute.MinProb`: each missing value of a sample is
+drawn from a normal centred on a low quantile of that sample:
 
-$$\mu = q_{\text{low}} - \text{shift} \cdot \sigma_{\text{scaled}}$$
+$$x \sim \mathcal{N}\left(q_{\text{low}},\ (\text{tune\_sigma} \cdot \text{sd}_{\text{median}})^2\right)$$
 
-where `q_low` is the `--impute-quantile`-quantile of observed log2
-intensities, `shift` is `--impute-shift` standard deviations and
-`sigma_scaled = sample_sd * --impute-scale`.
+where `q_low` is the `--impute-quantile`-quantile of the sample's observed
+log2 intensities, `sd_median` is the median standard deviation of the
+proteins observed in more than half of the samples and `tune_sigma` is
+`--impute-tune-sigma`. `--impute-seed` fixes the draws.
 
 ```bash
 mokume quantify features2proteins -p data.parquet -o out.csv \
     --impute-method minprob \
-    --impute-quantile 0.01 --impute-shift 1.6 --impute-scale 0.3
+    --impute-quantile 0.01 --impute-tune-sigma 1.0 --impute-seed 42
 ```
 
 ### MinDet
@@ -64,10 +65,13 @@ mokume quantify features2proteins -p data.parquet -o out.csv \
 
 ### QRILC
 
-Quantile Regression Imputation of Left-Censored data: fits a truncated
-normal to the observed distribution per sample and draws replacement
-values from the truncated lower tail. Theoretically more principled
-than MinProb when the MNAR assumption holds.
+Quantile Regression Imputation of Left-Censored data (imputeLCMD
+`impute.QRILC`): fits a normal per sample by regressing the observed
+quantiles on the standard-normal quantiles they would have if the missing
+fraction were the left tail, then draws replacement values from that normal
+truncated at the missing fraction. Theoretically more principled than
+MinProb when the MNAR assumption holds. `--impute-tune-sigma` scales the
+fitted SD and `--impute-seed` fixes the draws.
 
 ```bash
 mokume quantify features2proteins -p data.parquet -o out.csv \
@@ -127,8 +131,9 @@ mokume quantify features2proteins -p data.parquet -o out.csv \
 
 ### GMS
 
-Gaussian Mixture Sampling — fits a small mixture model to observed
-values and draws missing entries from the appropriate component.
+Gaussian Mixture Sampling — fits a two-component mixture model to each
+sample's observed values and fills its missing entries with the centre of
+the lower component.
 Runs natively in the Rust kernel. In the OpDEA benchmark GMS is the
 best-performing imputer for FragPipe TMT data.
 
@@ -172,18 +177,19 @@ Practical defaults:
 
 ## Standalone API
 
-The wheel exposes a single helper that runs any supported method on a wide
-protein matrix CSV (or DataFrame) outside the pipeline. It reaches both the
-kernel methods and the wheel-only `missforest` imputer, and is
-available with `pip install mokume[analysis]`:
+The wheel runs the kernel methods on a row-major linear-intensity matrix
+with `mokume.impute_matrix`, and the scikit-learn based methods (`knn`,
+`mean`, `median`, `seqknn` and the wheel-only `missforest`) on a wide
+protein matrix CSV (or DataFrame) with `mokume.impute`, available with
+`pip install mokume[analysis]`:
 
 ```python
 import mokume
 
-# Wide matrix: rows=proteins, columns=samples
-mokume.impute("proteins.csv", method="minprob",
-              quantile=0.01, shift=1.6, scale=0.3, output="imputed.csv")
+# Row-major linear intensities; None marks a missing value
+filled = mokume.impute_matrix(values, "minprob", quantile=0.01, tune_sigma=1.0, seed=42)
 
+# Wide matrix: rows=proteins, columns=samples
 mokume.impute("proteins.csv", method="knn", n_neighbors=5, output="imputed.csv")
 mokume.impute("proteins.csv", method="missforest", output="imputed.csv")
 ```

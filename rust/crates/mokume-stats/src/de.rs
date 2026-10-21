@@ -15,7 +15,7 @@ mod ensemble;
 mod ihw;
 mod limma;
 mod limrots;
-mod optimize;
+mod port;
 mod proda;
 mod rots;
 mod special;
@@ -26,9 +26,11 @@ pub use correct::{adaptive_adjust, AdaptiveFdrMethod, AppliedFdrMethod};
 pub use deqms::deqms_two_group;
 pub use effect_size::{estimate_effect_size_gate, EffectSizeGateMethod};
 pub use ensemble::{combine_de_results, EnsembleResult};
-pub use ihw::ihw_correction;
+pub use ihw::{ihw_correction, ihw_with_options, IhwOptions, IhwResult};
 use limma::run_limma;
-pub use limrots::limrots_two_group;
+pub use limrots::{
+    limrots_two_group, limrots_two_group_with_options, LimRotsOptions, LimRotsOutput,
+};
 use proda::proda_run;
 pub use rots::rots_two_group;
 
@@ -241,161 +243,51 @@ mod tests {
         DEFAULT_LOG2FC_THRESHOLD,
     };
 
-    // End-to-end proDA parity on a 20-protein, 3-vs-3 fixture with scattered
-    // missing values (exercising the dropout model). The Python oracle is
-    // `mokume.analysis.proda.run_proda(..., seed=42)`; values captured verbatim
-    // from `conda run -n Bigbio python`.
-    //
-    // HONESTY ON TOLERANCE (measured against Python `run_proda`, seed=42):
-    //   * fully-observed proteins (near-OLS): log2FC median rel error 1.2e-4,
-    //     max 5.4e-4;
-    //   * all proteins except index 5: log2FC median rel error 2.4e-4 (the
-    //     near-zero proteins 13/16/19 dominate the max in *relative* terms but
-    //     agree to <= 1.5e-3 in absolute log2FC);
-    //   * Spearman rank correlation of log2FC vs Python = 0.998 (excl. index 5),
-    //     0.967 (all); no sign disagreement on any protein.
-    //   * the Wald `t_stat`/`pvalue` diverge more (pvalue median rel error ~17%):
-    //     they derive from the analytic-Hessian + CF-calibrated `se_coef`, which
-    //     is the most optimizer-path-sensitive output. This is within the
-    //     accepted (>1e-3) end-to-end envelope.
-    //
-    // WHY index 5 diverges (verified, NOT a multimodal "lower-NLL" basin):
-    //   proDA's per-protein MLE (proda.py:178) and per-sample dropout-curve fit
-    //   (proda.py:66) are optimizer-driven. Every deterministic kernel here is
-    //   cell-exact and the in-crate Nelder-Mead matches SciPy on the dropout
-    //   objective itself (see `optimize::nelder_mead_dropout_objective_matches_
-    //   scipy`). But `run_proda` is a 20-iteration EM *fixed-point* loop: tiny
-    //   per-protein path differences between the in-crate quasi-Newton chain and
-    //   SciPy's L-BFGS-B compound across iterations into different converged
-    //   dropout curves. For this fixture the converged `zeta` differs most at
-    //   columns 1 and 5 (Python -5.47/-5.90 vs Rust -3.60/-2.33); protein 5
-    //   ([22, NaN, 21.5, 24, 24.2, NaN]) has its missing cells in exactly those
-    //   columns, so its regularized fit lands at a different self-consistent
-    //   point (log2FC -0.44 vs Python -2.35). An independent SciPy check shows
-    //   Python's solution has the LOWER negative log-likelihood under Python's
-    //   own converged curves, i.e. Rust's EM converged to a nearby but inferior
-    //   fixed point for this one dropout-heavy protein -- an accepted limitation
-    //   of the self-implemented optimizers, not a correctness bug in the kernels.
-    // The fixture therefore asserts: (a) sign agreement on every log2FC,
-    // (b) tight log2FC for the fully-observed proteins, and (c) the overall
-    // ranking is preserved (Spearman-style monotonicity check on log2FC),
-    // excluding index 5.
+    // Independent Bioconductor proDA 1.24.0 fixture. Complete input avoids
+    // cross-language initialization RNG differences while testing the public API.
     #[test]
-    fn proda_two_group_parity_on_fixture() {
-        const N: f64 = f64::NAN;
-        let data: Vec<Vec<f64>> = vec![
-            vec![20.0, 20.2, 19.8, 22.0, 22.1, 21.9],
-            vec![18.0, 18.1, 17.9, 16.0, 16.2, 15.8],
-            vec![15.0, 15.1, 14.9, 15.05, 14.95, 15.0],
-            vec![21.0, 21.3, N, 19.0, 19.2, 18.8],
-            vec![17.0, 16.8, 17.2, 14.0, N, 13.8],
-            vec![22.0, N, 21.5, 24.0, 24.2, N],
-            vec![12.0, 12.1, 11.9, 12.2, 12.0, 11.8],
-            vec![25.0, 25.2, 24.8, 23.0, 23.1, 22.9],
-            vec![19.0, 19.1, N, 21.0, 21.2, 20.8],
-            vec![16.0, 16.2, 15.8, N, 18.1, 17.9],
-            vec![14.0, 14.1, 13.9, 14.05, 13.95, 14.1],
-            vec![23.0, 23.1, 22.9, 20.0, N, 19.8],
-            vec![13.0, N, 12.8, 15.0, 15.2, 14.8],
-            vec![18.5, 18.7, 18.3, 18.4, 18.6, 18.2],
-            vec![26.0, 26.1, 25.9, 28.0, 28.2, 27.8],
-            vec![11.0, 11.2, 10.8, 9.0, 9.1, N],
-            vec![24.0, 24.2, N, 24.1, N, 23.9],
-            vec![17.5, 17.6, 17.4, 19.5, 19.7, 19.3],
-            vec![20.5, 20.7, 20.3, 18.5, 18.3, 18.7],
-            vec![15.5, N, 15.3, 15.4, 15.6, 15.2],
-        ];
-        // Python run_proda log2FC (seed=42), indexed P00..P19.
-        let py_log2fc: [f64; 20] = [
-            -1.99740431918,
-            1.99649392979,
-            0.0,
-            2.14206289587,
-            3.09441017939,
-            -2.34712729552,
-            0.0,
-            1.99931269705,
-            -1.94945533552,
-            -1.99023723043,
-            -0.0333071885966,
-            3.10045513177,
-            -2.09691362921,
-            0.0998083668484,
-            -2.0002192384,
-            1.94771864719,
-            0.100691080232,
-            -1.9962359877,
-            1.99651111091,
-            -0.000368935561614,
-        ];
-        // Fully-observed proteins (no NaN cells) -- tight log2FC parity.
-        let fully_observed = [0, 1, 2, 6, 7, 10, 13, 14, 17, 18];
-
-        let proteins: Vec<String> = (0..data.len()).map(|i| format!("P{i:02}")).collect();
-        let refs: Vec<&[f64]> = data.iter().map(Vec::as_slice).collect();
-        let res = proda_two_group(&proteins, &refs, 3, 3, 0.05, 0.5);
-        assert_eq!(res.len(), 20, "all 20 proteins are testable");
-
-        // Re-key by protein for index lookup.
-        let mut by_index = [f64::NAN; 20];
-        for r in &res {
-            let Ok(idx) = r.protein[1..].parse::<usize>() else {
-                panic!("bad protein name {}", r.protein);
-            };
-            by_index[idx] = r.log2_fold_change;
-        }
-
-        // Protein index 5 is the EM fixed-point divergence documented above
-        // (different converged dropout curves at its two missing columns), so its
-        // log2FC differs. Excluded from the ranking and strict-sign checks; every
-        // other protein agrees.
-        let divergent = 5usize;
-
-        // (a) Sign agreement on every protein (zero log2FC treated as matching).
-        for i in 0..20 {
-            if i == divergent {
-                continue;
-            }
-            let (py, ru) = (py_log2fc[i], by_index[i]);
-            if py.abs() > 1e-3 {
+    fn proda_public_entrypoint_matches_official_complete_fixture() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/data/proda_official.json"))
+                .unwrap_or_else(|e| panic!("invalid official fixture: {e}"));
+        let case = &fixture["cases"][0];
+        let data = case["matrix"]
+            .as_array()
+            .unwrap_or_else(|| panic!("fixture array missing"))
+            .iter()
+            .map(|row| {
+                row.as_array()
+                    .unwrap_or_else(|| panic!("fixture array missing"))
+                    .iter()
+                    .map(|v| {
+                        v.as_f64()
+                            .unwrap_or_else(|| panic!("fixture number missing"))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let ids = (0..data.len()).map(|i| i.to_string()).collect::<Vec<_>>();
+        let refs = data.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let results = proda_two_group(&ids, &refs, 4, 4, 0.05, 0.5);
+        assert_eq!(results.len(), data.len());
+        for row in results {
+            let i = row
+                .protein
+                .parse::<usize>()
+                .unwrap_or_else(|e| panic!("fixture index: {e}"));
+            for (key, a) in [
+                ("log2FC", row.log2_fold_change),
+                ("statistic", row.t_statistic),
+                ("pvalue", row.p_value),
+                ("adjusted_pvalue", row.adj_p_value),
+            ] {
+                let b = case["expected"][key][i]
+                    .as_f64()
+                    .unwrap_or_else(|| panic!("fixture number missing"));
                 assert!(
-                    py.signum() == ru.signum(),
-                    "P{i:02} sign mismatch: py={py} rust={ru}"
+                    (a - b).abs() <= 1e-10 + 1e-6 * b.abs(),
+                    "protein {i}, {key}: {a} != {b}"
                 );
-            }
-        }
-
-        // (b) Tight log2FC parity on the fully-observed (near-OLS) proteins.
-        for &i in &fully_observed {
-            let (py, ru) = (py_log2fc[i], by_index[i]);
-            let rel = (py - ru).abs() / py.abs().max(1e-9);
-            assert!(
-                rel <= 3e-3,
-                "P{i:02} fully-observed log2FC rel error {rel:.3e} (py={py} rust={ru})"
-            );
-        }
-
-        // (c) Monotonicity: the Rust and Python log2FC orderings agree on every
-        // pair whose Python values differ by a clear margin (> 0.1), so the
-        // protein ranking is preserved despite per-protein optimizer divergence
-        // (excluding the divergent-basin protein).
-        for i in 0..20 {
-            if i == divergent {
-                continue;
-            }
-            for j in (i + 1)..20 {
-                if j == divergent {
-                    continue;
-                }
-                if (py_log2fc[i] - py_log2fc[j]).abs() > 0.1 {
-                    let py_order = py_log2fc[i] < py_log2fc[j];
-                    let ru_order = by_index[i] < by_index[j];
-                    assert_eq!(
-                        py_order, ru_order,
-                        "ranking flip on (P{i:02},P{j:02}): py=({},{}) rust=({},{})",
-                        py_log2fc[i], py_log2fc[j], by_index[i], by_index[j]
-                    );
-                }
             }
         }
     }

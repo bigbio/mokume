@@ -28,23 +28,17 @@ const EM_MAX_ITER: usize = 100;
 /// mixture; the lower-mean component approximates the MNAR distribution and its
 /// center `mu` is used to fill that sample's missing cells.
 ///
-/// Determinism note: the Python implementation is STOCHASTIC. After fitting the
-/// mixture it draws each replacement from `N(mu, sigma)` via
-/// `numpy.random.default_rng`, so values change with the seed and cannot match
-/// cross-language cell-for-cell. Following the same convention used by `minprob`
-/// in this crate, the Rust port deterministically fills the distribution center
-/// `mu` (the expected value of those draws) instead of sampling. The mixture is
-/// fitted with a deterministic median-split initialization plus EM, so the same
-/// matrix always yields the same fills.
+/// Determinism note: the fill is the center `mu` of the lower component (the
+/// expected value of a draw from it) rather than a random draw; the pure-Python
+/// `impute_gms` fills the same center. The mixture is fitted with a
+/// deterministic median-split initialization plus EM, so the same matrix always
+/// yields the same fills.
 ///
 /// Fit fidelity (verified against scikit-learn `GaussianMixture(n_components=2,
 /// random_state=42)`): on real-scale columns (tens to hundreds of observations,
 /// uni- or bi-modal) this EM converges to the same lower-component `mu` as
 /// scikit-learn -- e.g. 40- and 60-point columns matched to 1e-10 and a
-/// 200-point column to 2.9e-5. The fill is thus a deterministic match for the
-/// CENTER of Python's stochastic draw, not a per-cell match (the draw scatters
-/// around `mu` with spread `sigma`); GMS is a TOLERANCE method whose tolerance is
-/// exactly that draw spread. On very small columns (3 observations, 2 present /
+/// 200-point column to 2.9e-5. On very small columns (3 observations, 2 present /
 /// 1 missing) scikit-learn's random k-means++ seeding and this median split can
 /// settle on different two-point splits, so `mu` collapses onto the minimum
 /// observation here while scikit-learn's lands higher; that small-sample band is

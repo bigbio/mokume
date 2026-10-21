@@ -20,6 +20,7 @@ reverse booleans. For full control, call :func:`run` with explicit argv.
 
 import importlib
 import importlib.metadata
+import json
 import sys
 import warnings
 
@@ -29,6 +30,8 @@ _differential_expression = getattr(_NATIVE_EXTENSION, "differential_expression")
 _impute_matrix = getattr(_NATIVE_EXTENSION, "impute_matrix")
 normalize_matrix = getattr(_NATIVE_EXTENSION, "normalize_matrix")
 _native_run = getattr(_NATIVE_EXTENSION, "run")
+_native_command_schema = getattr(_NATIVE_EXTENSION, "command_schema")
+_native_validate_args = getattr(_NATIVE_EXTENSION, "validate_args")
 version = getattr(_NATIVE_EXTENSION, "version")
 _pibaq_digest_request = getattr(_NATIVE_EXTENSION, "pibaq_digest_request")
 _native_run_cli = getattr(_NATIVE_EXTENSION, "run_cli")
@@ -55,6 +58,8 @@ except importlib.metadata.PackageNotFoundError:
 __all__ = [
     "version",
     "run",
+    "command_schema",
+    "validate_args",
     "features2peptides",
     "features2proteins",
     "peptides2protein",
@@ -179,6 +184,16 @@ def run(args):
     _run(list(args))
 
 
+def command_schema():
+    """Return the machine-readable native CLI contract derived from Clap."""
+    return json.loads(_native_command_schema())
+
+
+def validate_args(args):
+    """Parse native command arguments without executing any computation."""
+    _native_validate_args(list(args))
+
+
 def protease_catalog():
     """Return every protease registered by the installed pyOpenMS runtime."""
     module = importlib.import_module("mokume._pibaq_digest")
@@ -206,7 +221,12 @@ def correct_batches(**kwargs):
 
 
 def impute_matrix(values, method, **options):
-    """Run matrix-level Rust imputation without QPX I/O."""
+    """Run matrix-level Rust imputation without QPX I/O.
+
+    MinProb and QRILC accept ``seed`` (42) and ``tune_sigma`` (1.0).
+    Their random streams differ from R; MinProb's former ``shift``/``scale``
+    options are rejected because they described a different imputation model.
+    """
     return _impute_matrix(values, method, options or None)
 
 
@@ -252,7 +272,7 @@ def _run_command(module_name, argv):
 
 
 def tsne_visualization(**kwargs):
-    """Render the t-SNE plot for a folder of protein files (``plotting`` extra)."""
+    """Render the t-SNE plot for a folder of protein files (``analysis`` extra)."""
     _run_command("visualize", flags_for("visualize", kwargs))
 
 
@@ -262,7 +282,7 @@ def tissuemap(**kwargs):
 
 
 def peptides2protein_qc(**kwargs):
-    """Render the piBAQ QC report from a protein table (``plotting`` extra)."""
+    """Render the piBAQ QC report from a protein table (``analysis`` extra)."""
     _run_command("peptides2protein_qc", flags_for("peptides2protein_qc", kwargs))
 
 
@@ -377,10 +397,12 @@ def workflow_comparison(
 def impute(matrix, method, output=None, **kwargs):
     """Impute missing values with the pure-Python imputers (``analysis`` extra).
 
-    Reaches the imputers the Rust kernel does not reproduce (``missforest`` wraps
-    a scikit-learn estimator), plus every other supported method. ``matrix`` is a
-    wide protein matrix CSV or DataFrame; writes ``output`` if given and returns
-    the imputed DataFrame.
+    Reaches ``missforest``, which the Rust kernel does not reproduce (it wraps a
+    scikit-learn estimator). It also accepts ``knn``, ``mean``, ``median``,
+    ``most_frequent``, ``constant`` and ``seqknn``; every method except
+    ``missforest`` runs in the kernel through ``impute_matrix``. ``matrix`` is
+    a wide protein matrix CSV or DataFrame; writes ``output`` if given and
+    returns the imputed DataFrame.
     """
     _bootstrap()
     import pandas as pd

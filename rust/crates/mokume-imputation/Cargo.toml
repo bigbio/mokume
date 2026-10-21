@@ -12,3 +12,4 @@ workspace = true
 
 [dependencies]
 mokume-core = { path = "../mokume-core" }
+libm = "0.2"

@@ -37,10 +37,9 @@ class TestRuntimeConfigValidation:
         assert rc.duckdb_memory is None
         assert rc.duckdb_threads is None
 
-    def test_valid_duckdb_memory(self) -> None:
-        RuntimeConfig(duckdb_memory="80GB")
-        RuntimeConfig(duckdb_memory="16384MB")
-        RuntimeConfig(duckdb_memory="1.5TB")
+    @pytest.mark.parametrize("memory", ["80GB", "16384MB", "1.5TB"])
+    def test_valid_duckdb_memory(self, memory: str) -> None:
+        assert RuntimeConfig(duckdb_memory=memory).duckdb_memory == memory
 
     def test_rejects_bad_memory_format(self) -> None:
         with pytest.raises(ValueError, match="DuckDB memory string"):

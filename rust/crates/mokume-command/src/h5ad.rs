@@ -255,18 +255,18 @@ mod tests {
 
     type TestResult<T> = std::result::Result<T, Box<dyn Error>>;
 
-    fn temp_path(tag: &str) -> TestResult<std::path::PathBuf> {
+    fn temp_path(tag: &str) -> TestResult<(tempfile::TempDir, std::path::PathBuf)> {
         let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-        Ok(tempfile::Builder::new()
+        let directory = tempfile::Builder::new()
             .prefix(&format!("mokume-h5ad-{tag}-{nanos}-"))
-            .tempdir()?
-            .keep()
-            .join("out.h5ad"))
+            .tempdir()?;
+        let path = directory.path().join("out.h5ad");
+        Ok((directory, path))
     }
 
     #[test]
     fn writes_anndata_layout_that_reads_back() -> TestResult<()> {
-        let path = temp_path("layout")?;
+        let (_tempdir, path) = temp_path("layout")?;
         let obs = vec!["B1-s1".to_string(), "B1-s2".to_string()];
         let var = vec!["P1".to_string(), "P2".to_string(), "P3".to_string()];
         let x = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];

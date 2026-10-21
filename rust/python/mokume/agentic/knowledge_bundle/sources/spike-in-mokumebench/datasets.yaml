@@ -1,0 +1,5217 @@
+- id: PXD000279
+  project_accession: PXD000279
+  study: PXD000279
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD000279
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Escherichia coli;CR=10% E.coli: Ecoli10
+      CT=spike-in;CN=Escherichia coli;CR=30% E.coli: Ecoli30
+    contrasts:
+      - id: Ecoli30_vs_Ecoli10
+        group1: Ecoli30
+        group2: Ecoli10
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.584962500721156
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.584962500721156
+  ground_truth:
+    entity_count: 1678
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD000279
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.1286
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 137
+    held_out_deficit: 0.199997
+    deficit_regret: 0.187337
+    oracle_config_id: maxlfq|none|minprob|none|deqms
+- id: PXD001385
+  project_accession: PXD001385
+  study: PXD001385
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD001385
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: Ecoli_15ng_vs_Ecoli_3ng
+        group1: Ecoli_15ng
+        group2: Ecoli_3ng
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 2.321928094887362
+      - id: Ecoli_7.5ng_vs_Ecoli_3ng
+        group1: Ecoli_7.5ng
+        group2: Ecoli_3ng
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+      - id: Ecoli_15ng_vs_Ecoli_7.5ng
+        group1: Ecoli_15ng
+        group2: Ecoli_7.5ng
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 214
+    source:
+      type: protein_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD001385
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.885
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 5
+    held_out_deficit: 0.038834
+    deficit_regret: 0.012844
+    oracle_config_id: directlfq|none|impseq|none|deqms
+- id: PXD001819
+  project_accession: PXD001819
+  study: PXD001819
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD001819
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: D_vs_A
+        group1: UPS1_0.5_fmol_per_ug
+        group2: UPS1_0.05_fmol_per_ug
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 3.321928094887362
+      - id: F_vs_C
+        group1: UPS1_5_fmol_per_ug
+        group2: UPS1_0.25_fmol_per_ug
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 4.321928094887363
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 4.321928094887363
+      - id: I_vs_H
+        group1: UPS1_50_fmol_per_ug
+        group2: UPS1_25_fmol_per_ug
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.0
+  ground_truth:
+    entity_count: 46
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD001819
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6991
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 57
+    held_out_deficit: 0.181892
+    deficit_regret: 0.146778
+    oracle_config_id: maxlfq|none|seqknn|none|deqms
+- id: PXD002099
+  project_accession: PXD002099
+  study: PXD002099
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002099
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=mixture;QY=2 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 2fmol
+      CT=mixture;QY=4 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 4fmol
+      CT=mixture;QY=10 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 10fmol
+      CT=mixture;QY=25 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 25fmol
+      CT=mixture;QY=50 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 50fmol
+    contrasts:
+      - id: 50fmol_vs_10fmol
+        group1: 50fmol
+        group2: 10fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+      - id: 25fmol_vs_4fmol
+        group1: 25fmol
+        group2: 4fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.643856189774725
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.643856189774725
+  ground_truth:
+    entity_count: 46
+    source:
+      type: fasta_headers
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 2
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002099
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.3586
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 48
+    held_out_deficit: 0.114033
+    deficit_regret: 0.095601
+    oracle_config_id: directlfq|none|qrilc|none|deqms
+- id: PXD002370
+  project_accession: PXD002370
+  study: PXD002370
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002370
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: D_vs_E
+        group1: D
+        group2: E
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.0
+      - id: C_vs_D
+        group1: C
+        group2: D
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.3219280948873624
+      - id: C_vs_E
+        group1: C
+        group2: E
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+  ground_truth:
+    entity_count: 43
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002370
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6256
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 36
+    held_out_deficit: 0.028456
+    deficit_regret: 0.022247
+    oracle_config_id: directlfq|none|seqknn|none|deqms
+- id: PXD003841__DigLiq
+  project_accession: PXD003841
+  study: PXD003841
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD003841
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 10fmol_vs_0.5fmol
+        group1: DigLiq_UPS1_10fmol
+        group2: DigLiq_UPS1_0.5fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 4.321928094887363
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 4.321928094887363
+      - id: 5fmol_vs_1fmol
+        group1: DigLiq_UPS1_5fmol
+        group2: DigLiq_UPS1_1fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+      - id: 25fmol_vs_10fmol
+        group1: DigLiq_UPS1_25fmol
+        group2: DigLiq_UPS1_10fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.3219280948873624
+  ground_truth:
+    entity_count: 44
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD003841
+    training_datasets: 36
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.4107
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 5
+    held_out_deficit: 0.03821
+    deficit_regret: 0.024644
+    oracle_config_id: directlfq|none|knn|none|deqms
+- id: PXD003841__Stack
+  project_accession: PXD003841
+  study: PXD003841
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD003841
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 10fmol_vs_0.5fmol
+        group1: Stack_UPS1_10fmol
+        group2: Stack_UPS1_0.5fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 4.321928094887363
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 4.321928094887363
+      - id: 5fmol_vs_1fmol
+        group1: Stack_UPS1_5fmol
+        group2: Stack_UPS1_1fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+      - id: 25fmol_vs_10fmol
+        group1: Stack_UPS1_25fmol
+        group2: Stack_UPS1_10fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.3219280948873624
+  ground_truth:
+    entity_count: 46
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD003841
+    training_datasets: 36
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.5971
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 56
+    held_out_deficit: 0.046633
+    deficit_regret: 0.035203
+    oracle_config_id: sum|median|knn|none|rots
+- id: PXD003841__TG
+  project_accession: PXD003841
+  study: PXD003841
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD003841
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 10fmol_vs_0.5fmol
+        group1: TG_UPS1_10fmol
+        group2: TG_UPS1_0.5fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 4.321928094887363
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 4.321928094887363
+      - id: 5fmol_vs_1fmol
+        group1: TG_UPS1_5fmol
+        group2: TG_UPS1_1fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+      - id: 25fmol_vs_10fmol
+        group1: TG_UPS1_25fmol
+        group2: TG_UPS1_10fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.3219280948873624
+  ground_truth:
+    entity_count: 47
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD003841
+    training_datasets: 36
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6863
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 43
+    held_out_deficit: 0.037517
+    deficit_regret: 0.028488
+    oracle_config_id: directlfq|none|seqknn|none|rots
+- id: PXD003881
+  project_accession: PXD003881
+  study: PXD003881
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD003881
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Escherichia coli;CR=1x (3% E.coli): 1x
+      CT=spike-in;CN=Escherichia coli;CR=1.5x (4.5% E.coli): 1.5x
+      CT=spike-in;CN=Escherichia coli;CR=2x (6% E.coli): 2x
+      CT=spike-in;CN=Escherichia coli;CR=2.5x (7.5% E.coli): 2.5x
+      CT=spike-in;CN=Escherichia coli;CR=3x (9% E.coli): 3x
+    contrasts:
+      - id: 3x_vs_1x
+        group1: 3x
+        group2: 1x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.6770807027095875
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.6770807027095875
+      - id: 2x_vs_1x
+        group1: 2x
+        group2: 1x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0453239905094902
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0453239905094902
+      - id: 3x_vs_1.5x
+        group1: 3x
+        group2: 1.5x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.069634187837052
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.069634187837052
+  ground_truth:
+    entity_count: 565
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD003881
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.4295
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 5
+    held_out_deficit: 0.010316
+    deficit_regret: 0.005868
+    oracle_config_id: directlfq|none|mindet|none|limrots
+- id: PXD006447
+  project_accession: PXD006447
+  study: PXD006447
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD006447
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=mixture;QY=0.25 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 0.25fmol
+      CT=mixture;QY=0.74 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 0.74fmol
+      CT=mixture;QY=2.2 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 2.2fmol
+      CT=mixture;QY=3.3 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 3.3fmol
+      CT=mixture;QY=6.6 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 6.6fmol
+      CT=mixture;QY=20 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: 20fmol
+      CT=mixture;QY=0 fmol/uL;CN=UPS1;CV=Sigma-Aldrich: yeast_only
+      CT=mixture;QY=UPS1 only;CN=UPS1;CV=Sigma-Aldrich: ups1_only
+    contrasts:
+      - id: 20fmol_vs_0.74fmol
+        group1: 20fmol
+        group2: 0.74fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 4.756330919033138
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 4.756330919033138
+      - id: 6.6fmol_vs_2.2fmol
+        group1: 6.6fmol
+        group2: 2.2fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.584962500721156
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.584962500721156
+      - id: 2.2fmol_vs_0.74fmol
+        group1: 2.2fmol
+        group2: 0.74fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.57190634789571
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.57190634789571
+  ground_truth:
+    entity_count: 47
+    source:
+      type: fasta_headers
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD006447
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1325
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 21
+    held_out_deficit: 0.024689
+    deficit_regret: 0.013935
+    oracle_config_id: pibaq|none|impseq|none|limma
+- id: PXD007683_LFQ
+  project_accession: PXD007683
+  study: PXD007683
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD007683
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map: {}
+    contrasts:
+      - id: Y5_vs_Y10
+        group1: Y5
+        group2: Y10
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -1.078002512001273
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.078002512001273
+      - id: Y3.3_vs_Y10
+        group1: Y3.3
+        group2: Y10
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -1.6880559936852595
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.6880559936852595
+      - id: Y3.3_vs_Y5
+        group1: Y3.3
+        group2: Y5
+        role: diagnostic
+        expected_direction: DOWN
+        expected_log2fc: -0.6100534816839865
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -0.6100534816839865
+  ground_truth:
+    entity_count: 596
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD007683
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7886
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 4
+    held_out_deficit: 0.018045
+    deficit_regret: 0.002042
+    oracle_config_id: directlfq|none|mindet|none|deqms
+- id: PXD009815
+  project_accession: PXD009815
+  study: PXD009815
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD009815
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: UPS1_50fmol_vs_UPS1_1fmol
+        group1: UPS1_50fmol
+        group2: UPS1_1fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 5.643856189774724
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 5.643856189774724
+      - id: UPS1_5fmol_vs_UPS1_1fmol
+        group1: UPS1_5fmol
+        group2: UPS1_1fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+      - id: UPS1_10fmol_vs_UPS1_5fmol
+        group1: UPS1_10fmol
+        group2: UPS1_5fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.0
+  ground_truth:
+    entity_count: 48
+    source:
+      type: protein_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD009815
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8163
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 22
+    held_out_deficit: 0.022689
+    deficit_regret: 0.017781
+    oracle_config_id: directlfq|none|seqknn|none|limrots
+- id: PXD014777
+  project_accession: PXD014777
+  study: PXD014777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD014777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: HYE124B_vs_HYE124A
+        group1: HYE124B
+        group2: HYE124A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+  ground_truth:
+    entity_count: 1830
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD014777
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.3056
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 105
+    held_out_deficit: 0.110462
+    deficit_regret: 0.101615
+    oracle_config_id: sum|none|mindet|none|rots
+- id: PXD018408_DDA
+  project_accession: PXD018408
+  study: PXD018408
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD018408
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 2x_vs_1x
+        group1: 2x
+        group2: 1x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 384
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD018408
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.0949
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 132
+    held_out_deficit: 0.057144
+    deficit_regret: 0.03965
+    oracle_config_id: sum|none|mindet|none|limrots
+- id: PXD019777_DDA__1H25_T10_H
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 227
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8078
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 23
+    held_out_deficit: 0.051474
+    deficit_regret: 0.039423
+    oracle_config_id: directlfq|none|seqknn|none|limrots
+- id: PXD019777_DDA__1H25_T10_L
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 102
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.4791
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 15
+    held_out_deficit: 0.044641
+    deficit_regret: 0.038548
+    oracle_config_id: directlfq|none|seqknn|none|rots
+- id: PXD019777_DDA__1H25_T10_M
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 203
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6801
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 27
+    held_out_deficit: 0.051567
+    deficit_regret: 0.045332
+    oracle_config_id: directlfq|none|impseq|none|rots
+- id: PXD019777_DDA__1H25_T20_L
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 75
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1993
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 163
+    held_out_deficit: 0.105992
+    deficit_regret: 0.098126
+    oracle_config_id: directlfq|none|impseq|none|limrots
+- id: PXD019777_DDA__1H25_T20_M
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 212
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7767
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 5
+    held_out_deficit: 0.027007
+    deficit_regret: 0.006308
+    oracle_config_id: directlfq|none|impseq|none|rots
+- id: PXD019777_DDA__1H25_T5_H
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 210
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8346
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 11
+    held_out_deficit: 0.043895
+    deficit_regret: 0.017084
+    oracle_config_id: directlfq|none|impseq|none|limrots
+- id: PXD019777_DDA__1H25_T5_L
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 66
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.22
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 58
+    held_out_deficit: 0.075827
+    deficit_regret: 0.048823
+    oracle_config_id: directlfq|none|impseqrob|none|limrots
+- id: PXD019777_DDA__1H25_T5_M
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 191
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6534
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 2
+    held_out_deficit: 0.026538
+    deficit_regret: 0.001849
+    oracle_config_id: directlfq|none|mindet|none|deqms
+- id: PXD019777_DDA__1H_T10_H
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 193
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7415
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 16
+    held_out_deficit: 0.044273
+    deficit_regret: 0.025041
+    oracle_config_id: directlfq|none|seqknn|none|limrots
+- id: PXD019777_DDA__2H_T10_H
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 329
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8033
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 29
+    held_out_deficit: 0.050296
+    deficit_regret: 0.027771
+    oracle_config_id: directlfq|none|impseq|none|rots
+- id: PXD021425
+  project_accession: PXD021425
+  study: PXD019777
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD021425
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 502
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 28
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.5793
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 2
+    held_out_deficit: 0.007009
+    deficit_regret: 0.000129
+    oracle_config_id: directlfq|none|mindet|none|deqms
+- id: PXD027800
+  project_accession: PXD027800
+  study: PXD027800
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD027800
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: Point7_vs_Point4
+        group1: Point7
+        group2: Point4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.0
+        expected_log2fc_by_component:
+          arabidopsis: 0.0
+          ups: 3.0
+      - id: Point7_vs_Point5
+        group1: Point7
+        group2: Point5
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.0
+        expected_log2fc_by_component:
+          arabidopsis: 0.0
+          ups: 2.0
+      - id: Point7_vs_Point6
+        group1: Point7
+        group2: Point6
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          arabidopsis: 0.0
+          ups: 1.0
+  ground_truth:
+    entity_count: 48
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD027800
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7853
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 18
+    held_out_deficit: 0.015902
+    deficit_regret: 0.008414
+    oracle_config_id: directlfq|none|none|none|rots
+- id: PXD028735
+  project_accession: PXD028735
+  study: PXD028735
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD028735
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E20H65Y15_vs_E5H65Y30
+        group1: E20H65Y15
+        group2: E5H65Y30
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+  ground_truth:
+    entity_count: 1566
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD028735
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7221
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 5
+    held_out_deficit: 0.015834
+    deficit_regret: 0.003589
+    oracle_config_id: directlfq|none|minprob|none|limrots
+- id: PXD030780
+  project_accession: PXD030780
+  study: PXD030780
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD030780
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E_vs_A
+        group1: E
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 2.0
+          yeast: -0.8073549220576042
+      - id: D_vs_A
+        group1: D
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.584962500721156
+          yeast: -0.4854268271702417
+      - id: C_vs_A
+        group1: C
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+          yeast: -0.22239242133644802
+  ground_truth:
+    entity_count: 2490
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD030780
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.602
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 27
+    held_out_deficit: 0.024817
+    deficit_regret: 0.007768
+    oracle_config_id: maxlfq|median|seqknn|none|deqms
+- id: PXD044981_DDA
+  project_accession: PXD044981
+  study: PXD044981
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD044981
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 1x_vs_10x
+        group1: 1x
+        group2: 10x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 3.321928094887362
+      - id: 1x_vs_5x
+        group1: 1x
+        group2: 5x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+      - id: 1x_vs_2.5x
+        group1: 1x
+        group2: 2.5x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.3219280948873624
+  ground_truth:
+    entity_count: 27
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD044981
+    training_datasets: 38
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8632
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 23
+    held_out_deficit: 0.027093
+    deficit_regret: 0.017785
+    oracle_config_id: directlfq|none|knn|none|deqms
+- id: PXD056598_DDA__A_evo_ex_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 1321
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1408
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 27
+    held_out_deficit: 0.019632
+    deficit_regret: 0.016192
+    oracle_config_id: directlfq|none|mindet|none|limma
+- id: PXD056598_DDA__A_ulti_ex_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 1256
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.1146
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 79
+    held_out_deficit: 0.063815
+    deficit_regret: 0.052034
+    oracle_config_id: pibaq|median|qrilc|none|rots
+- id: PXD056598_DDA__B_ulti_HFX_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 928
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.0715
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 62
+    held_out_deficit: 0.039765
+    deficit_regret: 0.035816
+    oracle_config_id: pibaq|median|mindet|none|limrots
+- id: PXD056598_DDA__B_ulti_HF_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 704
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.0012
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 228
+    held_out_deficit: 0.08702
+    deficit_regret: 0.084609
+    oracle_config_id: sum|median|impseqrob|none|limrots
+- id: PXD056598_DDA__D_ulti_ecl_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 747
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.4212
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 201
+    held_out_deficit: 0.08214
+    deficit_regret: 0.077994
+    oracle_config_id: pibaq|none|impseqrob|none|limrots
+- id: PXD056598_DDA__E_ulti_lumos_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 728
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.363
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 112
+    held_out_deficit: 0.08165
+    deficit_regret: 0.071178
+    oracle_config_id: pibaq|none|mindet|none|limrots
+- id: PXD056598_DDA__F_Vanq_ecl_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 1221
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.0862
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 32
+    held_out_deficit: 0.040174
+    deficit_regret: 0.031083
+    oracle_config_id: pibaq|median|qrilc|none|limrots
+- id: PXD056598_DDA__G_ulti_ex_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 1253
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.3703
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 23
+    held_out_deficit: 0.038699
+    deficit_regret: 0.029257
+    oracle_config_id: maxlfq|median|knn|none|deqms
+- id: PXD056598_DDA__H_ulti_ecl_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 1332
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6237
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 32
+    held_out_deficit: 0.040469
+    deficit_regret: 0.017243
+    oracle_config_id: maxlfq|median|none|none|rots
+- id: PXD056598_DDA__H_ulti_ex_DDA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: LFQ
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 1712
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 29
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1746
+    selected_pipeline:
+      id: directlfq|none|minprob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 12
+    held_out_deficit: 0.024033
+    deficit_regret: 0.01424
+    oracle_config_id: directlfq|none|mindet|none|limrots
+- id: PXD002952_HYE124__HYE124_TTOF5600_32fix
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+  ground_truth:
+    entity_count: 2547
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.5332
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 14
+    held_out_deficit: 0.018943
+    deficit_regret: 0.006808
+    oracle_config_id: directlfq|median|minprob|none|deqms
+- id: PXD002952_HYE124__HYE124_TTOF5600_64var
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+  ground_truth:
+    entity_count: 3419
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.3707
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 14
+    held_out_deficit: 0.021616
+    deficit_regret: 0.012278
+    oracle_config_id: directlfq|median|minprob|none|rots
+- id: PXD002952_HYE124__HYE124_TTOF6600_32fix
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+  ground_truth:
+    entity_count: 3882
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8084
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 36
+    held_out_deficit: 0.033807
+    deficit_regret: 0.023591
+    oracle_config_id: directlfq|median|qrilc|none|limrots
+- id: PXD002952_HYE124__HYE124_TTOF6600_64var
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+  ground_truth:
+    entity_count: 4544
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8505
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 21
+    held_out_deficit: 0.022336
+    deficit_regret: 0.013913
+    oracle_config_id: maxlfq|none|minprob|none|deqms
+- id: PXD002952_HYE110__HYE110_TTOF6600_32fix
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 3.321928094887362
+  ground_truth:
+    entity_count: 3360
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1555
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 48
+    held_out_deficit: 0.039261
+    deficit_regret: 0.038296
+    oracle_config_id: pibaq|median|minprob|none|limrots
+- id: PXD002952_HYE110__HYE110_TTOF6600_32var
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 3.321928094887362
+  ground_truth:
+    entity_count: 3738
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1504
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 47
+    held_out_deficit: 0.039806
+    deficit_regret: 0.038424
+    oracle_config_id: pibaq|median|mindet|none|limrots
+- id: PXD002952_HYE110__HYE110_TTOF6600_64fix
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 3.321928094887362
+  ground_truth:
+    entity_count: 3632
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1048
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 50
+    held_out_deficit: 0.039579
+    deficit_regret: 0.037566
+    oracle_config_id: pibaq|none|mindet|none|limrots
+- id: PXD002952_HYE110__HYE110_TTOF6600_64var
+  project_accession: PXD002952
+  study: PXD002952
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD002952
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 3.321928094887362
+  ground_truth:
+    entity_count: 4137
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD002952
+    training_datasets: 30
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1774
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 41
+    held_out_deficit: 0.028599
+    deficit_regret: 0.026605
+    oracle_config_id: pibaq|none|minprob|none|limrots
+- id: PXD018408_DIA
+  project_accession: PXD018408
+  study: PXD018408
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD018408
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 2x_vs_1x
+        group1: 2x
+        group2: 1x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 755
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD018408
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7053
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 17
+    held_out_deficit: 0.016237
+    deficit_regret: 0.014416
+    oracle_config_id: directlfq|none|minprob|none|deqms
+- id: PXD019777_DIA
+  project_accession: PXD019777
+  study: PXD019777
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD019777
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E9_vs_E4
+        group1: E9
+        group2: E4
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.0
+      - id: E9_vs_E6
+        group1: E9
+        group2: E6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 0.5849625007211562
+      - id: E7_vs_E3
+        group1: E7
+        group2: E3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 852
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD019777
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8191
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 62
+    held_out_deficit: 0.032263
+    deficit_regret: 0.017253
+    oracle_config_id: maxlfq|none|impseq|none|deqms
+- id: PXD022589
+  project_accession: PXD022589
+  study: PXD022589
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD022589
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: B
+        group2: A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+  ground_truth:
+    entity_count: 5430
+    source:
+      type: protein_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD022589
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.5774
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 100
+    held_out_deficit: 0.059481
+    deficit_regret: 0.052558
+    oracle_config_id: maxlfq|median|minprob|none|deqms
+- id: PXD026600
+  project_accession: PXD026600
+  study: PXD026600
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD026600
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=Mixture;CN=UPS1;QY=0.1 fmol: 0.1fmol
+      CT=Mixture;CN=UPS1;QY=0.25 fmol: 0.25fmol
+      CT=Mixture;CN=UPS1;QY=1 fmol: 1fmol
+      CT=Mixture;CN=UPS1;QY=2.5 fmol: 2.5fmol
+      CT=Mixture;CN=UPS1;QY=5 fmol: 5fmol
+      CT=Mixture;CN=UPS1;QY=10 fmol: 10fmol
+      CT=Mixture;CN=UPS1;QY=25 fmol: 25fmol
+      CT=Mixture;CN=UPS1;QY=50 fmol: 50fmol
+    contrasts:
+      - id: 5fmol_vs_1fmol
+        group1: 5fmol
+        group2: 1fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          ecoli: 0.0
+          ups: 2.321928094887362
+      - id: 25fmol_vs_10fmol
+        group1: 25fmol
+        group2: 10fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          ecoli: 0.0
+          ups: 1.3219280948873624
+      - id: 5fmol_vs_0.25fmol
+        group1: 5fmol
+        group2: 0.25fmol
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 4.321928094887363
+        expected_log2fc_by_component:
+          ecoli: 0.0
+          ups: 4.321928094887363
+  ground_truth:
+    entity_count: 48
+    source:
+      type: fasta_headers
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD026600
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.4589
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 123
+    held_out_deficit: 0.051198
+    deficit_regret: 0.037123
+    oracle_config_id: pibaq|none|impseq|none|rots
+- id: PXD036786__SWATH_0.5uL
+  project_accession: PXD036786
+  study: PXD036786
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD036786
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: SWATH_0.5uL_A
+        group2: SWATH_0.5uL_B
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+  ground_truth:
+    entity_count: 901
+    source:
+      type: fasta_components
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD036786
+    training_datasets: 34
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.0151
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 215
+    held_out_deficit: 0.214338
+    deficit_regret: 0.188122
+    oracle_config_id: pibaq|none|impseqrob|none|limrots
+- id: PXD036786__SWATH_1uL
+  project_accession: PXD036786
+  study: PXD036786
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD036786
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: SWATH_1uL_A
+        group2: SWATH_1uL_B
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+  ground_truth:
+    entity_count: 1254
+    source:
+      type: fasta_components
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD036786
+    training_datasets: 34
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.2145
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 192
+    held_out_deficit: 0.138613
+    deficit_regret: 0.115965
+    oracle_config_id: sum|none|mindet|none|deqms
+- id: PXD036786__ZenoSWATH_0.5uL
+  project_accession: PXD036786
+  study: PXD036786
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD036786
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: ZenoSWATH_0.5uL_A
+        group2: ZenoSWATH_0.5uL_B
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+  ground_truth:
+    entity_count: 1812
+    source:
+      type: fasta_components
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD036786
+    training_datasets: 34
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.2698
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 199
+    held_out_deficit: 0.138547
+    deficit_regret: 0.129772
+    oracle_config_id: maxlfq|none|mindet|none|limrots
+- id: PXD036786__ZenoSWATH_1uL
+  project_accession: PXD036786
+  study: PXD036786
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD036786
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: ZenoSWATH_1uL_A
+        group2: ZenoSWATH_1uL_B
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+  ground_truth:
+    entity_count: 2039
+    source:
+      type: fasta_components
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD036786
+    training_datasets: 34
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.481
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 75
+    held_out_deficit: 0.083663
+    deficit_regret: 0.074517
+    oracle_config_id: maxlfq|none|mindet|none|limrots
+- id: PXD040205
+  project_accession: PXD040205
+  study: PXD040205
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD040205
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: Ecoli_500ng_vs_Ecoli_200ng
+        group1: Ecoli_500ng
+        group2: Ecoli_200ng
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          human: 0.0
+          ecoli: 1.3219280948873624
+  ground_truth:
+    entity_count: 1124
+    source:
+      type: fasta_components
+      changing_components: ecoli
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD040205
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6136
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 38
+    held_out_deficit: 0.037404
+    deficit_regret: 0.027769
+    oracle_config_id: directlfq|none|impseqrob|none|deqms
+- id: PXD044981_DIA
+  project_accession: PXD044981
+  study: PXD044981
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD044981
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 1x_vs_10x
+        group1: 1x
+        group2: 10x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 3.321928094887362
+      - id: 1x_vs_5x
+        group1: 1x
+        group2: 5x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.321928094887362
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 2.321928094887362
+      - id: 1x_vs_2.5x
+        group1: 1x
+        group2: 2.5x
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.3219280948873624
+        expected_log2fc_by_component:
+          yeast: 0.0
+          ups: 1.3219280948873624
+  ground_truth:
+    entity_count: 28
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD044981
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.2985
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 100
+    held_out_deficit: 0.045501
+    deficit_regret: 0.036396
+    oracle_config_id: directlfq|none|knn|none|limrots
+- id: PXD046444
+  project_accession: PXD046444
+  study: PXD046444
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD046444
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: E5H50Y45_vs_E45H50Y5
+        group1: E5H50Y45
+        group2: E45H50Y5
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 3.169925001442312
+          ecoli: -3.1699250014423126
+      - id: E10H50Y40_vs_E30H50Y20
+        group1: E10H50Y40
+        group2: E30H50Y20
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+          ecoli: -1.5849625007211563
+      - id: E20H50Y30_vs_E30H50Y20
+        group1: E20H50Y30
+        group2: E30H50Y20
+        role: diagnostic
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 0.5849625007211562
+          ecoli: -0.5849625007211563
+  ground_truth:
+    entity_count: 6132
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD046444
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.3821
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 26
+    held_out_deficit: 0.055466
+    deficit_regret: 0.050483
+    oracle_config_id: maxlfq|none|minprob|none|deqms
+- id: PXD056598_DIA__A_evo_ex_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 3497
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1479
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 64
+    held_out_deficit: 0.065894
+    deficit_regret: 0.061009
+    oracle_config_id: pibaq|none|mindet|none|deqms
+- id: PXD056598_DIA__A_ulti_ex_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 4017
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.2727
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 86
+    held_out_deficit: 0.060029
+    deficit_regret: 0.048443
+    oracle_config_id: pibaq|median|minprob|none|deqms
+- id: PXD056598_DIA__B_ulti_HFX_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 2836
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.181
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 88
+    held_out_deficit: 0.067571
+    deficit_regret: 0.047079
+    oracle_config_id: pibaq|median|minprob|none|limma
+- id: PXD056598_DIA__B_ulti_HF_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 2462
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.3775
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 78
+    held_out_deficit: 0.059943
+    deficit_regret: 0.043508
+    oracle_config_id: directlfq|median|mindet|none|deqms
+- id: PXD056598_DIA__D_Vanq_ex_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 2613
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.2372
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 104
+    held_out_deficit: 0.064466
+    deficit_regret: 0.050915
+    oracle_config_id: pibaq|none|mindet|none|rots
+- id: PXD056598_DIA__D_ulti_ecl_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 3408
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.2476
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 27
+    held_out_deficit: 0.030574
+    deficit_regret: 0.016427
+    oracle_config_id: pibaq|none|mindet|none|limrots
+- id: PXD056598_DIA__E_ulti_lumos_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 3874
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.139
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 80
+    held_out_deficit: 0.07764
+    deficit_regret: 0.066561
+    oracle_config_id: pibaq|median|mindet|none|deqms
+- id: PXD056598_DIA__G_ulti_ex_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 3907
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.3366
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 28
+    held_out_deficit: 0.028589
+    deficit_regret: 0.021238
+    oracle_config_id: directlfq|none|mindet|none|deqms
+- id: PXD056598_DIA__H_ulti_ecl_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 4470
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.4813
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 47
+    held_out_deficit: 0.058363
+    deficit_regret: 0.045238
+    oracle_config_id: maxlfq|median|mindet|none|deqms
+- id: PXD056598_DIA__H_ulti_ex_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 4567
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.425
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 19
+    held_out_deficit: 0.023223
+    deficit_regret: 0.014114
+    oracle_config_id: directlfq|none|mindet|none|deqms
+- id: PXD056598_DIA__I_nLC_ex_DIA_PYE1
+  project_accession: PXD056598
+  study: PXD056598
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056598
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.5849625007211563
+          ecoli: 1.0
+  ground_truth:
+    entity_count: 4032
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056598
+    training_datasets: 27
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1884
+    selected_pipeline:
+      id: maxlfq|none|minprob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: minprob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 89
+    held_out_deficit: 0.059079
+    deficit_regret: 0.055722
+    oracle_config_id: pibaq|none|mindet|none|limrots
+- id: PXD056832__HYEPept_Batch1
+  project_accession: PXD056832
+  study: PXD056832
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056832
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: S5_vs_S1
+        group1: S5
+        group2: S1
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.0
+          ecoli: -2.0
+      - id: S4_vs_S1
+        group1: S4
+        group2: S1
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.584962500721156
+          ecoli: -1.0
+      - id: S5_vs_S2
+        group1: S5
+        group2: S2
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+          ecoli: -1.584962500721156
+  ground_truth:
+    entity_count: 1258
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056832
+    training_datasets: 35
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.0456
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 215
+    held_out_deficit: 0.189756
+    deficit_regret: 0.189169
+    oracle_config_id: directlfq|none|mindet|none|rots
+- id: PXD056832__HYEPept_Batch2
+  project_accession: PXD056832
+  study: PXD056832
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056832
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: S5_vs_S1
+        group1: S5
+        group2: S1
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.0
+          ecoli: -2.0
+      - id: S4_vs_S1
+        group1: S4
+        group2: S1
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.584962500721156
+          ecoli: -1.0
+      - id: S5_vs_S2
+        group1: S5
+        group2: S2
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+          ecoli: -1.584962500721156
+  ground_truth:
+    entity_count: 1246
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056832
+    training_datasets: 35
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1774
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 39
+    held_out_deficit: 0.03227
+    deficit_regret: 0.025825
+    oracle_config_id: pibaq|none|mindet|none|limrots
+- id: PXD056832__HYEPept_Batch3
+  project_accession: PXD056832
+  study: PXD056832
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD056832
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: S5_vs_S1
+        group1: S5
+        group2: S1
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.0
+          ecoli: -2.0
+      - id: S4_vs_S1
+        group1: S4
+        group2: S1
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.584962500721156
+          ecoli: -1.0
+      - id: S5_vs_S2
+        group1: S5
+        group2: S2
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+          ecoli: -1.584962500721156
+  ground_truth:
+    entity_count: 1262
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD056832
+    training_datasets: 35
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.0047
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 79
+    held_out_deficit: 0.036933
+    deficit_regret: 0.034651
+    oracle_config_id: pibaq|none|mindet|none|limrots
+- id: PXD062685
+  project_accession: PXD062685
+  study: PXD062685
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD062685
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+          ecoli: -2.0
+  ground_truth:
+    entity_count: 3794
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD062685
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8639
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 38
+    held_out_deficit: 0.028148
+    deficit_regret: 0.021322
+    oracle_config_id: maxlfq|none|qrilc|none|limrots
+- id: PXD066672
+  project_accession: PXD066672
+  study: PXD066672
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD066672
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: 45Y_vs_05Y
+        group1: 45Y_50H_05E
+        group2: 05Y_50H_45E
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 3.169925001442312
+          ecoli: -3.1699250014423126
+      - id: 45Y_vs_25Y
+        group1: 45Y_50H_05E
+        group2: 25Y_50H_25E
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 0.8479969065549501
+          ecoli: -2.321928094887362
+      - id: 25Y_vs_05Y
+        group1: 25Y_50H_25E
+        group2: 05Y_50H_45E
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.321928094887362
+          ecoli: -0.84799690655495
+  ground_truth:
+    entity_count: 6479
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD066672
+    training_datasets: 37
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.8495
+    selected_pipeline:
+      id: maxlfq|none|mindet|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 16
+    held_out_deficit: 0.023266
+    deficit_regret: 0.013577
+    oracle_config_id: directlfq|none|seqknn|none|deqms
+- id: PXD070049
+  project_accession: PXD070049
+  study: PXD070049
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD070049
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: A_vs_B
+        group1: A
+        group2: B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+          ecoli: -2.0
+  ground_truth:
+    entity_count: 2925
+    source:
+      type: fasta_headers
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 1
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD070049
+    training_datasets: 35
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7276
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 28
+    held_out_deficit: 0.022323
+    deficit_regret: 0.016662
+    oracle_config_id: maxlfq|median|qrilc|none|limrots
+- id: PXD071205_TE__TE_15min_50ng
+  project_accession: PXD071205
+  study: PXD070049
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD071205
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: TE_15min_50ng_B
+        group2: TE_15min_50ng_A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+      - id: C_vs_A
+        group1: TE_15min_50ng_C
+        group2: TE_15min_50ng_A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 2.678071905112638
+      - id: C_vs_B
+        group1: TE_15min_50ng_C
+        group2: TE_15min_50ng_B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -2.321928094887362
+          ecoli: 0.6780719051126377
+  ground_truth:
+    entity_count: 5398
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD070049
+    training_datasets: 35
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.7592
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 16
+    held_out_deficit: 0.014153
+    deficit_regret: 0.013117
+    oracle_config_id: maxlfq|none|mindet|none|rots
+- id: PXD071205_TE__TE_5min_50ng
+  project_accession: PXD071205
+  study: PXD070049
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD071205
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: TE_5min_50ng_B
+        group2: TE_5min_50ng_A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+      - id: C_vs_A
+        group1: TE_5min_50ng_C
+        group2: TE_5min_50ng_A
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 2.678071905112638
+      - id: C_vs_B
+        group1: TE_5min_50ng_C
+        group2: TE_5min_50ng_B
+        role: primary
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -2.321928094887362
+          ecoli: 0.6780719051126377
+  ground_truth:
+    entity_count: 4811
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD070049
+    training_datasets: 35
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.4884
+    selected_pipeline:
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: mindet
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 19
+    held_out_deficit: 0.010839
+    deficit_regret: 0.008393
+    oracle_config_id: directlfq|none|mindet|none|limrots
+- id: PXD071205_DI__DI_15min_250pg
+  project_accession: PXD071205
+  study: PXD070049
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD071205
+  preset_eligible: false
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: DI_15min_250pg_B
+        group2: DI_15min_250pg_A
+        role: diagnostic
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+      - id: C_vs_A
+        group1: DI_15min_250pg_C
+        group2: DI_15min_250pg_A
+        role: diagnostic
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 2.678071905112638
+      - id: C_vs_B
+        group1: DI_15min_250pg_C
+        group2: DI_15min_250pg_B
+        role: diagnostic
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -2.321928094887362
+          ecoli: 0.6780719051126377
+  ground_truth:
+    entity_count: 2016
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation: null
+- id: PXD071205_DI__DI_5min_250pg
+  project_accession: PXD071205
+  study: PXD070049
+  data_type: DIA
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD071205
+  preset_eligible: false
+  design:
+    family: organism
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: B_vs_A
+        group1: DI_5min_250pg_B
+        group2: DI_5min_250pg_A
+        role: diagnostic
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+          ecoli: 2.0
+      - id: C_vs_A
+        group1: DI_5min_250pg_C
+        group2: DI_5min_250pg_A
+        role: diagnostic
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+          ecoli: 2.678071905112638
+      - id: C_vs_B
+        group1: DI_5min_250pg_C
+        group2: DI_5min_250pg_B
+        role: diagnostic
+        expected_direction: MIXED
+        expected_log2fc: null
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -2.321928094887362
+          ecoli: 0.6780719051126377
+  ground_truth:
+    entity_count: 1450
+    source:
+      type: fasta_components
+      changing_components: ecoli;yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation: null
+- id: PXD011691__BGS
+  project_accession: PXD011691
+  study: PXD011691
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD011691
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: S1_vs_S4
+        group1: S1
+        group2: S4
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -1.4436066514756147
+        expected_log2fc_by_component:
+          mouse: 0.0
+          ups: -1.4436066514756147
+      - id: S2_vs_S5
+        group1: S2
+        group2: S5
+        role: diagnostic
+        expected_direction: DOWN
+        expected_log2fc: -3.1930548762808675
+        expected_log2fc_by_component:
+          mouse: 0.0
+          ups: -3.1930548762808675
+      - id: S3_vs_S4
+        group1: S3
+        group2: S4
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -0.9175378398080273
+        expected_log2fc_by_component:
+          mouse: 0.0
+          ups: -0.9175378398080273
+  ground_truth:
+    entity_count: 11
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD011691
+    training_datasets: 7
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6662
+    selected_pipeline:
+      id: directlfq|none|impseqrob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: impseqrob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 118
+    held_out_deficit: 0.203128
+    deficit_regret: 0.178237
+    oracle_config_id: maxlfq|none|impseq|none|limma
+- id: PXD011691__FLI
+  project_accession: PXD011691
+  study: PXD011691
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD011691
+  preset_eligible: true
+  design:
+    family: ups
+    factor_column: factor value[condition]
+    condition_map: {}
+    contrasts:
+      - id: S1_vs_S4
+        group1: S1
+        group2: S4
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -1.4436066514756147
+        expected_log2fc_by_component:
+          mouse: 0.0
+          ups: -1.4436066514756147
+      - id: S2_vs_S5
+        group1: S2
+        group2: S5
+        role: diagnostic
+        expected_direction: DOWN
+        expected_log2fc: -3.1930548762808675
+        expected_log2fc_by_component:
+          mouse: 0.0
+          ups: -3.1930548762808675
+      - id: S3_vs_S4
+        group1: S3
+        group2: S4
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -0.9175378398080273
+        expected_log2fc_by_component:
+          mouse: 0.0
+          ups: -0.9175378398080273
+  ground_truth:
+    entity_count: 10
+    source:
+      type: fasta_components
+      changing_components: ups
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD011691
+    training_datasets: 7
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.5872
+    selected_pipeline:
+      id: directlfq|none|impseqrob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: impseqrob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 76
+    held_out_deficit: 0.165466
+    deficit_regret: 0.14518
+    oracle_config_id: sum|none|mindet|none|deqms
+- id: PXD020815
+  project_accession: PXD020815
+  study: PXD020815
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD020815
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=0: R0
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=1/20: R1_20
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=1/10: R1_10
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=1/4: R1_4
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=1/2: R1_2
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=1: R1
+    contrasts:
+      - id: R1_20_vs_R1_2
+        group1: R1_20
+        group2: R1_2
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -3.321928094887362
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -3.321928094887362
+      - id: R1_20_vs_R1
+        group1: R1_20
+        group2: R1
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -4.321928094887363
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -4.321928094887363
+      - id: R1_2_vs_R1
+        group1: R1_2
+        group2: R1
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.0
+  ground_truth:
+    entity_count: 1138
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD020815
+    training_datasets: 8
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6037
+    selected_pipeline:
+      id: directlfq|none|impseq|none|rots
+      quantification: directlfq
+      normalization: none
+      imputation: impseq
+      de_method: rots
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 37
+    held_out_deficit: 0.054221
+    deficit_regret: 0.040201
+    oracle_config_id: pibaq|none|none|none|limma
+- id: PXD040449
+  project_accession: PXD040449
+  study: PXD040449
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD040449
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=0: G0
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=0.06: G6
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=0.09: G9
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=yeast:human=0.12: G12
+      not applicable: unused
+    contrasts:
+      - id: G12_vs_G6
+        group1: G12
+        group2: G6
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.0
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.0
+      - id: G9_vs_G6
+        group1: G9
+        group2: G6
+        role: diagnostic
+        expected_direction: UP
+        expected_log2fc: 0.5849625007211562
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 0.5849625007211562
+  ground_truth:
+    entity_count: 488
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 2
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD040449
+    training_datasets: 8
+    ranked_workflows: 310
+    held_out_rank_spearman: -0.3368
+    selected_pipeline:
+      id: maxlfq|none|impseqrob|none|deqms
+      quantification: maxlfq
+      normalization: none
+      imputation: impseqrob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 280
+    held_out_deficit: 0.152407
+    deficit_regret: 0.152407
+    oracle_config_id: directlfq|none|impseqrob|none|limma
+- id: PXD007683_TMT
+  project_accession: PXD007683
+  study: PXD007683
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD007683
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map: {}
+    contrasts:
+      - id: Y5_vs_Y10
+        group1: Y5
+        group2: Y10
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -1.078002512001273
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.078002512001273
+      - id: Y3.3_vs_Y10
+        group1: Y3.3
+        group2: Y10
+        role: primary
+        expected_direction: DOWN
+        expected_log2fc: -1.6880559936852595
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -1.6880559936852595
+      - id: Y3.3_vs_Y5
+        group1: Y3.3
+        group2: Y5
+        role: diagnostic
+        expected_direction: DOWN
+        expected_log2fc: -0.6100534816839865
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: -0.6100534816839865
+  ground_truth:
+    entity_count: 1028
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD007683
+    training_datasets: 8
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.6195
+    selected_pipeline:
+      id: directlfq|none|impseqrob|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: impseqrob
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 12
+    held_out_deficit: 0.000429
+    deficit_regret: 0.000365
+    oracle_config_id: directlfq|none|mindet|none|deqms
+- id: PXD014750_TMT11_MS2
+  project_accession: PXD014750
+  study: PXD014750
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD014750
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1 ug yeast per 50 ug HeLa: S1
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1.75 ug yeast per 50 ug HeLa: S2
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3 ug yeast per 50 ug HeLa: S3
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=5.2 ug yeast per 50 ug HeLa: S4
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=9 ug yeast per 50 ug HeLa: S5
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3.9 ug yeast per 50 ug HeLa: Ref
+    contrasts:
+      - id: S5_vs_S1
+        group1: S5
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.169925001442312
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 3.169925001442312
+      - id: S4_vs_S1
+        group1: S4
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.37851162325373
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.37851162325373
+      - id: S5_vs_S3
+        group1: S5
+        group2: S3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.584962500721156
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.584962500721156
+  ground_truth:
+    entity_count: 294
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD014750
+    training_datasets: 5
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.4668
+    selected_pipeline:
+      id: directlfq|none|none|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: none
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 83
+    held_out_deficit: 0.086472
+    deficit_regret: 0.081175
+    oracle_config_id: maxlfq|none|impseq|none|rots
+- id: PXD014750_TMT11_MS3
+  project_accession: PXD014750
+  study: PXD014750
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD014750
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1 ug yeast per 50 ug HeLa: S1
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1.75 ug yeast per 50 ug HeLa: S2
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3 ug yeast per 50 ug HeLa: S3
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=5.2 ug yeast per 50 ug HeLa: S4
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=9 ug yeast per 50 ug HeLa: S5
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3.9 ug yeast per 50 ug HeLa: Ref
+    contrasts:
+      - id: S5_vs_S1
+        group1: S5
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.169925001442312
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 3.169925001442312
+      - id: S4_vs_S1
+        group1: S4
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.37851162325373
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.37851162325373
+      - id: S5_vs_S3
+        group1: S5
+        group2: S3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.584962500721156
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.584962500721156
+  ground_truth:
+    entity_count: 115
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD014750
+    training_datasets: 5
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1107
+    selected_pipeline:
+      id: directlfq|none|none|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: none
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 74
+    held_out_deficit: 0.024341
+    deficit_regret: 0.020647
+    oracle_config_id: maxlfq|none|impseqrob|none|limrots
+- id: PXD014750_TMTpro_MS2
+  project_accession: PXD014750
+  study: PXD014750
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD014750
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1 ug yeast per 50 ug HeLa: S1
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1.75 ug yeast per 50 ug HeLa: S2
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3 ug yeast per 50 ug HeLa: S3
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=5.2 ug yeast per 50 ug HeLa: S4
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=9 ug yeast per 50 ug HeLa: S5
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3.9 ug yeast per 50 ug HeLa: Ref
+    contrasts:
+      - id: S5_vs_S1
+        group1: S5
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.169925001442312
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 3.169925001442312
+      - id: S4_vs_S1
+        group1: S4
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.37851162325373
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.37851162325373
+      - id: S5_vs_S3
+        group1: S5
+        group2: S3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.584962500721156
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.584962500721156
+  ground_truth:
+    entity_count: 265
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD014750
+    training_datasets: 5
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.5389
+    selected_pipeline:
+      id: directlfq|none|none|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: none
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 94
+    held_out_deficit: 0.068608
+    deficit_regret: 0.065922
+    oracle_config_id: maxlfq|none|impseqrob|none|limrots
+- id: PXD014750_TMTpro_MS3
+  project_accession: PXD014750
+  study: PXD014750
+  data_type: TMT
+  url: https://proteomecentral.proteomexchange.org/dataset/PXD014750
+  preset_eligible: true
+  design:
+    family: organism
+    factor_column: factor value[spiked compound]
+    condition_map:
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1 ug yeast per 50 ug HeLa: S1
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=1.75 ug yeast per 50 ug HeLa: S2
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3 ug yeast per 50 ug HeLa: S3
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=5.2 ug yeast per 50 ug HeLa: S4
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=9 ug yeast per 50 ug HeLa: S5
+      CT=spike-in;CN=Saccharomyces cerevisiae;CR=3.9 ug yeast per 50 ug HeLa: Ref
+    contrasts:
+      - id: S5_vs_S1
+        group1: S5
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 3.169925001442312
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 3.169925001442312
+      - id: S4_vs_S1
+        group1: S4
+        group2: S1
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 2.37851162325373
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 2.37851162325373
+      - id: S5_vs_S3
+        group1: S5
+        group2: S3
+        role: primary
+        expected_direction: UP
+        expected_log2fc: 1.584962500721156
+        expected_log2fc_by_component:
+          human: 0.0
+          yeast: 1.584962500721156
+  ground_truth:
+    entity_count: 110
+    source:
+      type: fasta_headers
+      changing_components: yeast
+  benchmark:
+    contract_id: mokumebench
+    declared_candidates: 744
+    successful_candidates: 744
+    failed_candidates: 0
+    contrast_count: 3
+    grid_complete: true
+  held_out_evaluation:
+    held_out_study: PXD014750
+    training_datasets: 5
+    ranked_workflows: 310
+    held_out_rank_spearman: 0.1527
+    selected_pipeline:
+      id: directlfq|none|none|none|deqms
+      quantification: directlfq
+      normalization: none
+      imputation: none
+      de_method: deqms
+      fdr_method: bh
+      log2fc_threshold: 0.584963
+    held_out_benchmark_rank: 44
+    held_out_deficit: 0.02527
+    deficit_regret: 0.019146
+    oracle_config_id: maxlfq|none|impseq|none|deqms

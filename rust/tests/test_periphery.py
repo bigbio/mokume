@@ -1,6 +1,6 @@
 """Periphery rendering tests: the folded ``mokume.plotting`` draws real files.
 
-Skipped unless the ``plotting`` extra (matplotlib + pandas) is installed.
+Skipped unless the ``analysis`` extra (matplotlib + pandas) is installed.
 """
 
 import glob

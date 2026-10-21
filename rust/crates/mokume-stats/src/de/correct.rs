@@ -5,6 +5,10 @@
 //! uses the same two-stage procedure as statsmodels. Both fall back to BH when
 //! the pi0 estimate is not trustworthy.
 
+use rayon::prelude::*;
+
+use super::ensemble::median;
+
 const DEFAULT_LAMBDAS: [f64; 19] = [
     0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80,
     0.85, 0.90, 0.95,
@@ -63,6 +67,61 @@ pub(crate) fn bh_adjust(pvalues: &[f64]) -> Vec<f64> {
         adjusted[*original_index] = monotone[rank];
     }
     adjusted
+}
+
+/// Native ROTS/LimROTS permutation FDR (`ROTS::calculateFDR`,
+/// `LimROTS::calculateFalseDiscoveryRate`).
+///
+/// For each permutation, the statistic ranked k-th by `|value|` gets the number
+/// of permuted `|value|`s above it (an equal value counts once) divided by k.
+/// The FDR is the median of that ratio over permutations, capped at 1 and made
+/// monotone from the least extreme statistic upwards. The median keeps
+/// permutations that reproduce the observed grouping, which are frequent in
+/// small designs, from setting a floor under every FDR. `permuted` holds one
+/// vector per permutation; a `NaN` statistic gets `NaN`.
+pub(crate) fn permutation_fdr(observed: &[f64], permuted: &[Vec<f64>]) -> Vec<f64> {
+    let mut fdr = vec![f64::NAN; observed.len()];
+    let mut order = (0..observed.len())
+        .filter(|&index| !observed[index].is_nan())
+        .collect::<Vec<_>>();
+    if order.is_empty() || permuted.is_empty() {
+        return fdr;
+    }
+    order.sort_by(|&a, &b| observed[b].abs().total_cmp(&observed[a].abs()));
+    let sorted = order
+        .iter()
+        .map(|&index| observed[index].abs())
+        .collect::<Vec<_>>();
+    let ratios = permuted
+        .par_iter()
+        .map(|null| {
+            let mut null = null
+                .iter()
+                .map(|value| value.abs())
+                .filter(|value| !value.is_nan())
+                .collect::<Vec<_>>();
+            null.sort_by(|a, b| b.total_cmp(a));
+            let mut above = 0;
+            sorted
+                .iter()
+                .enumerate()
+                .map(|(rank, &value)| {
+                    while above < null.len() && null[above] > value {
+                        above += 1;
+                    }
+                    let tied = usize::from(null.get(above) == Some(&value));
+                    (above + tied) as f64 / (rank + 1) as f64
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let mut running_min = f64::INFINITY;
+    for rank in (0..sorted.len()).rev() {
+        let mut column = ratios.iter().map(|row| row[rank]).collect::<Vec<_>>();
+        running_min = running_min.min(median(&mut column).min(1.0));
+        fdr[order[rank]] = running_min;
+    }
+    fdr
 }
 
 /// Apply BKY or Storey correction, falling back to BH when pi0 is unreliable.
@@ -303,7 +362,7 @@ fn invert(matrix: &[Vec<f64>]) -> Vec<Vec<f64>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{adaptive_adjust, bh_adjust, AdaptiveFdrMethod, AppliedFdrMethod};
+    use super::{adaptive_adjust, bh_adjust, permutation_fdr, AdaptiveFdrMethod, AppliedFdrMethod};
 
     fn assert_close(actual: f64, expected: f64) {
         let tol = 1e-9 * expected.abs().max(1.0);
@@ -387,5 +446,35 @@ mod tests {
         assert_close(adjusted[0], 0.002);
         assert!(adjusted[1].is_nan());
         assert_close(adjusted[2], 0.5);
+    }
+
+    #[test]
+    fn permutation_fdr_follows_rots_calculate_fdr() {
+        // Ranked |d|: 3, 2, 1. Per permutation, (above + tie) / rank:
+        // [0, 1/2, 2/3], [1, 1/2, 1/3], [0, 0, 1/3]; medians 0, 1/2, 1/3;
+        // the cumulative minimum from the bottom gives 0, 1/3, 1/3.
+        let fdr = permutation_fdr(
+            &[3.0, -1.0, 2.0],
+            &[
+                vec![0.5, 2.5, 1.0],
+                vec![-3.0, 0.0, 0.1],
+                vec![1.0, 1.0, -1.0],
+            ],
+        );
+        assert_close(fdr[0], 0.0);
+        assert_close(fdr[1], 1.0 / 3.0);
+        assert_close(fdr[2], 1.0 / 3.0);
+    }
+
+    #[test]
+    fn permutation_fdr_is_not_floored_by_a_reproduced_grouping() {
+        // One permutation in three reproduces the observed statistics; a pooled
+        // estimate could not drop below 1/3, the median ignores it.
+        let observed = [4.0, 3.0, 0.2, 0.1];
+        let null = vec![0.3, 0.2, 0.1, 0.0];
+        let fdr = permutation_fdr(&observed, &[null.clone(), null, observed.to_vec()]);
+        assert_close(fdr[0], 0.0);
+        assert_close(fdr[1], 0.0);
+        assert!(fdr[2] > 0.0);
     }
 }

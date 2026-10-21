@@ -15,7 +15,7 @@ piBAQ here; we only read the table Rust produced and call the shared plotting
 helpers ``mokume.plotting.plot_distributions`` / ``plot_box_plot`` (exactly
 the functions the Python verbose block uses). No mokume algorithm code lives in
 Rust -- the first-class ``mokume.plotting`` helpers draw the figures (their
-third-party deps come from the ``plotting`` extra).
+third-party deps come from the ``analysis`` extra).
 
 argv contract (runnable via ``python -m mokume.commands.peptides2protein_qc``):
 
@@ -91,13 +91,13 @@ def main(argv=None):
     args = _parse_args(sys.argv[1:] if argv is None else argv)
 
     # Import pandas / mokume.plotting lazily so a clear message is printed when
-    # the plotting extra is missing, rather than an opaque ImportError trace.
+    # the analysis extra is missing, rather than an opaque ImportError trace.
     try:
         import pandas as pd
     except ImportError as exc:  # pragma: no cover - environment guard
         raise SystemExit(
             "QC report aborted: pandas is not installed ({0}). "
-            "Install with: pip install mokume[plotting]".format(exc)
+            "Install with: pip install mokume[analysis]".format(exc)
         )
 
     try:
@@ -105,7 +105,7 @@ def main(argv=None):
     except ImportError as exc:
         raise SystemExit(
             "QC report aborted: mokume plotting dependencies are not "
-            "installed ({0}). Install with: pip install mokume[plotting]".format(exc)
+            "installed ({0}). Install with: pip install mokume[analysis]".format(exc)
         )
 
     res = pd.read_csv(args.protein_table, sep="\t")

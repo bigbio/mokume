@@ -1,8 +1,11 @@
 """Sequential imputation (pure Python).
 
-Reimplements the impSeq algorithm from rrcovNA using iterative regression
-on variables ordered by missing-value frequency, without rpy2 or R
-dependencies.
+Reimplements ``rrcovNA::impSeq`` as the Rust kernel does, without rpy2 or R
+dependencies. Rows with missing values are imputed one at a time, fewest
+missing values first (ties in row order), from the conditional normal given
+their observed values; the mean and covariance come from the complete rows
+plus the rows imputed so far. When those rows number at most the column
+count, the covariance gets ``0.01 I`` as in rrcovNA.
 
 Reference
 ---------
@@ -20,6 +23,30 @@ from mokume.core.logger import get_logger
 logger = get_logger("mokume.imputation.impseq")
 
 
+class _Moments:
+    """Column sums, means and scatter (summed centred cross-products) of the
+    rows used so far, updated in place as each imputed row is added."""
+
+    def __init__(self, rows: np.ndarray):
+        self.rows = rows.shape[0]
+        self.sums = rows.sum(axis=0)
+        self.mean = self.sums / self.rows
+        centred = rows - self.mean
+        self.scatter = centred.T @ centred
+
+    def covariance(self) -> np.ndarray:
+        """Sample covariance (ddof = 1)."""
+        return self.scatter / (self.rows - 1)
+
+    def push(self, row: np.ndarray) -> None:
+        """Add one row (Welford update of the scatter)."""
+        self.rows += 1
+        before = row - self.mean
+        self.sums = self.sums + row
+        self.mean = self.sums / self.rows
+        self.scatter = self.scatter + np.outer(before, row - self.mean)
+
+
 def _cond_normal_impute(
     row: np.ndarray,
     obs_idx: np.ndarray,
@@ -27,65 +54,44 @@ def _cond_normal_impute(
     mu: np.ndarray,
     cov: np.ndarray,
 ) -> np.ndarray:
-    """Impute missing values via conditional normal distribution."""
-    sigma_mo = cov[np.ix_(miss_idx, obs_idx)]
-    sigma_oo = cov[np.ix_(obs_idx, obs_idx)]
+    """Conditional normal mean ``mu_m + Sigma_mo Sigma_oo^-1 (x_o - mu_o)``."""
     try:
-        sigma_oo_inv = np.linalg.solve(sigma_oo, np.eye(len(obs_idx)))
-    except np.linalg.LinAlgError:
-        return mu[miss_idx]
-    imputed = mu[miss_idx] + sigma_mo @ sigma_oo_inv @ (row[obs_idx] - mu[obs_idx])
-    return imputed
+        z = np.linalg.solve(cov[np.ix_(obs_idx, obs_idx)], row[obs_idx] - mu[obs_idx])
+    except np.linalg.LinAlgError as exc:
+        raise ValueError("impSeq observed covariance is singular") from exc
+    return mu[miss_idx] + cov[np.ix_(miss_idx, obs_idx)] @ z
 
 
 def _impseq_core(data: np.ndarray) -> np.ndarray:
     """Sequential imputation matching R rrcovNA::impSeq."""
-    _, p = data.shape
-    result = data.copy()
+    p = data.shape[1]
     observed = np.isfinite(data)
-
+    result = np.where(observed, data, np.nan)
     complete_mask = observed.all(axis=1)
-    n_complete = complete_mask.sum()
-
-    if n_complete < max(2, p):
-        col_means = np.nanmean(data, axis=0)
-        for j in range(p):
-            result[~observed[:, j], j] = col_means[j]
+    if complete_mask.all():
         return result
+    if complete_mask.sum() < 2:
+        raise ValueError(
+            "impSeq requires at least two complete protein rows to estimate covariance"
+        )
 
-    complete_data = data[complete_mask]
-    mu = np.mean(complete_data, axis=0)
-    cov = np.cov(complete_data, rowvar=False, ddof=1)
-    if cov.ndim == 0:
-        cov = np.array([[cov]])
-
-    incomplete_idx = np.where(~complete_mask)[0]
+    moments = _Moments(result[complete_mask])
+    incomplete_idx = np.flatnonzero(~complete_mask)
     n_miss_per_row = (~observed[incomplete_idx]).sum(axis=1)
-    order = incomplete_idx[np.argsort(n_miss_per_row)]
-
-    all_used = list(np.where(complete_mask)[0])
-
+    order = incomplete_idx[np.argsort(n_miss_per_row, kind="stable")]
     for row_i in order:
-        obs_j = np.where(observed[row_i])[0]
-        miss_j = np.where(~observed[row_i])[0]
-        if len(obs_j) == 0:
-            result[row_i, miss_j] = mu[miss_j]
+        obs_j = np.flatnonzero(observed[row_i])
+        miss_j = np.flatnonzero(~observed[row_i])
+        if obs_j.size == 0:
+            result[row_i, miss_j] = moments.mean[miss_j]
         else:
+            cov = moments.covariance()
+            if moments.rows <= p:
+                cov = cov + 0.01 * np.eye(p)
             result[row_i, miss_j] = _cond_normal_impute(
-                result[row_i],
-                obs_j,
-                miss_j,
-                mu,
-                cov,
+                result[row_i], obs_j, miss_j, moments.mean, cov
             )
-
-        all_used.append(row_i)
-        used_data = result[all_used]
-        mu = np.mean(used_data, axis=0)
-        if len(all_used) > 1:
-            cov = np.cov(used_data, rowvar=False, ddof=1)
-            if cov.ndim == 0:
-                cov = np.array([[cov]])
+        moments.push(result[row_i])
 
     return result
 
@@ -98,7 +104,8 @@ def impute_impseq(
     Parameters
     ----------
     data : pd.DataFrame
-        Matrix with NaN for missing values.
+        Matrix with NaN for missing values; at least two rows must be
+        complete.
 
     Returns
     -------
@@ -106,7 +113,7 @@ def impute_impseq(
         Filled matrix with the same shape and index.
     """
     n_missing = int(data.isna().sum().sum())
-    filled = _impseq_core(data.values.copy())
+    filled = _impseq_core(data.to_numpy(dtype=float))
     result = pd.DataFrame(filled, index=data.index, columns=data.columns)
     logger.info("impSeq imputation: %d values imputed", n_missing)
     return result

@@ -1,42 +1,13 @@
-//! DEqMS count-aware moderated t-test for two-group differential expression.
+//! DEqMS count-aware moderated t-test for an unpaired two-group design.
 //!
-//! This is a port of mokume's `analysis/deqms.py` (itself a pure-Python
-//! reimplementation of R `DEqMS`): the limma pipeline (`lmFit` ->
-//! `contrasts.fit` -> `eBayes`, reused verbatim from [`super::limma`]) followed
-//! by `spectraCounteBayes` count-aware variance moderation (Zhu et al. 2020).
-//! The flow per protein mirrors `_spectra_count_ebayes` (deqms.py:43)
-//! operation-by-operation:
-//!   - `sigma2 = sigma**2`, `log_var = log(sigma2)`, `df_valid = df` with 0
-//!     replaced by NaN (deqms.py:51-57);
-//!   - `x = log2(counts)` (after `+1` if any count is 0) (deqms.py:59-63);
-//!   - the `valid.sum() < 10` and `ptp(x_valid) < 1e-10` FALLBACK to standard
-//!     eBayes (deqms.py:65-80), faithful to Python's default-counts behaviour;
-//!   - a statsmodels-equivalent LOWESS (`frac=0.75`, `it=3`) of `log_var` on
-//!     `x` over the valid points, then linear interpolation onto any unseen
-//!     non-valid `x` (deqms.py:82-101) via [`mokume_core::stats::lowess_fit`];
-//!   - the `eg`/`egpred`/`myfct`/`mean_myfct` count-trend statistic
-//!     (deqms.py:103-107);
-//!   - the `_grid_search_d0` prior-df search with its early break
-//!     (deqms.py:122-139);
-//!   - the moderated `post_var`, `sca_t`, and two-sided `sca_pvalue`
-//!     (deqms.py:111-117).
-//!
-//! TIERED TOLERANCE: this method is NOT cell-exact. The LOWESS smoother matches
-//! statsmodels only to ~2e-3 (a window-size and `delta` difference), and that
-//! error propagates through `mean_myfct`, the `d0` grid search, and `post_var`
-//! into `sca_t`/`sca_pvalue`. The oracle test asserts a relative tolerance of
-//! ~1e-2 on `sca_t`/`sca_pvalue` plus an exact protein RANK match; `log2FC` is
-//! cell-exact (it is the limma coefficient, untouched by the count moderation).
-//! The all-equal-counts fallback test is cell-exact (1e-9) because it bypasses
-//! LOWESS entirely and reduces to plain limma `eBayes`.
-//!
-//! Reference
-//! ---------
-//! Zhu Y, Orre LM, Zhou Tran Y, et al. DEqMS: a method for accurate variance
-//! estimation in differential protein expression analysis. *Mol Cell
-//! Proteomics*. 2020;19(6):1047-1057.
+//! Count variance moderation follows DEqMS::spectraCounteBayes(fit.method="loess"):
+//! R Gaussian degree-2 LOESS (span .75, interpolated surface), prior-df grid,
+//! posterior variance and two-sided Student-t probabilities. Mokume applies BH
+//! to the count-moderated p-values. Positive varying counts exercise DEqMS;
+//! constant counts retain the existing explicitly documented limma fallback.
 
-use mokume_core::stats::lowess_fit;
+#[path = "deqms_loess.rs"]
+mod loess;
 
 use super::correct::bh_adjust;
 use super::limma::{run_limma_moderation, LimmaModeration};
@@ -45,20 +16,13 @@ use super::student_t::{student_t_sf, student_t_two_sided_log_pvalue};
 use super::{classify, DeResult};
 
 /// Minimum number of valid (finite `log_var`, `x`, `df`) proteins required for
-/// the spectraCounteBayes count path; below this the method falls back to plain
-/// eBayes (deqms.py:66).
-const MIN_VALID_POINTS: usize = 10;
+/// the quadratic count path (floor(.75*n) must contain at least three points).
+const MIN_VALID_POINTS: usize = 4;
 
 /// Minimum spread of `log2(counts)` over the valid points for the count path;
 /// below this all counts are effectively identical and the method falls back to
 /// plain eBayes (deqms.py:76).
 const MIN_COUNT_SPREAD: f64 = 1e-10;
-
-/// LOWESS span fraction (statsmodels `frac=0.75`) used by spectraCounteBayes.
-const LOWESS_FRAC: f64 = 0.75;
-
-/// LOWESS robustifying iterations (statsmodels default `it=3`).
-const LOWESS_ITERATIONS: usize = 3;
 
 /// Two-group DEqMS differential expression.
 ///
@@ -172,7 +136,7 @@ fn spectra_count_ebayes(
         return fallback(moderations, df_prior);
     }
 
-    let y_pred = lowess_predict(&inputs.log_var, &inputs.x, &inputs.valid);
+    let y_pred = loess::predict(&inputs.log_var, &inputs.x, &inputs.valid);
     let (egpred, d0) = count_prior(&inputs, &y_pred);
     moderated_sca_stats(moderations, &inputs, &egpred, d0)
 }
@@ -301,64 +265,6 @@ fn fallback(moderations: &[(usize, LimmaModeration)], df_prior: f64) -> Vec<ScaS
         .collect()
 }
 
-/// LOWESS prediction of `log_var` on `x` over the valid points, then linear
-/// interpolation onto any unseen non-valid `x` (deqms.py:82-101).
-///
-/// statsmodels `lowess(endog, exog, frac, return_sorted=False)` sorts the pairs
-/// internally and maps the fit back to input order; [`lowess_fit`] requires `x`
-/// pre-sorted ascending, so the valid points are sorted, fitted, then scattered
-/// back. Non-valid points with a finite `x` are linearly interpolated against
-/// the sorted valid `(x, fitted)` curve, exactly matching the Python `np.interp`
-/// on the unseen counts.
-fn lowess_predict(log_var: &[f64], x: &[f64], valid: &[bool]) -> Vec<f64> {
-    let n = log_var.len();
-    let mut valid_indices = (0..n).filter(|i| valid[*i]).collect::<Vec<_>>();
-    valid_indices.sort_by(|left, right| x[*left].total_cmp(&x[*right]));
-    let sorted_x = valid_indices.iter().map(|i| x[*i]).collect::<Vec<_>>();
-    let sorted_y = valid_indices
-        .iter()
-        .map(|i| log_var[*i])
-        .collect::<Vec<_>>();
-    let fitted = lowess_fit(&sorted_x, &sorted_y, LOWESS_FRAC, LOWESS_ITERATIONS);
-
-    let mut y_pred = vec![f64::NAN; n];
-    for (position, original) in valid_indices.iter().enumerate() {
-        y_pred[*original] = fitted[position];
-    }
-    for i in 0..n {
-        if !valid[i] && x[i].is_finite() {
-            y_pred[i] = interp(x[i], &sorted_x, &fitted);
-        }
-    }
-    y_pred
-}
-
-/// Linear interpolation matching `numpy.interp(query, xs, ys)` with `xs` sorted
-/// ascending: clamps to the endpoints outside the range, linear between.
-fn interp(query: f64, xs: &[f64], ys: &[f64]) -> f64 {
-    let Some(first_x) = xs.first().copied() else {
-        return f64::NAN;
-    };
-    let Some(last_x) = xs.last().copied() else {
-        return f64::NAN;
-    };
-    if query <= first_x {
-        return ys.first().copied().unwrap_or(f64::NAN);
-    }
-    if query >= last_x {
-        return ys.last().copied().unwrap_or(f64::NAN);
-    }
-    let upper = xs.partition_point(|value| *value <= query);
-    let lower = upper - 1;
-    let (x_lo, x_hi) = (xs[lower], xs[upper]);
-    let (y_lo, y_hi) = (ys[lower], ys[upper]);
-    let span = x_hi - x_lo;
-    if span == 0.0 {
-        return y_lo;
-    }
-    y_lo + (y_hi - y_lo) * (query - x_lo) / span
-}
-
 /// Peak-to-peak (`np.ptp`) of a slice: max minus min, or 0 when empty.
 fn ptp(values: &[f64]) -> f64 {
     let mut min = f64::INFINITY;
@@ -442,161 +348,6 @@ mod tests {
         vec![
             1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 4.0, 7.0, 11.0, 6.0, 9.0, 15.0, 2.0, 18.0,
         ]
-    }
-
-    // Golden oracle captured verbatim from `conda run -n Bigbio python` on
-    // mokume's `run_deqms` / `_spectra_count_ebayes` (see scratchpad
-    // deqms_oracle.py). The spectraCounteBayes path genuinely runs here (d0 = 1.0,
-    // valid.sum() == 15 >= 10, ptp(log2 counts) == 4.392 > 1e-10), NOT the
-    // fallback. Per-protein (protein, log2FC, sca_t, sca_pvalue).
-    const ORACLE: &[(&str, f64, f64, f64)] = &[
-        ("P00", -2.0, -16.678289372901432, 1.4156705245728974e-05),
-        ("P01", 2.0, 16.52831838925866, 1.4800509999750121e-05),
-        ("P02", 0.0, 0.0, 1.0),
-        ("P03", -1.0, -0.6842879424608374, 0.5242143386505393),
-        ("P04", -1.0, -16.192422308943645, 1.6374181949382853e-05),
-        (
-            "P05",
-            -0.06666666666666643,
-            -0.08112534703275041,
-            0.9384894938829584,
-        ),
-        ("P06", -1.5, -6.432268772004748, 0.0013493270988088847),
-        (
-            "P07",
-            -1.0333333333333337,
-            -7.522857250144055,
-            0.0006568918407631296,
-        ),
-        (
-            "P08",
-            -0.5000000000000009,
-            -7.358554909913771,
-            0.0007278314810727803,
-        ),
-        ("P09", 2.0, 8.301510632638784, 0.0004142498025629735),
-        (
-            "P10",
-            -0.09999999999999964,
-            -0.44402014374156507,
-            0.6755855902200026,
-        ),
-        (
-            "P11",
-            2.0000000000000018,
-            10.142604275847223,
-            0.00015971865918412806,
-        ),
-        ("P12", -1.0, -3.7241137860450872, 0.01365385543271829),
-        (
-            "P13",
-            -0.033333333333333215,
-            -0.2865592057962772,
-            0.7859443831678532,
-        ),
-        ("P14", -2.0, -6.435006203233639, 0.0013467251630308547),
-    ];
-
-    // Python's adj_pvalue rank as ORDERED TIE GROUPS. Within each group the
-    // proteins share a bit-identical BH-adjusted p-value (verified in the
-    // oracle), so their internal order is a sort-stability artifact, not a
-    // numeric ranking. The groups themselves are strictly ordered and that
-    // ordering must match Python exactly. (The only place the LOWESS divergence
-    // could otherwise flip the visible order is inside these ties, e.g. P07/P08.)
-    const ORACLE_RANK_GROUPS: &[&[&str]] = &[
-        &["P00", "P01", "P04"], // adj = 8.187e-05
-        &["P11"],               // adj = 5.989e-04
-        &["P09"],               // adj = 1.243e-03
-        &["P07", "P08"],        // adj = 1.560e-03
-        &["P06", "P14"],        // adj = 2.249e-03
-        &["P12"],               // adj = 2.048e-02
-        &["P03"],               // adj = 7.148e-01
-        &["P10"],               // adj = 8.445e-01
-        &["P13"],               // adj = 9.069e-01
-        &["P02", "P05"],        // adj = 1.0
-    ];
-
-    // ACHIEVED tolerance (measured against the Python oracle on this fixture):
-    //   - log2FC: cell-exact (1e-9) -- it is the limma coefficient, untouched by
-    //     the count moderation;
-    //   - sca_t: max relative error 5.06e-3 (P08); asserted at relative 6e-3;
-    //   - sca_pvalue: max relative error 2.31e-2 (P08), max absolute 8.13e-5;
-    //     asserted at relative 3e-2 with an absolute 1e-4 floor for tiny tails.
-    // The divergence comes entirely from the LOWESS smoother differing from
-    // statsmodels by ~2e-3 (window-size / `delta` differences), which propagates
-    // through mean_myfct -> the d0 grid search -> post_var into sca_t, and the
-    // steep t-tail amplifies the residual t-error into a larger relative
-    // p-error. The protein RANK by adj_pvalue matches Python's strict
-    // between-group ordering exactly; order within a bit-identical BH tie group
-    // (e.g. P07/P08) is undefined and checked set-wise.
-    #[test]
-    fn deqms_two_group_matches_python_oracle() {
-        let rows = fixture_rows();
-        let refs = rows.iter().map(Vec::as_slice).collect::<Vec<_>>();
-        let proteins = fixture_proteins();
-        let counts = fixture_counts();
-        let results = deqms_two_group(
-            &proteins,
-            &refs,
-            3,
-            3,
-            &counts,
-            DEFAULT_FDR_THRESHOLD,
-            DEFAULT_LOG2FC_THRESHOLD,
-        );
-        assert_eq!(results.len(), ORACLE.len());
-
-        for &(protein, log2fc, sca_t, sca_pvalue) in ORACLE {
-            let Some(row) = results.iter().find(|r| r.protein == protein) else {
-                panic!("{protein} missing from deqms results");
-            };
-            // log2FC is the untouched limma coefficient: cell-exact.
-            assert!(
-                (row.log2_fold_change - log2fc).abs() <= 1e-9,
-                "{protein} log2FC actual={} expected={log2fc}",
-                row.log2_fold_change
-            );
-            // sca_t: relative 6e-3 (LOWESS-bounded; measured max 5.06e-3). The
-            // absolute floor of 1.0 handles the exact-zero P02.
-            let t_tol = sca_t.abs().max(1.0) * 6e-3;
-            assert!(
-                (row.t_statistic - sca_t).abs() <= t_tol,
-                "{protein} sca_t actual={} expected={sca_t} tol={t_tol}",
-                row.t_statistic
-            );
-            // sca_pvalue: relative 3e-2 (measured max 2.31e-2) with an absolute
-            // 1e-4 floor (measured max abs 8.13e-5) for the steep small-p tail.
-            let p_tol = (sca_pvalue.abs() * 3e-2).max(1e-4);
-            assert!(
-                (row.p_value - sca_pvalue).abs() <= p_tol,
-                "{protein} sca_pvalue actual={} expected={sca_pvalue} tol={p_tol}",
-                row.p_value
-            );
-        }
-
-        // RANK match by adj_pvalue, tie-aware: walk the Rust ranking group by
-        // group; each emitted group must contain exactly the Python tie group's
-        // proteins (order within a bit-identical-adj tie is undefined). This
-        // proves the strict between-group ordering matches Python exactly.
-        let rank = results
-            .iter()
-            .map(|r| r.protein.as_str())
-            .collect::<Vec<_>>();
-        let mut cursor = 0;
-        for group in ORACLE_RANK_GROUPS {
-            let actual_slice = &rank[cursor..cursor + group.len()];
-            let mut actual_sorted = actual_slice.to_vec();
-            actual_sorted.sort_unstable();
-            let mut expected_sorted = group.to_vec();
-            expected_sorted.sort_unstable();
-            assert_eq!(
-                actual_sorted, expected_sorted,
-                "deqms rank tie-group mismatch at position {cursor}: got {actual_slice:?}, \
-                 expected group {group:?} (order within a BH tie is undefined)"
-            );
-            cursor += group.len();
-        }
-        assert_eq!(cursor, rank.len(), "deqms rank length mismatch");
     }
 
     // Non-vacuity guard: the oracle sca_t must differ materially from plain limma
@@ -717,3 +468,7 @@ mod tests {
             .any(|r| r.significance != Significance::Unchanged));
     }
 }
+
+#[cfg(test)]
+#[path = "deqms_official_tests.rs"]
+mod official_tests;

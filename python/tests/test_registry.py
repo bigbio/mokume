@@ -6,6 +6,7 @@ from mokume.core.registry import PluginRegistry, VALID_INPUT_LEVELS
 from mokume.quantification.base import (
     ProteinQuantificationMethod as QuantificationMethod,
 )
+from mokume.quantification.maxlfq import MaxLFQQuantification
 
 
 # ---------------------------------------------------------------------------
@@ -110,31 +111,28 @@ class TestPluginRegistryRegister:
 
 
 class TestPluginRegistryGet:
-    @pytest.mark.skip(reason="maxlfq alias not yet registered via @register decorator")
-    def test_get_maxlfq_alias_resolves_to_directlfq(self):
-        """'maxlfq' alias should resolve to DirectLFQ."""
+    def test_get_maxlfq(self):
+        """Resolve the MaxLFQ implementation independently of optional extras."""
         method = PluginRegistry.get("quantification", "maxlfq")
-        assert method.name == "DirectLFQ"
+        assert isinstance(method, MaxLFQQuantification)
 
-    @pytest.mark.skip(reason="maxlfq alias not yet registered via @register decorator")
     def test_get_case_insensitive(self):
-        method = PluginRegistry.get("quantification", "MaxLFQ")
-        assert method is not None
+        lower = PluginRegistry.get("quantification", "maxlfq")
+        mixed = PluginRegistry.get("quantification", "MaxLFQ")
+        assert type(lower) is type(mixed)
+        assert lower.name == mixed.name
 
     def test_get_unknown_raises(self):
         with pytest.raises(ValueError, match="Unknown quantification method"):
             PluginRegistry.get("quantification", "totally_nonexistent_xyz")
 
-    @pytest.mark.skip(reason="topN pattern not yet registered via @register decorator")
     def test_topn_pattern(self):
         method = PluginRegistry.get("quantification", "top5")
-        assert method is not None
-        assert method.name in ("TopN", "Top5", "top5", "TopNQuantification")
+        assert method.name == "Top5"
 
-    @pytest.mark.skip(reason="topN pattern not yet registered via @register decorator")
     def test_topn_large_n(self):
         method = PluginRegistry.get("quantification", "top100")
-        assert method is not None
+        assert method.name == "Top100"
 
     def test_invalid_input_level_raises(self):
         """A method with invalid input_level should raise at get() time."""
@@ -149,26 +147,22 @@ class TestPluginRegistryAvailable:
         names = PluginRegistry.available("quantification")
         assert names == sorted(names)
 
-    @pytest.mark.skip(
-        reason="builtin plugins not yet registered via @register decorator"
-    )
     def test_available_includes_builtins(self):
         names = PluginRegistry.available("quantification")
-        assert "maxlfq" in names  # backward-compat alias
+        assert "maxlfq" in names
         assert "topn" in names
 
     def test_available_empty_group(self):
-        names = PluginRegistry.available("filter")
-        assert isinstance(names, list)
+        assert PluginRegistry.available("filter") == []
 
 
 class TestPluginRegistryReset:
     def test_reset_clears_registrations(self):
+        PluginRegistry.register_instance_factory(
+            "quantification", "temporary", lambda **_: _DummyMethod()
+        )
         PluginRegistry.reset()
-        names = PluginRegistry.available("quantification")
-        # After reset + entry point discovery, only entry-point methods remain
-        # (or empty if not installed as package)
-        assert isinstance(names, list)
+        assert "temporary" not in PluginRegistry.available("quantification")
 
 
 class TestValidInputLevels:

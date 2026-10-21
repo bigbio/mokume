@@ -19,7 +19,7 @@ from mokume.analysis.deqms import _two_sided_t_log_pvalue, run_deqms
 from mokume.analysis.limma import run_limma
 from mokume.analysis.limrots import run_limrots
 from mokume.analysis.proda import run_proda
-from mokume.analysis.rots import run_rots
+from mokume.analysis.rots import _calculate_fdr, run_rots
 from mokume.analysis.ensemble import combine_de_results, run_ensemble
 from mokume.pipeline.config import (
     DEConfig,
@@ -185,26 +185,18 @@ class TestDEProDA:
         assert len(result) > 0
         assert "adj_pvalue" in result.columns
 
-    def test_run_proda_direct(self):
+    def test_run_proda_direct_uses_moderated_df(self):
+        """Use the per-protein moderated df instead of a constant residual df."""
         mat, sa, sb, _ = _make_protein_matrix()
         result = run_proda(np.log2(mat.clip(lower=1)), sa, sb, "A", "B")
         assert len(result) > 0
-        assert "pvalue" in result.columns
-
-    def test_proda_has_expected_columns(self):
-        mat, sa, sb, _ = _make_protein_matrix()
-        result = run_proda(np.log2(mat.clip(lower=1)), sa, sb, "A", "B")
-        assert len(result) > 0
-        for col in ("ProteinName", "log2FC", "pvalue", "adj_pvalue"):
-            assert col in result.columns
-
-    def test_proda_uses_moderated_df(self):
-        # proDA must test against the per-protein empirical-Bayes-moderated df
-        # (fit["df"]), not the naive constant n_samples - p; the reported df is
-        # therefore per-protein and not all equal to that residual constant.
-        mat, sa, sb, _ = _make_protein_matrix()
-        result = run_proda(np.log2(mat.clip(lower=1)), sa, sb, "A", "B")
-        assert "df" in result.columns
+        assert {
+            "ProteinName",
+            "log2FC",
+            "pvalue",
+            "adj_pvalue",
+            "df",
+        }.issubset(result.columns)
         naive_df = (len(sa) + len(sb)) - 2  # p = intercept + group
         df_values = result["df"].values
         assert np.all(df_values > 0)
@@ -475,6 +467,23 @@ class TestDEROTS:
         result = run_rots(np.log2(mat.clip(lower=1)), sa, sb, "A", "B", n_boot=20)
         for col in ("ProteinName", "log2FC", "pvalue", "adj_pvalue", "d_stat"):
             assert col in result.columns
+
+    def test_native_fdr_follows_rots_calculate_fdr(self):
+        """The FDR is the median over permutations of above-count over rank."""
+        # Ranked |d|: 3, 2, 1. Per permutation, (above + tie) / rank:
+        # [0, 1/2, 2/3], [1, 1/2, 1/3], [0, 0, 1/3]; medians 0, 1/2, 1/3;
+        # the cumulative minimum from the bottom gives 0, 1/3, 1/3.
+        permuted = np.array([[0.5, -3.0, 1.0], [2.5, 0.0, 1.0], [1.0, 0.1, -1.0]])
+        fdr = _calculate_fdr(np.array([3.0, -1.0, 2.0]), permuted)
+        np.testing.assert_allclose(fdr, [0.0, 1 / 3, 1 / 3])
+
+    def test_native_fdr_is_not_floored_by_a_reproduced_grouping(self):
+        """A permutation that reproduces the observed grouping sets no floor."""
+        observed = np.array([4.0, 3.0, 0.2, 0.1])
+        null = np.array([0.3, 0.2, 0.1, 0.0])
+        fdr = _calculate_fdr(observed, np.column_stack([null, null, observed]))
+        np.testing.assert_allclose(fdr[:2], [0.0, 0.0])
+        assert fdr[2] > 0.0
 
 
 # ---------------------------------------------------------------------------

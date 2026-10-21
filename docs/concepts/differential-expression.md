@@ -25,7 +25,7 @@ graph TD
 ```
 
 !!! tip "`--de-method auto`"
-    When set to `auto` (the default), mokume selects **DEqMS** for DirectLFQ quantification and **LimROTS** for all other methods. You can always override this with `--de-method`.
+    When set to `auto` (the default), mokume selects **DEqMS** for DirectLFQ quantification and **LimROTS** for all other methods. LimROTS needs a complete matrix, so `auto` also selects **DEqMS** when the protein matrix has missing values (for example, without imputation). You can always override this with `--de-method`.
 
 !!! note "No R required"
     All DE methods run in the native Rust kernel. No R, rpy2, or Bioconductor packages are needed. The deterministic kernels (limma / deqms) are cell-exact on real data; the RNG/optimizer-driven methods (rots / limrots / proda) are faithful-not-bit-exact (log2FC cell-exact, p-value rank-level).
@@ -203,6 +203,12 @@ rule: a protein is called significant only when at least `min_k` member
 methods agree on direction (UP or DOWN) and the Fisher-combined p-value
 passes the FDR threshold.
 
+The default members are LimROTS, DEqMS, and proDA. LimROTS needs a complete
+matrix, so on a contrast with missing values the default members run limma,
+the moderated t-test that LimROTS builds on, in place of LimROTS. A member
+list given with `--de-ensemble-method` is used as given, so a `limrots` member
+then needs a complete (for example, imputed) matrix.
+
 **Output columns** include the median log2FC across members, the
 Fisher-combined p-value (adjusted with the requested FDR method), `n_methods_up`, `n_methods_down`,
 and `methods_significant` (comma-separated list of members that called
@@ -285,4 +291,4 @@ The following results are from the **PXD001819** UPS1 spike-in benchmark (48 UPS
 | **Exploratory / biomarker discovery** | DEqMS | Maximizes true positives; FP can be filtered by downstream validation |
 | **Confirmatory / clinical validation** | LimROTS | Minimizes false positives; every reported hit is reliable |
 | **High missing-value matrix (>30%)** | proDA | Dropout model handles MNAR missingness |
-| **Don't know / general use** | `auto` | DEqMS for DirectLFQ, LimROTS for others |
+| **Don't know / general use** | `auto` | DEqMS for DirectLFQ or a matrix with missing values, LimROTS otherwise |

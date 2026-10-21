@@ -1,8 +1,5 @@
-// proDA EM driver and Wald test. Included from `proda.rs`.
-//
-// Ports proda.py:514 `run_proda`: seed-dependent imputation, OLS init, prior
-// estimation, the 20-iteration EM loop (proda.py:569) with its convergence
-// check, and the final per-protein Wald test (proda.py:662-691).
+// proDA EM driver, independent random initialization and two-sided Wald test.
+// Default model controls match Bioconductor proDA: 20 EM rounds, epsilon 1e-3.
 
 /// Per-protein proDA statistics returned by [`run_proda`], one entry per input
 /// row (in input order; the public wrapper applies the testability filter and
@@ -28,8 +25,6 @@ struct EmState {
     df0: f64,
     rho: Vec<f64>,
     zeta: Vec<f64>,
-    pred: Vec<Vec<f64>>,
-    pred_var: Vec<Vec<f64>>,
 }
 
 /// Predictions / variances / s2 / df extracted from one round of fits
@@ -48,14 +43,21 @@ fn run_proda(mat: &[Vec<f64>], n_a: usize, n_b: usize) -> Vec<ProdaStat> {
     let n_samples = n_a + n_b;
     let x = Design::two_group(n_a, n_b);
 
-    // proda.py:545-558 initial imputation (SplitMix64 instead of MT19937).
+    // Independent random initialization; all later likelihoods retain missingness.
     let y_init = impute_initial(mat, n_samples, DEFAULT_SEED);
 
+    let (fits, _, _) = fit_model(mat, &x, &y_init);
+    wald_test(mat, n_samples, x.n_cols, &fits)
+}
+
+/// Returns final fits plus the EM iteration count and final convergence error.
+/// Accepting the prepared initialization also permits official shared-draw tests.
+fn fit_model(mat: &[Vec<f64>], x: &Design, y_init: &[Vec<f64>]) -> (Vec<PdLmFit>, usize, f64) {
     // proda.py:560 OLS init.
-    let ols = ols_per_protein(&y_init, &x);
+    let ols = ols_per_protein(y_init, x);
     // proda.py:562-564 prior init.
     let (mu0, sigma20) = location_prior(&ols.pred, &ols.pred_var, None, None);
-    let (rho, zeta) = fit_dropout_curves(mat, &x, &ols.pred, &ols.pred_var);
+    let (rho, zeta) = fit_dropout_curves(mat, x, &ols.pred, &ols.pred_var);
     let (tau20, df0) = variance_prior(&ols.s2, &ols.df);
 
     let mut state = EmState {
@@ -65,51 +67,43 @@ fn run_proda(mat: &[Vec<f64>], n_a: usize, n_b: usize) -> Vec<ProdaStat> {
         df0,
         rho,
         zeta,
-        pred: ols.pred,
-        pred_var: ols.pred_var,
     };
 
     let mut fits_reg: Vec<PdLmFit> = Vec::new();
-    for _ in 0..EM_ITERS {
-        let step = em_step(mat, &x, &state);
+    let (mut iterations, mut error) = (0, f64::INFINITY);
+    for iteration in 0..EM_ITERS {
+        let step = em_step(mat, x, &state);
         let converged = step.err < EM_TOL;
+        iterations = iteration + 1;
+        error = step.err;
         fits_reg = step.fits_reg;
         state = step.next_state;
         if converged {
             break;
         }
     }
-    wald_test(mat, n_samples, x.n_cols, &fits_reg)
+    (fits_reg, iterations, error)
 }
 
-/// proda.py:545-558 — per-column imputation: missing entries are drawn from
-/// `Normal(q10, sd/5)` over the observed values of that column.
+/// Official initialization uses q10 and sample SD over the entire observed
+/// matrix. Draws visit missing cells in R's column-major order. Only the random
+/// generator differs; the input's missing mask is retained for all likelihoods.
 fn impute_initial(mat: &[Vec<f64>], n_samples: usize, seed: u64) -> Vec<Vec<f64>> {
+    let observed = mat
+        .iter()
+        .flatten()
+        .copied()
+        .filter(|v| v.is_finite())
+        .collect::<Vec<_>>();
+    if observed.is_empty() {
+        return mat.to_vec();
+    }
+    let q10 = percentile10(&observed);
+    let sd5 = sample_std(&observed) / 5.0;
     let mut rng = SplitMix64::new(seed);
-    let mut y: Vec<Vec<f64>> = mat.to_vec();
+    let mut y = mat.to_vec();
     for col in 0..n_samples {
-        let obs: Vec<f64> = mat
-            .iter()
-            .filter_map(|row| {
-                let v = row[col];
-                if v.is_nan() {
-                    None
-                } else {
-                    Some(v)
-                }
-            })
-            .collect();
-        let n_miss = mat.iter().filter(|row| row[col].is_nan()).count();
-        if n_miss == 0 || obs.is_empty() {
-            continue;
-        }
-        let q10 = percentile10(&obs);
-        let sd5 = if obs.len() > 1 {
-            sample_std(&obs) / 5.0
-        } else {
-            1.0
-        };
-        for row in y.iter_mut() {
+        for row in &mut y {
             if row[col].is_nan() {
                 row[col] = q10 + sd5 * rng.next_gaussian();
             }
@@ -143,25 +137,28 @@ fn em_step(mat: &[Vec<f64>], x: &Design, state: &EmState) -> EmStep {
         .map(|i| pd_lm_fit(&mat[i], x, &state.rho, &state.zeta, Some(priors)))
         .collect();
 
-    let unreg = extract(&fits_unreg, x, &state.pred, &state.pred_var);
-    let reg = extract(&fits_reg, x, &state.pred, &state.pred_var);
+    let unreg = extract(&fits_unreg, x);
+    let reg = extract(&fits_reg, x);
 
-    let (mu0_new, sigma20_new) =
-        location_prior(&reg.pred, &reg.pred_var, Some(&unreg.pred), Some(&unreg.pred_var));
+    let (mu0_new, sigma20_new) = location_prior(
+        &reg.pred,
+        &reg.pred_var,
+        Some(&unreg.pred),
+        Some(&unreg.pred_var),
+    );
     let (rho_new, zeta_new) = fit_dropout_curves(mat, x, &reg.pred, &reg.pred_var);
 
-    // v_mask = (s2_unreg > 0) & (df_unreg > 0) (proda.py:629).
-    let mut s2_v = Vec::new();
-    let mut df_v = Vec::new();
-    for (s2, df) in unreg.s2.iter().zip(&unreg.df) {
-        if *s2 > 0.0 && *df > 0.0 {
-            s2_v.push(*s2);
-            df_v.push(*df);
-        }
-    }
-    let (tau20_new, df0_new) = variance_prior(&s2_v, &df_v);
+    let (tau20_new, df0_new) = variance_prior(&unreg.s2, &unreg.df);
 
-    let err = em_error(state, mu0_new, sigma20_new, &rho_new, &zeta_new, tau20_new, df0_new);
+    let err = em_error(
+        state,
+        mu0_new,
+        sigma20_new,
+        &rho_new,
+        &zeta_new,
+        tau20_new,
+        df0_new,
+    );
 
     EmStep {
         err,
@@ -173,31 +170,19 @@ fn em_step(mat: &[Vec<f64>], x: &Design, state: &EmState) -> EmStep {
             df0: df0_new,
             rho: rho_new,
             zeta: zeta_new,
-            pred: reg.pred,
-            pred_var: reg.pred_var,
         },
     }
 }
 
-/// proda.py:603-620 `_extract`: build Pred / Pred_var from a fit list, falling
-/// back to the previous values for proteins whose coef is NaN.
-fn extract(
-    fits: &[PdLmFit],
-    x: &Design,
-    prev_pred: &[Vec<f64>],
-    prev_pred_var: &[Vec<f64>],
-) -> Extracted {
+/// Build predictions from current fits. Failed coefficients remain missing;
+/// an earlier iteration's values must not replace a failed upstream fit.
+fn extract(fits: &[PdLmFit], x: &Design) -> Extracted {
     let n_samples = x.n_rows;
     let mut pred = Vec::with_capacity(fits.len());
     let mut pred_var = Vec::with_capacity(fits.len());
     let mut s2 = vec![0.0; fits.len()];
     let mut df = vec![0.0; fits.len()];
     for (idx, fit) in fits.iter().enumerate() {
-        if fit.coef.iter().any(|b| b.is_nan()) {
-            pred.push(prev_pred[idx].clone());
-            pred_var.push(prev_pred_var[idx].clone());
-            continue;
-        }
         pred.push(design_times(x, &fit.coef));
         let pv: Vec<f64> = (0..n_samples)
             .map(|j| {
@@ -233,12 +218,16 @@ fn em_error(
     let zi_new = zeta_to_inv(zeta_new);
     let zi_old = zeta_to_inv(&state.zeta);
     let df0_term_new = if df0_new > 0.0 { 1.0 / df0_new } else { 0.0 };
-    let df0_term_old = if state.df0 > 0.0 { 1.0 / state.df0 } else { 0.0 };
+    let df0_term_old = if state.df0 > 0.0 {
+        1.0 / state.df0
+    } else {
+        0.0
+    };
 
     sq_diff(mu0_new, state.mu0)
         + sq_diff(sigma20_new, state.sigma20)
-        + sq_diff(nanmean_over_len(rho_new), nanmean_over_len(&state.rho))
-        + sq_diff(nanmean_over_len(&zi_new), nanmean_over_len(&zi_old))
+        + mean_change_squared(rho_new, &state.rho)
+        + mean_change_squared(&zi_new, &zi_old)
         + sq_diff(tau20_new, state.tau20)
         + sq_diff(df0_term_new, df0_term_old)
 }
@@ -246,71 +235,42 @@ fn em_error(
 /// proda.py:632-633 `where(abs(zeta) > 1e-100, 1/zeta, nan)`.
 fn zeta_to_inv(zeta: &[f64]) -> Vec<f64> {
     zeta.iter()
-        .map(|z| {
-            if z.abs() > 1e-100 {
-                1.0 / z
-            } else {
-                f64::NAN
-            }
-        })
+        .map(|z| if z.abs() > 1e-100 { 1.0 / z } else { f64::NAN })
         .collect()
 }
 
-/// proda.py:636-637 `nansum(v) / max(len(v), 1)` — note this divides by the FULL
-/// length (NaN entries contribute 0 to the sum but still count in the length).
-fn nanmean_over_len(v: &[f64]) -> f64 {
-    let sum: f64 = v.iter().filter(|x| x.is_finite()).sum();
-    sum / (v.len().max(1)) as f64
+/// `sum(new-old, na.rm=TRUE)/length(new)`, squared: missing differences
+/// are removed after subtraction, so a changed missing mask is handled as in R.
+fn mean_change_squared(new: &[f64], old: &[f64]) -> f64 {
+    let sum: f64 = new
+        .iter()
+        .zip(old)
+        .map(|(a, b)| a - b)
+        .filter(|v| !v.is_nan())
+        .sum();
+    (sum / new.len() as f64).powi(2)
 }
 
 fn sq_diff(a: f64, b: f64) -> f64 {
     (a - b) * (a - b)
 }
 
-/// proda.py:662-696 — per-protein Wald test on the final regularized fits.
-/// `contrast = [1, -1]`, two-sided p from the Student-t with the per-protein
-/// empirical-Bayes-moderated df (`fit.df`), not the naive `n_samples - p`.
-fn wald_test(mat: &[Vec<f64>], n_samples: usize, p: usize, fits: &[PdLmFit]) -> Vec<ProdaStat> {
-    let fallback_df = n_samples.saturating_sub(p).max(1) as f64;
+/// Official test_diff uses the full contrast covariance and design n-p df.
+fn wald_test(_mat: &[Vec<f64>], n_samples: usize, p: usize, fits: &[PdLmFit]) -> Vec<ProdaStat> {
+    let df = (n_samples - p) as f64;
     let contrast = [1.0, -1.0];
-    let mut out = Vec::with_capacity(fits.len());
-    for fit in fits {
-        let beta = &fit.coef;
-        let has_nan = beta.iter().any(|b| b.is_nan());
-        let log2fc = if has_nan {
-            f64::NAN
-        } else {
-            contrast[0] * beta[0] + contrast[1] * beta[1]
-        };
-        // se_fc = sqrt(contrast @ diag(se^2) @ contrast) (proda.py:671-672).
-        let se2: Vec<f64> = fit.se_coef.iter().map(|s| s * s).collect();
-        let se_fc = (contrast[0] * contrast[0] * se2.first().copied().unwrap_or(f64::NAN)
-            + contrast[1] * contrast[1] * se2.get(1).copied().unwrap_or(f64::NAN))
-        .sqrt();
-
-        // Moderated df the fit already computed; df -> inf is proDA's normal limit.
-        let moderated_df = if !fit.df.is_finite() {
-            1e6
-        } else if fit.df <= 0.0 {
-            fallback_df
-        } else {
-            fit.df
-        };
-
-        let (t_stat, p_value) = if se_fc < 1e-10 || se_fc.is_nan() || log2fc.is_nan() {
-            (0.0, 1.0)
-        } else {
-            let t = log2fc / se_fc;
-            (t, 2.0 * student_t_sf(t.abs(), moderated_df))
-        };
-        out.push(ProdaStat {
-            log2_fold_change: log2fc,
-            t_stat,
-            p_value,
-        });
-    }
-    let _ = mat;
-    out
+    fits.iter()
+        .map(|fit| {
+            let log2fc = fit.coef[0] - fit.coef[1];
+            let variance = dot(&contrast, &mat_vec(&fit.coef_var, &contrast));
+            let t = log2fc / variance.sqrt();
+            ProdaStat {
+                log2_fold_change: log2fc,
+                t_stat: t,
+                p_value: 2.0 * student_t_sf(t.abs(), df),
+            }
+        })
+        .collect()
 }
 
 // --- statistics helpers for imputation ---

@@ -668,6 +668,13 @@ def plot_slide_atlas_dendrogram(
 
     tissues = adata.obs["tissue"].values
     unique_tissues = sorted(np.unique(tissues))
+    if len(unique_tissues) < 2:
+        logger.warning(
+            "Atlas dendrogram requires at least two tissues; found %d, "
+            "skipping slide figure",
+            len(unique_tissues),
+        )
+        return
 
     proteomic_groups, tissue_to_group, z_linkage = _compute_tissue_groups(adata)
     tissue_colors = _build_tissue_colors(proteomic_groups)

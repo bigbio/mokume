@@ -10,6 +10,18 @@ from __future__ import annotations
 import pytest
 
 from mokume.pipeline.config import QuantificationConfig
+from mokume.quantification import get_quantification_method
+
+
+def test_stabilization_is_opt_in_and_maxlfq_only():
+    assert not QuantificationConfig().stabilize
+    assert QuantificationConfig(stabilize=True).stabilize
+    assert get_quantification_method("maxlfq", stabilize=True).stabilize
+    for method in ["sum", "directlfq", "top3", "pibaq"]:
+        with pytest.raises(ValueError, match="stabilize only applies to MaxLFQ"):
+            QuantificationConfig(method=method, stabilize=True)
+        with pytest.raises(ValueError, match="stabilize only applies to MaxLFQ"):
+            get_quantification_method(method, stabilize=True)
 
 
 class TestRatioFractionMerge:

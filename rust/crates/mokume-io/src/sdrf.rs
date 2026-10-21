@@ -26,6 +26,7 @@ pub struct SdrfRecord {
 #[derive(Debug, Clone, Default)]
 pub struct SdrfTable {
     records: Vec<SdrfRecord>,
+    // Both indexes hold positions in `records`; they are built once in `from_records`.
     by_run: HashMap<String, Vec<usize>>,
     by_run_label: HashMap<(String, String), usize>,
 }
@@ -95,7 +96,7 @@ impl SdrfTable {
         let indices = self.by_run.get(&normalize_file_key(alias))?;
         let mut data_file: Option<&str> = None;
         for index in indices {
-            let candidate = self.records.get(*index)?.data_file.as_str();
+            let candidate = self.records[*index].data_file.as_str();
             if data_file.is_some_and(|known| known != candidate) {
                 return None;
             }
@@ -109,11 +110,7 @@ impl SdrfTable {
         if let Some(label) = label {
             let label_key = normalize_label_key(label);
             if let Some(index) = self.by_run_label.get(&(run_key.clone(), label_key)) {
-                return self.records.get(*index).ok_or_else(|| {
-                    invalid_input(format!(
-                        "SDRF index for QPX run `{run_file_name}` and label `{label}` is invalid"
-                    ))
-                });
+                return Ok(&self.records[*index]);
             }
             return match self.by_run.get(&run_key) {
                 Some(indices) => Err(self.unmatched_label(run_file_name, label, indices)),
@@ -128,11 +125,7 @@ impl SdrfTable {
                 "QPX run `{run_file_name}` has no SDRF match"
             ))),
             Some([index]) => {
-                let record = self.records.get(*index).ok_or_else(|| {
-                    invalid_input(format!(
-                        "SDRF index for QPX run `{run_file_name}` is invalid"
-                    ))
-                })?;
+                let record = &self.records[*index];
                 let label_key = record.label.as_deref().map(normalize_label_key);
                 if label_key
                     .as_deref()
@@ -219,15 +212,14 @@ impl SdrfTable {
     fn record_context(&self, indices: &[usize]) -> String {
         indices
             .iter()
-            .filter_map(|index| {
-                self.records.get(*index).map(|record| {
-                    format!(
-                        "record {} (`{}`, label `{}`)",
-                        index + 1,
-                        record.data_file,
-                        record.label.as_deref().unwrap_or("")
-                    )
-                })
+            .map(|index| {
+                let record = &self.records[*index];
+                format!(
+                    "record {} (`{}`, label `{}`)",
+                    index + 1,
+                    record.data_file,
+                    record.label.as_deref().unwrap_or("")
+                )
             })
             .collect::<Vec<_>>()
             .join(", ")
@@ -422,6 +414,43 @@ fn push_key(keys: &mut Vec<String>, value: &str) {
     }
 }
 
+/// Memoizes [`SdrfTable::lookup`] by the raw QPX run and label. A QPX stream
+/// repeats a few runs across millions of rows, so each distinct pair is
+/// normalized and resolved once. Failed lookups are not cached, so they keep
+/// returning `lookup`'s error.
+#[derive(Debug)]
+pub struct SdrfLookupCache<'a> {
+    table: &'a SdrfTable,
+    resolved: HashMap<String, Vec<(Option<String>, &'a SdrfRecord)>>,
+}
+
+impl<'a> SdrfLookupCache<'a> {
+    pub fn new(table: &'a SdrfTable) -> Self {
+        Self {
+            table,
+            resolved: HashMap::new(),
+        }
+    }
+
+    pub fn lookup(&mut self, run_file_name: &str, label: Option<&str>) -> Result<&'a SdrfRecord> {
+        let cached = self.resolved.get(run_file_name).and_then(|labels| {
+            labels
+                .iter()
+                .find(|(known, _)| known.as_deref() == label)
+                .map(|(_, record)| *record)
+        });
+        if let Some(record) = cached {
+            return Ok(record);
+        }
+        let record = self.table.lookup(run_file_name, label)?;
+        self.resolved
+            .entry(run_file_name.to_owned())
+            .or_default()
+            .push((label.map(str::to_owned), record));
+        Ok(record)
+    }
+}
+
 pub fn normalize_file_key(value: &str) -> String {
     let key = basename(value)
         .trim()
@@ -430,7 +459,7 @@ pub fn normalize_file_key(value: &str) -> String {
     // Strip a trailing run extension so the SDRF `comment[data file]` key matches
     // the QPX `run_file_name`, which is stored extension-less. Without this the
     // per-feature SDRF lookup misses and the Condition column falls back to the
-    // run filename. Mirrors `mokume-pipeline` de.rs::strip_run_extension.
+    // run filename. `mokume-pipeline` de.rs keys run-level DE columns the same way.
     let last_extension = [".raw", ".mzml", ".wiff", ".d"]
         .into_iter()
         .flat_map(|extension| {

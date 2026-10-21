@@ -69,8 +69,15 @@ Repeat `--batch-covariate` for each SDRF column whose biological signal to prese
 The covariate columns are extracted from the SDRF with a sample-substring
 fallback. Finite numeric columns keep their numeric values; nominal columns
 use k-1 one-hot indicators, so categories are not treated as ordered numbers.
-Constant columns are rejected. Integrated ComBat corrects proteins observed in
-every matrix sample and leaves incomplete protein rows unchanged.
+A column with any non-numeric value is nominal, even if some labels look like
+numbers (for example the cell line 5637). Constant columns are rejected.
+
+Integrated ComBat corrects proteins observed in every matrix sample and leaves
+incomplete protein rows unchanged. Linear intensities are corrected on the
+log2 scale and returned to the linear scale, so a zero or negative intensity
+counts as missing; log2-scale quantifications (`abd`, `ratio`) are corrected as
+they are. A protein row that ComBat cannot correct (for example when only one
+protein is complete, so its priors are undefined) keeps its measured values.
 
 ### Standalone piBAQ correction
 

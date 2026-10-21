@@ -45,9 +45,6 @@ jobs:
           RUSTDOCFLAGS: "-D warnings"
         run: cargo doc --workspace --no-deps --all-features
 
-      - name: Test (release mode)
-        run: cargo test --workspace --all-targets --release
-
       - name: No CJK in Rust source
         run: |
           if rg -n "\p{Han}" crates/ -g '*.rs'; then

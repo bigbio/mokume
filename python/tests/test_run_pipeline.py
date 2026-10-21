@@ -30,12 +30,6 @@ EXAMPLE_DIR = os.path.join(os.path.dirname(__file__), "example")
 PARQUET = os.path.join(EXAMPLE_DIR, "feature_wide.parquet")
 SDRF = os.path.join(EXAMPLE_DIR, "PXD020192.sdrf.tsv")
 
-# Skip the whole module only if the dev fixture itself is missing.
-pytestmark = pytest.mark.skipif(
-    not (os.path.exists(PARQUET) and os.path.exists(SDRF)),
-    reason="Dev feature_wide fixture not available",
-)
-
 # Imports (after path setup) -------------------------------------------
 from mokume.pipeline.config import (  # noqa: E402
     PipelineConfig,

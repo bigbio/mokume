@@ -49,6 +49,19 @@ def _supplied(ctx: click.Context, *names: str) -> bool:
     )
 
 
+def _validate_lfq_options(ctx: click.Context, method: str) -> None:
+    if method != "maxlfq" and _supplied(ctx, "threads"):
+        raise click.UsageError("--threads only applies to --method maxlfq")
+    if method != "directlfq" and _supplied(ctx, "min_nonan"):
+        raise click.UsageError("--min_nonan only applies to --method directlfq")
+    if method != "maxlfq" and ctx.params.get("stabilize", False):
+        raise click.UsageError("--stabilize only applies to --method maxlfq")
+    if method != "maxlfq" and _supplied(ctx, "maxlfq_min_ratio_count"):
+        raise click.UsageError(
+            "--maxlfq-min-ratio-count only applies to --method maxlfq"
+        )
+
+
 def _validate_method_options(
     ctx: click.Context,
     method: str,
@@ -78,10 +91,7 @@ def _validate_method_options(
         raise click.UsageError(
             "piBAQ digestion/TPA/ruler/QC options require --method pibaq"
         )
-    if method != "maxlfq" and _supplied(ctx, "threads"):
-        raise click.UsageError("--threads only applies to --method maxlfq")
-    if method != "directlfq" and _supplied(ctx, "min_nonan"):
-        raise click.UsageError("--min_nonan only applies to --method directlfq")
+    _validate_lfq_options(ctx, method)
     if method == "pibaq" and _supplied(ctx, "qc_report") and not verbose:
         raise click.UsageError("--qc_report requires --verbose")
     if ruler and not tpa:
@@ -225,6 +235,19 @@ class QuantMethodParam(click.ParamType):
     callback=_nonzero_threads,
 )
 @click.option(
+    "--stabilize",
+    is_flag=True,
+    default=False,
+    help="Enable large-ratio stabilization (MaxLFQ only; default: off)",
+)
+@click.option(
+    "--maxlfq-min-ratio-count",
+    type=click.IntRange(min=1),
+    default=2,
+    show_default=True,
+    help="Minimum shared peptide species for each MaxLFQ sample-pair ratio.",
+)
+@click.option(
     "--min_nonan",
     help="Minimum non-NaN ion intensities per protein for DirectLFQ (default: 1)",
     default=1,
@@ -292,6 +315,8 @@ def peptides2protein(
     verbose: bool,
     qc_report: str,
     threads: int,
+    maxlfq_min_ratio_count: int,
+    stabilize: bool,
     min_nonan: int,
     families_yaml: str,
     min_shared: int,
@@ -307,7 +332,7 @@ def peptides2protein(
     \b
     - pibaq: Paralog-aware iBAQ with shared-peptide allocation (default, requires FASTA)
     - top<N>: Average of the N most intense peptides (top1, top3, top5, top10, ...)
-    - maxlfq: MaxLFQ delayed normalization algorithm (parallelized)
+    - maxlfq: Pairwise peptide ratios and least-squares protein quantification
     - sum: Sum of all peptide intensities
     - directlfq: DirectLFQ intensity traces (requires: pip install mokume-py[directlfq])
 
@@ -385,7 +410,10 @@ def peptides2protein(
             quant_method = get_quantification_method(method_lower)
         elif method_lower == "maxlfq":
             quant_method = get_quantification_method(
-                method, threads=threads, min_peptides=2
+                method,
+                threads=threads,
+                min_ratio_count=maxlfq_min_ratio_count,
+                stabilize=stabilize,
             )
         elif method_lower == "directlfq":
             quant_method = get_quantification_method(method, min_nonan=min_nonan)

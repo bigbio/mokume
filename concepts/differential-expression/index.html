@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1522,7 +1522,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1544,7 +1544,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2169,7 +2169,7 @@
     C --&gt;|Balanced| E</code></pre>
 <div class="admonition tip">
 <p class="admonition-title"><code>--de-method auto</code></p>
-<p>When set to <code>auto</code> (the default), mokume selects <strong>DEqMS</strong> for DirectLFQ quantification and <strong>LimROTS</strong> for all other methods. You can always override this with <code>--de-method</code>.</p>
+<p>When set to <code>auto</code> (the default), mokume selects <strong>DEqMS</strong> for DirectLFQ quantification and <strong>LimROTS</strong> for all other methods. LimROTS needs a complete matrix, so <code>auto</code> also selects <strong>DEqMS</strong> when the protein matrix has missing values (for example, without imputation). You can always override this with <code>--de-method</code>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">No R required</p>
@@ -2315,6 +2315,11 @@ contrast and combines their per-protein verdicts using a top-k consensus
 rule: a protein is called significant only when at least <code>min_k</code> member
 methods agree on direction (UP or DOWN) and the Fisher-combined p-value
 passes the FDR threshold.</p>
+<p>The default members are LimROTS, DEqMS, and proDA. LimROTS needs a complete
+matrix, so on a contrast with missing values the default members run limma,
+the moderated t-test that LimROTS builds on, in place of LimROTS. A member
+list given with <code>--de-ensemble-method</code> is used as given, so a <code>limrots</code> member
+then needs a complete (for example, imputed) matrix.</p>
 <p><strong>Output columns</strong> include the median log2FC across members, the
 Fisher-combined p-value (adjusted with the requested FDR method), <code>n_methods_up</code>, <code>n_methods_down</code>,
 and <code>methods_significant</code> (comma-separated list of members that called
@@ -2498,7 +2503,7 @@ combined rows have no IHW covariate.</p>
 <tr>
 <td><strong>Don't know / general use</strong></td>
 <td><code>auto</code></td>
-<td>DEqMS for DirectLFQ, LimROTS for others</td>
+<td>DEqMS for DirectLFQ or a matrix with missing values, LimROTS otherwise</td>
 </tr>
 </tbody>
 </table>

@@ -369,7 +369,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1312,7 +1312,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1334,7 +1334,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -1869,6 +1869,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tmt-reporter-corrections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TMT reporter corrections
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#matrix-qc-and-coverage-filter" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2270,9 +2281,10 @@ There is no alternate output-format switch.</p>
 The paired QPX inputs are used only by true <code>spectral-count</code> and require SDRF.
 MSstats input requires
 <code>ProteinName</code>, <code>PeptideSequence</code>, <code>Intensity</code>, <code>Charge</code> or <code>PrecursorCharge</code>,
-and <code>Run</code> or <code>Reference</code>; isobaric data also requires <code>Channel</code>. Ratio
-quantification requires PSM-level QPX evidence and does not accept MSstats
-feature tables.</p>
+and <code>Run</code> or <code>Reference</code>; isobaric data also requires <code>Channel</code>. If both
+<code>Run</code> and <code>Reference</code> are present, <code>Reference</code> names the data file, because
+quantms writes <code>Run</code> as a design index. Ratio quantification requires
+PSM-level QPX evidence and does not accept MSstats feature tables.</p>
 <h3 id="metadata-filtering">Metadata &amp; Filtering<a class="headerlink" href="#metadata-filtering" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2326,6 +2338,16 @@ feature tables.</p>
 <td>Method: maxlfq, directlfq, pibaq, <code>top&lt;N&gt;</code>, sum, median, ratio, abd, intensity, peptide-count, spectral-count</td>
 </tr>
 <tr>
+<td><code>--maxlfq-min-ratio-count</code></td>
+<td><code>2</code></td>
+<td>Minimum shared peptide species per sample pair (MaxLFQ only)</td>
+</tr>
+<tr>
+<td><code>--stabilize</code></td>
+<td>off</td>
+<td>Enable overlap-dependent large-ratio stabilization (MaxLFQ only; may worsen some ratios)</td>
+</tr>
+<tr>
 <td><code>-f/--fasta</code></td>
 <td>none</td>
 <td>FASTA file (required for piBAQ)</td>
@@ -2344,6 +2366,11 @@ feature tables.</p>
 <td><code>--directlfq-num-samples-quadratic</code></td>
 <td>50</td>
 <td>Maximum samples in DirectLFQ's quadratic global-alignment subset</td>
+</tr>
+<tr>
+<td><code>--directlfq-no-sample-normalization</code></td>
+<td>off</td>
+<td>Skip DirectLFQ's global sample normalization (directlfq <code>deactivate_normalization</code>)</td>
 </tr>
 <tr>
 <td><code>--pibaq-enzyme</code></td>
@@ -2373,7 +2400,22 @@ feature tables.</p>
 <tr>
 <td><code>--pibaq-min-anchors</code></td>
 <td>1</td>
-<td>Minimum unique-peptide anchors required before proportional family allocation</td>
+<td>Minimum unique-peptide anchors (in the dataset) for a family to have member-level evidence</td>
+</tr>
+<tr>
+<td><code>--pibaq-shared</code></td>
+<td><code>unique</code></td>
+<td>Shared-peptide handling: <code>unique</code> (member values from unique peptides only), <code>stable-ratio</code> (unique peptides plus shared signal split by cross-sample member ratios), <code>proportional</code> (legacy per-sample split)</td>
+</tr>
+<tr>
+<td><code>--pibaq-family-rows</code></td>
+<td><code>family-only</code></td>
+<td>Family-level rows (<code>A;B;C</code>): <code>family-only</code> (families with no unique-peptide evidence), <code>all</code>, <code>none</code>; <code>none</code> with <code>proportional</code></td>
+</tr>
+<tr>
+<td><code>--pibaq-evidence</code></td>
+<td>none</td>
+<td>Write a per-row TSV side-car: row type, family, evidence class, theoretical/observed unique and shared peptide counts</td>
 </tr>
 </tbody>
 </table>
@@ -2413,7 +2455,10 @@ feature tables.</p>
 <code>spectral-count</code> count evidence identities and do not use intensity
 normalization. All four therefore default both normalization layers to <code>none</code>;
 passing a non-<code>none</code> value is rejected. Other methods default to <code>median</code> /
-<code>global-median</code>.</p>
+<code>global-median</code>, except that MaxLFQ's sample normalization defaults to
+<code>hierarchical</code> (<code>global-median</code> when <code>--normalization-proteins</code> is given): the
+median of a sample's detected features moves with detection depth and spike-in
+composition, while hierarchical alignment compares the peptides that samples share.</p>
 <h3 id="irs-multi-plex-tmt">IRS (Multi-Plex TMT)<a class="headerlink" href="#irs-multi-plex-tmt" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2464,8 +2509,72 @@ passing a non-<code>none</code> value is rejected. Other methods default to <cod
 <td>auto</td>
 <td>SDRF column naming each channel's plex (default: channels sharing data files)</td>
 </tr>
+<tr>
+<td><code>--irs-missing-reference</code></td>
+<td><code>keep</code></td>
+<td>A protein with values but no reference value in a plex: <code>keep</code> (leave that plex unscaled), <code>drop</code> (remove those values), <code>plex-median</code> (scale by the plex's median IRS factor)</td>
+</tr>
 </tbody>
 </table>
+<h3 id="tmt-reporter-corrections">TMT reporter corrections<a class="headerlink" href="#tmt-reporter-corrections" title="Anchor link to this section">&para;</a></h3>
+<p>Applied to each QPX feature row (all reporter channels of one PSM/feature) before
+normalization and quantification. Label-free rows are untouched.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--tmt-row-merge</code></td>
+<td><code>max</code></td>
+<td>Repeated rows of one peptidoform/charge in one plex (several PSMs, fractions): <code>max</code> takes the maximum per channel independently; <code>best-row</code> keeps the single row with the highest reporter sum, so all channels come from one spectrum</td>
+</tr>
+<tr>
+<td><code>--tmt-impurity</code></td>
+<td>none</td>
+<td>Isotope-impurity table for reporter correction (non-negative least squares per row)</td>
+</tr>
+<tr>
+<td><code>--tmt-interference-floor</code></td>
+<td>none</td>
+<td>Subtract an additive co-isolation floor: a fraction (e.g. <code>0.05</code>) or <code>auto</code> (estimated per plex)</td>
+</tr>
+<tr>
+<td><code>--tmt-floor-quantile</code></td>
+<td>0.01</td>
+<td>Ratio quantile used by <code>--tmt-interference-floor auto</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>max</code> picks the noisiest maximum in low channels when an ion is quantified in
+several spectra, which compresses ratios; <code>best-row</code> is the MSstatsTMT-style
+choice. The impurity table has one line per channel with the percentages
+leaking to the channels 2 and 1 Da lighter and 1 and 2 Da heavier (the lot's
+certificate of analysis), e.g.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>channel  -2   -1    +1    +2
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>126      0.0  0.0   5.09  0.0
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>127N     0.0  0.25  5.27  0.0
+</span></code></pre></div>
+<p>Fields may be separated by tabs, spaces, commas or semicolons. Lines that do
+not start with a channel name (such as the header) are skipped; every channel
+line needs exactly four numbers, otherwise the table is rejected.</p>
+<p>Channel names may carry a <code>TMT</code> prefix; <code>N</code>/<code>C</code> channels leak into the next
+channel of the same type (126 counts as <code>C</code>). With
+<code>--tmt-interference-floor</code>, each channel <code>c</code> of a row becomes
+<code>(I_c - f * m * L_c) / (1 - f)</code>, where <code>m</code> is the loading-adjusted row mean and
+<code>L_c</code> the plex's median channel loading, and is kept at or above
+<code>0.01 * m * L_c</code>. This assumes co-isolated signal is spread over the channels
+like the plex loading and scales with the row's own intensity (a constant
+precursor purity of <code>1 - f</code>). <code>auto</code> sets <code>f</code> per plex to the
+<code>--tmt-floor-quantile</code> of loading-adjusted channel ratios in the more intense
+half of complete rows.</p>
+<p>These options work on QPX feature rows, which hold every reporter channel of a
+spectrum; they are rejected with <code>--msstats</code> input, whose rows hold one channel
+each.</p>
 <p>IRS options require <code>--irs</code> and an SDRF. Reference detection must find usable
 reference samples and plex assignments; otherwise the command fails. IRS is
 rejected for <code>peptide-count</code> and <code>spectral-count</code> because scaling count evidence
@@ -2583,14 +2692,14 @@ are errors rather than successful uncorrected outputs.</p>
 <td>Quantile for MinProb/MinDet</td>
 </tr>
 <tr>
-<td><code>--impute-shift</code></td>
-<td>1.6</td>
-<td>MinProb shift in standard deviations</td>
+<td><code>--impute-tune-sigma</code></td>
+<td>1.0</td>
+<td>MinProb/QRILC multiplier of the fitted standard deviation</td>
 </tr>
 <tr>
-<td><code>--impute-scale</code></td>
-<td>0.3</td>
-<td>MinProb scale factor for the imputation distribution sigma</td>
+<td><code>--impute-seed</code></td>
+<td>42</td>
+<td>Seed of the MinProb/QRILC draws</td>
 </tr>
 <tr>
 <td><code>--impute-n-neighbors</code></td>
@@ -2669,28 +2778,30 @@ wraps scikit-learn. Install <code>mokume[analysis]</code> and call the wheel's P
 output path must be supplied, so a completed calculation cannot be discarded.
 Inline and file contrasts can be combined.</p>
 <p><code>--de-method auto</code> selects <code>deqms</code> for <code>directlfq</code> quantification and <code>limrots</code>
-for other quantification methods. All methods run in the native Rust kernel —
+for other quantification methods. LimROTS needs a complete matrix, so <code>auto</code>
+selects <code>deqms</code> when the protein matrix has missing values (for example, without
+imputation). All methods run in the native Rust kernel —
 no R or rpy2 required. ROTS and LimROTS retain permutation FDR and therefore
 reject alternative <code>--de-fdr-method</code> values. Deterministic methods (limma /
 deqms) are cell-exact against frozen Python-generated compatibility output;
 RNG/optimizer-driven methods (rots / limrots / proda) match log2 fold change
 cell-exactly and p-values at rank level.</p>
-<p><code>--de-method ensemble</code> runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least <code>--de-ensemble-min-k</code> members agree on direction and the Fisher-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Fisher-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate.</p>
+<p><code>--de-method ensemble</code> runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least <code>--de-ensemble-min-k</code> members agree on direction and the Fisher-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Fisher-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate. The default members are <code>limrots</code>, <code>deqms</code>, and <code>proda</code>; on a contrast with missing values they run <code>limma</code> in place of <code>limrots</code>, because LimROTS needs a complete matrix. An explicit <code>--de-ensemble-method limrots</code> member still needs a complete matrix.</p>
 <h3 id="plots-reports">Plots &amp; Reports<a class="headerlink" href="#plots-reports" title="Anchor link to this section">&para;</a></h3>
 <p><code>features2proteins</code> is pure compute and writes no figures. The kernel emits the protein-matrix CSV and (with <code>--de-output</code>) one DE result CSV per contrast; render plots and HTML reports from those CSVs with the wheel periphery:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># PCA from the protein matrix (plotting extra)</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>pca<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--output<span class="w"> </span>pca.pdf
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># DE volcano / heatmap from the kernel CSVs (plotting extra)</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>mokume<span class="w"> </span>plot<span class="w"> </span>de<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span>--outdir<span class="w"> </span>plots<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--volcano<span class="w"> </span>--heatmap<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>--contrast<span class="w"> </span>c1<span class="w"> </span>A<span class="w"> </span>B<span class="w"> </span>de.csv
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Interactive HTML report (reports extra)</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>mokume<span class="w"> </span>interactive-report<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--output<span class="w"> </span>report.html<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span>--contrast<span class="w"> </span>c1<span class="w"> </span>A<span class="w"> </span>B<span class="w"> </span>de.csv
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># PCA from the protein matrix (analysis extra)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>pca<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--output<span class="w"> </span>pca.pdf
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># DE volcano / heatmap from the kernel CSVs (analysis extra)</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>mokume<span class="w"> </span>plot<span class="w"> </span>de<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span>--outdir<span class="w"> </span>plots<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--volcano<span class="w"> </span>--heatmap<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span>--contrast<span class="w"> </span>c1<span class="w"> </span>A<span class="w"> </span>B<span class="w"> </span>de.csv
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Interactive HTML report (analysis extra)</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>mokume<span class="w"> </span>interactive-report<span class="w"> </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--output<span class="w"> </span>report.html<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span>--contrast<span class="w"> </span>c1<span class="w"> </span>A<span class="w"> </span>B<span class="w"> </span>de.csv
 </span></code></pre></div>
 <p>Pass <code>--help</code> to either command for the full flag set.</p>
 <h3 id="export">Export<a class="headerlink" href="#export" title="Anchor link to this section">&para;</a></h3>
@@ -2756,7 +2867,7 @@ pipeline and therefore lies outside this soft budget.</p>
 <hr />
 <h2 id="features2peptides">features2peptides<a class="headerlink" href="#features2peptides" title="Anchor link to this section">&para;</a></h2>
 <p>Feature-level to peptide-level normalization.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="core-options">Core Options<a class="headerlink" href="#core-options" title="Anchor link to this section">&para;</a></h3>
 <table>
@@ -2984,7 +3095,7 @@ ignored.</p>
 <hr />
 <h2 id="peptides2protein">peptides2protein<a class="headerlink" href="#peptides2protein" title="Anchor link to this section">&para;</a></h2>
 <p>Protein quantification from normalized peptide data.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3009,6 +3120,16 @@ ignored.</p>
 <td><code>--quant-method</code></td>
 <td><code>pibaq</code></td>
 <td>Method: pibaq, <code>top&lt;N&gt;</code> (top3, top5, top10, ...), maxlfq, sum, directlfq</td>
+</tr>
+<tr>
+<td><code>--maxlfq-min-ratio-count</code></td>
+<td><code>2</code></td>
+<td>Minimum shared peptide species per sample pair (MaxLFQ only)</td>
+</tr>
+<tr>
+<td><code>--stabilize</code></td>
+<td>off</td>
+<td>Enable overlap-dependent large-ratio stabilization (MaxLFQ only; may worsen some ratios)</td>
 </tr>
 <tr>
 <td><code>--enzyme</code></td>
@@ -3109,12 +3230,12 @@ peptide-length bounds, and missed-cleavage count.</p>
 <div class="admonition note">
 <p class="admonition-title"><code>--qc-report</code> plots the native result table</p>
 <p>Rust writes the piBAQ table first, then the wheel renders the density and box
-plots from those exact values. Install <code>mokume[plotting]</code> to use this option.</p>
+plots from those exact values. Install <code>mokume[analysis]</code> to use this option.</p>
 </div>
 <hr />
 <h2 id="correct-batches">correct-batches<a class="headerlink" href="#correct-batches" title="Anchor link to this section">&para;</a></h2>
 <p>Standalone batch correction for pre-quantified data.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>correct-batches<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>correct-batches<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3188,11 +3309,11 @@ options; for those, use <code>features2proteins --batch-correction</code>.</p>
 <h2 id="periphery-commands">Periphery commands<a class="headerlink" href="#periphery-commands" title="Anchor link to this section">&para;</a></h2>
 <p>These commands ship in the <code>pip install mokume</code> wheel but remain implemented in
 Python rather than the Rust compute kernel:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[plotting]"</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span>--input<span class="w"> </span>./proteins<span class="w"> </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span>--output<span class="w"> </span>tsne.pdf
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[tissuemap]"</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>./data<span class="w"> </span>--outdir<span class="w"> </span>./out<span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[analysis]"</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span>--input<span class="w"> </span>./proteins<span class="w"> </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span>--output<span class="w"> </span>tsne.pdf
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[tissuemap]"</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>./data<span class="w"> </span>--outdir<span class="w"> </span>./out<span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
 </span></code></pre></div>
 <p>t-SNE visualization reads protein tables, while TissueMap derives a downstream
 atlas from QPX data. See the <a href="../python-api/">Python API</a> for the corresponding

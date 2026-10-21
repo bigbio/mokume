@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1315,7 +1315,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1337,7 +1337,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2026,7 +2026,7 @@ automatically for the task. Do not add a second custom MCP entry or run the
 server manually.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Anchor link to this section">&para;</a></h2>
 <p>Install the default Rust-backed distribution with the plugin dependencies:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[agentic]"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[plugin]"</span>
 </span></code></pre></div>
 <p>The Rust-backed <code>mokume</code> distribution and this optional MCP workflow require
 Python 3.10 or newer.</p>
@@ -2040,8 +2040,8 @@ marketplace</strong>. Use <code>https://github.com/bigbio/mokume</code> as the G
 leave the sparse path empty. Start a new task after installation so Codex loads
 the skill and its MCP tools.</p>
 <p>The <code>mokume</code> executable must remain available on <code>PATH</code> to the Codex process.
-Installation is complete when the task exposes <code>mokume.inspect_dataset</code> and
-<code>mokume.evaluate_recommendation</code>.</p>
+Installation is complete when the task exposes <code>mokume.inspect_dataset</code>,
+<code>mokume.evaluate_recommendation</code>, and <code>mokume.search_knowledge</code>.</p>
 <h3 id="claude-code">Claude Code<a class="headerlink" href="#claude-code" title="Anchor link to this section">&para;</a></h3>
 <p>Add the same repository as a Claude Code marketplace and install the same
 plugin bundle:</p>
@@ -2049,9 +2049,9 @@ plugin bundle:</p>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>claude<span class="w"> </span>plugin<span class="w"> </span>install<span class="w"> </span>mokume@bigbio
 </span></code></pre></div>
 <p>Start a new Claude Code session after installation. The plugin discovers the
-shared <code>analyze-proteomics</code> skill and starts the bundled Mokume MCP server with
-an installation-independent knowledge path. The <code>mokume</code> executable must be on
-the <code>PATH</code> inherited by Claude Code. No separate <code>/mcp</code> setup is required.</p>
+shared <code>analyze-proteomics</code> skill and starts the Mokume MCP server, which loads
+its knowledge snapshot from the installed wheel. The <code>mokume</code> executable must
+be on the <code>PATH</code> inherited by Claude Code. No separate <code>/mcp</code> setup is required.</p>
 <h2 id="use">Use<a class="headerlink" href="#use" title="Anchor link to this section">&para;</a></h2>
 <p>Ask Codex to use <code>$mokume:analyze-proteomics</code>, or invoke
 <code>/mokume:analyze-proteomics</code> in Claude Code, and provide:</p>
@@ -2061,8 +2061,10 @@ the <code>PATH</code> inherited by Claude Code. No separate <code>/mcp</code> se
 <li>an exact two-condition contrast from the selected SDRF factor;</li>
 <li>the explicit protein-matrix scale (<code>linear</code> or <code>log2</code>);</li>
 <li>an absolute peptide-count sidecar when testing DEqMS directly or in an ensemble;</li>
-<li>the contrast and, when known, <code>LFQ</code>, <code>DIA</code>, or <code>TMT</code> data type;</li>
-<li>the upstream quantification and engine when known;</li>
+<li>the contrast and, when known, the <code>LFQ</code> (label-free DDA), <code>DIA</code>, or <code>TMT</code>
+  data type;</li>
+<li>the upstream quantification and engine when known; a declared quantification
+  selects the benchmark preset measured on that quantification;</li>
 <li>an absolute output directory; and</li>
 <li>optionally, a ground-truth protein list for a spike-in benchmark.</li>
 </ul>
@@ -2071,6 +2073,10 @@ the two requested conditions and binds compatible evidence into typed context
 blocks; unrelated SDRF conditions do not affect diagnostics or preprocessing.
 The host may then propose at most five configurations under the returned contract
 and pass the exact block to <code>evaluate_recommendation</code>.</p>
+<p><code>search_knowledge</code> answers questions about methods, benchmark evidence, and the
+benchmark result of a named PXD dataset. Its results are explanation-only: a
+recommendation may cite only the <code>allowed_evidence_refs</code> that <code>inspect_dataset</code>
+returns.</p>
 <p>The comma- or tab-delimited protein matrix must use its first column for
 non-empty, unique protein identifiers and provide at least two numeric sample
 columns. Column names must be non-empty and unique, every sample column must map
@@ -2139,10 +2145,10 @@ input scale, diagnostics, measurements, and ranking status.</p>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>plugins/mokume/
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>├── .codex-plugin/                      # Codex manifest and MCP adapter
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>├── .claude-plugin/plugin.json         # Claude Code manifest and MCP adapter
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>├── knowledge/knowledge.yaml           # evidence index
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>├── knowledge/sources/                 # immutable benchmark source artifacts
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>└── skills/analyze-proteomics/          # shared workflow and output contract
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>rust/python/mokume/agentic/             # deterministic MCP service
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>└── skills/analyze-proteomics/          # shared workflow and output contract
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>rust/python/mokume/agentic/
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>├── knowledge_bundle/                   # evidence index and source artifacts
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>└── ...                                 # deterministic MCP service
 </span></code></pre></div>
 <p>Update the knowledge index separately from model prompts. Every eligible
 record must retain its source, captured date, artifact hashes, applicability,

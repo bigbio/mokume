@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1417,7 +1417,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1439,7 +1439,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2024,9 +2024,9 @@ periphery and fallback paths are documented separately below. The pure-Python
 package computes the same capabilities through its own implementation.</p>
 <blockquote>
 <p><strong>Measured performance.</strong> Performance is workload-specific. On the
-2026-08-23 <code>sum</code> parity rerun (PXD003539 / PXD004701, 24 threads, one warm-up,
-median of three measured runs), Rust/Python wall times were 8.95/7.17 seconds
-and 17.84/13.99 seconds; peak memory was 0.86/4.25 GiB and 1.29/8.02 GiB.
+2026-10-18 <code>sum</code> parity rerun (PXD003539 / PXD004701, 24 threads, one warm-up,
+median of three measured runs), Rust/Python wall times were 6.43/9.38 seconds
+and 11.84/16.48 seconds; peak memory was 0.73/4.51 GiB and 0.80/6.58 GiB.
 Protein/sample sets and every matrix cell were exact. Quote these measured
 trade-offs rather than an unbounded speed claim.</p>
 </blockquote>
@@ -2104,16 +2104,18 @@ canonical enzyme, catalog SHA-256, length bounds, and missed-cleavage count so
 the runtime digest is traceable.</p>
 <h2 id="the-mokume-plugin">The Mokume Plugin<a class="headerlink" href="#the-mokume-plugin" title="Anchor link to this section">&para;</a></h2>
 <p>Agentic recommendation is shipped as an installable host plugin under
-<code>plugins/mokume/</code>, not as a model client inside either computation package. The
-bundle contains one skill, automatic local MCP configuration, and a committed
-knowledge snapshot. Its MCP process is provided by <code>mokume[agentic]</code> in the
-default Rust-backed wheel.</p>
+<code>plugins/mokume/</code>. The bundle contains one skill, automatic local MCP
+configuration, and a committed knowledge snapshot. Its MCP process is provided
+by <code>mokume[plugin]</code> in the default Rust-backed wheel. This path uses the model
+and credentials already owned by Codex or Claude Code.</p>
 <p>The host model reads the skill and calls <code>mokume.inspect_dataset</code> with a
 two-condition contrast to receive a contrast-scoped typed profile, deterministic
 diagnostics, compatible evidence, and a bounded generation contract. It returns
 an exact recommendation block to
 <code>mokume.evaluate_recommendation</code>, which validates the block before running the
-Rust matrix APIs. Mokume never receives the host's model API key.</p>
+Rust matrix APIs. A third tool, <code>mokume.search_knowledge</code>, returns
+explanation-only benchmark evidence and dataset summaries. Mokume never receives
+the Plugin host's model API key.</p>
 <p>The scientific boundary is explicit: ground-truth datasets may be ranked with
 Score A; unlabelled datasets remain exploratory and have no winner. The plugin
 starts from a protein matrix, so upstream quantification is provenance rather

@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1315,7 +1315,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1337,7 +1337,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -1932,10 +1932,11 @@ explicit argument list (<code>mokume.run([...])</code>).</p>
 <code>de-plots</code>, and <code>interactive-report</code>. These commands live in the Python
 periphery of the wheel: plotting and reporting consume kernel tables, while
 TissueMap derives its downstream atlas from QPX data. Install the relevant
-extra (<code>plotting</code>, <code>reports</code>, <code>tissuemap</code>, or <code>all</code>) to pull in their libraries.
-The top-level Python wrappers remain available for scripts. The agentic workflow
-is provided by the <a href="agentic-plugin/">Mokume Plugin</a>, whose hidden local MCP
-service uses the default Rust-backed wheel.</p>
+extra (<code>analysis</code>, <code>tissuemap</code>, or <code>all</code>) to pull in their libraries.
+The top-level Python wrappers remain available for scripts. Evidence-bound
+method selection is available through the
+<a href="agentic-plugin/">Mokume Plugin</a>, which uses the default Rust-backed wheel
+and the deterministic recommendation service.</p>
 
 
 

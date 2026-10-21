@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -903,6 +903,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="piBAQ (Paralog-Aware iBAQ)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shared-peptides-in-features2proteins-pibaq-shared" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared peptides in features2proteins (--pibaq-shared)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1494,7 +1511,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1516,7 +1533,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2113,7 +2130,7 @@
 </tr>
 <tr>
 <td><strong>MaxLFQ</strong></td>
-<td>Delayed normalization with parallelization</td>
+<td>Pairwise peptide ratios and least-squares protein profiles</td>
 <td style="text-align: center;">No</td>
 <td><code>maxlfq</code></td>
 </tr>
@@ -2211,6 +2228,46 @@ For each sample independently:</p>
 the threshold is raised and no family member reaches it, piBAQ marks the family
 <code>family_only</code> and forces equal shared-peptide allocation rather than trusting
 sub-threshold anchors.</p>
+<h3 id="shared-peptides-in-features2proteins-pibaq-shared">Shared peptides in <code>features2proteins</code> (<code>--pibaq-shared</code>)<a class="headerlink" href="#shared-peptides-in-features2proteins-pibaq-shared" title="Anchor link to this section">&para;</a></h3>
+<p>The rule above is the legacy <code>proportional</code> mode. It has two side effects in
+large multi-sample studies:</p>
+<ul>
+<li>when no member of a family has a unique peptide (<code>family_only</code>), every
+  member receives the same equal split of the shared signal, so paralogs get
+  identical profiles across samples (perfect artificial co-expression);</li>
+<li>when a member's unique peptides are missing in one sample, its siblings take
+  the whole shared signal in that sample (or an equal split if all are
+  missing), so values depend on detection rather than abundance.</li>
+</ul>
+<p><code>features2proteins</code> therefore defaults to <code>--pibaq-shared unique</code>:</p>
+<ul>
+<li>a member value is the sum of its family-unique peptides divided by its
+  number of theoretical family-unique peptides; shared peptides never create a
+  member value;</li>
+<li>a multi-member family with no unique-peptide evidence is reported as one
+  family row, named by its members (<code>P1;P2;P3</code>), whose value is all owned
+  peptide intensity divided by all owned theoretical peptides
+  (<code>--pibaq-family-rows family-only</code>, the default; <code>all</code> adds a family row for
+  every multi-member family, <code>none</code> disables them);</li>
+<li>single-member families are unchanged.</li>
+</ul>
+<p><code>--pibaq-shared stable-ratio</code> adds shared intensity to members that have unique
+evidence in that sample, using one member ratio per shared-peptide member set
+estimated across samples (median per-sample share over samples where every
+member has unique peptides; otherwise each member's median unique level). A
+member without unique evidence in a sample still gets no value there, and its
+share in that sample is not given to its siblings. A member with no unique
+evidence in any sample gets a zero ratio, so the shared signal of that member
+set goes to its siblings. The denominator is the member's owned theoretical
+peptides (unique plus shared), as in legacy piBAQ.</p>
+<p><code>--pibaq-shared proportional</code> reproduces earlier releases exactly.
+<code>peptides2protein</code> always uses the legacy rule.</p>
+<p><code>--pibaq-evidence FILE</code> writes one TSV row per member and family row:
+<code>row_type</code> (<code>member</code>, <code>family</code>, <code>member_not_quantified</code>), <code>family_id</code>,
+<code>family_members</code>, <code>evidence</code> (<code>family_only</code>, <code>medium</code>, <code>high</code>), the denominator
+used (<code>theoretical_peptides</code>), theoretical and observed unique/shared peptide
+counts, and the number of quantified samples. Rows describe the matrix before
+IRS, coverage or correlation filters.</p>
 <p>Family discovery proceeds in two layers:</p>
 <ol>
 <li><strong>UniProt isoform collapse</strong> — accessions of the form <code>P05067-2</code>, <code>P70255-3</code> are folded onto their canonical entry (<code>P05067</code>, <code>P70255</code>). This matches the UniProt convention and absorbs the bulk of "non-canonical isoform with no unique peptide" cases.</li>
@@ -2341,18 +2398,125 @@ tryptic peptides scales with protein amount.</p>
 <p>Top3 is a good default for label-free experiments when you don't need absolute quantification.</p>
 </div>
 <h2 id="maxlfq">MaxLFQ<a class="headerlink" href="#maxlfq" title="Anchor link to this section">&para;</a></h2>
-<p>The <strong>MaxLFQ algorithm</strong> (Cox et al., 2014) uses delayed normalization with pairwise peptide ratios to estimate protein intensities. It's particularly robust to missing values.</p>
-<p>In the native Rust kernel, MaxLFQ rolls the peptide matrix up with the DirectLFQ estimator (delegating with <code>min_nonan = 2</code>). It is real-data compatibility-checked against frozen Python-generated output — cell-exact on PXD003539 within the f32 tolerance tier.</p>
+<p>Mokume implements the <strong>MaxLFQ protein-quantification core</strong> from
+<a href="https://doi.org/10.1074/mcp.M113.031591">Cox et al. (2014), Eq. 3 and Fig. 2</a>.
+Both the native Rust entrypoints and the separate <code>mokume-py</code> package use
+pairwise peptide-species ratios and an unweighted least-squares solve.
+MaxLFQ does not call DirectLFQ, regardless of installed optional packages.</p>
+<p>For each protein, the solver:</p>
+<ol>
+<li>Preserves sequence, modification and charge as the peptide-species identity.
+   Feature inputs retain contextual ion maxima before summing repeated
+   observations of the same species. Prepared peptide inputs sum duplicate
+   species/sample rows. A canonical-only input cannot recover lost species data.</li>
+<li>Uses positive, finite intensities to calculate median <strong>log2</strong> ratios for
+   each sample pair. <code>--maxlfq-min-ratio-count</code> sets the required number of
+   shared species per pair (default: 2), separately from protein peptide filters.
+   Even-sized medians use the midpoint in log space.
+   Optional <code>--stabilize</code> applies the paper's large-ratio stabilization (Eq. 5)
+   to these pairwise ratios before solving the protein profile.</li>
+<li>Solves the sample-ratio graph without a reference peptide, ridge penalty or
+   median-aggregation fallback, then rescales the supported protein profile to
+   the total input peptide intensity over all samples.</li>
+</ol>
+<p>Samples without a valid ratio remain unquantified (zero in the Rust solver;
+absent from positive long-format output and missing in the protein matrix).
+Disconnected nontrivial sample components are solved separately and reported
+with a warning. Their relative scales use each component's observed total,
+followed by global total rescaling; this is an explicit convention because
+shared-peptide ratios cannot identify offsets between disconnected components.
+The Rust <code>solve_max_lfq</code> result exposes component membership.</p>
+<p>Normalization remains an <strong>explicit upstream step</strong>. Fraction-aware delayed
+normalization (the paper's Eq. 1–2) is not implemented. This core is not a complete reproduction of the MaxQuant
+workflow. For already normalized input, choose <code>none</code> explicitly to avoid
+applying another normalization step.</p>
+<p><code>--stabilize</code> is <strong>off by default</strong> and is accepted only with MaxLFQ, by both
+<code>quantify features2proteins</code> and <code>quantify peptides2protein</code>. For each protein
+and sample pair, let <code>x = max(n_A, n_B) / n_shared</code>. Eq. 5 sets
+<code>w = clip((x - 2.5) / 2.5, 0, 1)</code> and combines the median log2 peptide ratio
+with the log2 ratio of total peptide intensities using weights <code>1-w</code> and <code>w</code>.
+Thus at least 40% overlap retains the ordinary ratio; at most 20% overlap uses
+the total-intensity ratio; intermediate overlap blends them in log space.
+The original minimum shared-species requirement still applies. Zero overlap
+never creates a ratio, and stabilization cannot connect disconnected components.</p>
+<p>This adapts the weight to observed peptide overlap, not to known condition
+labels or true fold changes. Random missingness can also produce low overlap,
+so stabilization can worsen some ratios and does not guarantee greater accuracy.
+The run log records the setting, minimum ratio count, and numbers of protein
+groups and sample pairs assigned positive stabilization weights. Those counts
+describe where the rule was applied, not where accuracy improved.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span>--maxlfq-min-ratio-count<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--run-normalization<span class="w"> </span>none<span class="w"> </span>--sample-normalization<span class="w"> </span>none
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>proteins.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>--maxlfq-min-ratio-count<span class="w"> </span><span class="m">2</span><span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Optional large-ratio stabilization for prepared peptide input</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span>-p<span class="w"> </span>peptides.csv<span class="w"> </span>-o<span class="w"> </span>proteins.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span>--stabilize<span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
 </span></code></pre></div>
+<p>The old <code>force_builtin</code> API option is retained as a no-op. Python's
+<code>min_peptides</code> argument remains an alias for <code>min_ratio_count</code>; use the latter
+for clarity. Rust's <code>max_lfq</code> and <code>max_lfq_with_samples</code> now return <code>Result</code> so
+numerical failures are propagated rather than replaced with another algorithm.
+The configurable Rust solver is <code>solve_max_lfq_with_stabilization</code>; Python
+accepts <code>MaxLFQQuantification(stabilize=True)</code> and
+<code>QuantificationConfig(stabilize=True)</code>. Older serialized Rust configurations
+without the new field retain disabled stabilization and minimum ratio count 2.</p>
+<p>The independent third-party <a href="https://github.com/tvpham/iq">iq implementation</a>
+is useful for checking within-component log ratios. Its published R solver
+uses a mean-log intensity anchor and quantifies isolated samples by a median;
+these conventions differ from the profile-total scaling and unsupported-sample
+handling used here. It is not an original-author MaxLFQ library.</p>
+<p>Verification of the unstabilized core on 2026-09-09 used the published <code>iq::maxLFQ</code> R function
+(source file <code>R/iq.R</code>, R 4.5.3), not an installed original-author library.
+The extracted function file, including its provenance comments, had SHA256
+<code>ad7a6aff88aa5a4dd45457e5e679a306bfd359d006c3c516cb8a8fca169df329</code>.
+With seed 42, 38 synthetic matrices covered 2–100 samples and missing values;
+the common comparison used minimum ratio count 1. The largest within-component
+log2-ratio difference was 1.75e-13 (rounded upward). After explicitly adjusting
+iq's scale to the Cox total-intensity convention, the largest relative error
+was 6.88e-14. One isolated-sample output differed as described above. These are
+synthetic correctness checks, not performance benchmark results.</p>
+<p>A separate real-input check used the local PXD000279 OpenMS/quantms QPX
+reprocessing (feature SHA256
+<code>4be9ba9da7241acfd05d81945694353b8ebfec6c91e103353c6bb3d673373621</code>).
+Its 1,302,231 feature rows cover six samples and 143 fraction runs. The native
+pipeline, with both normalization options set to <code>none</code> and minimum ratio count
+2, returned 5,400 protein groups and 29,349 finite protein/sample values.
+From sorted input/output protein identifiers, seed 42 selected 100 proteins
+with at least two shared species for every sample pair, so iq's minimum-one
+pair rule and the native minimum-two rule used the same graph. Inputs retained
+1,850 species and 2,262 missing species/sample cells. All 600 output values
+passed predeclared <code>rtol=1e-10, atol=1e-6</code> after total-intensity rescaling;
+the maximum relative error was 5.94e-14 and the maximum pairwise log2-ratio
+difference was 1.04e-13 (both rounded upward).</p>
+<p>This check used explicit DuckDB preparation matching native ingestion,
+including its existing policy of retaining null <code>unique</code> annotations. The
+Python feature loader instead requires <code>unique = 1</code> and returns no rows for
+this QPX, whose <code>unique</code> column is entirely null. This pre-existing ingestion
+difference remains unresolved; retaining unknown uniqueness does not establish
+that these are biologically unique peptides. The check establishes solver
+agreement on matching input, not full Rust/Python pipeline agreement.</p>
+<p>The local protein table contains unnormalized Top3 results, not original
+MaxQuant LFQ output. The SDRF, RAW manifest and checksum list all omit fraction
+6 of <code>Hela_Ecoli30_red</code> (143 rather than the design's 144 runs). Therefore this
+is neither an exact reproduction of the original data processing nor a
+validation of delayed normalization. The preserved run/fraction metadata and
+unnormalized feature input do provide a concrete future test case for Eq. 1–2.</p>
 <h2 id="directlfq">DirectLFQ<a class="headerlink" href="#directlfq" title="Anchor link to this section">&para;</a></h2>
 <p><strong>DirectLFQ</strong> (Ammar et al., 2023) uses hierarchical normalization with variance-guided pairwise alignment. When used as the quantification method, it handles both normalization and quantification. It is a native Rust port of the DirectLFQ estimator — no separate Python dependency is needed.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>When <code>--quant-method directlfq</code> is selected, the kernel handles normalization
 and quantification through the DirectLFQ estimator. External run/sample
-normalization defaults to <code>none</code>; non-<code>none</code> values are rejected.</p>
+normalization defaults to <code>none</code>; non-<code>none</code> values are rejected.
+<code>--directlfq-no-sample-normalization</code> skips DirectLFQ's global sample
+normalization (directlfq's <code>deactivate_normalization</code>), so sample loading
+differences stay in the protein intensities. Use it when many proteins
+change in the same direction, where the global alignment would shift the
+unchanged background.</p>
 </div>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>

@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1584,7 +1584,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1606,7 +1606,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2228,15 +2228,16 @@ methods (MinProb / MinDet / QRILC) which assume log-normal intensities.</p>
 </table>
 <h2 id="censored-aware-methods">Censored-Aware Methods<a class="headerlink" href="#censored-aware-methods" title="Anchor link to this section">&para;</a></h2>
 <h3 id="minprob">MinProb<a class="headerlink" href="#minprob" title="Anchor link to this section">&para;</a></h3>
-<p>Draws replacement values from the low tail of a per-sample normal
-distribution (Perseus-style):</p>
-<p>$$\mu = q_{\text{low}} - \text{shift} \cdot \sigma_{\text{scaled}}$$</p>
-<p>where <code>q_low</code> is the <code>--impute-quantile</code>-quantile of observed log2
-intensities, <code>shift</code> is <code>--impute-shift</code> standard deviations and
-<code>sigma_scaled = sample_sd * --impute-scale</code>.</p>
+<p>Follows imputeLCMD <code>impute.MinProb</code>: each missing value of a sample is
+drawn from a normal centred on a low quantile of that sample:</p>
+<p>$$x \sim \mathcal{N}\left(q_{\text{low}}, (\text{tune_sigma} \cdot \text{sd}_{\text{median}})^2\right)$$</p>
+<p>where <code>q_low</code> is the <code>--impute-quantile</code>-quantile of the sample's observed
+log2 intensities, <code>sd_median</code> is the median standard deviation of the
+proteins observed in more than half of the samples and <code>tune_sigma</code> is
+<code>--impute-tune-sigma</code>. <code>--impute-seed</code> fixes the draws.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>minprob<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-shift<span class="w"> </span><span class="m">1</span>.6<span class="w"> </span>--impute-scale<span class="w"> </span><span class="m">0</span>.3
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-tune-sigma<span class="w"> </span><span class="m">1</span>.0<span class="w"> </span>--impute-seed<span class="w"> </span><span class="m">42</span>
 </span></code></pre></div>
 <h3 id="mindet">MinDet<a class="headerlink" href="#mindet" title="Anchor link to this section">&para;</a></h3>
 <p>Replaces all missing values in a sample with a single deterministic
@@ -2246,10 +2247,13 @@ MinProb because it does not introduce sample-level variance.</p>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>mindet<span class="w"> </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01
 </span></code></pre></div>
 <h3 id="qrilc">QRILC<a class="headerlink" href="#qrilc" title="Anchor link to this section">&para;</a></h3>
-<p>Quantile Regression Imputation of Left-Censored data: fits a truncated
-normal to the observed distribution per sample and draws replacement
-values from the truncated lower tail. Theoretically more principled
-than MinProb when the MNAR assumption holds.</p>
+<p>Quantile Regression Imputation of Left-Censored data (imputeLCMD
+<code>impute.QRILC</code>): fits a normal per sample by regressing the observed
+quantiles on the standard-normal quantiles they would have if the missing
+fraction were the left tail, then draws replacement values from that normal
+truncated at the missing fraction. Theoretically more principled than
+MinProb when the MNAR assumption holds. <code>--impute-tune-sigma</code> scales the
+fitted SD and <code>--impute-seed</code> fixes the draws.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>qrilc
 </span></code></pre></div>
@@ -2289,8 +2293,9 @@ imputer (best on MaxQuant TMT).</p>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--impute-method<span class="w"> </span>bpca
 </span></code></pre></div>
 <h3 id="gms">GMS<a class="headerlink" href="#gms" title="Anchor link to this section">&para;</a></h3>
-<p>Gaussian Mixture Sampling — fits a small mixture model to observed
-values and draws missing entries from the appropriate component.
+<p>Gaussian Mixture Sampling — fits a two-component mixture model to each
+sample's observed values and fills its missing entries with the centre of
+the lower component.
 Runs natively in the Rust kernel. In the OpDEA benchmark GMS is the
 best-performing imputer for FragPipe TMT data.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
@@ -2322,16 +2327,17 @@ regression to resist outliers. Both run natively in the Rust kernel.</p>
 <li><strong>Single-cell proteomics</strong>: <code>knn</code> or <code>missforest</code></li>
 </ul>
 <h2 id="standalone-api">Standalone API<a class="headerlink" href="#standalone-api" title="Anchor link to this section">&para;</a></h2>
-<p>The wheel exposes a single helper that runs any supported method on a wide
-protein matrix CSV (or DataFrame) outside the pipeline. It reaches both the
-kernel methods and the wheel-only <code>missforest</code> imputer, and is
-available with <code>pip install mokume[analysis]</code>:</p>
+<p>The wheel runs the kernel methods on a row-major linear-intensity matrix
+with <code>mokume.impute_matrix</code>, and the scikit-learn based methods (<code>knn</code>,
+<code>mean</code>, <code>median</code>, <code>seqknn</code> and the wheel-only <code>missforest</code>) on a wide
+protein matrix CSV (or DataFrame) with <code>mokume.impute</code>, available with
+<code>pip install mokume[analysis]</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># Wide matrix: rows=proteins, columns=samples</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"minprob"</span><span class="p">,</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>              <span class="n">quantile</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mf">1.6</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># Row-major linear intensities; None marks a missing value</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">filled</span> <span class="o">=</span> <span class="n">mokume</span><span class="o">.</span><span class="n">impute_matrix</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="s2">"minprob"</span><span class="p">,</span> <span class="n">quantile</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">tune_sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># Wide matrix: rows=proteins, columns=samples</span>
 </span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"knn"</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
 </span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="n">mokume</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"missforest"</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">"imputed.csv"</span><span class="p">)</span>
 </span></code></pre></div>

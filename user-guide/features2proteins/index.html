@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1315,7 +1315,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1337,7 +1337,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2206,9 +2206,11 @@ command's exact CLI flags, and runs the same kernel in-process:</p>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq
 </span></code></pre></div>
 <p>An MSstats CSV must contain <code>ProteinName</code>, <code>PeptideSequence</code>, <code>Intensity</code>,
-<code>Charge</code> or <code>PrecursorCharge</code>, and <code>Run</code> or <code>Reference</code>. Isobaric data also
-requires <code>Channel</code>. <code>--quant-method ratio</code> requires PSM-level QPX evidence and
-therefore cannot use an MSstats feature table.</p>
+<code>Charge</code> or <code>PrecursorCharge</code>, and <code>Run</code> or <code>Reference</code>. If both <code>Run</code> and
+<code>Reference</code> are present, <code>Reference</code> names the data file, because quantms
+writes <code>Run</code> as a design index. Isobaric data also requires <code>Channel</code>.
+<code>--quant-method ratio</code> requires PSM-level QPX evidence and therefore cannot
+use an MSstats feature table.</p>
 <h2 id="quantification-methods">Quantification Methods<a class="headerlink" href="#quantification-methods" title="Anchor link to this section">&para;</a></h2>
 <table>
 <thead>
@@ -2406,10 +2408,12 @@ dataset-level normalizers applied after peptide aggregation, all native in
 the Rust kernel. <code>tmm</code> (Trimmed Mean of M-values,
 <code>mokume.normalization.tmm.TMMNormalizer</code>) is robust to composition bias from
 highly abundant proteins.</p>
-<p>MaxLFQ and piBAQ currently accept <code>quantile</code> as their dataset-level method;
-requesting RLR, LOESS, hierarchical, centering, or TMM with either method
-is rejected before input loading. For MaxLFQ + quantile, Mokume selects the
-built-in MaxLFQ path so the requested normalization is actually applied.</p>
+<p>MaxLFQ accepts <code>quantile</code> and <code>hierarchical</code> as dataset-level methods,
+applied to its peptide species, and piBAQ accepts <code>quantile</code>; requesting
+RLR, LOESS, centering, or TMM with either method, or <code>hierarchical</code> with
+piBAQ, is rejected before input loading. For MaxLFQ + quantile or
+hierarchical, Mokume selects the built-in MaxLFQ path so the requested
+normalization is actually applied.</p>
 </div>
 <ul>
 <li><code>global-median</code> is the default and a good general-purpose starting point.</li>
@@ -2661,12 +2665,17 @@ A DE output path is also required, so completed results cannot be discarded.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p><code>--de-method auto</code> chooses <code>deqms</code> for <code>directlfq</code>
-quantification and <code>limrots</code> for all others. All methods
+quantification and <code>limrots</code> for all others; LimROTS needs a
+complete matrix, so a protein matrix with missing values also
+gets <code>deqms</code>. All methods
 run in the native Rust kernel — no R or rpy2 required.
 BKY and Storey fall back to BH when their pi0 estimate is not reliable.
 ROTS and LimROTS retain their own permutation FDR, so alternative
 <code>--de-fdr-method</code> values are rejected for those methods. Ensemble applies
-the selected correction to the combined result.
+the selected correction to the combined result. On a contrast with
+missing values, the default ensemble members run <code>limma</code> in place of
+<code>limrots</code>; an explicit <code>--de-ensemble-method limrots</code> member needs a
+complete (for example, imputed) matrix.
 See <a href="../../concepts/differential-expression/">Differential Expression
 concepts</a> for a
 detailed comparison of methods.</p>
@@ -2688,12 +2697,12 @@ detailed comparison of methods.</p>
 protein matrix after coverage filtering and before batch correction.
 Imputation runs in log2 space so that censored-aware methods (MinProb,
 MinDet, QRILC) behave correctly.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># MinProb low-tail draw (Perseus style)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># MinProb low-quantile draw (imputeLCMD)</span>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span>-p<span class="w"> </span>features.parquet<span class="w"> </span>-o<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span>--quant-method<span class="w"> </span>maxlfq<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span>--impute-method<span class="w"> </span>minprob<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-shift<span class="w"> </span><span class="m">1</span>.6<span class="w"> </span>--impute-scale<span class="w"> </span><span class="m">0</span>.3
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span>--impute-quantile<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--impute-tune-sigma<span class="w"> </span><span class="m">1</span>.0
 </span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>
 </span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="c1"># KNN imputation</span>
 </span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span><span class="se">\</span>
@@ -2721,14 +2730,14 @@ MinDet, QRILC) behave correctly.</p>
 <td>Quantile for MinProb/MinDet</td>
 </tr>
 <tr>
-<td><code>--impute-shift</code></td>
-<td>1.6</td>
-<td>MinProb shift in standard deviations</td>
+<td><code>--impute-tune-sigma</code></td>
+<td>1.0</td>
+<td>MinProb/QRILC multiplier of the fitted SD</td>
 </tr>
 <tr>
-<td><code>--impute-scale</code></td>
-<td>0.3</td>
-<td>MinProb scale factor for sigma</td>
+<td><code>--impute-seed</code></td>
+<td>42</td>
+<td>Seed of the MinProb/QRILC draws</td>
 </tr>
 <tr>
 <td><code>--impute-n-neighbors</code></td>
@@ -2738,8 +2747,8 @@ MinDet, QRILC) behave correctly.</p>
 </tbody>
 </table>
 <p>Imputation tuning options are method-scoped: quantile applies to MinDet/MinProb,
-shift and scale to MinProb, and neighbour count to KNN/SeqKNN. Passing them to
-another method is rejected.</p>
+tune sigma and seed to MinProb/QRILC, and neighbour count to KNN/SeqKNN.
+Passing them to another method is rejected.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>missforest</code> is Python analysis periphery</p>
 <p><code>missforest</code> is not offered by the Rust compute command because it wraps
@@ -2754,8 +2763,8 @@ call the Python API:</p>
 <p>Plotting and the interactive HTML report are <strong>not</strong> part of the <code>features2proteins</code>
 CLI — there are no <code>--plot-*</code> / <code>--interactive-report</code> flags. The kernel writes the
 protein matrix and, with <code>--de-output</code>, one DE result CSV per contrast; the Python
-periphery then reads those CSVs and renders the figures. Install the <code>plotting</code>
-and/or <code>reports</code> extra:</p>
+periphery then reads those CSVs and renders the figures. Install the <code>analysis</code>
+extra:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
 </span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
 </span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="c1"># DE plots (volcano / heatmap) — explicit argv: the per-contrast</span>
@@ -2768,7 +2777,7 @@ and/or <code>reports</code> extra:</p>
 </span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>    <span class="s2">"--contrast"</span><span class="p">,</span> <span class="s2">"NASH-HL"</span><span class="p">,</span> <span class="s2">"NASH"</span><span class="p">,</span> <span class="s2">"HL"</span><span class="p">,</span> <span class="s2">"de_results.csv"</span><span class="p">,</span>
 </span><span id="__span-20-11"><a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="p">])</span>
 </span><span id="__span-20-12"><a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>
-</span><span id="__span-20-13"><a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="c1"># Interactive HTML report from the same kernel CSVs (reports extra).</span>
+</span><span id="__span-20-13"><a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="c1"># Interactive HTML report from the same kernel CSVs (analysis extra).</span>
 </span><span id="__span-20-14"><a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a><span class="n">mokume</span><span class="o">.</span><span class="n">interactive_report</span><span class="p">([</span>
 </span><span id="__span-20-15"><a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a>    <span class="s2">"--protein-matrix"</span><span class="p">,</span> <span class="s2">"proteins.csv"</span><span class="p">,</span>
 </span><span id="__span-20-16"><a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a>    <span class="s2">"--sdrf"</span><span class="p">,</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>

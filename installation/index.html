@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1423,7 +1423,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1445,7 +1445,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2049,36 +2049,26 @@ Python periphery workflows supplied by the installed wheel.</p>
 </div>
 <h3 id="optional-extras">Optional Extras<a class="headerlink" href="#optional-extras" title="Anchor link to this section">&para;</a></h3>
 <p>mokume uses optional dependencies for the periphery commands:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:6"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><input id="__tabbed_1_6" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Plotting</label><label for="__tabbed_1_2">Interactive Reports</label><label for="__tabbed_1_3">TissueMap</label><label for="__tabbed_1_4">Analysis</label><label for="__tabbed_1_5">Mokume Plugin</label><label for="__tabbed_1_6">Everything</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Analysis</label><label for="__tabbed_1_2">TissueMap</label><label for="__tabbed_1_3">Mokume Plugin</label><label for="__tabbed_1_4">Everything</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>plotting<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>analysis<span class="o">]</span>
 </span></code></pre></div>
-<p>Enables <code>mokume plot tsne</code>, <code>mokume plot pca</code>, <code>mokume plot de</code>, and the piBAQ QC
-report (numpy, pandas, scipy, scikit-learn, matplotlib, seaborn).</p>
+<p>Enables <code>mokume plot tsne</code>, <code>mokume plot pca</code>, <code>mokume plot de</code>, the piBAQ
+QC report, <code>mokume interactive-report</code>, the QC / workflow-comparison
+reports, and the pure-Python method fallback the Rust kernel does not
+reproduce — <code>mokume.impute(method="missforest")</code> (numpy, pandas, scipy,
+scikit-learn, matplotlib, seaborn, plotly).</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>reports<span class="o">]</span>
-</span></code></pre></div>
-<p>Enables <code>mokume interactive-report</code> (plotly).</p>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>tissuemap<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>tissuemap<span class="o">]</span>
 </span></code></pre></div>
 <p>Enables <code>mokume tissuemap</code> for per-dataset tissue atlas analysis, including
 AdaTiSS tissue-specificity scoring, embeddings, and atlas plots (scanpy,
 anndata, umap-learn, combat, matplotlib, seaborn, pyarrow).</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>analysis<span class="o">]</span>
-</span></code></pre></div>
-<p>Enables the QC / workflow-comparison reports and the pure-Python method
-fallback the Rust kernel does not reproduce — <code>mokume.impute(method="missforest")</code>
-— plus <code>mokume.qc_report</code>
-and <code>mokume.workflow_comparison</code> (numpy, pandas, scipy, scikit-learn).</p>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[agentic]"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[plugin]"</span>
 </span></code></pre></div>
 <p>This optional MCP workflow requires Python 3.10 or newer.</p>
 <p>Installs the local MCP service used by the installable Mokume Plugin. The
@@ -2086,7 +2076,7 @@ plugin host owns the model and credentials; Mokume does not need a model API
 key. Continue with the <a href="../user-guide/agentic-plugin/">plugin installation</a>.</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>all<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mokume<span class="o">[</span>all<span class="o">]</span>
 </span></code></pre></div>
 <p>Installs all optional periphery and local MCP dependencies.</p>
 </div>
@@ -2099,9 +2089,9 @@ key. Continue with the <a href="../user-guide/agentic-plugin/">plugin installati
   metadata with the <strong>hatchling</strong> build backend
   (<code>build-backend = "hatchling.build"</code>, not Poetry). Install it from source with:</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/bigbio/mokume
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">cd</span><span class="w"> </span>mokume
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>pip<span class="w"> </span>install<span class="w"> </span>./python<span class="w">          </span><span class="c1"># builds mokume-py via the hatchling backend</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/bigbio/mokume
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>mokume
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>pip<span class="w"> </span>install<span class="w"> </span>./python<span class="w">          </span><span class="c1"># builds mokume-py via the hatchling backend</span>
 </span></code></pre></div>
 <ul>
 <li><strong><code>mokume</code> (Rust wheel)</strong> — the default distribution is built with maturin,
@@ -2109,20 +2099,20 @@ key. Continue with the <a href="../user-guide/agentic-plugin/">plugin installati
   <code>mokume._mokume</code> extension and packages it
   with the Python periphery. The maturin project lives in <code>rust/</code>:</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>pip<span class="w"> </span>install<span class="w"> </span>./rust<span class="w">            </span><span class="c1"># builds the extension via the maturin backend</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span>./rust<span class="w">            </span><span class="c1"># builds the extension via the maturin backend</span>
 </span></code></pre></div>
 <p>For a development checkout of the Rust wheel, build the extension in place with
 <code>maturin develop</code> run from <code>rust/</code>; the periphery is plain Python and needs no
 separate build step.</p>
 <h2 id="using-conda">Using Conda<a class="headerlink" href="#using-conda" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mamba<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>rust/environment.yaml
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>mokume
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>pip<span class="w"> </span>install<span class="w"> </span>./rust
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mamba<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>rust/environment.yaml
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>mokume
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>pip<span class="w"> </span>install<span class="w"> </span>./rust
 </span></code></pre></div>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Anchor link to this section">&para;</a></h2>
 <ul>
 <li>Python &gt;= 3.10 for the Rust-backed <code>mokume</code> distribution, <code>mokume-py</code>,
-  and the optional <code>mokume[agentic]</code> Plugin/MCP workflow</li>
+  and the optional Plugin/MCP workflow</li>
 <li>Both distributions declare pyOpenMS as a base dependency. In the default
   Rust-backed wheel, piBAQ reads every protease registered by the installed
   runtime, digests the FASTA in Python, and passes the complete theoretical-
@@ -2137,7 +2127,7 @@ separate build step.</p>
 <li>A method stays in the Python periphery because the kernel cannot reproduce
   it cross-language: the <code>missforest</code> imputer (<code>mokume.impute</code>), in the
   <code>analysis</code> extra</li>
-<li>The Mokume Plugin requires an agent host plus <code>mokume[agentic]</code>; its bundled
+<li>The Mokume Plugin requires an agent host plus <code>mokume[plugin]</code>; its bundled
   stdio MCP server is started by the host and calls the local Rust-backed wheel</li>
 </ul>
 

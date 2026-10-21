@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1439,7 +1439,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1461,7 +1461,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2042,8 +2042,8 @@ and validates every run/channel pair before writing an analysis SDRF.</p>
 root of a local CPTAC archive that contains the PDC000125 QPX export.</p>
 <h2 id="install-the-runtime">Install the runtime<a class="headerlink" href="#install-the-runtime" title="Anchor link to this section">&para;</a></h2>
 <p>The helper needs PyArrow to read the QPX run column and Requests to query PDC.
-The plotting extra renders the final Mokume outputs.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[plotting]"</span><span class="w"> </span>pyarrow<span class="w"> </span>requests
+The analysis extra renders the final Mokume outputs.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[analysis]"</span><span class="w"> </span>pyarrow<span class="w"> </span>requests
 </span></code></pre></div>
 <h2 id="build-the-analysis-sdrf">Build the analysis SDRF<a class="headerlink" href="#build-the-analysis-sdrf" title="Anchor link to this section">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CPTAC_ROOT</span><span class="o">=</span>/path/to/CPTAC
@@ -2083,7 +2083,7 @@ TMT assignments, and all 408 QPX run names agree.</p>
 normalization corrects sample-wide reporter loading shifts, then IRS aligns the
 17 plexes through their pooled channels and removes those references from the
 matrix. The 65% condition-wise coverage gate keeps a protein only when it is
-observed in at least 69 of 104 tumors and 32 of 49 normals. <code>ratio</code> is also a
+observed in at least 68 of 104 tumors and 32 of 49 normals. <code>ratio</code> is also a
 valid TMT quantification method, but its output is already
 log2(sample/reference); this example intentionally keeps a linear matrix for
 the downstream DE and plotting interfaces.</p>
@@ -2093,30 +2093,29 @@ the downstream DE and plotting interfaces.</p>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mokume<span class="w"> </span>plot<span class="w"> </span>de<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--protein-matrix<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.proteins.csv"</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--outdir<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/plots"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>--sdrf<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.sdrf.tsv"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span>--volcano<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>--log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span>--fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span>--contrast<span class="w"> </span>PDC000125-UCEC<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="s2">"Primary Tumor"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">        </span><span class="s2">"Solid Tissue Normal"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">        </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.primary-tumor-vs-normal.csv"</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">OPENBLAS_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">MKL_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="nv">MPLCONFIGDIR</span><span class="o">=</span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/matplotlib"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>mokume<span class="w"> </span>plot<span class="w"> </span>pca<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span>--protein-matrix<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.proteins.csv"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span>--sdrf<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.sdrf.tsv"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span>--output<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/plots/PDC000125.pca.pdf"</span>
-</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>
-</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">OPENBLAS_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">MKL_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="nv">MPLCONFIGDIR</span><span class="o">=</span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/matplotlib"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>python<span class="w"> </span>docs/examples/render_cptac_ucec.py<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.proteins.csv"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.sdrf.tsv"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.primary-tumor-vs-normal.csv"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/showcase"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">    </span>--threads<span class="w"> </span><span class="m">24</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>--volcano<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span>--log2fc<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>--fdr<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span>--contrast<span class="w"> </span>PDC000125-UCEC<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="s2">"Primary Tumor"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="s2">"Solid Tissue Normal"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">        </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.primary-tumor-vs-normal.csv"</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">OPENBLAS_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">MKL_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="nv">MPLCONFIGDIR</span><span class="o">=</span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/matplotlib"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>mokume<span class="w"> </span>plot<span class="w"> </span>pca<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span>--protein-matrix<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.proteins.csv"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span>--sdrf<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.sdrf.tsv"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span>--output<span class="w"> </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/plots/PDC000125.pca.pdf"</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">OPENBLAS_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="nv">MKL_NUM_THREADS</span><span class="o">=</span><span class="m">24</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="nv">MPLCONFIGDIR</span><span class="o">=</span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/matplotlib"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>python<span class="w"> </span>docs/examples/render_cptac_ucec.py<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.proteins.csv"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.sdrf.tsv"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/PDC000125.primary-tumor-vs-normal.csv"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">    </span><span class="s2">"</span><span class="nv">$CPTAC_OUT</span><span class="s2">/showcase"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">    </span>--threads<span class="w"> </span><span class="m">24</span>
 </span></code></pre></div>
 <p>The first two commands retain the standalone Mokume volcano and PCA files. The
 example renderer writes matching overview and biological six-panel composites
@@ -2214,8 +2213,8 @@ profile. The independent Rust quantification paths share 4,647 protein effects
 41.0% to numerical zero because those channels are the IRS scaling anchors,
 not an independent validation set.</em></p>
 <p>On the workstation used to render this figure (Intel Core Ultra 7 270K Plus,
-24 hardware threads, 125 GiB RAM), the four single runs took 48.76–72.80
-seconds with 2.05–3.16 GiB peak RSS. These measurements document this exact
+24 hardware threads, 125 GiB RAM), the four single runs took 22.97–42.53
+seconds with 2.01–3.15 GiB peak RSS. These measurements document this exact
 run; they are not a portable hardware benchmark.</p>
 <p><img alt="PDC000125 UCEC differential expression" src="../../assets/cptac_ucec_biology.png" /></p>
 <p><em>Top row: protein-wise z-scores for the strongest positive and negative
@@ -2231,7 +2230,7 @@ samples by condition and then plex so this design structure stays visible.</p>
 <p>As a numerical cross-check, every reported <code>log2FC</code> was independently
 recomputed from the written linear matrix after replacing non-positive cells
 with missing values. The maximum absolute difference across all 4,665 proteins
-was <code>3.2e-14</code>, and every per-protein sample count matched the matrix exactly.</p>
+was <code>2.8e-14</code>, and every per-protein sample count matched the matrix exactly.</p>
 <h2 id="data-citation">Data citation<a class="headerlink" href="#data-citation" title="Anchor link to this section">&para;</a></h2>
 <p>Use PDC study identifier <a href="https://pdc.cancer.gov/pdc/study/PDC000125">PDC000125</a>
 and cite Dou et al.,

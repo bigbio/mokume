@@ -369,7 +369,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1312,7 +1312,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1334,7 +1334,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2029,13 +2029,11 @@ periphery commands <strong>read those tables</strong> to render figures, so the 
 plots always match the cells in the kernel output (the periphery never
 recomputes the numbers).</p>
 <div class="admonition note">
-<p class="admonition-title">Periphery extras</p>
+<p class="admonition-title">Analysis extra</p>
 <p>Plotting and reports are exposed by the wheel's unified CLI but remain
-implemented in its Python periphery. Install the extra you need:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[plotting]"</span><span class="w">   </span><span class="c1"># matplotlib + seaborn (DE plots, t-SNE, piBAQ QC)</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[reports]"</span><span class="w">    </span><span class="c1"># plotly interactive DE report</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[analysis]"</span><span class="w">   </span><span class="c1"># single-matrix QC + workflow-comparison reports</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[all]"</span><span class="w">        </span><span class="c1"># everything</span>
+implemented in its Python periphery. Install the shared analysis extra:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[analysis]"</span><span class="w">  </span><span class="c1"># plots, reports, QC, comparison, and missforest</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[all]"</span><span class="w">       </span><span class="c1"># every optional capability</span>
 </span></code></pre></div></p>
 </div>
 <h2 id="de-plots-from-features2proteins-output">DE Plots from features2proteins Output<a class="headerlink" href="#de-plots-from-features2proteins-output" title="Anchor link to this section">&para;</a></h2>
@@ -2147,7 +2145,7 @@ a <code>protein_matrix</code> CSV path (plus optional <code>de_results</code>, <
 </ul>
 <h2 id="t-sne-visualization-command">t-SNE Visualization Command<a class="headerlink" href="#t-sne-visualization-command" title="Anchor link to this section">&para;</a></h2>
 <p>A standalone periphery command for t-SNE visualization from a folder of protein
-files (<code>plotting</code> extra). It is exposed by the wheel CLI while remaining outside
+files (<code>analysis</code> extra). It is exposed by the wheel CLI while remaining outside
 the Rust compute kernel:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>--input<span class="w"> </span>protein_folder/<span class="w"> </span><span class="se">\</span>
@@ -2158,7 +2156,7 @@ the Rust compute kernel:</p>
 <code>mokume.interactive_report([...])</code>, and <code>mokume.tsne_visualization(**kwargs)</code>.</p>
 <h2 id="plotting-library-api">Plotting Library API<a class="headerlink" href="#plotting-library-api" title="Anchor link to this section">&para;</a></h2>
 <p>Besides the canned commands above, the <code>mokume.plotting</code> module exposes the
-individual figure functions as a callable library (<code>plotting</code> extra). Use these
+individual figure functions as a callable library (<code>analysis</code> extra). Use these
 when you want to build figures directly from a kernel CSV in your own script
 instead of running <code>de_plots</code>. Each takes a pandas <code>DataFrame</code> and either
 returns a matplotlib <code>Figure</code> or writes to an <code>output_file</code> / <code>file_name</code> path.</p>

@@ -371,7 +371,7 @@
   
     
   
-  User Guide (CLI)
+  User Guide
 
         </a>
       </li>
@@ -1511,7 +1511,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide (CLI)
+    User Guide
   
 
     
@@ -1533,7 +1533,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide (CLI)
+    User Guide
   
 
           </label>
@@ -2234,31 +2234,30 @@
 </table>
 <div class="admonition tip">
 <p class="admonition-title">When to use hierarchical normalization</p>
-<p>Use <code>--sample-normalization hierarchical</code> when you want DirectLFQ-style normalization <strong>combined with a different quantification method</strong> (e.g., piBAQ). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.</p>
+<p>Use <code>--sample-normalization hierarchical</code> when you want DirectLFQ-style normalization <strong>combined with a different quantification method</strong> (e.g., MaxLFQ or Sum; piBAQ accepts only <code>quantile</code> among the dataset-level methods). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.</p>
 </div>
 <h3 id="global-median">Global Median<a class="headerlink" href="#global-median" title="Anchor link to this section">&para;</a></h3>
-<p>The default method. For each sample, computes:</p>
+<p>The default for most intensity methods; MaxLFQ defaults to hierarchical
+normalization (below) unless <code>--normalization-proteins</code> is given. For each
+sample, computes:</p>
 <p>$$\text{normalized} = \frac{\text{intensity}}{\text{sample_median} / \text{global_median}}$$</p>
 <p>This ensures all samples have comparable median intensities.</p>
 <h3 id="hierarchical-normalization">Hierarchical Normalization<a class="headerlink" href="#hierarchical-normalization" title="Anchor link to this section">&para;</a></h3>
-<p>Uses the DirectLFQ hierarchical clustering approach (Ammar et al., 2023) implemented natively in mokume:</p>
+<p>Uses the DirectLFQ hierarchical clustering approach (Ammar et al., 2023) implemented natively in mokume. MaxLFQ uses it by default: a sample with less material loses its weakest features, so the median of its detected features stays high and global-median under-corrects, while hierarchical alignment compares the peptides that samples share.</p>
 <ol>
 <li>Convert to log2 scale</li>
 <li>Align samples using variance-guided pairwise normalization</li>
 <li>Convert back to linear scale</li>
 </ol>
-<p>You can optionally specify a set of proteins to use for normalization:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>hierarchical<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--normalization-proteins<span class="w"> </span>housekeeping_proteins.txt
-</span></code></pre></div>
+<p><code>--normalization-proteins</code> applies only to <code>global-median</code> and
+<code>condition-median</code>; the CLI rejects it with <code>hierarchical</code>.</p>
 <h3 id="loess-normalization">LOESS Normalization<a class="headerlink" href="#loess-normalization" title="Anchor link to this section">&para;</a></h3>
 <p>LOESS normalization corrects intensity-dependent bias between samples by
 fitting local regression on MA-plot residuals (M = log2 sample / reference,
 A = log2 mean). Exposed via the pipeline as <code>--sample-normalization loess</code>
 or as a standalone utility on a log2-scale wide matrix.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>loess
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>loess
 </span></code></pre></div>
 <p>LOESS runs natively in the Rust kernel (~2e-3 vs statsmodels lowess on real data).</p>
 <h3 id="quantile-normalization">Quantile Normalization<a class="headerlink" href="#quantile-normalization" title="Anchor link to this section">&para;</a></h3>
@@ -2267,8 +2266,8 @@ intensity distribution</strong>. Working on log2 peptide sums, it replaces each 
 with the cross-sample mean of all values at the same rank, so every column ends
 up with the same sorted profile. It is the strongest distributional correction
 available and assumes most features are unchanged across samples.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>quantile
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>quantile
 </span></code></pre></div>
 <p>Quantile normalization runs natively in the Rust kernel.</p>
 <h3 id="median-and-mean-centering">Median and Mean Centering<a class="headerlink" href="#median-and-mean-centering" title="Anchor link to this section">&para;</a></h3>
@@ -2278,8 +2277,8 @@ subtracts that sample's log2 median (<code>median-center</code>) or log2 mean
 ($2^{\log_2 x - \text{center}}$). Unlike quantile normalization it only aligns
 the central level of each sample and leaves the within-sample spread untouched,
 making it a lighter-touch alternative when distributions are already similar.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>median-center<span class="w">   </span><span class="c1"># or: mean-center</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>median-center<span class="w">   </span><span class="c1"># or: mean-center</span>
 </span></code></pre></div>
 <p>Both centering variants run natively in the Rust kernel.</p>
 <h3 id="rlr-normalization">RLR Normalization<a class="headerlink" href="#rlr-normalization" title="Anchor link to this section">&para;</a></h3>
@@ -2288,8 +2287,8 @@ regression of each sample against a common reference profile and removes the
 fitted intensity-dependent bias. The robust fit down-weights the minority of
 genuinely changing proteins, so a handful of large fold-changes do not distort
 the normalization (the approach used by NormalyzerDE).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>rlr
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>rlr
 </span></code></pre></div>
 <p>RLR runs natively in the Rust kernel.</p>
 <h3 id="tmm-normalization">TMM Normalization<a class="headerlink" href="#tmm-normalization" title="Anchor link to this section">&para;</a></h3>
@@ -2300,8 +2299,8 @@ intensity and fold change. Trimming makes the factor <strong>robust to compositi
 from highly abundant proteins</strong>, so a few dominant proteins do not drag the whole
 sample up or down (the edgeR/limma approach adapted for proteomics). Implemented
 in <code>mokume.normalization.tmm.TMMNormalizer</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>tmm
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2proteins<span class="w"> </span>-p<span class="w"> </span>data.parquet<span class="w"> </span>-o<span class="w"> </span>out.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--sample-normalization<span class="w"> </span>tmm
 </span></code></pre></div>
 <h2 id="directlfq-mode">DirectLFQ Mode<a class="headerlink" href="#directlfq-mode" title="Anchor link to this section">&para;</a></h2>
 <div class="admonition warning">

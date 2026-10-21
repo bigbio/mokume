@@ -101,9 +101,11 @@ large multi-sample studies:
 evidence in that sample, using one member ratio per shared-peptide member set
 estimated across samples (median per-sample share over samples where every
 member has unique peptides; otherwise each member's median unique level). A
-member without unique evidence in a sample still gets no value, and its share
-is not given to its siblings. The denominator is the member's owned
-theoretical peptides (unique plus shared), as in legacy piBAQ.
+member without unique evidence in a sample still gets no value there, and its
+share in that sample is not given to its siblings. A member with no unique
+evidence in any sample gets a zero ratio, so the shared signal of that member
+set goes to its siblings. The denominator is the member's owned theoretical
+peptides (unique plus shared), as in legacy piBAQ.
 
 `--pibaq-shared proportional` reproduces earlier releases exactly.
 `peptides2protein` always uses the legacy rule.

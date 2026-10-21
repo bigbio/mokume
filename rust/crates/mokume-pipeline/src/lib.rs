@@ -2138,11 +2138,10 @@ impl PibaqAggregation {
     /// only the captured metadata differs, so there is a single source of truth
     /// for the algorithm.
     fn finalize_detailed(
-        self,
+        mut self,
         proteins: &mut StringIdRegistry<ProteinId>,
     ) -> (HashMap<CellKey, PibaqDetailedCell>, Vec<PibaqEvidenceRow>) {
-        let observations = self
-            .observations
+        let observations = std::mem::take(&mut self.observations)
             .into_iter()
             .filter_map(|(key, intensity)| {
                 self.peptide_names
@@ -2181,7 +2180,7 @@ impl PibaqAggregation {
             "piBAQ: observed peptides outside the theoretical digest are dropped"
         );
         let family_to_peptides = invert_peptide_ownership(&peptide_owner);
-        let mut observations_by_family = HashMap::<String, Vec<(String, SampleId, f64)>>::new();
+        let mut observations_by_family = HashMap::<String, Vec<PibaqObservation>>::new();
         for observation in observations {
             if let Some(owner) = peptide_owner.get(&observation.0) {
                 observations_by_family
@@ -2193,7 +2192,7 @@ impl PibaqAggregation {
 
         let mut detailed = HashMap::new();
         let mut evidence_rows = Vec::new();
-        for family in self.families {
+        for family in &self.families {
             let Some(observations) = observations_by_family.remove(&family.family_id) else {
                 continue;
             };
@@ -2204,63 +2203,11 @@ impl PibaqAggregation {
             if owned_peptides.is_empty() {
                 continue;
             }
-            let min_anchor = family
-                .members
-                .iter()
-                .map(|member| anchor_counts.get(member).copied().unwrap_or(0))
-                .min()
-                .unwrap_or(0);
-            let max_anchor = family
-                .members
-                .iter()
-                .map(|member| anchor_counts.get(member).copied().unwrap_or(0))
-                .max()
-                .unwrap_or(0);
-            let evidence = classify_evidence(
-                min_anchor,
-                max_anchor,
-                self.min_anchors,
-                self.high_anchor_threshold,
-            );
+            let evidence = self.family_evidence(family, &anchor_counts);
             let family_size = family.members.len();
-            let counts = FamilyCounts::new(
-                &family,
-                &observations,
-                &owned_peptides,
-                &self.accession_peptides,
-                &self.peptide_accessions,
-            );
-            let output = if self.shared_mode == PibaqSharedMode::Proportional {
-                finalize_family_allocation(
-                    &family,
-                    &observations,
-                    &owned_peptides,
-                    &self.accession_peptides,
-                    &self.peptide_accessions,
-                    evidence == PibaqEvidence::FamilyOnly,
-                    proteins,
-                )
-            } else {
-                finalize_family_resolved(
-                    &family,
-                    &observations,
-                    &counts,
-                    owned_peptides.len(),
-                    evidence,
-                    self.shared_mode,
-                    self.family_rows,
-                    proteins,
-                )
-            };
-            evidence_rows.extend(family_evidence_rows(
-                &family,
-                &counts,
-                evidence,
-                &output,
-                owned_peptides.len(),
-                self.shared_mode,
-                proteins,
-            ));
+            let (output, rows) =
+                self.allocate_family(family, &observations, &owned_peptides, evidence, proteins);
+            evidence_rows.extend(rows);
             for (key, cell) in output {
                 let molecular_weight = self.mw_map.as_ref().map(|mw_map| {
                     let member_mw = proteins
@@ -2289,6 +2236,73 @@ impl PibaqAggregation {
         }
         (detailed, evidence_rows)
     }
+
+    /// Bucket a family by the unique-peptide anchors of its weakest and strongest member.
+    fn family_evidence(
+        &self,
+        family: &ProteinFamily,
+        anchor_counts: &HashMap<String, usize>,
+    ) -> PibaqEvidence {
+        let anchors = family
+            .members
+            .iter()
+            .map(|member| anchor_counts.get(member).copied().unwrap_or(0));
+        classify_evidence(
+            anchors.clone().min().unwrap_or(0),
+            anchors.max().unwrap_or(0),
+            self.min_anchors,
+            self.high_anchor_threshold,
+        )
+    }
+
+    /// Allocate one family under the configured shared-peptide mode and describe its
+    /// rows for the `--pibaq-evidence` side-car.
+    fn allocate_family(
+        &self,
+        family: &ProteinFamily,
+        observations: &[PibaqObservation],
+        owned_peptides: &HashSet<String>,
+        evidence: PibaqEvidence,
+        proteins: &mut StringIdRegistry<ProteinId>,
+    ) -> (HashMap<CellKey, PibaqCell>, Vec<PibaqEvidenceRow>) {
+        let counts = FamilyCounts::new(
+            family,
+            observations,
+            owned_peptides,
+            &self.accession_peptides,
+            &self.peptide_accessions,
+        );
+        let output = if self.shared_mode == PibaqSharedMode::Proportional {
+            finalize_family_allocation(
+                family,
+                observations,
+                owned_peptides,
+                &self.accession_peptides,
+                &self.peptide_accessions,
+                evidence == PibaqEvidence::FamilyOnly,
+                proteins,
+            )
+        } else {
+            finalize_family_resolved(
+                family,
+                observations,
+                &counts,
+                evidence,
+                self.shared_mode,
+                self.family_rows,
+                proteins,
+            )
+        };
+        let rows = family_evidence_rows(
+            family,
+            &counts,
+            evidence,
+            &output,
+            self.shared_mode,
+            proteins,
+        );
+        (output, rows)
+    }
 }
 
 /// Observed peptides (and intensity) that piBAQ drops because the digest lacks them.
@@ -2315,7 +2329,7 @@ impl DigestMissSummary {
 }
 
 fn summarize_digest_misses(
-    observations: &[(String, SampleId, f64)],
+    observations: &[PibaqObservation],
     peptide_owner: &HashMap<String, String>,
     peptide_accessions: &HashMap<String, HashSet<String>>,
     max_aa: Option<usize>,
@@ -5327,18 +5341,7 @@ fn pibaq_only_config(params: &PibaqFromPeptidesParams) -> FeatureToProteinsConfi
         quantification: QuantMethod::Pibaq,
         topn_peptides: 3,
         maxlfq: MaxLfqConfig::default(),
-        pibaq: PibaqConfig {
-            enzyme: params.enzyme.clone(),
-            max_aa: params.max_aa,
-            min_shared: params.min_shared,
-            families_yaml: params.families_yaml.clone(),
-            min_anchors: params.min_anchors,
-            high_anchor_threshold: params.high_anchor_threshold,
-            missed_cleavages: 0,
-            shared_mode: PibaqSharedMode::Proportional,
-            family_rows: None,
-            evidence_output: None,
-        },
+        pibaq: peptides_pibaq_config(params),
         directlfq: DirectLfqConfig::default(),
         batch: BatchCorrectionConfig::default(),
         irs: IrsConfig::default(),
@@ -5353,6 +5356,22 @@ fn pibaq_only_config(params: &PibaqFromPeptidesParams) -> FeatureToProteinsConfi
             memory: None,
             threads: None,
         },
+    }
+}
+
+/// `peptides2protein` keeps the proportional shared-peptide split.
+fn peptides_pibaq_config(params: &PibaqFromPeptidesParams) -> PibaqConfig {
+    PibaqConfig {
+        enzyme: params.enzyme.clone(),
+        max_aa: params.max_aa,
+        min_shared: params.min_shared,
+        families_yaml: params.families_yaml.clone(),
+        min_anchors: params.min_anchors,
+        high_anchor_threshold: params.high_anchor_threshold,
+        missed_cleavages: 0,
+        shared_mode: PibaqSharedMode::Proportional,
+        family_rows: None,
+        evidence_output: None,
     }
 }
 
@@ -8954,7 +8973,7 @@ struct PibaqCell {
 
 fn finalize_family_allocation(
     family: &ProteinFamily,
-    observations: &[(String, SampleId, f64)],
+    observations: &[PibaqObservation],
     owned_peptides: &HashSet<String>,
     accession_peptides: &HashMap<String, HashSet<String>>,
     peptide_accessions: &HashMap<String, HashSet<String>>,
@@ -9095,12 +9114,14 @@ struct FamilyCounts {
     theoretical_unique: Vec<usize>,
     observed_unique: Vec<usize>,
     observed_shared: Vec<usize>,
+    /// Theoretical peptides the family owns (the family-row denominator).
+    owned_count: usize,
 }
 
 impl FamilyCounts {
     fn new(
         family: &ProteinFamily,
-        observations: &[(String, SampleId, f64)],
+        observations: &[PibaqObservation],
         owned_peptides: &HashSet<String>,
         accession_peptides: &HashMap<String, HashSet<String>>,
         peptide_accessions: &HashMap<String, HashSet<String>>,
@@ -9131,20 +9152,40 @@ impl FamilyCounts {
             theoretical_unique: vec![0; size],
             observed_unique: vec![0; size],
             observed_shared: vec![0; size],
+            owned_count: owned_peptides.len(),
         };
+        counts.count_theoretical(family, owned_peptides, accession_peptides, &members_of);
+        counts.count_observed(observations, &members_of);
+        counts
+    }
+
+    fn count_theoretical(
+        &mut self,
+        family: &ProteinFamily,
+        owned_peptides: &HashSet<String>,
+        accession_peptides: &HashMap<String, HashSet<String>>,
+        members_of: &impl Fn(&str) -> Vec<usize>,
+    ) {
         for (position, member) in family.members.iter().enumerate() {
             let Some(peptides) = accession_peptides.get(member) else {
                 continue;
             };
             for peptide in peptides.intersection(owned_peptides) {
-                counts.theoretical_total[position] += 1;
+                self.theoretical_total[position] += 1;
                 if members_of(peptide).len() == 1 {
-                    counts.theoretical_unique[position] += 1;
+                    self.theoretical_unique[position] += 1;
                 }
             }
         }
+    }
+
+    fn count_observed(
+        &mut self,
+        observations: &[PibaqObservation],
+        members_of: &impl Fn(&str) -> Vec<usize>,
+    ) {
         for (peptide, _, _) in observations {
-            if counts.peptide_members.contains_key(peptide) {
+            if self.peptide_members.contains_key(peptide) {
                 continue;
             }
             let members = members_of(peptide);
@@ -9152,15 +9193,14 @@ impl FamilyCounts {
                 continue;
             }
             if let [only] = members.as_slice() {
-                counts.observed_unique[*only] += 1;
+                self.observed_unique[*only] += 1;
             } else {
                 for member in &members {
-                    counts.observed_shared[*member] += 1;
+                    self.observed_shared[*member] += 1;
                 }
             }
-            counts.peptide_members.insert(peptide.clone(), members);
+            self.peptide_members.insert(peptide.clone(), members);
         }
-        counts
     }
 
     fn observed_shared_peptides(&self) -> usize {
@@ -9171,14 +9211,19 @@ impl FamilyCounts {
     }
 }
 
+/// One observed peptide sequence with its sample and intensity.
+type PibaqObservation = (String, SampleId, f64);
+/// Per-member summed intensity by sample, indexed like `ProteinFamily::members`.
+type MemberSums = Vec<BTreeMap<SampleId, f64>>;
+/// One shared-peptide observation: the members sharing it, its sample and intensity.
+type SharedObservation<'a> = (&'a [usize], SampleId, f64);
+
 /// Member values from unique evidence (optionally plus stable-ratio shared signal) and
 /// family rows; never invents member values from shared peptides alone.
-#[allow(clippy::too_many_arguments)]
 fn finalize_family_resolved(
     family: &ProteinFamily,
-    observations: &[(String, SampleId, f64)],
+    observations: &[PibaqObservation],
     counts: &FamilyCounts,
-    owned_count: usize,
     evidence: PibaqEvidence,
     mode: PibaqSharedMode,
     family_rows: PibaqFamilyRows,
@@ -9190,78 +9235,124 @@ fn finalize_family_resolved(
     ordered.sort_by(|left, right| left.0.cmp(&right.0).then(left.1.cmp(&right.1)));
 
     if size == 1 || evidence != PibaqEvidence::FamilyOnly {
-        let mut unique = vec![BTreeMap::<SampleId, f64>::new(); size];
-        let mut shared = Vec::<(&[usize], SampleId, f64)>::new();
-        for (peptide, sample, intensity) in &ordered {
-            let Some(members) = counts.peptide_members.get(peptide) else {
-                continue;
-            };
-            if let [only] = members.as_slice() {
-                *unique[*only].entry(*sample).or_insert(0.0) += *intensity;
-            } else {
-                shared.push((members.as_slice(), *sample, *intensity));
-            }
-        }
+        let (unique, shared) = split_member_evidence(&ordered, counts, size);
         let (numerators, denominators) = if mode == PibaqSharedMode::StableRatio {
-            let mut numerators = unique.clone();
-            let mut ratio_cache = HashMap::<&[usize], Vec<f64>>::new();
-            for (members, sample, intensity) in &shared {
-                let ratios = ratio_cache.entry(members).or_insert_with(|| {
-                    stable_member_ratios(members, &unique, &counts.theoretical_unique)
-                });
-                for (member, ratio) in members.iter().zip(ratios.iter()) {
-                    if *ratio > 0.0 && unique[*member].get(sample).is_some_and(|u| *u > 0.0) {
-                        *numerators[*member].entry(*sample).or_insert(0.0) += ratio * intensity;
-                    }
-                }
-            }
-            (numerators, &counts.theoretical_total)
+            (
+                stable_ratio_numerators(&unique, &shared, counts),
+                &counts.theoretical_total,
+            )
         } else {
             (unique, &counts.theoretical_unique)
         };
-        for (position, cells) in numerators.into_iter().enumerate() {
-            let denominator = denominators[position];
-            if denominator == 0 {
-                continue;
-            }
-            for (sample, numerator) in cells {
-                insert_pibaq_value(
-                    &family.members[position],
-                    sample,
-                    numerator,
-                    numerator / denominator as f64,
-                    proteins,
-                    &mut output,
-                );
+        insert_member_values(family, numerators, denominators, proteins, &mut output);
+    }
+    if size > 1 && wants_family_row(family_rows, evidence) && counts.owned_count > 0 {
+        insert_family_row(family, &ordered, counts, proteins, &mut output);
+    }
+    output
+}
+
+/// Sum unique-peptide intensity per member and collect the shared-peptide observations.
+fn split_member_evidence<'a>(
+    ordered: &[&PibaqObservation],
+    counts: &'a FamilyCounts,
+    size: usize,
+) -> (MemberSums, Vec<SharedObservation<'a>>) {
+    let mut unique = vec![BTreeMap::<SampleId, f64>::new(); size];
+    let mut shared = Vec::<SharedObservation<'a>>::new();
+    for (peptide, sample, intensity) in ordered {
+        let Some(members) = counts.peptide_members.get(peptide) else {
+            continue;
+        };
+        if let [only] = members.as_slice() {
+            *unique[*only].entry(*sample).or_insert(0.0) += *intensity;
+        } else {
+            shared.push((members.as_slice(), *sample, *intensity));
+        }
+    }
+    (unique, shared)
+}
+
+/// Unique sums plus each shared peptide split by stable member ratios, credited only
+/// to members with unique evidence in that sample.
+fn stable_ratio_numerators(
+    unique: &MemberSums,
+    shared: &[SharedObservation<'_>],
+    counts: &FamilyCounts,
+) -> MemberSums {
+    let mut numerators = unique.clone();
+    let mut ratio_cache = HashMap::<&[usize], Vec<f64>>::new();
+    for (members, sample, intensity) in shared {
+        let ratios = ratio_cache
+            .entry(members)
+            .or_insert_with(|| stable_member_ratios(members, unique, &counts.theoretical_unique));
+        for (member, ratio) in members.iter().zip(ratios.iter()) {
+            if *ratio > 0.0 && unique[*member].get(sample).is_some_and(|u| *u > 0.0) {
+                *numerators[*member].entry(*sample).or_insert(0.0) += ratio * intensity;
             }
         }
     }
+    numerators
+}
 
-    let wants_family_row = match family_rows {
-        PibaqFamilyRows::None => false,
-        PibaqFamilyRows::FamilyOnly => evidence == PibaqEvidence::FamilyOnly,
-        PibaqFamilyRows::All => true,
-    };
-    if size > 1 && wants_family_row && owned_count > 0 {
-        let mut totals = BTreeMap::<SampleId, f64>::new();
-        for (peptide, sample, intensity) in &ordered {
-            if counts.peptide_members.contains_key(peptide) {
-                *totals.entry(*sample).or_insert(0.0) += *intensity;
-            }
+fn insert_member_values(
+    family: &ProteinFamily,
+    numerators: MemberSums,
+    denominators: &[usize],
+    proteins: &mut StringIdRegistry<ProteinId>,
+    output: &mut HashMap<CellKey, PibaqCell>,
+) {
+    for (position, cells) in numerators.into_iter().enumerate() {
+        let denominator = denominators[position];
+        if denominator == 0 {
+            continue;
         }
-        let row_id = family_row_id(family);
-        for (sample, numerator) in totals {
+        for (sample, numerator) in cells {
             insert_pibaq_value(
-                &row_id,
+                &family.members[position],
                 sample,
                 numerator,
-                numerator / owned_count as f64,
+                numerator / denominator as f64,
                 proteins,
-                &mut output,
+                output,
             );
         }
     }
-    output
+}
+
+fn wants_family_row(family_rows: PibaqFamilyRows, evidence: PibaqEvidence) -> bool {
+    match family_rows {
+        PibaqFamilyRows::None => false,
+        PibaqFamilyRows::FamilyOnly => evidence == PibaqEvidence::FamilyOnly,
+        PibaqFamilyRows::All => true,
+    }
+}
+
+/// One family-level row: all owned peptide intensity over the owned peptide count.
+fn insert_family_row(
+    family: &ProteinFamily,
+    ordered: &[&PibaqObservation],
+    counts: &FamilyCounts,
+    proteins: &mut StringIdRegistry<ProteinId>,
+    output: &mut HashMap<CellKey, PibaqCell>,
+) {
+    let mut totals = BTreeMap::<SampleId, f64>::new();
+    for (peptide, sample, intensity) in ordered {
+        if counts.peptide_members.contains_key(peptide) {
+            *totals.entry(*sample).or_insert(0.0) += *intensity;
+        }
+    }
+    let row_id = family_row_id(family);
+    for (sample, numerator) in totals {
+        insert_pibaq_value(
+            &row_id,
+            sample,
+            numerator,
+            numerator / counts.owned_count as f64,
+            proteins,
+            output,
+        );
+    }
 }
 
 fn family_row_id(family: &ProteinFamily) -> String {
@@ -9275,30 +9366,7 @@ fn stable_member_ratios(
     unique: &[BTreeMap<SampleId, f64>],
     theoretical_unique: &[usize],
 ) -> Vec<f64> {
-    let level = |member: usize, sample: &SampleId| -> Option<f64> {
-        let denominator = theoretical_unique[member];
-        unique[member]
-            .get(sample)
-            .copied()
-            .filter(|value| *value > 0.0 && denominator > 0)
-            .map(|value| value / denominator as f64)
-    };
-    let mut shares = vec![Vec::<f64>::new(); members.len()];
-    if let Some(first) = members.first() {
-        for sample in unique[*first].keys() {
-            let levels = members
-                .iter()
-                .map(|member| level(*member, sample))
-                .collect::<Option<Vec<_>>>();
-            let Some(levels) = levels else {
-                continue;
-            };
-            let total = levels.iter().sum::<f64>();
-            for (slot, value) in shares.iter_mut().zip(levels) {
-                slot.push(value / total);
-            }
-        }
-    }
+    let mut shares = co_observed_member_shares(members, unique, theoretical_unique);
     let mut ratios = if shares.first().is_some_and(|values| !values.is_empty()) {
         shares
             .iter_mut()
@@ -9310,13 +9378,9 @@ fn stable_member_ratios(
             .map(|member| {
                 let mut levels = unique[*member]
                     .keys()
-                    .filter_map(|sample| level(*member, sample))
+                    .filter_map(|sample| unique_level(unique, theoretical_unique, *member, sample))
                     .collect::<Vec<_>>();
-                if levels.is_empty() {
-                    0.0
-                } else {
-                    sorted_median(&mut levels)
-                }
+                sorted_median(&mut levels)
             })
             .collect::<Vec<_>>()
     };
@@ -9325,6 +9389,48 @@ fn stable_member_ratios(
         *ratio = if total > 0.0 { *ratio / total } else { 0.0 };
     }
     ratios
+}
+
+/// Each member's share of the summed levels in every sample where all members have
+/// unique evidence.
+fn co_observed_member_shares(
+    members: &[usize],
+    unique: &[BTreeMap<SampleId, f64>],
+    theoretical_unique: &[usize],
+) -> Vec<Vec<f64>> {
+    let mut shares = vec![Vec::<f64>::new(); members.len()];
+    let Some(first) = members.first() else {
+        return shares;
+    };
+    for sample in unique[*first].keys() {
+        let levels = members
+            .iter()
+            .map(|member| unique_level(unique, theoretical_unique, *member, sample))
+            .collect::<Option<Vec<_>>>();
+        let Some(levels) = levels else {
+            continue;
+        };
+        let total = levels.iter().sum::<f64>();
+        for (slot, value) in shares.iter_mut().zip(levels) {
+            slot.push(value / total);
+        }
+    }
+    shares
+}
+
+/// A member's unique intensity per theoretical unique peptide, if it has any.
+fn unique_level(
+    unique: &[BTreeMap<SampleId, f64>],
+    theoretical_unique: &[usize],
+    member: usize,
+    sample: &SampleId,
+) -> Option<f64> {
+    let denominator = theoretical_unique[member];
+    unique[member]
+        .get(sample)
+        .copied()
+        .filter(|value| *value > 0.0 && denominator > 0)
+        .map(|value| value / denominator as f64)
 }
 
 fn sorted_median(values: &mut [f64]) -> f64 {
@@ -9373,12 +9479,47 @@ struct PibaqEvidenceRow {
     samples_quantified: usize,
 }
 
+impl PibaqEvidenceRow {
+    fn record(&self, mode: PibaqSharedMode) -> [String; 13] {
+        [
+            self.row_id.clone(),
+            self.row_type.label().to_owned(),
+            self.family_id.clone(),
+            self.family_size.to_string(),
+            self.family_members.clone(),
+            self.evidence.label().to_owned(),
+            mode.label().to_owned(),
+            self.theoretical_peptides.to_string(),
+            self.theoretical_unique.to_string(),
+            self.theoretical_shared.to_string(),
+            self.observed_unique.to_string(),
+            self.observed_shared.to_string(),
+            self.samples_quantified.to_string(),
+        ]
+    }
+}
+
+const PIBAQ_EVIDENCE_HEADER: [&str; 13] = [
+    "protein",
+    "row_type",
+    "family_id",
+    "family_size",
+    "family_members",
+    "evidence",
+    "shared_mode",
+    "theoretical_peptides",
+    "theoretical_unique",
+    "theoretical_shared",
+    "observed_unique",
+    "observed_shared",
+    "samples_quantified",
+];
+
 fn family_evidence_rows(
     family: &ProteinFamily,
     counts: &FamilyCounts,
     evidence: PibaqEvidence,
     output: &HashMap<CellKey, PibaqCell>,
-    owned_count: usize,
     mode: PibaqSharedMode,
     proteins: &StringIdRegistry<ProteinId>,
 ) -> Vec<PibaqEvidenceRow> {
@@ -9392,56 +9533,91 @@ fn family_evidence_rows(
             .and_then(|protein| samples.get(&protein).copied())
             .unwrap_or(0)
     };
-    let family_members = family.members.join(";");
-    let size = family.members.len();
-    let mut rows = Vec::with_capacity(size + 1);
+    let mut rows = Vec::with_capacity(family.members.len() + 1);
     for (position, member) in family.members.iter().enumerate() {
-        let samples_quantified = quantified(member);
-        let theoretical_peptides = if mode == PibaqSharedMode::Unique {
-            counts.theoretical_unique[position]
-        } else {
-            counts.theoretical_total[position]
-        };
-        rows.push(PibaqEvidenceRow {
-            row_id: member.clone(),
-            row_type: if samples_quantified > 0 {
-                PibaqRowType::Member
-            } else {
-                PibaqRowType::MemberNotQuantified
-            },
-            family_id: family.family_id.clone(),
-            family_size: size,
-            family_members: family_members.clone(),
+        rows.push(member_evidence_row(
+            family,
+            counts,
+            position,
             evidence,
-            theoretical_peptides,
-            theoretical_unique: counts.theoretical_unique[position],
-            theoretical_shared: counts.theoretical_total[position]
-                - counts.theoretical_unique[position],
-            observed_unique: counts.observed_unique[position],
-            observed_shared: counts.observed_shared[position],
-            samples_quantified,
-        });
+            mode,
+            quantified(member),
+        ));
     }
     let row_id = family_row_id(family);
-    let samples_quantified = if size > 1 { quantified(&row_id) } else { 0 };
+    let samples_quantified = if family.members.len() > 1 {
+        quantified(&row_id)
+    } else {
+        0
+    };
     if samples_quantified > 0 {
-        let theoretical_unique = counts.theoretical_unique.iter().sum::<usize>();
-        rows.push(PibaqEvidenceRow {
-            row_id,
-            row_type: PibaqRowType::Family,
-            family_id: family.family_id.clone(),
-            family_size: size,
-            family_members,
+        rows.push(family_evidence_row(
+            family,
+            counts,
             evidence,
-            theoretical_peptides: owned_count,
-            theoretical_unique,
-            theoretical_shared: owned_count.saturating_sub(theoretical_unique),
-            observed_unique: counts.observed_unique.iter().sum(),
-            observed_shared: counts.observed_shared_peptides(),
+            row_id,
             samples_quantified,
-        });
+        ));
     }
     rows
+}
+
+fn member_evidence_row(
+    family: &ProteinFamily,
+    counts: &FamilyCounts,
+    position: usize,
+    evidence: PibaqEvidence,
+    mode: PibaqSharedMode,
+    samples_quantified: usize,
+) -> PibaqEvidenceRow {
+    let theoretical_peptides = if mode == PibaqSharedMode::Unique {
+        counts.theoretical_unique[position]
+    } else {
+        counts.theoretical_total[position]
+    };
+    PibaqEvidenceRow {
+        row_id: family.members[position].clone(),
+        row_type: if samples_quantified > 0 {
+            PibaqRowType::Member
+        } else {
+            PibaqRowType::MemberNotQuantified
+        },
+        family_id: family.family_id.clone(),
+        family_size: family.members.len(),
+        family_members: family.members.join(";"),
+        evidence,
+        theoretical_peptides,
+        theoretical_unique: counts.theoretical_unique[position],
+        theoretical_shared: counts.theoretical_total[position]
+            - counts.theoretical_unique[position],
+        observed_unique: counts.observed_unique[position],
+        observed_shared: counts.observed_shared[position],
+        samples_quantified,
+    }
+}
+
+fn family_evidence_row(
+    family: &ProteinFamily,
+    counts: &FamilyCounts,
+    evidence: PibaqEvidence,
+    row_id: String,
+    samples_quantified: usize,
+) -> PibaqEvidenceRow {
+    let theoretical_unique = counts.theoretical_unique.iter().sum::<usize>();
+    PibaqEvidenceRow {
+        row_id,
+        row_type: PibaqRowType::Family,
+        family_id: family.family_id.clone(),
+        family_size: family.members.len(),
+        family_members: family.members.join(";"),
+        evidence,
+        theoretical_peptides: counts.owned_count,
+        theoretical_unique,
+        theoretical_shared: counts.owned_count.saturating_sub(theoretical_unique),
+        observed_unique: counts.observed_unique.iter().sum(),
+        observed_shared: counts.observed_shared_peptides(),
+        samples_quantified,
+    }
 }
 
 fn write_pibaq_evidence(
@@ -9449,40 +9625,15 @@ fn write_pibaq_evidence(
     rows: &[PibaqEvidenceRow],
     mode: PibaqSharedMode,
 ) -> Result<()> {
-    if let Some(parent) = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        create_dir_all(parent).map_err(|source| MokumeError::Io {
-            path: parent.to_path_buf(),
-            source,
-        })?;
-    }
+    create_parent_dir(path)?;
     let file = File::create(path).map_err(|source| MokumeError::Io {
         path: path.to_path_buf(),
         source,
     })?;
     let mut writer = WriterBuilder::new().delimiter(b'\t').from_writer(file);
-    let csv_error = |source: csv::Error| {
-        invalid_input(format!("failed to write `{}`: {source}", path.display()))
-    };
     writer
-        .write_record([
-            "protein",
-            "row_type",
-            "family_id",
-            "family_size",
-            "family_members",
-            "evidence",
-            "shared_mode",
-            "theoretical_peptides",
-            "theoretical_unique",
-            "theoretical_shared",
-            "observed_unique",
-            "observed_shared",
-            "samples_quantified",
-        ])
-        .map_err(csv_error)?;
+        .write_record(PIBAQ_EVIDENCE_HEADER)
+        .map_err(|source| csv_error(path, source))?;
     let mut sorted = rows.iter().collect::<Vec<_>>();
     sorted.sort_by(|left, right| {
         (&left.family_id, left.row_type, &left.row_id).cmp(&(
@@ -9493,22 +9644,8 @@ fn write_pibaq_evidence(
     });
     for row in sorted {
         writer
-            .write_record([
-                row.row_id.as_str(),
-                row.row_type.label(),
-                row.family_id.as_str(),
-                &row.family_size.to_string(),
-                row.family_members.as_str(),
-                row.evidence.label(),
-                mode.label(),
-                &row.theoretical_peptides.to_string(),
-                &row.theoretical_unique.to_string(),
-                &row.theoretical_shared.to_string(),
-                &row.observed_unique.to_string(),
-                &row.observed_shared.to_string(),
-                &row.samples_quantified.to_string(),
-            ])
-            .map_err(csv_error)?;
+            .write_record(row.record(mode))
+            .map_err(|source| csv_error(path, source))?;
     }
     writer.flush().map_err(|source| MokumeError::Io {
         path: path.to_path_buf(),
@@ -10247,7 +10384,6 @@ mod tests {
             &family,
             observations,
             &counts,
-            owned.len(),
             evidence,
             mode,
             family_rows,
@@ -10361,7 +10497,6 @@ mod tests {
             &family,
             &observations,
             &counts,
-            owned.len(),
             super::PibaqEvidence::FamilyOnly,
             PibaqSharedMode::Unique,
             PibaqFamilyRows::FamilyOnly,
@@ -10372,7 +10507,6 @@ mod tests {
             &counts,
             super::PibaqEvidence::FamilyOnly,
             &output,
-            owned.len(),
             PibaqSharedMode::Unique,
             &proteins,
         );

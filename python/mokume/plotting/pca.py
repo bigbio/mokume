@@ -7,7 +7,6 @@ from sklearn.decomposition import PCA
 
 from mokume.plotting._common import (
     bottom_legend,
-    draw_group_ellipses,
     expand_category_axes,
     label_categories,
     static_style,
@@ -26,8 +25,6 @@ def _embedding_plot(frame, axes, group_column, options):
     fig, ax = plt.subplots(figsize=options.get("figsize", (3.5, 3)))
     groups = category_order(frame[group_column])
     palette = dict(zip(groups, category_colors(len(groups))))
-    if options.get("ellipses"):
-        draw_group_ellipses(ax, frame, axes, group_column, palette)
     for group, color in palette.items():
         subset = frame[frame[group_column] == group]
         ax.scatter(
@@ -94,7 +91,7 @@ def plot_pca(
         df_pca,
         (x_col, y_col),
         hue_col,
-        {"output": output_file, "title": title, "figsize": figsize, "ellipses": True},
+        {"output": output_file, "title": title, "figsize": figsize},
     )
 
 

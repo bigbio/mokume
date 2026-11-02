@@ -633,9 +633,9 @@ impl FeatureToProteinState {
         allowed_cells: &HashSet<CellKey>,
     ) -> CanonicalExportValues {
         let mut result = HashMap::new();
-        let Some(export) = self.export_rows.peptides.as_ref() else {
+        if !self.export_rows.peptides {
             return result;
-        };
+        }
         if let FeatureAggregation::Lfq {
             route_to_directlfq: false,
             traces,
@@ -645,16 +645,16 @@ impl FeatureToProteinState {
             return traces.normalized_canonical_values();
         }
         let mut cells: HashMap<CellKey, HashMap<PeptideId, f64>> = HashMap::new();
-        for (key, peptides) in &export.rows {
+        for (key, ions) in &self.export_rows.rows.rows {
             let cell = CellKey {
                 protein: key.protein,
                 sample: key.sample,
             };
             let target = cells.entry(cell).or_default();
-            for (peptide, intensity) in peptides {
-                let current = target.entry(*peptide).or_insert(0.0);
-                if *intensity > *current {
-                    *current = *intensity;
+            for (peptide, values) in ions.iter() {
+                let current = target.entry(peptide).or_insert(0.0);
+                if values.intensity > *current {
+                    *current = values.intensity;
                 }
             }
         }
@@ -804,8 +804,10 @@ impl LowFrequencyTracker {
 
 #[derive(Debug, Default)]
 struct IntermediateExports {
-    peptides: Option<PeptideExport>,
-    unnormalized_peptides: Option<PeptideExport>,
+    peptides: bool,
+    unnormalized_peptides: bool,
+    /// Shared by both exports, whose keys and ions always match.
+    rows: PeptideExport,
 }
 
 /// `RazorPeptideFilter` mode (Python `preprocessing/filters/protein.py:334-378`).
@@ -838,7 +840,7 @@ fn parse_razor_handling(handling: &str) -> RazorHandling {
 
 #[derive(Debug, Default)]
 struct PeptideExport {
-    rows: HashMap<PeptideExportKey, Vec<(PeptideId, f64)>>,
+    rows: HashMap<PeptideExportKey, ExportIons>,
     contexts: Vec<PeptideExportContext>,
     context_ids: HashMap<(u32, u32, Option<u32>, i64), u32>,
     context_labels: StringIdRegistry<u32>,
@@ -868,6 +870,21 @@ struct PeptideExportKey {
     sample: SampleId,
     canonical: PeptideId,
     context: u32,
+}
+
+/// Per-ion maxima for `--export-peptides` and `--export-unnormalized-peptides`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct IonValues {
+    intensity: f64,
+    unnormalized: f64,
+}
+
+/// A canonical cell's ions in `PeptideId` order. Most cells hold a single ion,
+/// so it stays inline in the row table.
+#[derive(Debug, PartialEq)]
+enum ExportIons {
+    One(PeptideId, IonValues),
+    Many(Box<[(PeptideId, IonValues)]>),
 }
 
 #[derive(Debug)]
@@ -924,21 +941,14 @@ struct PeptideExportOptions {
 
 impl IntermediateExports {
     fn has_peptides(&self) -> bool {
-        self.peptides.is_some() || self.unnormalized_peptides.is_some()
+        self.peptides || self.unnormalized_peptides
     }
 
     fn new(config: &FeatureToProteinsConfig) -> Self {
         Self {
-            peptides: config
-                .output
-                .export_peptides
-                .as_ref()
-                .map(|_| PeptideExport::default()),
-            unnormalized_peptides: config
-                .output
-                .export_unnormalized_peptides
-                .as_ref()
-                .map(|_| PeptideExport::default()),
+            peptides: config.output.export_peptides.is_some(),
+            unnormalized_peptides: config.output.export_unnormalized_peptides.is_some(),
+            rows: PeptideExport::default(),
         }
     }
 
@@ -946,16 +956,12 @@ impl IntermediateExports {
     /// keys, used only by `features2peptides --aggregation_level run`.
     fn new_with_run_mode(config: &FeatureToProteinsConfig, run_mode: bool) -> Self {
         Self {
-            peptides: config
-                .output
-                .export_peptides
-                .as_ref()
-                .map(|_| PeptideExport {
-                    rows: HashMap::new(),
-                    run_mode,
-                    ..PeptideExport::default()
-                }),
-            unnormalized_peptides: None,
+            peptides: config.output.export_peptides.is_some(),
+            unnormalized_peptides: false,
+            rows: PeptideExport {
+                run_mode,
+                ..PeptideExport::default()
+            },
         }
     }
 
@@ -965,23 +971,18 @@ impl IntermediateExports {
         raw_intensity: f64,
         intensity_factors: Option<&IntensityFactors>,
     ) -> Result<()> {
-        if let Some(peptides) = &mut self.peptides {
-            peptides.push(measurement)?;
+        if !self.has_peptides() {
+            return Ok(());
         }
-        if let Some(peptides) = &mut self.unnormalized_peptides {
-            let intensity = intensity_factors.map_or(raw_intensity, |factors| {
-                factors.normalize_run(
-                    raw_intensity,
-                    measurement.sample_name,
-                    measurement.run_file_name,
-                )
-            });
-            peptides.push(IntermediateMeasurement {
-                intensity,
-                ..measurement
-            })?;
-        }
-        Ok(())
+        let unnormalized = match intensity_factors {
+            Some(factors) if self.unnormalized_peptides => factors.normalize_run(
+                raw_intensity,
+                measurement.sample_name,
+                measurement.run_file_name,
+            ),
+            _ => raw_intensity,
+        };
+        self.rows.push(measurement, unnormalized)
     }
 
     fn write(
@@ -993,37 +994,32 @@ impl IntermediateExports {
         dataset_normalized: Option<&CanonicalExportValues>,
         names: &PeptideExportNames<'_>,
     ) -> Result<()> {
-        for (path, peptides_export, normalized) in [
+        let keys = self
+            .rows
+            .ordered_keys(allowed_cells, low_frequency_peptides, names);
+        // Both exports keep the same keys and columns. Dataset-level
+        // normalization drops BioReplicate/Condition, as in Python's melt.
+        let omit_replicate_condition = dataset_normalized.is_some();
+        for (path, unnormalized, normalized) in [
             (
                 config.output.export_peptides.as_deref(),
-                self.peptides.as_ref(),
+                false,
                 dataset_normalized,
             ),
             (
                 config.output.export_unnormalized_peptides.as_deref(),
-                self.unnormalized_peptides.as_ref(),
+                true,
                 None,
             ),
         ] {
-            let (Some(path), Some(peptides_export)) = (path, peptides_export) else {
+            let Some(path) = path else {
                 continue;
             };
-            let rows = peptides_export.materialize(
-                allowed_cells,
-                low_frequency_peptides,
-                options.log2,
-                normalized,
-                names,
-            );
-            // Both exports keep the same keys and columns. Dataset-level
-            // normalization drops BioReplicate/Condition, as in Python's melt.
-            let omit_replicate_condition = dataset_normalized.is_some();
-            peptides_export.write_csv(
-                path,
-                rows,
-                omit_replicate_condition,
-                options.save_parquet,
-            )?;
+            let rows =
+                self.rows
+                    .exported_rows(&keys, unnormalized, options.log2, normalized, names);
+            self.rows
+                .write_csv(path, rows, omit_replicate_condition, options.save_parquet)?;
         }
         Ok(())
     }
@@ -1051,6 +1047,62 @@ impl PeptideExportNames<'_> {
             run: context.run.as_deref(),
             tech_replicate: context.tech_replicate,
         }
+    }
+}
+
+impl IonValues {
+    fn merge(&mut self, other: Self) {
+        if other.intensity > self.intensity {
+            self.intensity = other.intensity;
+        }
+        if other.unnormalized > self.unnormalized {
+            self.unnormalized = other.unnormalized;
+        }
+    }
+
+    fn value(self, unnormalized: bool) -> f64 {
+        if unnormalized {
+            self.unnormalized
+        } else {
+            self.intensity
+        }
+    }
+}
+
+impl ExportIons {
+    fn merge(&mut self, peptide: PeptideId, values: IonValues) {
+        match self {
+            Self::One(current, current_values) if *current == peptide => {
+                current_values.merge(values);
+            }
+            Self::One(current, current_values) => {
+                let first = (*current, *current_values);
+                let second = (peptide, values);
+                let (low, high) = if first.0 < second.0 {
+                    (first, second)
+                } else {
+                    (second, first)
+                };
+                *self = Self::Many(Box::new([low, high]));
+            }
+            Self::Many(ions) => match ions.binary_search_by_key(&peptide, |(id, _)| *id) {
+                Ok(index) => ions[index].1.merge(values),
+                Err(index) => {
+                    let mut grown = std::mem::take(ions).into_vec();
+                    grown.reserve_exact(1);
+                    grown.insert(index, (peptide, values));
+                    *ions = grown.into_boxed_slice();
+                }
+            },
+        }
+    }
+
+    fn iter(&self) -> impl Iterator<Item = (PeptideId, IonValues)> + '_ {
+        let (one, many) = match self {
+            Self::One(peptide, values) => (Some((*peptide, *values)), &[][..]),
+            Self::Many(ions) => (None, &ions[..]),
+        };
+        one.into_iter().chain(many.iter().copied())
     }
 }
 
@@ -1101,7 +1153,7 @@ impl PeptideExport {
         Ok(id)
     }
 
-    fn push(&mut self, measurement: IntermediateMeasurement<'_>) -> Result<()> {
+    fn push(&mut self, measurement: IntermediateMeasurement<'_>, unnormalized: f64) -> Result<()> {
         let key = PeptideExportKey {
             protein: measurement.protein,
             sample: measurement.sample,
@@ -1121,36 +1173,28 @@ impl PeptideExport {
                 order.push(measurement.protein_name.to_owned());
             }
         }
-        let values = self.rows.entry(key).or_default();
-        match values.binary_search_by_key(&measurement.peptide, |(id, _)| *id) {
-            Ok(index) => {
-                if measurement.intensity > values[index].1 {
-                    values[index].1 = measurement.intensity;
-                }
-            }
-            Err(index) => {
-                // Most canonical cells contain one ion; never reserve spare rows.
-                values.reserve_exact(1);
-                values.insert(index, (measurement.peptide, measurement.intensity));
-            }
-        }
+        let peptide = measurement.peptide;
+        let values = IonValues {
+            intensity: measurement.intensity,
+            unnormalized,
+        };
+        self.rows
+            .entry(key)
+            .and_modify(|ions| ions.merge(peptide, values))
+            .or_insert(ExportIons::One(peptide, values));
         Ok(())
     }
 
-    /// Filter and sort references, then yield rows for the CSV and parquet
-    /// writers without keeping them, so both serialisations are value-identical.
-    /// Mirrors `sum_peptidoform_intensities` (the per-cell sum) followed by the
-    /// optional `--log2`, after dropping cells failing the unique-peptide gate
-    /// and the `(ProteinName, PeptideCanonical)` low-frequency set (Python
-    /// `peptide.py:373-378`; empty when `--remove_low_frequency_peptides` is off).
-    fn materialize<'a>(
+    /// Filter and sort the row keys shared by both exports. Drops cells failing
+    /// the unique-peptide gate and the `(ProteinName, PeptideCanonical)`
+    /// low-frequency set (Python `peptide.py:373-378`; empty when
+    /// `--remove_low_frequency_peptides` is off).
+    fn ordered_keys<'a>(
         &'a self,
         allowed_cells: &HashSet<CellKey>,
         low_frequency_peptides: &HashSet<(String, String)>,
-        log2: bool,
-        dataset_normalized: Option<&'a CanonicalExportValues>,
-        names: &'a PeptideExportNames<'a>,
-    ) -> impl Iterator<Item = (PeptideExportRow<'a>, f64)> + 'a {
+        names: &PeptideExportNames<'_>,
+    ) -> Vec<&'a PeptideExportKey> {
         let low_frequency = low_frequency_peptides
             .iter()
             .map(|(protein, canonical)| (protein.as_str(), canonical.as_str()))
@@ -1170,14 +1214,33 @@ impl PeptideExport {
             .collect::<Vec<_>>();
         self.filter_razor(&mut keys, names);
         keys.sort_by(|left, right| names.row(left, self).cmp(&names.row(right, self)));
-        keys.into_iter().map(move |key| {
+        keys
+    }
+
+    /// Yield rows for the CSV and parquet writers without keeping them, so both
+    /// serialisations are value-identical. Mirrors `sum_peptidoform_intensities`
+    /// (the per-cell sum) followed by the optional `--log2`.
+    fn exported_rows<'a>(
+        &'a self,
+        keys: &'a [&'a PeptideExportKey],
+        unnormalized: bool,
+        log2: bool,
+        dataset_normalized: Option<&'a CanonicalExportValues>,
+        names: &'a PeptideExportNames<'a>,
+    ) -> impl Iterator<Item = (PeptideExportRow<'a>, f64)> + 'a {
+        keys.iter().map(move |key| {
             // When a dataset-level sample normalization was applied, use the
             // normalized canonical value (Python normalizes the peptide table
             // before export) instead of the raw sum, summed in `PeptideId` order.
             let raw = dataset_normalized
                 .and_then(|values| values.get(&(key.protein, key.sample, key.canonical)))
                 .copied()
-                .unwrap_or_else(|| self.rows[key].iter().map(|(_, value)| *value).sum());
+                .unwrap_or_else(|| {
+                    self.rows[*key]
+                        .iter()
+                        .map(|(_, values)| values.value(unnormalized))
+                        .sum()
+                });
             (names.row(key, self), if log2 { raw.log2() } else { raw })
         })
     }
@@ -6430,10 +6493,8 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
     state.peptide_filters = filter_pipeline.cloned();
     if let Some(pipeline) = filter_pipeline {
         configure_fdr_and_sequence_filters(&mut state, parquet, pipeline, named_score)?;
-        if let Some(peptides) = &mut state.export_rows.peptides {
-            peptides.razor_handling =
-                parse_razor_handling(&pipeline.protein.razor_peptide_handling);
-        }
+        state.export_rows.rows.razor_handling =
+            parse_razor_handling(&pipeline.protein.razor_peptide_handling);
     }
     // Run-QC filters run inside each sample frame and group by technical
     // replicate. Decide which runs to drop in a pre-pass (the median is computed
@@ -10702,38 +10763,48 @@ mod tests {
     fn peptide_export_ions_merge_max_in_id_order() -> mokume_core::Result<()> {
         let mut export = super::PeptideExport::default();
         for (peptide, intensity) in [(2, 1.0e16), (1, 0.5), (0, 1.0), (1, 1.0), (2, 20.0)] {
-            export.push(super::IntermediateMeasurement {
-                protein: ProteinId::new(0),
-                sample: SampleId::new(0),
-                peptide: PeptideId::new(peptide),
-                canonical: PeptideId::new(0),
-                intensity,
-                protein_name: "P",
-                peptide_canonical: "PEPTIDE",
-                sample_name: "S",
-                run_file_name: "run",
-                sdrf_record: None,
-            })?;
+            export.push(
+                super::IntermediateMeasurement {
+                    protein: ProteinId::new(0),
+                    sample: SampleId::new(0),
+                    peptide: PeptideId::new(peptide),
+                    canonical: PeptideId::new(0),
+                    intensity,
+                    protein_name: "P",
+                    peptide_canonical: "PEPTIDE",
+                    sample_name: "S",
+                    run_file_name: "run",
+                    sdrf_record: None,
+                },
+                intensity * 2.0,
+            )?;
         }
-        let values = &export.rows[&super::PeptideExportKey {
+        let ions = export.rows[&super::PeptideExportKey {
             protein: ProteinId::new(0),
             sample: SampleId::new(0),
             canonical: PeptideId::new(0),
             context: 0,
-        }];
+        }]
+            .iter()
+            .collect::<Vec<_>>();
+        let expected = |peptide, intensity: f64| {
+            (
+                PeptideId::new(peptide),
+                super::IonValues {
+                    intensity,
+                    unnormalized: intensity * 2.0,
+                },
+            )
+        };
         assert_eq!(
-            values,
-            &[
-                (PeptideId::new(0), 1.0),
-                (PeptideId::new(1), 1.0),
-                (PeptideId::new(2), 1.0e16)
-            ]
+            ions,
+            [expected(0, 1.0), expected(1, 1.0), expected(2, 1.0e16)]
         );
-        assert_eq!(values.capacity(), values.len());
         assert_eq!(
-            values.iter().map(|(_, value)| *value).sum::<f64>(),
+            ions.iter().map(|(_, values)| values.intensity).sum::<f64>(),
             (1.0 + 1.0) + 1.0e16
         );
+        assert_eq!(std::mem::size_of::<super::ExportIons>(), 24);
         assert_eq!(export.contexts.len(), 1);
         Ok(())
     }
@@ -10750,18 +10821,21 @@ mod tests {
             for sample in [0, 1] {
                 for canonical in [0, 1] {
                     for record in table.records() {
-                        export.push(super::IntermediateMeasurement {
-                            protein: ProteinId::new(protein),
-                            sample: SampleId::new(sample),
-                            canonical: PeptideId::new(canonical),
-                            peptide: PeptideId::new(0),
-                            intensity: 8.0,
-                            protein_name: names.proteins[protein as usize],
-                            peptide_canonical: names.canonicals[canonical as usize],
-                            sample_name: names.samples[sample as usize],
-                            run_file_name: &record.data_file,
-                            sdrf_record: Some(record),
-                        })?;
+                        export.push(
+                            super::IntermediateMeasurement {
+                                protein: ProteinId::new(protein),
+                                sample: SampleId::new(sample),
+                                canonical: PeptideId::new(canonical),
+                                peptide: PeptideId::new(0),
+                                intensity: 8.0,
+                                protein_name: names.proteins[protein as usize],
+                                peptide_canonical: names.canonicals[canonical as usize],
+                                sample_name: names.samples[sample as usize],
+                                run_file_name: &record.data_file,
+                                sdrf_record: Some(record),
+                            },
+                            8.0,
+                        )?;
                     }
                 }
             }
@@ -10794,9 +10868,10 @@ mod tests {
         assert_eq!(export.contexts.len(), 5);
         let root = tempfile::tempdir()?;
         let path = root.path().join("peptides.csv");
+        let keys = export.ordered_keys(&allowed, &HashSet::new(), &names);
         export.write_csv(
             &path,
-            export.materialize(&allowed, &HashSet::new(), true, None, &names),
+            export.exported_rows(&keys, false, true, None, &names),
             false,
             false,
         )?;

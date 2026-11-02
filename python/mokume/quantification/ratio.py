@@ -367,7 +367,7 @@ def _qpx_psm_base_query(pg_col: str, is_new_qpx: bool) -> str:
                 " run_file_name as run_file_name,",
                 " unnest.label as label,",
                 " unnest.intensity as intensity",
-                " FROM read_parquet(?) AS parquet_raw, UNNEST(intensities) as unnest",
+                " FROM (SELECT *, UNNEST(intensities) AS unnest FROM read_parquet(?))",
                 " WHERE unnest.intensity IS NOT NULL AND ",
             ]
         )
@@ -382,7 +382,7 @@ def _qpx_psm_base_query(pg_col: str, is_new_qpx: bool) -> str:
             " reference_file_name as run_file_name,",
             " unnest.channel as label,",
             " unnest.intensity as intensity",
-            " FROM read_parquet(?) AS parquet_raw, UNNEST(intensities) as unnest",
+            " FROM (SELECT *, UNNEST(intensities) AS unnest FROM read_parquet(?))",
             " WHERE unnest.intensity IS NOT NULL AND ",
         ]
     )

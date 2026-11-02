@@ -18,6 +18,10 @@ from mokume.plotting.style import (
     TEXT_COLOR,
 )
 
+# Past these counts, connecting lines and separators only cover the values.
+MAX_CONNECTED_SAMPLES = 40
+MAX_CONDITION_GUIDES = 12
+
 
 def peptide_matrix(source, sample_to_condition):
     """Read four- or six-column exports; conditions always come from SDRF."""
@@ -59,6 +63,48 @@ def condition_groups(samples, conditions):
     return [start - 0.5 for start in starts[1:]], labels
 
 
+def _draw_profile_lines(ax, profile, protein_values):
+    """Draw peptides behind the protein, as dots alone once samples are many."""
+    dense = len(protein_values) > MAX_CONNECTED_SAMPLES
+    peptide_style, protein_style = (
+        (
+            {"linestyle": "none", "marker": "o", "markersize": 1.2, "alpha": 0.5},
+            {"linestyle": "none", "marker": "o", "markersize": 3, "alpha": 0.85},
+        )
+        if dense
+        else ({"linewidth": 1}, {"linewidth": 2, "marker": "o", "markersize": 6})
+    )
+    if profile is not None:
+        ax.plot(profile, color=PEPTIDE_COLOR, markeredgewidth=0, **peptide_style)
+    ax.plot(
+        protein_values, color=SINGLE_SERIES_COLOR, markeredgewidth=0, **protein_style
+    )
+    if profile is not None:
+        dot_key = {"linestyle": "none", "marker": "o", "markersize": 4}
+        ax.legend(
+            handles=[
+                Line2D(
+                    [],
+                    [],
+                    color=PEPTIDE_COLOR,
+                    label="Peptides",
+                    **(dot_key if dense else peptide_style),
+                ),
+                Line2D(
+                    [],
+                    [],
+                    color=SINGLE_SERIES_COLOR,
+                    label="Protein",
+                    **(dot_key if dense else protein_style),
+                ),
+            ],
+            # Dense profiles leave no free corner inside the axes.
+            loc="upper left",
+            bbox_to_anchor=(1.01, 1),
+            borderaxespad=0,
+        )
+
+
 @static_style()
 def plot_profile(protein_df, peptides, sample_to_condition, protein, output_file):
     """Plot gray peptide trajectories behind the protein summary."""
@@ -70,40 +116,23 @@ def plot_profile(protein_df, peptides, sample_to_condition, protein, output_file
     )
     fig, ax = plt.subplots(figsize=(7.2, 3.2))
     has_peptides = protein in values.index.get_level_values("ProteinName")
-    if has_peptides:
-        ax.plot(
-            values.loc[protein].reindex(columns=samples).T.to_numpy(),
-            color=PEPTIDE_COLOR,
-            linewidth=1,
-        )
-    ax.plot(
+    _draw_profile_lines(
+        ax,
+        values.loc[protein].reindex(columns=samples).T.to_numpy()
+        if has_peptides
+        else None,
         proteins.loc[protein, samples],
-        color=SINGLE_SERIES_COLOR,
-        linewidth=2,
-        marker="o",
-        markersize=6,
-        markeredgewidth=0,
     )
     boundaries, labels = condition_groups(samples, sample_to_condition)
-    for boundary in boundaries:
-        ax.axvline(boundary, color=PEPTIDE_COLOR, linewidth=0.6)
+    if len(labels) <= MAX_CONDITION_GUIDES:
+        for boundary in boundaries:
+            ax.axvline(boundary, color=PEPTIDE_COLOR, linewidth=0.6)
     ax.set_xticks(range(len(samples)), samples, rotation=60, ha="right")
     ax.set(xlabel="Sample", ylabel="log2 intensity", title=protein)
     conditions = ax.secondary_xaxis("top")
     conditions.set_xticks(*zip(*labels))
     conditions.tick_params(length=0, colors=TEXT_COLOR)
     conditions.spines["top"].set_visible(False)
-    if has_peptides:
-        ax.legend(
-            handles=[
-                Line2D([], [], color=PEPTIDE_COLOR, label="Peptides", lw=1),
-                Line2D([], [], color=SINGLE_SERIES_COLOR, label="Protein", lw=2),
-            ],
-            # Dense profiles leave no free corner inside the axes.
-            loc="upper left",
-            bbox_to_anchor=(1.01, 1),
-            borderaxespad=0,
-        )
     style_axes(ax)
     fig.tight_layout()
     _hide_crowded_labels(fig, ax, conditions, boundaries, len(samples))

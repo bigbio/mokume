@@ -961,6 +961,8 @@ Plotly.newPlot('pvca-plot', [{{
     const matrix = order.map(y => order.map(x => corr.matrix[y][x]));
     const offDiagonal = matrix.flatMap((row, y) => row.filter((value, x) =>
         x !== y && Number.isFinite(value)));
+    // Reduced, as spreading a large cohort's cells into Math.min overflows the stack.
+    const lowest = offDiagonal.reduce((low, value) => Math.min(low, value), Infinity);
     Plotly.newPlot('corr-plot', [{{
         type: 'heatmap',
         z: matrix,
@@ -968,7 +970,7 @@ Plotly.newPlot('pvca-plot', [{{
         y: samples,
         colorscale: sequentialColors.map((color, index) =>
             [index / (sequentialColors.length - 1), color]),
-        zmin: Math.floor(Math.min(...offDiagonal) * 100) / 100,
+        zmin: Math.floor(lowest * 100) / 100,
         zmax: 1.0,
         hovertemplate: '%{{x}} vs %{{y}}: %{{z:.3f}}<extra></extra>',
     }}], {{
@@ -1003,7 +1005,7 @@ Plotly.newPlot('pvca-plot', [{{
         }});
     }});
     Plotly.newPlot('boxplot', boxTraces, {{
-        template: plotTemplate, showlegend: boxTraces.length > 1,
+        template: plotTemplate, showlegend: boxTraces.length > 1 && boxTraces.length <= 12,
         title: {{ x: 0, xanchor: 'left',
                   text: 'Per-Sample Distribution (quartiles; whiskers=min/max)',
                   font: {{ size: 14 }} }},
@@ -1032,10 +1034,10 @@ Plotly.newPlot('pvca-plot', [{{
         }});
     }});
     Plotly.newPlot('cv-violin', traces, {{
-        template: plotTemplate, showlegend: traces.length > 1,
+        // Beyond 12 conditions a legend would take the plot's width; hover names them.
+        template: plotTemplate, showlegend: traces.length > 1 && traces.length <= 12,
         title: {{ x: 0, xanchor: 'left', text: 'Per-Protein CV Distribution by Condition',
                   font: {{ size: 14 }} }},
-        // Beyond 12 conditions names no longer fit; the legend and hover carry them.
         xaxis: {{ showticklabels: traces.length <= 12 }},
         yaxis: {{ title: {{ text: 'Coefficient of Variation' }}, range: {
         _safe_json(_cv_axis_range(condition_cv))

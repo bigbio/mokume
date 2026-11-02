@@ -3,7 +3,7 @@
 import html
 import json
 
-from mokume.plotting.profile import condition_groups
+from mokume.plotting.profile import MAX_CONDITION_GUIDES, condition_groups
 from mokume.plotting.style import (
     PEPTIDE_COLOR,
     PLOTLY_TEMPLATE,
@@ -101,11 +101,20 @@ function labelLeader(gd, center, box) {
 function categoryLayout(target, traces, height) {
     const count = new Set(traces.map(trace => trace.meta.condition)).size;
     if (count <= 12) return {};
-    const extra = Math.ceil(count / 3) * 20;
-    document.getElementById(target).style.height = (height + extra) + 'px';
+    // Horizontal legends wrap entries by width; estimate the rows so that all of them fit.
+    const node = document.getElementById(target);
+    let rows = 1, used = 0;
+    traces.filter(trace => trace.showlegend).forEach(trace => {
+        const width = trace.name.length * 5.5 + 40;
+        if (used && used + width > node.clientWidth - 105) { rows += 1; used = 0; }
+        used += width;
+    });
+    const extra = rows * 20;
+    node.style.height = (height + extra) + 'px';
     return {height: height + extra,
         // 70 px under the plot area clears the x-axis title at any card height.
-        legend: {orientation: 'h', y: -70 / (height - 150), x: 0.5, xanchor: 'center', font: {size: 10}},
+        legend: {orientation: 'h', y: -70 / (height - 150), x: 0.5, xanchor: 'center', font: {size: 10},
+            tracegroupgap: 0, maxheight: extra},
         margin: {t: 55, b: 95 + extra, l: 60, r: 45}};
 }
 """.replace("__LEADER_COLOR__", SAMPLE_POINT_COLOR)
@@ -294,6 +303,8 @@ def sample_axis(count, **axis):
 def condition_guides(samples, conditions):
     """Return Plotly separators and top labels for condition-grouped samples."""
     boundaries, labels = condition_groups(samples, conditions)
+    if len(labels) > MAX_CONDITION_GUIDES:
+        return {}
     line = {"color": PEPTIDE_COLOR, "width": 1}
     return {
         "shapes": [

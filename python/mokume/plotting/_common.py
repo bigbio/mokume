@@ -390,6 +390,8 @@ def bottom_legend(ax, handles=None, title=None):
     new_width = max(width, bounds.width / fig.dpi + 0.3)
     fig.set_layout_engine(None)
     fig.set_size_inches(new_width, height + extra)
+    # The anchor is a fraction of the figure, which just grew.
+    legend.set_bbox_to_anchor((0.5, 0.14 / (height + extra)), fig.transFigure)
     for axis, position in zip(fig.axes, positions):
         position[:2] += ((new_width - width) / 2, extra)
         axis.set_position(

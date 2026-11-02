@@ -218,7 +218,7 @@ def _normalization_plot(before, after, conditions):
         "wide": True,
         "caption": "Quartiles; whiskers show min/max. Shared log2 scale.",
         "layout": {
-            "showlegend": len(names) > 1,
+            "showlegend": 1 < len(names) <= 12,
             "xaxis": sample_axis(
                 len(samples),
                 domain=[0, 0.46],

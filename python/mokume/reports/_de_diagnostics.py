@@ -4,7 +4,7 @@ from string import Template
 
 from mokume.plotting._common import finite_list
 from mokume.plotting.ma import ma_values
-from mokume.plotting.profile import peptide_payload
+from mokume.plotting.profile import MAX_CONNECTED_SAMPLES, peptide_payload
 from mokume.plotting.style import (
     AXIS_COLOR,
     PEPTIDE_COLOR,
@@ -68,6 +68,7 @@ def profile_script(peptides, mapping):
         guides=compact_json(condition_guides(samples, mapping)),
         peptide_color=compact_json(PEPTIDE_COLOR),
         protein_color=compact_json(SINGLE_SERIES_COLOR),
+        max_connected=MAX_CONNECTED_SAMPLES,
     )
 
 
@@ -81,16 +82,19 @@ function showProfile(protein) {
     if (!target) return;
     const peptides = peptideProfiles[protein] || [];
     const data = intensityData[protein] || {};
+    // As in the static profile, many samples get dots without connecting lines.
+    const dense = profileSamples.length > $max_connected;
     const traces = peptides.map((values, index) => ({
-        type: 'scatter', mode: 'lines', x: profileSamples, y: values,
-        line: {color: peptideColor, width: 1}, name: 'Peptides',
+        type: 'scatter', mode: dense ? 'markers' : 'lines', x: profileSamples, y: values,
+        line: {color: peptideColor, width: 1},
+        marker: {color: peptideColor, size: 2, opacity: 0.5}, name: 'Peptides',
         legendgroup: 'Peptides', showlegend: index === 0,
         hovertemplate: '%{x}<br>Peptide: %{y:.2f}<extra></extra>',
     }));
-    traces.push({type: 'scatter', mode: 'lines+markers', x: profileSamples,
+    traces.push({type: 'scatter', mode: dense ? 'markers' : 'lines+markers', x: profileSamples,
         y: profileSamples.map(sample => data[sample] ?? null), name: 'Protein',
         line: {color: proteinColor, width: 2},
-        marker: {color: proteinColor, size: 7},
+        marker: {color: proteinColor, size: dense ? 4 : 7, opacity: dense ? 0.85 : 1},
         hovertemplate: '%{x}<br>Protein: %{y:.2f}<extra></extra>'});
     // Like the static profile, hide sample names (hover keeps them) when
     // 12 px labels at 60 degrees would overlap, and otherwise grow the plot
@@ -107,7 +111,7 @@ function showProfile(protein) {
     const bottom = 55 + longest * Math.sin(Math.PI / 3);
     target.style.height = `$${345 + bottom}px`;
     Plotly.newPlot(target, traces, {template: plotTemplate, ...$guides,
-        showlegend: traces.length > 1,
+        showlegend: traces.length > 1, legend: {itemsizing: 'constant'},
         xaxis: {title: {text: 'Sample'}, tickangle: 60, automargin: true,
             showticklabels: labels,
             categoryorder: 'array', categoryarray: profileSamples},

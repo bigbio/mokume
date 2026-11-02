@@ -19,9 +19,10 @@ import pandas as pd
 import pytest
 
 from mokume.tissuemap.embedding import _impute_for_pca
-from mokume.plotting._common import place_labels
+from mokume.plotting._common import bottom_legend, place_labels
 from mokume.plotting.style import CONDITION_COLORS, category_colors
 from mokume.plotting.differential_expression import plot_pca_conditions, plot_volcano
+from mokume.plotting.profile import plot_profile
 from mokume.reports.qc_report import generate_qc_report
 from mokume.tissuemap.plotting.atlas import (
     _draw_dendrogram_panel,
@@ -442,3 +443,60 @@ def test_marker_charts_grow_with_many_tissues(tmp_path, monkeypatch):
     marker_plots.plot_dotplot(adata, order, tmp_path)
     assert sizes["marker_heatmap.png"][0] == pytest.approx(tissue_count * 0.14 + 1.5)
     assert sizes["marker_dotplot.png"][1] == pytest.approx(tissue_count * 0.16 + 1.5)
+
+
+@pytest.mark.parametrize("category_count", [20, 400])
+def test_bottom_legend_stays_below_the_axis_title(category_count):
+    """A legend's height grows the canvas without pushing it into the axis title."""
+    fig, ax = plt.subplots(figsize=(3.5, 3))
+    ax.set_xlabel("PC1")
+    for index in range(category_count):
+        ax.plot([], [], "o", label=f"Category {index}")
+
+    bottom_legend(ax)
+
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    legend = fig.legends[0].get_window_extent(renderer)
+    assert legend.y1 < ax.xaxis.label.get_window_extent(renderer).y0
+    assert legend.y0 >= 0
+    plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    ("sample_count", "condition_count", "line_count"),
+    [(12, 3, 2), (60, 3, 2), (60, 20, 0)],
+)
+def test_profile_thins_out_many_samples(
+    tmp_path, monkeypatch, sample_count, condition_count, line_count
+):
+    """Many samples get dots without lines, many conditions no separators."""
+    samples = [f"S{index}" for index in range(sample_count)]
+    proteins = (
+        pd.DataFrame(np.full((1, sample_count), 1024.0), columns=samples, index=["P1"])
+        .rename_axis("ProteinName")
+        .reset_index()
+    )
+    peptides = pd.DataFrame(
+        {
+            "ProteinName": "P1",
+            "PeptideCanonical": "PEPTIDE",
+            "SampleID": samples,
+            "NormIntensity": 512.0,
+        }
+    )
+    conditions = {
+        sample: f"C{index % condition_count}" for index, sample in enumerate(samples)
+    }
+    plotted = []
+    monkeypatch.setattr(
+        plt.Figure, "savefig", lambda fig, *_, **__: plotted.append(fig)
+    )
+
+    plot_profile(proteins, peptides, conditions, "P1", tmp_path / "profile.png")
+
+    ax = plotted[0].axes[0]
+    separators = [line for line in ax.get_lines() if len(set(line.get_xdata())) == 1]
+    data = [line for line in ax.get_lines() if line not in separators]
+    assert len(separators) == line_count
+    assert all((line.get_linestyle() == "None") == (sample_count > 40) for line in data)

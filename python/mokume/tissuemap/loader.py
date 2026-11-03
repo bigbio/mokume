@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
+from mokume.io._qpx import measured_intensity_clause
+
 logger = logging.getLogger(__name__)
 
 # Patterns that identify GIS / reference / pool channels in organism_part
@@ -48,11 +50,12 @@ _FLAT_VIEW_QUERY = """
         SELECT
             anchor_protein AS protein,
             run_file_name,
+            {imputed_projection}
             UNNEST(intensities) AS reporter
         FROM feature_input
         WHERE NOT COALESCE(is_decoy, FALSE)
     )
-    WHERE reporter.intensity > 0
+    WHERE reporter.intensity > 0 AND {measured_clause}
 """
 
 _TMT_GIS_AGGREGATION_QUERY = """
@@ -273,7 +276,15 @@ def _execute_aggregation(
         con.execute("SET preserve_insertion_order = false")
         con.register("sample_map", sample_map)
         con.read_parquet(str(parquet_path)).create_view("feature_input")
-        con.execute(_FLAT_VIEW_QUERY)
+        columns = con.read_parquet(str(parquet_path)).columns
+        con.execute(
+            _FLAT_VIEW_QUERY.format(
+                imputed_projection="imputed_labels,"
+                if "imputed_labels" in columns
+                else "",
+                measured_clause=measured_intensity_clause(columns, "reporter"),
+            )
+        )
         return con.execute(query).df()
     finally:
         con.close()

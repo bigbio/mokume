@@ -15,6 +15,7 @@ arrow = "60.0.0"
 csv = "1.4.0"
 mokume-core = { path = "../mokume-core" }
 parquet = "60.0.0"
+serde_json.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

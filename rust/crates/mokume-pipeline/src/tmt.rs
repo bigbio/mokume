@@ -315,6 +315,7 @@ mod tests {
                 peptide_qvalue: None,
                 pg_global_qvalue: None,
                 selected_score: None,
+                modifications: None,
                 transferred: false,
                 label: Some((*label).to_owned()),
                 intensity: *intensity,

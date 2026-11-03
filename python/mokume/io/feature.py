@@ -18,6 +18,7 @@ import duckdb
 from mokume.model.labeling import QuantificationCategory, IsobaricLabel
 from mokume.core.constants import load_sdrf
 from mokume.core.logger import get_logger
+from mokume.io._qpx import measured_intensity_clause, resolve_score_source
 from mokume.io.msstats import create_msstats_feature_table
 
 logger = get_logger("mokume.io.feature")
@@ -190,7 +191,10 @@ class SQLFilterBuilder:
     require_unique: bool = True
     has_is_decoy: bool = False
     named_score_name: Optional[str] = None
+    named_score_source: Optional[tuple[str, bool]] = None
     named_score_threshold: Optional[float] = None
+    exclude_modifications: list[str] = field(default_factory=list)
+    has_modifications: bool = False
 
     def build_where_clause(self) -> tuple[str, list]:
         """Build parameterized SQL WHERE clause for DuckDB queries.
@@ -239,10 +243,26 @@ class SQLFilterBuilder:
         clause = " AND ".join(conditions) if conditions else "1=1"
         return clause, params
 
+    def build_modification_clause(self) -> tuple[str, list]:
+        """Exclude rows whose structured modifications match by name or accession."""
+        if not (self.has_modifications and self.exclude_modifications):
+            return "", []
+        excluded = [value.lower() for value in self.exclude_modifications]
+        clause = (
+            "NOT EXISTS (SELECT 1 FROM UNNEST(modifications) AS mod_item(modification)"
+            " WHERE list_contains(?, lower(modification.name))"
+            " OR list_contains(?, lower(modification.accession)))"
+        )
+        return clause, [excluded, excluded]
+
     def build_named_score_clause(self) -> tuple[str, list]:
         """Return the input-level predicate for the configured named score."""
         if self.named_score_name is None:
             return "", []
+        if self.named_score_source is not None:
+            expression, higher_better = self.named_score_source
+            operator = ">=" if higher_better else "<="
+            return f"{expression} {operator} ?", [self.named_score_threshold]
         clause = (
             "EXISTS (SELECT 1 FROM UNNEST(additional_scores) AS score_item(score) "
             "WHERE score.score_name = ? AND "
@@ -348,6 +368,7 @@ class Feature:
         if not os.path.exists(database_path):
             raise FileNotFoundError(f"the file {database_path} does not exist.")
 
+        self._parquet_path = database_path
         self.parquet_db = self._connect(duckdb_memory, duckdb_threads)
 
         # Use DuckDB Python API to avoid SQL string interpolation for file paths
@@ -365,6 +386,7 @@ class Feature:
     ) -> "Feature":
         """Open a quantms MSstats table as a QPX-compatible feature view."""
         feature = cls.__new__(cls)
+        feature._parquet_path = None
         feature.parquet_db = cls._connect(*duckdb_limits)
         try:
             create_msstats_feature_table(
@@ -417,6 +439,8 @@ class Feature:
         # Propagate is_decoy availability to filter builder for optimized DECOY filtering
         if self.filter_builder is not None and self._has_is_decoy:
             self.filter_builder.has_is_decoy = True
+        if self.filter_builder is not None and "modifications" in self._compat_columns:
+            self.filter_builder.has_modifications = True
         if self.filter_builder is not None and self.filter_builder.named_score_name:
             self._validate_named_score(self.filter_builder.named_score_name)
 
@@ -424,6 +448,20 @@ class Feature:
         if self.filter_builder is None:
             return "", []
         return self.filter_builder.build_named_score_clause()
+
+    def _report_clause(self) -> tuple[str, list]:
+        """Report rows also drop excluded modifications, as the peptide filter did."""
+        if self.filter_builder is None:
+            return "", []
+        clauses, params = [], []
+        for clause, values in (
+            self.filter_builder.build_named_score_clause(),
+            self.filter_builder.build_modification_clause(),
+        ):
+            if clause:
+                clauses.append(clause)
+                params.extend(values)
+        return " AND ".join(clauses), params
 
     def _append_named_score_condition(
         self, conditions: list[str], params: list
@@ -435,6 +473,13 @@ class Feature:
 
     def _validate_named_score(self, name: str) -> None:
         """Fail before output when a requested score is absent or malformed."""
+        self.filter_builder.named_score_source = resolve_score_source(
+            self.parquet_db, self._parquet_path, name
+        )
+        if self.filter_builder.named_score_source is not None:
+            expression, _ = self.filter_builder.named_score_source
+            self._validate_scalar_score(name, expression)
+            return
         if not self._has_additional_scores:
             raise ValueError(
                 f"named score filter `{name}` requires a QPX additional_scores column"
@@ -467,6 +512,32 @@ class Feature:
                 f"QPX score `{name}` has inconsistent higher_better values"
             )
 
+    def _validate_scalar_score(self, name: str, expression: str) -> None:
+        """Null structs have no score; non-null structs must have a finite field."""
+        present = (
+            "additional_scores IS NOT NULL"
+            if expression.startswith("additional_scores.")
+            else "TRUE"
+        )
+        values = (
+            self.parquet_db.table("parquet_db_raw")
+            .filter(present)
+            .project(f"{expression} AS score_value")
+        )
+        count, invalid = values.aggregate(
+            "count(*), count(*) FILTER (WHERE score_value IS NULL OR NOT isfinite(score_value))"
+        ).fetchone()
+        if not count:
+            raise ValueError(
+                f"--filter-score requires QPX additional_scores entry `{name}`"
+            )
+        if invalid:
+            raise ValueError(f"QPX score `{name}` contains null or non-finite values")
+
+    def _compat_projection(self, prefix: str = "") -> str:
+        """Carry optional QPX metadata through the canonical long views."""
+        return "".join(f", {prefix}{name}" for name in self._compat_columns)
+
     @property
     def samples(self) -> list[str]:
         """Load and cache sample accessions when a caller first requests them."""
@@ -487,6 +558,12 @@ class Feature:
                 "SELECT column_name FROM (DESCRIBE parquet_db_raw)"
             ).fetchall()
         ]
+        self._compat_columns = [
+            name
+            for name in ("modifications", "precursor_qvalue", "global_qvalue")
+            if name in cols
+        ]
+        self._measured_clause = measured_intensity_clause(cols)
         self._is_new_qpx = "charge" in cols or "run_file_name" in cols
         self._charge_col = "charge" if self._is_new_qpx else "precursor_charge"
         self._run_col = "run_file_name" if self._is_new_qpx else "reference_file_name"
@@ -618,7 +695,7 @@ class Feature:
         )
 
         # Optional new QPX columns
-        extra_cols = ""
+        extra_cols = self._compat_projection()
         if self._has_is_decoy:
             extra_cols += ",\n                    is_decoy"
         if self._has_anchor_protein:
@@ -663,6 +740,7 @@ class Feature:
                     extra_cols,
                     " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_raw)",
                     " WHERE unnest.intensity IS NOT NULL AND unnest.intensity > 0",
+                    f" AND {self._measured_clause}",
                 ]
             )
         )
@@ -790,7 +868,7 @@ class Feature:
         self.parquet_db.register("sdrf_mapping", sdrf_mapping)
 
         # Optional new QPX columns
-        opt_cols_raw = ""
+        opt_cols_raw = self._compat_projection()
         if self._has_is_decoy:
             opt_cols_raw += ",\n                    is_decoy"
         if self._has_anchor_protein:
@@ -835,12 +913,13 @@ class Feature:
                     opt_cols_raw,
                     " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_raw)",
                     " WHERE unnest.intensity IS NOT NULL AND unnest.intensity > 0",
+                    f" AND {self._measured_clause}",
                 ]
             )
         )
 
         # Optional new QPX columns for final view
-        opt_cols_final = ""
+        opt_cols_final = self._compat_projection("p.")
         if self._has_is_decoy:
             opt_cols_final += ",\n                p.is_decoy"
         if self._has_anchor_protein:
@@ -989,16 +1068,19 @@ class Feature:
                 raise ValueError(f"Invalid column name: {c!r}")
         return ",".join(['"' + c + '"' for c in columns])
 
+    def _report_columns(self, columns: Optional[list]) -> str:
+        """Select report columns; list-valued QPX metadata stays out of pandas."""
+        if columns is not None:
+            return self._validate_columns(columns)
+        hidden = ["additional_scores"] if self._has_additional_scores else []
+        hidden += [name for name in self._compat_columns if name == "modifications"]
+        return f"* EXCLUDE ({', '.join(hidden)})" if hidden else "*"
+
     def get_report_from_database(self, samples: list, columns: list = None):
         """Retrieves a standardized report from the database for specified samples."""
-        if columns is not None:
-            cols = self._validate_columns(columns)
-        else:
-            cols = (
-                "* EXCLUDE (additional_scores)" if self._has_additional_scores else "*"
-            )
+        cols = self._report_columns(columns)
         placeholders = ",".join(["?"] * len(samples))
-        score_clause, score_params = self._named_score_clause()
+        score_clause, score_params = self._report_clause()
         sql = "".join(
             [
                 "SELECT ",
@@ -1103,14 +1185,9 @@ class Feature:
         self, cons: list, columns: list = None
     ) -> pd.DataFrame:
         """Retrieves a standardized report from the database for specified conditions."""
-        if columns is not None:
-            cols = self._validate_columns(columns)
-        else:
-            cols = (
-                "* EXCLUDE (additional_scores)" if self._has_additional_scores else "*"
-            )
+        cols = self._report_columns(columns)
         placeholders = ",".join(["?"] * len(cons))
-        score_clause, score_params = self._named_score_clause()
+        score_clause, score_params = self._report_clause()
         sql = "".join(
             [
                 "SELECT ",

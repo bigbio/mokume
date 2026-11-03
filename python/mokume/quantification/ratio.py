@@ -26,6 +26,7 @@ from mokume.core.constants import (
 )
 from mokume.core.logger import get_logger
 from mokume.core.registry import PluginRegistry
+from mokume.io._qpx import measured_intensity_clause
 from mokume.io.feature import SQLFilterBuilder
 
 logger = get_logger("mokume.quantification.ratio")
@@ -402,7 +403,10 @@ def _load_qpx_psm_rows(
 
         where_clause, where_params = filter_builder.build_where_clause()
         pg_col = _pg_accessions_projection(conn, parquet_path, columns)
-        query = "".join((_qpx_psm_base_query(pg_col, is_new_qpx), where_clause))
+        measured = measured_intensity_clause(columns)
+        query = "".join(
+            (_qpx_psm_base_query(pg_col, is_new_qpx), measured, " AND ", where_clause)
+        )
         return conn.execute(query, [parquet_path] + where_params).df(), is_new_qpx
     finally:
         conn.close()

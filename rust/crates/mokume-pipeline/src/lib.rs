@@ -553,6 +553,7 @@ impl FeatureToProteinState {
         // ModificationFilter, matched against the modified sequence.
         if filters::peptide_has_excluded_modification(
             &feature.peptidoform,
+            feature.modifications.as_deref(),
             &config.peptide.exclude_modifications,
         ) {
             return false;
@@ -6550,15 +6551,23 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         state.replicate_agreement_wipes_all = pipeline.intensity.min_replicate_agreement > 1;
     }
     let mut sdrf_lookup = sdrf.as_ref().map(SdrfLookupCache::new);
-    stream_qpx_features(parquet, &MemoryPlan::unlimited(), named_score, |feature| {
-        state.ingest(
-            &feature,
-            sdrf_lookup.as_mut(),
-            proteins_config.filtering,
-            intensity_factors,
-            None,
-        )
-    })?;
+    let with_modifications =
+        filter_pipeline.is_some_and(|pipeline| !pipeline.peptide.exclude_modifications.is_empty());
+    stream_selected_qpx_features(
+        parquet,
+        &MemoryPlan::unlimited(),
+        named_score,
+        with_modifications,
+        |feature| {
+            state.ingest(
+                &feature,
+                sdrf_lookup.as_mut(),
+                proteins_config.filtering,
+                intensity_factors,
+                None,
+            )
+        },
+    )?;
 
     info!(
         accepted_features = state.accepted_features,
@@ -6851,13 +6860,31 @@ fn stream_qpx_features<F>(
     parquet: &Path,
     memory: &MemoryPlan,
     score: Option<&NamedScoreFilterConfig>,
+    consume: F,
+) -> Result<()>
+where
+    F: FnMut(QpxFeatureRecord) -> Result<()>,
+{
+    stream_selected_qpx_features(parquet, memory, score, false, consume)
+}
+
+fn stream_selected_qpx_features<F>(
+    parquet: &Path,
+    memory: &MemoryPlan,
+    score: Option<&NamedScoreFilterConfig>,
+    with_modifications: bool,
     mut consume: F,
 ) -> Result<()>
 where
     F: FnMut(QpxFeatureRecord) -> Result<()>,
 {
-    let mut reader =
-        QpxParquetReader::open(parquet, memory.qpx_batch_size(), score.is_some(), false)?;
+    let mut reader = QpxParquetReader::open(
+        parquet,
+        memory.qpx_batch_size(),
+        score.map(|score| score.name.as_str()),
+        false,
+        with_modifications,
+    )?;
     stream_qpx_reader(&mut reader, memory, score, &mut consume)
 }
 
@@ -6876,8 +6903,13 @@ where
     if transferred == TransferredFeatures::Keep {
         return stream_qpx_features(parquet, memory, score, consume);
     }
-    let mut reader =
-        QpxParquetReader::open(parquet, memory.qpx_batch_size(), score.is_some(), true)?;
+    let mut reader = QpxParquetReader::open(
+        parquet,
+        memory.qpx_batch_size(),
+        score.map(|score| score.name.as_str()),
+        true,
+        false,
+    )?;
     let mut dropped = 0usize;
     stream_qpx_reader(
         &mut reader,
@@ -11263,6 +11295,7 @@ mod tests {
                 peptide_qvalue: None,
                 pg_global_qvalue: None,
                 selected_score: None,
+                modifications: None,
                 transferred: false,
                 label: None,
                 intensity: 100.0,
@@ -11294,6 +11327,7 @@ mod tests {
             peptide_qvalue: None,
             pg_global_qvalue: None,
             selected_score: None,
+            modifications: None,
             transferred: false,
             label: None,
             intensity: 100.0,

@@ -174,8 +174,8 @@ mokume quantify features2peptides \
 | `--filter-charge-state` | Allowed charge state; repeat for multiple states |
 | `--filter-max-missed-cleavages` | Maximum missed cleavages |
 | `--filter-peptide-fdr` | Maximum QPX `peptide_qvalue` |
-| `--filter-score` | Named QPX `additional_scores` threshold (`NAME=THRESHOLD`) |
-| `--filter-exclude-modification` | Modification to exclude; repeat for multiple names |
+| `--filter-score` | Named QPX score threshold (`NAME=THRESHOLD`) |
+| `--filter-exclude-modification` | Modification name or accession to exclude; repeat for multiple values |
 | `--filter-protein-fdr` | Maximum QPX `pg_global_qvalue` per protein group |
 | `--filter-min-features` | Minimum identified features per run |
 | `--filter-max-missing-rate` | Maximum missing feature fraction per technical run |
@@ -191,6 +191,18 @@ mokume quantify features2peptides \
     `higher_better` flag, so higher-better scores use `>=` and lower-better
     scores use `<=`. Missing, invalid, or direction-inconsistent scores fail
     before output is written.
+    In the struct form that `qpxc transform relayout` writes, the score field
+    and its direction come from the `qpx.struct_lists` parquet footer; a struct
+    column without that footer, or a name the footer does not list, is an
+    error. `precursor_qvalue` and `global_qvalue` are read from the top-level
+    QPX 1.3 columns when the parquet statistics show no nulls in any row
+    group, and from the score entry otherwise.
+    `--filter-exclude-modification` compares each value with the `name` and
+    `accession` of the QPX `modifications` list, ignoring case, so
+    `Carbamidomethyl` and `UNIMOD:4` remove the same rows. Inputs without that
+    column match the peptidoform instead: an accession such as `UNIMOD:35`
+    matches only the complete bracketed token, and other values match as
+    substrings.
     Among the group-level filters, CV threshold (`--filter-cv-threshold`),
     quantile outlier removal, and the run-QC checks `--filter-min-features` /
     min-total-intensity / min-proteins / `--filter-max-missing-rate` are

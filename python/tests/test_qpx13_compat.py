@@ -62,6 +62,30 @@ def test_struct_score_direction(tmp_path, name, threshold):
         feature.parquet_db.close()
 
 
+def test_unused_optional_columns_are_not_carried_into_reports(tmp_path):
+    """Default reads must not expand unused QPX metadata for every intensity."""
+    path = tmp_path / "optional.parquet"
+    make_scored_qpx_parquet(str(path))
+    table = pq.read_table(path).append_column("global_qvalue", pa.array([0.01, 0.2]))
+    table = table.append_column(
+        "modifications",
+        pa.array(
+            [
+                [{"name": "Oxidation", "accession": "UNIMOD:35"}],
+                None,
+            ]
+        ),
+    )
+    pq.write_table(table, path)
+    feature = qpx_feature.Feature(str(path), qpx_feature.SQLFilterBuilder())
+    try:
+        report = feature.get_report_from_database(feature.samples)
+        assert not {"global_qvalue", "modifications"}.intersection(report.columns)
+        assert len(report) == 2
+    finally:
+        feature.parquet_db.close()
+
+
 @pytest.mark.parametrize(
     "layout,name,error",
     [

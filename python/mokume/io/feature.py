@@ -432,6 +432,13 @@ class Feature:
 
     def _initialize_raw_view(self, filter_builder: Optional[SQLFilterBuilder]) -> None:
         """Initialize format detection and the canonical long feature view."""
+        # Carry optional QPX columns only for the filters that read them.
+        wanted = set()
+        if filter_builder is not None:
+            wanted.add(filter_builder.named_score_name)
+            if filter_builder.exclude_modifications:
+                wanted.add("modifications")
+        self._compat_columns = [n for n in self._compat_columns if n in wanted]
         self._create_unnest_view()
 
         self._samples: Optional[list[str]] = None

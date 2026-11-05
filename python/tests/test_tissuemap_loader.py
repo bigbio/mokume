@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 import yaml
 
 from mokume.commands.tissuemap import _build_config
@@ -269,7 +270,8 @@ def test_duckdb_tmt_normalizes_each_run_by_its_reference_channel(tmp_path):
     pd.testing.assert_frame_equal(streamed, expected)
 
 
-def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch):
+@pytest.mark.parametrize("legacy", [False, True])
+def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch, legacy):
     """LFQ input remains on the established non-TMT loader path."""
     _write_samples(
         tmp_path,
@@ -307,13 +309,13 @@ def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch):
             {
                 "anchor_protein": "P1",
                 "run_file_name": "run-1",
-                "intensities": [{"label": "LFQ", "intensity": 10.0}],
+                "intensities": [_lfq_intensity(10.0, legacy)],
                 "is_decoy": False,
             },
             {
                 "anchor_protein": "P1",
                 "run_file_name": "run-2",
-                "intensities": [{"label": "LFQ", "intensity": 20.0}],
+                "intensities": [_lfq_intensity(20.0, legacy)],
                 "is_decoy": False,
             },
         ]
@@ -334,6 +336,14 @@ def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch):
     assert matrix.loc["P1", "sample-a"] == 10.0
     assert matrix.loc["P1", "sample-b"] == 20.0
     assert set(metadata["quant_type"]) == {"LFQ"}
+
+
+def _lfq_intensity(value, legacy):
+    """Keep the legacy layout without a label field in its Arrow struct."""
+    metadata = (
+        {"sample_accession": "unused", "channel": "LFQ"} if legacy else {"label": "LFQ"}
+    )
+    return {**metadata, "intensity": value}
 
 
 def test_load_dataset_lfq_matches_exploded_sums(tmp_path):

@@ -44,7 +44,7 @@ _FLAT_VIEW_QUERY = """
     SELECT
         protein,
         run_file_name,
-        reporter.label AS tmt_label,
+        {label_expression} AS tmt_label,
         CAST(reporter.intensity AS DOUBLE) AS intensity
     FROM (
         SELECT
@@ -277,8 +277,14 @@ def _execute_aggregation(
         con.register("sample_map", sample_map)
         con.read_parquet(str(parquet_path)).create_view("feature_input")
         columns = con.read_parquet(str(parquet_path)).columns
+        intensity_fields = (
+            pq.read_schema(parquet_path).field("intensities").type.value_type
+        )
         con.execute(
             _FLAT_VIEW_QUERY.format(
+                label_expression="reporter.label"
+                if "label" in intensity_fields.names
+                else "'LFQ'",
                 imputed_projection="imputed_labels,"
                 if "imputed_labels" in columns
                 else "",

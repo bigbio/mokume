@@ -14,7 +14,7 @@ workspace = true
 mokume-core = { path = "../mokume-core" }
 faer = { version = "0.24", default-features = false, features = ["std"] }
 libm = "0.2.16"
-microlp = "0.6.0"
+microlp = "0.7.0"
 nalgebra = { version = "0.35.0", default-features = false, features = ["std"] }
 rayon = "1.12.0"
 

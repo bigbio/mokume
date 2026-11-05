@@ -216,6 +216,12 @@ tr:hover {{ background: #f8f9fa; }}
 .sig-nottested::before {{ background: {SIGNIFICANCE_COLORS["NotTested"]}; }}
 .stat-up {{ border-left: 3px solid {SIGNIFICANCE_COLORS["UP"]}; }}
 .stat-down {{ border-left: 3px solid {SIGNIFICANCE_COLORS["DOWN"]}; }}
+.good::before, .warning::before, .bad::before {{
+    content: ''; display: inline-block; width: 0.35em; height: 0.7em; margin-right: 0.2em;
+}}
+.good::before {{ background: {CONDITION_COLORS[2]}; }}
+.warning::before {{ background: {CONDITION_COLORS[1]}; }}
+.bad::before {{ background: {SIGNIFICANCE_COLORS["UP"]}; }}
 .info-text {{ font-size: 12px; color: #666; margin-top: 8px; }}
 .plot-grid {{ display: grid; gap: 0 20px;
               grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); }}

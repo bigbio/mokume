@@ -23,6 +23,8 @@ from mokume.plotting._common import bottom_legend, place_labels
 from mokume.plotting.style import CONDITION_COLORS, category_colors
 from mokume.plotting.differential_expression import plot_pca_conditions, plot_volcano
 from mokume.plotting.profile import plot_profile
+from mokume.plotting.distributions import plot_box_plot
+from mokume.plotting.ma import _group_labels, read_protein_groups, plot_ma
 from mokume.reports.qc_report import generate_qc_report
 from mokume.tissuemap.plotting.atlas import (
     _draw_dendrogram_panel,
@@ -354,12 +356,15 @@ def test_volcano_supports_fifteen_highlighted_proteins(tmp_path):
     plt.close(fig)
 
 
-def test_qc_peptide_diagnostics_support_more_than_six_conditions(tmp_path):
+@pytest.mark.parametrize("annotated", [False, True])
+def test_qc_peptide_diagnostics_support_more_than_six_conditions(tmp_path, annotated):
     """Peptide boxes and report scripts must use cycling category styles."""
     rng = np.random.default_rng(42)
     samples = [f"S{i}" for i in range(16)]
     frame = pd.DataFrame(np.exp2(rng.normal(20, 1, (12, 16))), columns=samples)
     frame.insert(0, "ProteinName", [f"P{i}" for i in range(12)])
+    if annotated:
+        frame.insert(1, "Gene", [f"gene{i}" for i in range(12)])
     conditions = {sample: f"C{i // 2}" for i, sample in enumerate(samples)}
     peptides = pd.DataFrame(
         {
@@ -384,6 +389,85 @@ def test_qc_peptide_diagnostics_support_more_than_six_conditions(tmp_path):
     assert "const condColors = {" in report
     assert "styleIndices" not in report
     assert "shapeByPlex" not in report
+
+
+def test_volcano_highlights_full_uniprot_id_literally(tmp_path):
+    """UniProt separators must not expand one highlight to every database row."""
+    frame = pd.DataFrame(
+        {
+            "ProteinName": ["sp|P02768|ALBU_HUMAN", "sp|OTHER|OTHER_HUMAN"],
+            "log2FC": [2.0, -1.0],
+            "pvalue": [0.001, 0.2],
+            "adj_pvalue": [0.002, 0.2],
+            "significance": ["UP", "Unchanged"],
+        }
+    )
+    figure = plot_volcano(
+        frame,
+        highlight_genes=["sp|P02768|ALBU_HUMAN"],
+        output_file=tmp_path / "volcano.png",
+    )
+    assert [text.get_text() for text in figure.axes[0].texts] == [
+        "sp|P02768|ALBU_HUMAN"
+    ]
+    plt.close(figure)
+
+
+@pytest.mark.parametrize("violin", [False, True])
+@pytest.mark.parametrize("empty", [False, True])
+def test_box_plot_skips_samples_without_valid_values(violin, empty):
+    """Empty samples and empty tables retain valid box and violin figures."""
+    frame = pd.DataFrame(
+        {
+            "SampleID": pd.Categorical(
+                ["a", "a", "b", "b", "c", "c"], categories=["a", "b", "c", "unused"]
+            ),
+            "value": [1.0, 2.0, 0.0, np.nan, np.inf, -np.inf],
+        }
+    )
+    if empty:
+        frame = frame.iloc[:0]
+    figure = plot_box_plot(frame, "value", "SampleID", violin=violin, log2=True)
+    assert [tick.get_text() for tick in figure.axes[0].get_xticklabels()] == (
+        [] if empty else ["a"]
+    )
+    plt.close(figure)
+
+
+def test_ma_retains_unassigned_proteins_and_neutral_draw_order(tmp_path):
+    """Incomplete mappings retain proteins; duplicated mapping keys fail clearly."""
+    de = pd.DataFrame(
+        {
+            "ProteinName": ["P1", "P2"],
+            "log2FC": [1, 0],
+            "significance": ["UP", "Unchanged"],
+        }
+    )
+    path = tmp_path / "groups.tsv"
+    path.write_text("ProteinName\tgroup\nP1\tspike\n", encoding="utf-8")
+    labels, names = _group_labels(de, read_protein_groups(path))
+    assert labels.tolist() == ["spike", "Unassigned"]
+    assert set(names) == {"spike", "Unassigned"}
+    assert _group_labels(de, None)[1] == ["Unchanged", "UP"]
+    matrix = pd.DataFrame(
+        {"ProteinName": ["P1", "P2"], "Gene": ["a", "b"], "s1": [4, 8], "s2": [8, 16]}
+    )
+    plot_ma(
+        de,
+        matrix,
+        {"s1": "A", "s2": "B"},
+        tmp_path / "ma.png",
+        {
+            "conditions": ["A", "B"],
+            "groups": read_protein_groups(path),
+            "log2fc": 0.5,
+            "title": "MA",
+        },
+    )
+    assert (tmp_path / "ma.png").is_file()
+    path.write_text("ProteinName\tgroup\nP1\ta\nP1\tb\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="unique ProteinName"):
+        read_protein_groups(path)
 
 
 def test_category_palette_extends_with_unique_stable_prefixes():

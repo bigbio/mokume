@@ -95,7 +95,8 @@ mokume plot pca \
     --output pca_conditions.png
 ```
 
-PCA uses complete-case proteins and reports their count below the title. Small
+PCA uses complete-case proteins and reports their count below the title.
+It uses `random_state=0` so repeated runs are reproducible. Small
 plots (at most 30 samples) include sample labels, placed from the outermost
 sample inward; a label that would cover a placed label or another sample's
 point is omitted. HTML PCA plots in the QC and comparison reports apply the
@@ -184,6 +185,9 @@ mokume plot de -p proteins.csv -s experiment.sdrf.tsv -o plots --ma \
     --protein-groups protein_groups.tsv --expected-log2fc B-A yeast 1 \
     --contrast B-A B A de_B-A.csv
 ```
+
+The mapping may omit proteins; they appear as `Unassigned`. Each `ProteinName`
+must occur only once. Duplicate protein entries are rejected.
 
 MA plots with more than three composition groups use one panel per group,
 sorted by group name in three columns with shared axes. Each panel emphasizes

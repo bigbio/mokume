@@ -41,7 +41,7 @@ def _distribution_data(dataset, field, class_field, log2):
     frame = dataset[[field, class_field]].copy()
     if log2:
         frame[field] = np.log2(frame[field].where(frame[field] > 0))
-    return frame.dropna(subset=[field])
+    return frame.loc[np.isfinite(frame[field])]
 
 
 def _condition_legend(ax, palette, filled=False):
@@ -155,9 +155,10 @@ def plot_box_plot(
         Matplotlib figure object.
     """
     order, colors, palette = distribution_groups(dataset, class_field)
-    values = _distribution_data(dataset, field, class_field, log2).groupby(class_field)[
-        field
-    ]
+    values = _distribution_data(dataset, field, class_field, log2).groupby(
+        class_field, observed=True
+    )[field]
+    order = [sample for sample in order if sample in values.groups]
     fig, ax = plt.subplots(figsize=(min(width, 7.2), 3.4))
     _box_bodies(
         ax,
@@ -165,7 +166,11 @@ def plot_box_plot(
         [colors[sample] for sample in order],
         violin,
     )
-    rotation = rotation if len(order) > 10 or max(map(len, map(str, order))) > 12 else 0
+    rotation = (
+        rotation
+        if len(order) > 10 or max(map(len, map(str, order)), default=0) > 12
+        else 0
+    )
     ax.set_xticks(
         range(1, len(order) + 1),
         order,
@@ -185,6 +190,8 @@ def plot_box_plot(
 
 def _box_bodies(ax, values, colors, violin):
     """Draw translucent box/violin bodies with neutral medians and outliers."""
+    if not values:
+        return
     if violin:
         bodies = ax.violinplot(values, showmedians=True)["bodies"]
     else:

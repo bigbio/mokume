@@ -180,7 +180,9 @@ def _highlight_volcano(ax, frame, genes):
     """Keep highlighted marks unchanged and return their label anchors."""
     anchors = {}
     for gene in genes:
-        matches = frame[frame["ProteinName"].str.contains(gene, case=False, na=False)]
+        matches = frame[
+            frame["ProteinName"].str.contains(gene, case=False, na=False, regex=False)
+        ]
         ax.scatter(
             matches["log2FC"],
             matches["neg_log10_p"],

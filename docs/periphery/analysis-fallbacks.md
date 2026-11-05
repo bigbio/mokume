@@ -37,7 +37,7 @@ mokume.impute("proteins.csv", method="missforest", output="imputed.csv")
 
 ## `mokume.qc_report` — single-matrix QC report
 
-Builds an interactive QC HTML report from one protein matrix: PCA, t-SNE,
+Builds an interactive QC HTML report from one protein matrix: PCA,
 silhouette, variance decomposition, CV, missing-value, and DE-quality metrics.
 `sdrf` supplies the sample &rarr; condition grouping; `de_results` is an optional
 DE result CSV. Returns the output path.

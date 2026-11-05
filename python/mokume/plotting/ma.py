@@ -5,7 +5,6 @@ from matplotlib import pyplot as plt
 
 from mokume.plotting._common import log2_matrix, static_style, style_axes
 from mokume.plotting.style import (
-    CONDITION_COLORS,
     category_colors,
     category_order,
     MISSING_COLOR,
@@ -18,7 +17,10 @@ from mokume.plotting.style import (
 
 def read_protein_groups(path):
     """Read the explicit protein-to-group mapping used for spike-in MA plots."""
-    return pd.read_csv(path, sep="\t").set_index("ProteinName")["group"]
+    groups = pd.read_csv(path, sep="\t").set_index("ProteinName")["group"]
+    if groups.index.has_duplicates:
+        raise ValueError("Protein groups must contain unique ProteinName values")
+    return groups
 
 
 def ma_values(de, protein_df, conditions, sample_to_condition):
@@ -47,13 +49,8 @@ def plot_ma(de, protein_df, sample_to_condition, output_file, options):
     """Draw significance or composition groups with optional expected ratios."""
     abundance = ma_values(de, protein_df, options["conditions"], sample_to_condition)
     groups = options.get("groups")
-    labels = (
-        de["significance"]
-        if groups is None
-        else pd.Series(groups.loc[de["ProteinName"]].to_numpy(), index=de.index)
-    )
+    labels, names = _group_labels(de, groups)
     # Significance classes keep their fixed order; user groups sort like other categories.
-    names = sorted(labels.unique()) if groups is None else category_order(labels)
     if groups is not None and len(names) > 3:
         _plot_facets(de, abundance, labels, output_file, options)
         return
@@ -85,11 +82,34 @@ def plot_ma(de, protein_df, sample_to_condition, output_file, options):
     plt.close(fig)
 
 
+def _group_labels(de, groups):
+    """Put neutral significance points first and retain unmapped proteins."""
+    if groups is None:
+        labels = de["significance"]
+        names = [
+            name
+            for name in ("Unchanged", "NotTested", "UP", "DOWN")
+            if name in set(labels)
+        ]
+    else:
+        labels = pd.Series(
+            groups.reindex(de["ProteinName"]).fillna("Unassigned").to_numpy(),
+            index=de.index,
+        )
+        names = category_order(labels)
+    return labels, names
+
+
 def _plot_groups(ax, de, abundance, labels, names, options):
     """Draw each composition/significance group and its expected-ratio line."""
     groups = options.get("groups")
-    for index, name in enumerate(names):
-        color = SIGNIFICANCE_COLORS[name] if groups is None else CONDITION_COLORS[index]
+    colors = (
+        SIGNIFICANCE_COLORS
+        if groups is None
+        else dict(zip(names, category_colors(len(names))))
+    )
+    for name in names:
+        color = colors[name]
         subset = labels == name
         _group_points(ax, abundance[subset], de.loc[subset, "log2FC"], color, name)
         if name in options.get("expected", {}):

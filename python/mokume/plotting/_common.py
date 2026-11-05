@@ -423,7 +423,7 @@ def read_frame(source, sep=","):
 
 def log2_matrix(frame, is_log2=False):
     """Index a wide protein table and mask nonpositive linear intensities."""
-    values = frame.set_index(frame.columns[0])
+    values = frame.set_index(frame.columns[0]).select_dtypes(include="number")
     return values if is_log2 else np.log2(values.where(values > 0))
 
 

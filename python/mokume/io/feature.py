@@ -533,7 +533,7 @@ class Feature:
         )
         count, invalid = values.aggregate(
             "count(*), count(*) FILTER (WHERE score_value IS NULL OR NOT isfinite(score_value))"
-        ).fetchone()
+        ).fetchall()[0]
         if not count:
             raise ValueError(
                 f"--filter-score requires QPX additional_scores entry `{name}`"

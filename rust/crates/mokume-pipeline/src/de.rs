@@ -771,6 +771,11 @@ pub(crate) fn validate_config(config: &DifferentialExpressionConfig) -> Result<(
     if config.precision_weights && method != "deqms" {
         return Err(invalid_input("precision weights require DEqMS"));
     }
+    if config.precision_weights && (!config.covariates.is_empty() || config.block.is_some()) {
+        return Err(invalid_input(
+            "precision weights cannot be combined with covariates or a block",
+        ));
+    }
     validate_de_thresholds(config)?;
     validate_effect_size_gate(config)
 }
@@ -975,6 +980,9 @@ fn parse_contrasts(config: &DifferentialExpressionConfig) -> Result<Vec<Contrast
         let cond_b = right.trim().to_owned();
         if cond_a.is_empty() || cond_b.is_empty() {
             continue;
+        }
+        if cond_a == cond_b {
+            return Err(invalid_input("a contrast requires two distinct conditions"));
         }
         contrasts.push(Contrast { cond_a, cond_b });
     }
@@ -1714,6 +1722,34 @@ mod tests {
         assert_eq!(split_contrast("A-B"), Some(("A", "B")));
         // " vs " wins even when dashes are present in the labels.
         assert_eq!(split_contrast("a-1 vs b-2"), Some(("a-1", "b-2")));
+    }
+
+    #[test]
+    fn same_condition_contrasts_are_rejected() {
+        let config = DifferentialExpressionConfig {
+            contrasts: Some(vec!["A vs A".to_owned()]),
+            ..DifferentialExpressionConfig::default()
+        };
+        let error = super::parse_contrasts(&config).err();
+        assert!(error.is_some_and(|error| error.to_string().contains("distinct conditions")));
+    }
+
+    #[test]
+    fn config_rejects_precision_on_design_paths() {
+        for (covariates, block) in [
+            (vec!["age".to_owned()], None),
+            (vec![], Some("subject".to_owned())),
+        ] {
+            let config = DifferentialExpressionConfig {
+                method: "deqms".to_owned(),
+                precision_weights: true,
+                covariates,
+                block,
+                ..DifferentialExpressionConfig::default()
+            };
+            let error = super::validate_config(&config).err();
+            assert!(error.is_some_and(|error| error.to_string().contains("cannot be combined")));
+        }
     }
 
     #[test]

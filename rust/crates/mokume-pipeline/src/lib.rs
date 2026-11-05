@@ -645,6 +645,30 @@ impl FeatureToProteinState {
         {
             return traces.normalized_canonical_values();
         }
+        let mut cells = self.export_peptide_cells();
+        apply_dataset_norm_to_peptide_cells(
+            &mut cells,
+            method,
+            allowed_cells,
+            &self.index.peptide_to_canonical,
+            &self.samples,
+        );
+        for (cell, values) in cells {
+            // TMM scales contextual ions in place; the other normalizers
+            // already replace them with canonical values.
+            let canonical_values = if method == SampleNormalizationMethod::Tmm {
+                collapse_to_canonical(values, &self.index.peptide_to_canonical)
+            } else {
+                values
+            };
+            for (canonical, value) in canonical_values {
+                result.insert((cell.protein, cell.sample, canonical), value);
+            }
+        }
+        result
+    }
+
+    fn export_peptide_cells(&self) -> HashMap<CellKey, HashMap<PeptideId, f64>> {
         let mut cells: HashMap<CellKey, HashMap<PeptideId, f64>> = HashMap::new();
         for (key, ions) in &self.export_rows.rows.rows {
             let cell = CellKey {
@@ -659,19 +683,7 @@ impl FeatureToProteinState {
                 }
             }
         }
-        apply_dataset_norm_to_peptide_cells(
-            &mut cells,
-            method,
-            allowed_cells,
-            &self.index.peptide_to_canonical,
-            &self.samples,
-        );
-        for (cell, canonical_values) in cells {
-            for (canonical, value) in canonical_values {
-                result.insert((cell.protein, cell.sample, canonical), value);
-            }
-        }
-        result
+        cells
     }
 
     fn into_matrix(
@@ -6911,6 +6923,7 @@ where
         false,
     )?;
     let mut dropped = 0usize;
+    let mut kept = 0usize;
     stream_qpx_reader(
         &mut reader,
         memory,
@@ -6920,10 +6933,16 @@ where
                 dropped += 1;
                 return Ok(());
             }
+            kept += 1;
             consume(feature)
         },
     )?;
     info!(dropped, "dropped transferred QPX features");
+    if dropped > 0 && kept == 0 {
+        return Err(invalid_input(
+            "--transferred-features drop removed all QPX features; check identification_type and id_run_file_name, or use keep",
+        ));
+    }
     Ok(())
 }
 

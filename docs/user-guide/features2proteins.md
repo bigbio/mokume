@@ -53,6 +53,8 @@ Choose one input mode:
 
 - `--parquet` accepts a quantms.io/QPX feature parquet file. It is also the
   required protein-group mapping paired with `--psm` for `spectral-count`.
+  Intensities that a QPX 1.3 row lists in `imputed_labels` (imputed by the
+  upstream tool, such as Spectronaut) are dropped before quantification.
 - `--msstats` accepts a native MSstats CSV and requires `--sdrf` so runs and
   channels can be mapped to samples.
 - `--psm` accepts a PSM-level QPX parquet for true `spectral-count`; it requires
@@ -184,10 +186,12 @@ filter for every run and for the whole experiment.
 
 With match between runs, a DDA workflow quantifies a precursor in runs where
 it was not identified by transferring the identification from another run.
-quantms QPX feature tables record the identifying run in `id_run_file_name`,
-which is null (or names another run) for transferred features. Pass
-`--transferred-features drop` to quantify only features identified in their
-own run:
+QPX 1.3 records this per row in `identification_type`: only `transferred`
+counts as a transfer, while `direct` and `secondary` (a co-fragmented
+identification from the run's own MS/MS) do not. Rows without a type fall back
+to `id_run_file_name`, which is null (or names another run) for transferred
+features. Pass `--transferred-features drop` to quantify only features
+identified in their own run:
 
 ```bash
 mokume quantify features2proteins \
@@ -200,8 +204,11 @@ mokume quantify features2proteins \
 
 The default is `keep`. Dropped features are removed before normalization and
 quantification, and the log reports how many were dropped. The command fails
-when the QPX input has no `id_run_file_name` column or lists several runs in
-one row, and the option is rejected for MSstats input and `spectral-count`.
+when the QPX input has neither an `identification_type` nor an
+`id_run_file_name` column, when a row without a type lists several runs,
+or when `drop` removes every feature. Check those columns if every feature
+is classified as transferred. `drop` is rejected for MSstats input and
+`spectral-count`; an explicit `keep` is accepted and has no effect.
 quantms DIA-NN and isobaric exports set `id_run_file_name` to the feature's
 own run, so `drop` keeps every feature there.
 

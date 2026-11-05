@@ -1,6 +1,83 @@
 use super::*;
 
 #[test]
+fn tmm_peptide_export_matches_canonical_protein_rollup() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    let parquet = root.join("features.parquet");
+    let sdrf = root.join("samples.tsv");
+    write_tmm_export_features(&parquet)?;
+    write_synthetic_sdrf(&sdrf)?;
+    let output = root.join("proteins.csv");
+    let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.normalization.sample_method = "tmm".to_owned();
+    run_features_to_proteins(&config)?;
+    let baseline = std::fs::read(&output)?;
+    config.output.export_peptides = Some(root.join("peptides.csv"));
+    run_features_to_proteins(&config)?;
+    assert_eq!(baseline, std::fs::read(&output)?);
+    assert_tmm_export_rollup(&root)?;
+    let expected = std::fs::read(root.join("peptides.csv"))?;
+    for method in [QuantMethod::Median, QuantMethod::TopN] {
+        config.quantification = method;
+        run_features_to_proteins(&config)?;
+        assert_eq!(expected, std::fs::read(root.join("peptides.csv"))?);
+    }
+    Ok(())
+}
+
+fn assert_tmm_export_rollup(root: &Path) -> Result<(), Box<dyn Error>> {
+    let peptides = read_csv(&root.join("peptides.csv"))?;
+    let proteins = read_csv(&root.join("proteins.csv"))?;
+    let mut sums = HashMap::<(String, String), f64>::new();
+    for row in peptides.rows {
+        *sums.entry((row[0].clone(), row[2].clone())).or_default() += row[3].parse::<f64>()?;
+    }
+    for row in proteins.rows {
+        for (sample, value) in proteins.headers.iter().skip(1).zip(row.iter().skip(1)) {
+            let expected = value.parse::<f64>()?;
+            let actual = sums[&(row[0].clone(), sample.clone())];
+            assert!(
+                (actual - expected).abs() < 1e-9 * expected.abs(),
+                "{} {sample}: {actual} != {expected}",
+                row[0]
+            );
+        }
+    }
+    Ok(())
+}
+
+fn write_tmm_export_features(path: &Path) -> Result<(), Box<dyn Error>> {
+    let mut rows = Vec::new();
+    let proteins = (0..12)
+        .map(|index| format!("P{index:02}"))
+        .collect::<Vec<_>>();
+    let accessions = proteins
+        .iter()
+        .map(|protein| [protein.as_str()])
+        .collect::<Vec<_>>();
+    let sequences = "ACDEFGHIKLMN"
+        .chars()
+        .map(|letter| [format!("{letter}PEPTIDEAK"), format!("{letter}APEPTIDECK")])
+        .collect::<Vec<_>>();
+    for (index, peptides) in sequences.iter().enumerate() {
+        for (run, scale) in [("run1.raw", 1.0), ("run2.raw", 2.0 + index as f64 / 3.0)] {
+            for sequence in peptides {
+                for charge in [2, 3] {
+                    rows.push(QpxRow::new_with_charge(
+                        sequence,
+                        run,
+                        (100.0 * (index + 1) as f64 * scale * f64::from(charge)) as f32,
+                        charge,
+                        &accessions[index],
+                    ));
+                }
+            }
+        }
+    }
+    write_qpx_rows(path, &rows)
+}
+
+#[test]
 fn maxlfq_exports_normalized_species_collapsed_to_canonical() -> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     let parquet = root.join("features.parquet");

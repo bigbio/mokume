@@ -191,7 +191,10 @@ fn validate_transferred_features_request(
     args: &Features2ProteinsArgs,
     method: QuantMethod,
 ) -> mokume_core::Result<()> {
-    if args.transferred_features.is_some()
+    if args
+        .transferred_features
+        .as_deref()
+        .is_some_and(|value| value.eq_ignore_ascii_case("drop"))
         && (args.msstats.is_some() || method == QuantMethod::SpectralCount)
     {
         return Err(invalid_input(

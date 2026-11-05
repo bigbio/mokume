@@ -2175,6 +2175,32 @@ fn features2proteins_drops_transferred_features() -> Result<(), Box<dyn Error>> 
 }
 
 #[test]
+fn dropping_all_transferred_features_is_an_explicit_error() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    let parquet = root.join("features.parquet");
+    let sdrf = root.join("samples.tsv");
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new("PEPTIDEAK", "run1.raw", 100.0, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run1.raw", 200.0, &["P1"]),
+        ],
+    )?;
+    add_id_run_column(&parquet, &[None; 2])?;
+    write_synthetic_sdrf(&sdrf)?;
+    let mut config = default_sum_config(parquet, sdrf, root.join("proteins.csv"));
+    config.input.transferred_features = TransferredFeatures::Drop;
+    let Err(error) = run_features_to_proteins(&config) else {
+        return Err("dropping every transferred feature must fail explicitly".into());
+    };
+    assert!(
+        error.to_string().contains("removed all QPX features"),
+        "{error}"
+    );
+    Ok(())
+}
+
+#[test]
 fn features2proteins_filter_protein_fdr_applies_to_maxlfq() -> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;

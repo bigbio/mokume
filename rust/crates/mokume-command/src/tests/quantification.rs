@@ -333,6 +333,27 @@ fn transferred_features_are_kept_unless_dropped() {
 }
 
 #[test]
+fn explicit_keep_is_valid_for_msstats_input() {
+    let cli = Cli::parse_from([
+        "mokume",
+        "quantify",
+        "features2proteins",
+        "--msstats",
+        "in.csv",
+        "--sdrf",
+        "s.tsv",
+        "--output",
+        "out.csv",
+        "--transferred-features",
+        "keep",
+    ]);
+    let Ok(config) = features_to_proteins_args(cli).into_config() else {
+        panic!("keep should be a no-op for MSstats");
+    };
+    assert_eq!(config.input.transferred_features, TransferredFeatures::Keep);
+}
+
+#[test]
 fn filter_protein_fdr_rejects_values_outside_unit_interval() {
     for value in ["1.5", "-0.1", "nan"] {
         let result = Cli::try_parse_from([

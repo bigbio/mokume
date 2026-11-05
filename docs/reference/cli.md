@@ -57,9 +57,15 @@ PSM-level QPX evidence and does not accept MSstats feature tables.
 | `-s/--sdrf` | none | SDRF file for sample metadata |
 | `--min-aa` | 7 | Minimum amino acid length |
 | `--filter-protein-fdr` | none | Keep protein groups whose best QPX `pg_global_qvalue` is `<=` this value (e.g. `0.01`); requires QPX `--parquet` input with a populated `pg_global_qvalue`; not available for `spectral-count` |
-| `--transferred-features` | keep | `drop` removes QPX features without an identification in their own run (`id_run_file_name` null or another run, i.e. match between runs) before normalization and quantification; requires QPX `--parquet` input with an `id_run_file_name` column; not available for MSstats input or `spectral-count` |
+| `--transferred-features` | keep | `drop` removes QPX features without an identification in their own run before normalization and quantification; see the rules below |
 | `--min-unique` | 2 | Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option |
 | `--keep-contaminants` | off | Keep contaminants (a group is a contaminant only if all its accessions are); rows marked `is_decoy=true` are always removed |
+
+For `--transferred-features drop`, `identification_type=transferred` marks a
+transfer. Rows without a type use `id_run_file_name`: null or another run
+marks a transfer. QPX input must have at least one of those columns. Removing
+every feature is an error. `drop` is unavailable for MSstats input and
+`spectral-count`; explicit `keep` is accepted and has no effect there.
 
 ### Quantification
 
@@ -421,8 +427,8 @@ them through `features2proteins`, where the full matrix exists.
 | `--filter-charge-state` | none | Charge state override; repeat for multiple states |
 | `--filter-max-missed-cleavages` | none | Max missed cleavages (override) |
 | `--filter-peptide-fdr` | none | Max QPX peptide q-value (override) |
-| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better` |
-| `--filter-exclude-modification` | none | Modification override; repeat for multiple names |
+| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better`, or from the `qpx.struct_lists` footer for struct scores; complete top-level `precursor_qvalue`/`global_qvalue` columns are read directly |
+| `--filter-exclude-modification` | none | Modification name or accession to exclude, matched exactly against the QPX `modifications` list when present; repeat for multiple values |
 | `--filter-protein-fdr` | none | Max QPX protein-group q-value (override) |
 | `--filter-min-features` | none | Min features per run (override) |
 | `--filter-max-missing-rate` | none | Max missing feature fraction per technical run (override) |

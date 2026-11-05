@@ -175,6 +175,12 @@ def _spectra_count_ebayes(
         return _standard_ebayes_statistics(fit)
 
     y_pred = loess_predict(log_var, x, valid)
+    if not np.isfinite(y_pred[valid]).all():
+        logger.warning(
+            "spectraCounteBayes: non-finite count trend (tied counts), "
+            "falling back to standard eBayes",
+        )
+        return _standard_ebayes_statistics(fit)
     eg = log_var - digamma(df_valid / 2) + np.log(df_valid / 2)
     egpred = y_pred - digamma(df_valid / 2) + np.log(df_valid / 2)
 
@@ -295,6 +301,11 @@ def _precision_weights(values: np.ndarray, precision: np.ndarray) -> np.ndarray:
     """
     measured = np.isfinite(values) & np.isfinite(precision) & (precision > 0)
     observed = precision[measured]
+    if not observed.size:
+        logger.warning(
+            "DEqMS: no finite positive precision overlaps observed intensities; "
+            "using unit weights. Check protein and sample alignment."
+        )
     tau2 = float(np.median(1.0 / observed)) if observed.size else 0.0
     unmeasured = float(np.quantile(observed, 0.05)) if observed.size else 1.0
     return 1.0 / (1.0 / np.where(measured, precision, unmeasured) + tau2)

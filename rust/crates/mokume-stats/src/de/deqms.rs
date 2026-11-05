@@ -197,6 +197,14 @@ fn spectra_count_ebayes(
     }
 
     let y_pred = loess::predict(&inputs.log_var, &inputs.x, &inputs.valid);
+    if inputs
+        .valid
+        .iter()
+        .zip(&y_pred)
+        .any(|(valid, prediction)| *valid && !prediction.is_finite())
+    {
+        return fallback(moderations, df_prior);
+    }
     let (egpred, d0) = count_prior(&inputs, &y_pred);
     moderated_sca_stats(moderations, &inputs, &egpred, d0)
 }
@@ -408,6 +416,26 @@ mod tests {
         vec![
             1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 4.0, 7.0, 11.0, 6.0, 9.0, 15.0, 2.0, 18.0,
         ]
+    }
+
+    #[test]
+    fn tied_counts_fall_back_to_finite_ebayes() {
+        let rows = fixture_rows();
+        let refs = rows.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let proteins = fixture_proteins();
+        let counts = (0..rows.len())
+            .map(|i| if i < 13 { 1.0 } else { i as f64 })
+            .collect::<Vec<_>>();
+        let result = deqms_two_group(&proteins, &refs, 3, 3, &counts, 0.05, 0.5);
+        let plain = limma_two_group(&proteins, &refs, 3, 3, 0.05, 0.5);
+        assert_eq!(result.len(), rows.len());
+        for row in result {
+            let Some(expected) = plain.iter().find(|other| other.protein == row.protein) else {
+                panic!("missing protein {}", row.protein);
+            };
+            assert!(row.p_value.is_finite());
+            assert_eq!(row.p_value, expected.p_value);
+        }
     }
 
     // Non-vacuity guard: the oracle sca_t must differ materially from plain limma

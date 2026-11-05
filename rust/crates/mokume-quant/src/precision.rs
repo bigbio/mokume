@@ -55,6 +55,9 @@ pub fn profile_residuals(
             .filter(|(_, value)| value.is_finite())
             .filter_map(|(sample, value)| Some((*sample, value - levels.get(sample)?)))
             .collect::<Vec<_>>();
+        if differences.len() < 2 {
+            continue;
+        }
         let Some(offset) = median(&mut differences.iter().map(|(_, d)| *d).collect()) else {
             continue;
         };
@@ -167,7 +170,16 @@ mod tests {
     fn missing_profile_samples_get_no_precision() {
         let ions = [vec![(sample(0), 8.0), (sample(1), 9.0)]];
         let fit = profile_residuals(&ions, &[(sample(0), 10.0), (sample(1), f64::NAN)]);
-        assert_eq!(fit.ions, vec![(sample(0), 1)]);
+        assert!(fit.ions.is_empty());
         assert_eq!(fit.dof, 0.0);
+    }
+
+    #[test]
+    fn singleton_ions_do_not_inflate_precision() {
+        let profile = [(sample(0), 10.0), (sample(1), 11.0), (sample(2), 12.0)];
+        let mut ions = vec![vec![(sample(0), 8.0), (sample(1), 9.0), (sample(2), 10.0)]];
+        let baseline = profile_residuals(&ions, &profile);
+        ions.push(vec![(sample(0), 7.0)]);
+        assert_eq!(profile_residuals(&ions, &profile), baseline);
     }
 }

@@ -136,10 +136,9 @@ def _combine_member_pvalues(p_values: list[float]) -> float:
     valid under arbitrary dependence for small p-values.
     """
     if len(p_values) >= 2:
-        # tan((0.5 - p) pi) loses precision for tiny p, where it equals 1 / (p pi).
+        # cot(p pi) avoids cancellation in 0.5 - p for tiny p-values.
         terms = [
-            1.0 / (p * math.pi) if p < 1e-15 else math.tan((0.5 - p) * math.pi)
-            for p in p_values
+            1.0 / math.tan(max(p, np.finfo(float).tiny) * math.pi) for p in p_values
         ]
         # Upper tail of the standard Cauchy, 0.5 - atan(t) / pi, kept precise
         # for large t.
@@ -171,7 +170,7 @@ def _combined_protein_row(
             continue
         fc_values.append(fold_change)
         pvalue = row["pvalue"]
-        if np.isfinite(pvalue) and pvalue > 0:
+        if np.isfinite(pvalue) and 0 <= pvalue <= 1:
             p_values.append(pvalue)
         if significance == "UP":
             n_up += 1

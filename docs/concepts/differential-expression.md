@@ -123,6 +123,10 @@ mokume quantify features2proteins -p features.parquet -o proteins.csv -s experim
 
 Peptide counts are supplied automatically by the pipeline.
 
+The quadratic LOESS count prior needs at least four valid proteins. Fewer
+points, identical counts, or a non-finite trend caused by heavily tied counts
+use standard limma eBayes instead. The Python path logs this fallback.
+
 ### Precision weights
 
 `--de-precision-weights` gives DEqMS an observation weight for every protein
@@ -136,6 +140,11 @@ consistent ions counts more. Imputed cells take the 5th percentile of the
 observed precisions, and every weight is bounded by the median observed
 variance, so one well-measured sample cannot dominate a group. The weighted
 group means and residuals then enter the same count-aware moderation.
+
+Ions observed in only one quantified sample carry no ratio information and
+do not contribute to precision. If no finite positive precision overlaps the
+observed matrix, Python logs a warning and uses unit weights; check that
+protein identifiers and sample names align.
 
 The option is off by default. On Mokume's LFQ spike-in benchmark it ranked
 true changes slightly better than unweighted DEqMS for both MaxLFQ and
@@ -271,6 +280,13 @@ p-values, made the combined p-values too small: on the label-free DDA
 spike-in studies of mokumebench, the ensemble's median false discovery
 proportion was 37%, against 13% for DEqMS. The Cauchy combination stays
 valid under dependence for small p-values and gives 11%.
+
+Exact zero p-values remain evidence: for multiple members they are floored
+at the smallest positive normal float before the Cauchy transform. A single
+member's p-value passes through unchanged. The combination is not truncated:
+a member with p near 1 can offset small p-values from other members, so
+`[1e-8, 1e-8, 1]` combines to a value near 1. Inspect the member results when
+methods disagree; this is a property of the Cauchy test, not missing evidence.
 
 **Output columns** include the median log2FC across members, the
 Cauchy-combined p-value (adjusted with the requested FDR method), `n_methods_up`, `n_methods_down`,

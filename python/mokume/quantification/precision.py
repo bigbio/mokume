@@ -40,7 +40,7 @@ def profile_residuals(ions, profile):
     profile = np.asarray(profile, dtype=float)
     levels = np.isfinite(profile)
     differences = np.where(np.isfinite(ions) & levels, ions - profile, np.nan)
-    differences = differences[np.isfinite(differences).any(axis=1)]
+    differences = differences[np.isfinite(differences).sum(axis=1) > 1]
     observed = np.isfinite(differences)
     centred = differences - np.nanmedian(differences, axis=1, keepdims=True)
     rss = float(np.sum(centred[observed] ** 2))

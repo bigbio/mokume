@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mokume.analysis.ensemble import combine_de_results
+from mokume.analysis.ensemble import _combine_member_pvalues, combine_de_results
 from mokume.quantification.spectral_count import (
     PeptideCountQuantification,
     SpectralCountQuantification,
@@ -84,6 +84,40 @@ class TestCombineDeResults:
         result = combine_de_results(mock_de_results, min_k=1)
         p1 = result[result["ProteinName"] == "P1"].iloc[0]
         assert p1["log2FC"] == pytest.approx(np.median([2.0, 1.8]))
+
+    def test_zero_member_pvalues_remain_evidence(self):
+        """Zeros contribute both to combined tests and single-member passthrough."""
+        first = pd.DataFrame(
+            {
+                "ProteinName": ["P1", "P5"],
+                "log2FC": [2.0, 2.0],
+                "pvalue": [0.0, 0.0],
+                "adj_pvalue": [0.0, 0.0],
+                "significance": "UP",
+            }
+        )
+        second = first.iloc[:1].assign(pvalue=0.3)
+        result = combine_de_results({"a": first, "b": second}, min_k=1).set_index(
+            "ProteinName"
+        )
+        assert 0 <= result.loc["P1", "pvalue"] < 1e-300
+        assert result.loc["P1", "significance"] == "UP"
+        assert result.loc["P5", "pvalue"] == 0
+        assert result.loc["P5", "significance"] == "UP"
+
+
+def test_cauchy_tiny_pvalues_preserve_precision():
+    """Equal tiny probabilities remain equal after the Cauchy combination."""
+    assert _combine_member_pvalues([1.1e-15, 1.1e-15]) == pytest.approx(
+        1.1e-15, rel=1e-12
+    )
+    assert _combine_member_pvalues([0.0, 0.3]) < 1e-300
+
+
+@pytest.mark.parametrize("values", [[1e-8, 1e-8, 1.0], [0.01, 0.01, 0.999]])
+def test_cauchy_near_one_can_offset_small_member_pvalues(values):
+    """Pin the documented, untruncated Cauchy behaviour when methods disagree."""
+    assert 0.99 < _combine_member_pvalues(values) <= 1
 
 
 # ---------- SpectralCount ----------

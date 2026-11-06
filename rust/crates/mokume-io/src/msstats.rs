@@ -136,17 +136,12 @@ impl<'a> MsstatsReader<'a> {
             peptidoform: peptidoform.to_owned(),
             charge,
             run_file_name,
-            sample_accession: None,
             protein_accessions,
-            anchor_protein: None,
             unique: Some(unique),
-            is_decoy: None,
-            peptide_qvalue: None,
-            pg_global_qvalue: None,
-            selected_score: None,
             label,
             intensity,
             row_start: true,
+            ..QpxFeatureRecord::default()
         })
     }
 

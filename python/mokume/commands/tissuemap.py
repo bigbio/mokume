@@ -55,7 +55,7 @@ import click
     "--dpi",
     type=int,
     default=None,
-    help="Plot resolution (DPI).  [default: 250]",
+    help="Plot resolution (DPI).  [default: 300]",
 )
 @click.option(
     "--imputation-method",
@@ -202,7 +202,7 @@ def _build_config(
     return TissueMapConfig(
         n_jobs=n_jobs if n_jobs is not None else 8,
         input=InputConfig(scan_dir=scan_dir, tmt_datasets=list(tmt_datasets)),
-        plotting=PlottingConfig(dpi=dpi if dpi is not None else 250),
+        plotting=PlottingConfig(dpi=dpi if dpi is not None else 300),
         output=OutputConfig(
             output_dir=output_dir
             if output_dir is not None

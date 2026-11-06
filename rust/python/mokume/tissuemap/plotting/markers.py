@@ -7,29 +7,29 @@ from __future__ import annotations
 import logging
 import warnings
 from pathlib import Path
+from textwrap import fill
 
 import anndata as ad
-import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import LinearSegmentedColormap, Normalize
 import numpy as np
 import pandas as pd
 from pandas.errors import PerformanceWarning
 import scanpy as sc
 
 from mokume.imputation.censored import impute_mindet
+from mokume.plotting._common import static_style, style_axes
+from mokume.plotting.style import (
+    GRID_COLOR,
+    MISSING_COLOR,
+    SEQUENTIAL_COLORS,
+    TEXT_COLOR,
+)
 
 logger = logging.getLogger(__name__)
 
-# Custom colormaps
-_HEATMAP_CMAP = LinearSegmentedColormap.from_list(
-    "custom_heatmap", ["#2166AC", "#F7F7F7", "#B2182B"]
-)
-# Marker expression cmap: ``plasma`` (dark purple → magenta → orange → bright
-# yellow). High contrast on a white background, colour-blind safe, and never
-# starts near-white so even low-expression points remain visible.
-_EXPR_CMAP = matplotlib.colormaps["plasma"]
-_EXPR_NA_COLOR = "#BDBDBD"  # mid-grey for samples where the protein is NaN
+_EXPR_CMAP = LinearSegmentedColormap.from_list("marker_expression", SEQUENTIAL_COLORS)
 _MARKER_FDR = 0.05
 _MARKER_MIN_LOG2FC = 0.5
 
@@ -146,52 +146,51 @@ def _compute_zscore_matrix(
     return np.nan_to_num(heat_z, nan=0.0)
 
 
-def _draw_heatmap(
-    ax,
-    heat_z,
-    available_proteins,
-    available_tissues,
-    protein_names,
-    protein_tissues,
-    tissue_colors,
-    title,
-) -> None:
-    """Render the heatmap image with annotations."""
+def _protein_label(protein: str) -> str:
+    """Show the entry name for a three-field UniProt identifier."""
+    fields = protein.split("|")
+    if len(fields) == 3 and "_" in fields[2]:
+        return fields[2].rsplit("_", 1)[0]
+    return protein
+
+
+def _draw_heatmap(ax, prepared, tissue_colors, title) -> None:
+    """Render row z-scores centered on zero with neutral tissue labels."""
+    protein_names, protein_tissues, tissues, proteins, heat_z = prepared
     im = ax.imshow(
-        heat_z,
-        aspect="auto",
-        cmap=_HEATMAP_CMAP,
-        vmin=-3,
-        vmax=3,
-        interpolation="nearest",
+        heat_z, aspect="auto", cmap="RdBu_r", vmin=-3, vmax=3, interpolation="nearest"
     )
-    ax.set_yticks(range(len(available_proteins)))
-    ax.set_yticklabels(available_proteins, fontsize=5)
-    ax.set_xticks(range(len(available_tissues)))
-    ax.set_xticklabels(available_tissues, rotation=60, ha="right", fontsize=7)
-
-    for i, t in enumerate(available_tissues):
-        color = tissue_colors.get(t, "#333")
-        if isinstance(color, tuple):
-            color = matplotlib.colors.rgb2hex(color[:3])
-        ax.get_xticklabels()[i].set_color(color)
-        ax.get_xticklabels()[i].set_fontweight("bold")
-
-    for i, t in enumerate(available_tissues):
-        c = tissue_colors.get(t, "#999")
-        ax.add_patch(plt.Rectangle((i - 0.5, -1.5), 1, 1, color=c, clip_on=False))
-
+    ax.set_yticks(range(len(proteins)))
+    ax.set_yticklabels([_protein_label(p) for p in proteins], fontsize=7)
+    ax.set_xticks(range(len(tissues)))
+    ax.set_xticklabels(
+        tissues,
+        rotation=90 if len(tissues) > 30 else 60,
+        ha="center" if len(tissues) > 30 else "right",
+        fontsize=8,
+    )
+    for i, tissue in enumerate(tissues):
+        ax.add_patch(
+            plt.Rectangle(
+                (i - 0.5, -1.5),
+                1,
+                1,
+                color=tissue_colors.get(tissue, MISSING_COLOR),
+                linewidth=0,
+                clip_on=False,
+            )
+        )
     prev_tissue = protein_tissues[0] if protein_tissues else None
-    for i, prot in enumerate(available_proteins):
-        idx_in_heat = protein_names.index(prot)
-        t = protein_tissues[idx_in_heat]
-        if t != prev_tissue:
-            ax.axhline(y=i - 0.5, color="#ddd", linewidth=0.5)
-            prev_tissue = t
-
-    cbar = plt.colorbar(im, ax=ax, shrink=0.3, aspect=20, pad=0.02)
-    cbar.set_label("Z-score (mean tissue expression)", fontsize=9)
-    ax.set_title(title, fontsize=12, fontweight="bold", pad=20)
+    for i, protein in enumerate(proteins):
+        tissue = protein_tissues[protein_names.index(protein)]
+        if tissue != prev_tissue:
+            ax.axhline(y=i - 0.5, color=GRID_COLOR, linewidth=0.5)
+            prev_tissue = tissue
+    cbar = ax.figure.colorbar(im, ax=ax, shrink=0.3, aspect=20, pad=0.02)
+    cbar.set_label("Z-score (mean tissue expression)", color=TEXT_COLOR)
+    cbar.ax.tick_params(colors=TEXT_COLOR)
+    ax.set_title(title, pad=20)
+    style_axes(ax)
 
 
 def _compute_tissue_means(
@@ -235,13 +234,14 @@ def _prepare_heatmap_data(
     )
 
 
+@static_style()
 def plot_marker_heatmap(
     adata: ad.AnnData,
     tissue_order: list[str],
     out_dir: Path,
     *,
     n_top: int = 5,
-    dpi: int = 200,
+    dpi: int = 300,
     save_pdf: bool = True,
 ) -> None:
     """Top *n_top* Wilcoxon markers per tissue, z-scored heatmap."""
@@ -260,27 +260,17 @@ def plot_marker_heatmap(
     prepared = _prepare_heatmap_data(heat_proteins, tissue_means, tissue_order)
     if prepared is None:
         return
-    protein_names, protein_tissues, available_tissues, available_proteins, heat_z = (
-        prepared
+    available_tissues, available_proteins = prepared[2:4]
+    fig_height = max(6, len(available_proteins) * 0.13)
+    fig, ax = plt.subplots(
+        figsize=(max(4.5, len(available_tissues) * 0.14 + 1.5), fig_height)
     )
-
-    fig_height = max(12, len(available_proteins) * 0.14)
-    fig, ax = plt.subplots(figsize=(14, fig_height))
     heatmap_title = (
         f"Top {n_top} marker proteins per tissue (Wilcoxon, "
         f"{len(available_tissues)} tissues)\n"
         f"{adata.n_vars:,} proteins, {adata.n_obs} samples"
     )
-    _draw_heatmap(
-        ax,
-        heat_z,
-        available_proteins,
-        available_tissues,
-        protein_names,
-        protein_tissues,
-        tissue_colors,
-        heatmap_title,
-    )
+    _draw_heatmap(ax, prepared, tissue_colors, heatmap_title)
 
     plt.tight_layout()
     fig.savefig(out_dir / "marker_heatmap.png", dpi=dpi, bbox_inches="tight")
@@ -316,77 +306,61 @@ def _select_showcase_markers(
 
 
 def _draw_nan_points(ax, tsne: np.ndarray, nan_mask: np.ndarray) -> None:
-    """Draw NaN samples as solid mid-grey discs under the detected layer."""
-    if not nan_mask.any():
-        return
-    ax.scatter(
-        tsne[nan_mask, 0],
-        tsne[nan_mask, 1],
-        c=_EXPR_NA_COLOR,
-        s=40,
-        alpha=0.55,
-        edgecolors="white",
-        linewidths=0.5,
-        zorder=1,
-    )
+    """Keep missing samples visible beneath the relative-abundance layer."""
+    if nan_mask.any():
+        ax.scatter(
+            tsne[nan_mask, 0],
+            tsne[nan_mask, 1],
+            c=MISSING_COLOR,
+            s=12,
+            linewidths=0,
+            zorder=2,
+            rasterized=True,
+        )
 
 
-def _draw_detected_points(
-    ax,
-    tsne: np.ndarray,
-    expr_all: np.ndarray,
-    nan_mask: np.ndarray,
-) -> None:
-    """Draw the detected samples sorted by expression with a colorbar."""
+def _draw_detected_points(ax, tsne, expr_all, nan_mask) -> None:
+    """Scale detected values by their protein's 1st and 99th percentiles."""
     valid_idx = np.where(~nan_mask)[0]
     if valid_idx.size == 0:
         return
     expr_valid = expr_all[valid_idx]
+    low, high = np.percentile(expr_valid, [1, 99])
+    relative = Normalize(vmin=low, vmax=high, clip=True)(expr_valid)
     order = np.argsort(expr_valid)
     sorted_idx = valid_idx[order]
-    scat = ax.scatter(
+    ax.scatter(
         tsne[sorted_idx, 0],
         tsne[sorted_idx, 1],
-        c=expr_valid[order],
+        c=relative[order],
         cmap=_EXPR_CMAP,
-        s=55,
-        alpha=0.95,
-        edgecolors="white",
-        linewidths=0.6,
-        vmin=float(np.percentile(expr_valid, 5)),
-        vmax=float(np.percentile(expr_valid, 95)),
-        zorder=2,
+        vmin=0,
+        vmax=1,
+        s=12,
+        linewidths=0,
+        zorder=3,
+        rasterized=True,
     )
-    plt.colorbar(scat, ax=ax, shrink=0.6, aspect=15, pad=0.02)
 
 
 def _render_marker_subplot(ax, tsne, adata, prot, tissue, var_index_map):
-    """Render a single marker expression subplot.
-
-    Samples where the protein is NaN are drawn as solid mid-grey discs first,
-    so they stay visible on the white background and clearly distinguish
-    "not detected" from "low expression". Detected samples are then drawn on
-    top using a high-contrast cmap, with high-expression points last.
-    """
+    """Plot one protein's relative abundance without altering expression."""
     expr_all = np.asarray(adata.X[:, var_index_map[prot]]).ravel()
     nan_mask = np.isnan(expr_all)
-
     _draw_nan_points(ax, tsne, nan_mask)
     _draw_detected_points(ax, tsne, expr_all, nan_mask)
-
-    ts_val = ""
+    detected = f"{int((~nan_mask).sum())}/{len(expr_all)} samples"
     if "max_ts" in adata.var.columns:
-        ts_val = f" (TS={adata.var.loc[prot, 'max_ts']:.2f})"
+        detected = f"TS={adata.var.loc[prot, 'max_ts']:.2f}, {detected}"
+    # Panels sit side by side, so long tissue names wrap instead of meeting their neighbors.
     ax.set_title(
-        f"{prot}\n{tissue} marker{ts_val} "
-        f"| {int((~nan_mask).sum())}/{len(expr_all)} detected",
-        fontsize=9,
-        fontweight="bold",
+        f"{_protein_label(prot)}\n{fill(f'{tissue} marker', 26)}\n{detected}",
+        pad=4,
+        fontsize=7,
     )
-    ax.set_xticks([])
-    ax.set_yticks([])
-    for sp in ax.spines.values():
-        sp.set_visible(False)
+    ax.set(xlabel="t-SNE 1", ylabel="t-SNE 2")
+    ax.margins(0.12)
+    style_axes(ax)
 
 
 def _create_subplot_grid(
@@ -395,23 +369,26 @@ def _create_subplot_grid(
 ) -> tuple[plt.Figure, list]:
     """Create a subplot grid and return (fig, flat_axes_list)."""
     n_rows = (n_items + n_cols - 1) // n_cols
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5.5 * n_rows))
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(1.8 * n_cols, 2.2 * n_rows), layout="constrained"
+    )
     flat = np.asarray(axes).flatten().tolist()
     for ax in flat[n_items:]:
         ax.set_visible(False)
     return fig, flat
 
 
+@static_style()
 def plot_marker_tsne(
     adata: ad.AnnData,
     tissue_order: list[str],
     out_dir: Path,
     *,
     n_showcase: int = 8,
-    dpi: int = 200,
+    dpi: int = 300,
     save_pdf: bool = True,
 ) -> None:
-    """2x4 grid of t-SNE colored by showcase marker expression."""
+    """Show relative abundance within each showcase protein on one shared scale."""
     if "X_tsne" not in adata.obsm:
         logger.warning("Missing t-SNE, skipping marker_tsne")
         return
@@ -431,12 +408,20 @@ def plot_marker_tsne(
         _render_marker_subplot(flat_axes[idx], tsne, adata, prot, tissue, var_index_map)
 
     fig.suptitle(
-        "t-SNE — Top tissue marker expression",
-        fontsize=14,
-        fontweight="bold",
-        y=1.01,
+        "t-SNE — Relative abundance within each protein",
+        color=TEXT_COLOR,
     )
-    plt.tight_layout()
+    cbar = fig.colorbar(
+        ScalarMappable(norm=Normalize(0, 1), cmap=_EXPR_CMAP),
+        ax=flat_axes[: len(showcase)],
+        shrink=0.6,
+        pad=0.02,
+    )
+    cbar.set_label(
+        "Relative abundance within each protein (1st–99th percentile)",
+        color=TEXT_COLOR,
+    )
+    cbar.ax.tick_params(colors=TEXT_COLOR)
     fig.savefig(out_dir / "marker_tsne.png", dpi=dpi, bbox_inches="tight")
     if save_pdf:
         fig.savefig(out_dir / "marker_tsne.pdf", bbox_inches="tight")
@@ -475,13 +460,51 @@ def _collect_dotplot_genes(
     return genes[:60]
 
 
+def _render_dotplot(adata, genes, out_dir, dpi) -> None:
+    """Render Scanpy summaries with the shared scale and sample terminology."""
+    dp = sc.pl.dotplot(
+        adata,
+        var_names=genes,
+        groupby="tissue",
+        standard_scale="var",
+        cmap=_EXPR_CMAP,
+        show=False,
+        return_fig=True,
+        figsize=(
+            max(7.2, len(genes) * 0.16 + 2.4),
+            max(3.6, adata.obs["tissue"].nunique() * 0.16 + 1.5),
+        ),
+    )
+    dp.style(dot_edge_lw=0, smallest_dot=8, largest_dot=60)
+    dp.legend(
+        size_title="Fraction of samples\nin tissue (%)",
+        colorbar_title="Mean relative abundance\nwithin each protein",
+    )
+    axes = dp.get_axes()
+    main = axes["mainplot_ax"]
+    main.set_xticks(
+        main.get_xticks(),
+        [_protein_label(t.get_text()) for t in main.get_xticklabels()],
+    )
+    for ax in axes.values():
+        style_axes(ax)
+    for dots in axes["mainplot_ax"].collections:
+        dots.set_rasterized(True)
+    for dots in axes["size_legend_ax"].collections:
+        dots.set_facecolor(MISSING_COLOR)
+        dots.set_linewidth(0)
+    dp.fig.savefig(out_dir / "marker_dotplot.png", dpi=dpi, bbox_inches="tight")
+    plt.close(dp.fig)
+
+
+@static_style()
 def plot_dotplot(
     adata: ad.AnnData,
     tissue_order: list[str],
     out_dir: Path,
     *,
     n_top: int = 3,
-    dpi: int = 150,
+    dpi: int = 300,
 ) -> None:
     """Scanpy dotplot of top markers per tissue."""
     if "tissue_markers" not in adata.uns:
@@ -501,17 +524,7 @@ def plot_dotplot(
             categories=available,
             ordered=True,
         )
-        dp = sc.pl.dotplot(
-            adata,
-            var_names=dotplot_genes,
-            groupby="tissue",
-            standard_scale="var",
-            show=False,
-            return_fig=True,
-            figsize=(20, 10),
-        )
-        dp.savefig(out_dir / "marker_dotplot.png", dpi=dpi, bbox_inches="tight")
-        plt.close()
+        _render_dotplot(adata, dotplot_genes, out_dir, dpi)
         logger.info("Saved marker_dotplot.png")
     except (ValueError, TypeError, RuntimeError, KeyError) as exc:
         logger.error("Dotplot failed: %s", exc)

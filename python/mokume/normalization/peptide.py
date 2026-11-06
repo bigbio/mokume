@@ -175,6 +175,7 @@ def peptide_normalization(
             require_unique=not keep_shared_peptides,
             named_score_name=getattr(named_score, "name", None),
             named_score_threshold=getattr(named_score, "threshold", None),
+            exclude_modifications=filter_config.peptide.exclude_modifications,
         )
     else:
         filter_builder = SQLFilterBuilder(

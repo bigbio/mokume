@@ -23,6 +23,11 @@ from mokume.core.constants import (
 from mokume.core.logger import get_logger
 from mokume.core.registry import PluginRegistry
 from mokume.quantification.base import ProteinQuantificationMethod
+from mokume.quantification.precision import (
+    cell_precision,
+    log2_positive,
+    profile_residuals,
+)
 
 logger = get_logger("mokume.quantification.maxlfq")
 
@@ -161,8 +166,12 @@ def _process_protein(
     columns: tuple[str, str, str],
     samples: list,
     ratio_options: dict,
-) -> tuple[list, int]:
-    """Sum duplicate species observations, then solve a single protein."""
+    residuals: bool,
+) -> tuple[list, int, Optional[tuple]]:
+    """Sum duplicate species observations, then solve a single protein.
+
+    With ``residuals``, also return the species' residuals around the profile.
+    """
     peptide_column, intensity_column, sample_column = columns
     peptides = sorted(protein_data[peptide_column].unique(), key=_identifier_sort_key)
     pivot = protein_data.pivot_table(
@@ -178,7 +187,12 @@ def _process_protein(
         for sample, intensity in zip(samples, intensities)
         if intensity > 0
     ]
-    return records, stabilized_pairs
+    fit = (
+        (protein, profile_residuals(log2_positive(pivot), log2_positive(intensities)))
+        if residuals
+        else None
+    )
+    return records, stabilized_pairs, fit
 
 
 def _prepare_input(peptide_df, columns, run_column):
@@ -207,12 +221,18 @@ def _prepare_input(peptide_df, columns, run_column):
     return frame, peptide_column, axis_column
 
 
-def _format_results(all_results, protein_column, sample_column, run_column):
+def _format_results(all_results, protein_column, sample_column, run_column, precision):
     """Restore caller identifiers and optional run columns in positive output."""
     result = pd.DataFrame(
-        [row for group, _ in all_results for row in group],
+        [row for group, *_ in all_results for row in group],
         columns=["protein", "sample", "intensity"],
-    ).rename(
+    )
+    if precision is not None:
+        result["Precision"] = [
+            precision.get(cell, np.nan)
+            for cell in zip(result["protein"], result["sample"])
+        ]
+    result = result.rename(
         columns={
             "protein": protein_column,
             "sample": sample_column,
@@ -223,7 +243,10 @@ def _format_results(all_results, protein_column, sample_column, run_column):
         pairs = result[sample_column].tolist()
         result[sample_column] = [pair[0] for pair in pairs]
         result[run_column] = [pair[1] for pair in pairs]
-        result = result[[protein_column, sample_column, run_column, "Intensity"]]
+        result = result[
+            [protein_column, sample_column, run_column, "Intensity"]
+            + (["Precision"] if precision is not None else [])
+        ]
     return result
 
 
@@ -238,6 +261,8 @@ class MaxLFQQuantification(ProteinQuantificationMethod):
     ``force_builtin`` is retained as a no-op for compatibility. MaxLFQ never
     dispatches to DirectLFQ. ``threads`` follows joblib's worker-count semantics.
     ``stabilize`` enables Eq. 5's overlap-dependent large-ratio stabilization.
+    ``cell_precision`` adds each value's quantification precision (see
+    :mod:`mokume.quantification.precision`) as a ``Precision`` column.
     """
 
     min_peptides: int = 2
@@ -246,6 +271,7 @@ class MaxLFQQuantification(ProteinQuantificationMethod):
     force_builtin: bool = False
     min_ratio_count: Optional[int] = field(default=None, kw_only=True)
     stabilize: bool = field(default=False, kw_only=True)
+    cell_precision: bool = field(default=False, kw_only=True)
     using_directlfq: ClassVar[bool] = False
 
     def __post_init__(self):
@@ -296,6 +322,7 @@ class MaxLFQQuantification(ProteinQuantificationMethod):
                     "min_ratio_count": self.min_ratio_count,
                     "stabilize": self.stabilize,
                 },
+                self.cell_precision,
             )
             for protein, group in groups
         )
@@ -304,7 +331,14 @@ class MaxLFQQuantification(ProteinQuantificationMethod):
             "sample pairs have positive stabilization weights",
             self.min_ratio_count,
             self.stabilize,
-            sum(count > 0 for _, count in all_results),
-            sum(count for _, count in all_results),
+            sum(count > 0 for _, count, _ in all_results),
+            sum(count for _, count, _ in all_results),
         )
-        return _format_results(all_results, protein_column, sample_column, run_column)
+        precision = (
+            cell_precision([fit for *_, fit in all_results], samples)
+            if self.cell_precision
+            else None
+        )
+        return _format_results(
+            all_results, protein_column, sample_column, run_column, precision
+        )

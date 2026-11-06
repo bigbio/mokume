@@ -347,7 +347,7 @@ specificity, and find tissue markers.
   <img src="docs/assets/pxd030304_rust_overview.png" alt="Six-panel PXD030304 Rust DirectLFQ overview with PCA, t-SNE, tissue representation, detection depth, and variance panels" width="100%">
 </p>
 
-*All 949 cell lines: PCA and t-SNE by tissue of origin, tissue representation,
+*All 949 cell lines: PCA and t-SNE by annotated tissue, tissue representation,
 technical-run depth versus protein detection, detection across major tissues,
 and the PCA variance profile. PC1 explains 19.5% and PC2 6.8% of the variance.*
 

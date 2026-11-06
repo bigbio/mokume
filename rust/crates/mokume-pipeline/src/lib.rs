@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::{create_dir_all, read_to_string, File};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{sync_channel, Receiver};
+use std::sync::Mutex;
 
 use csv::WriterBuilder;
 use mokume_core::{
@@ -11,7 +12,7 @@ use mokume_core::{
     NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat, PeptideId,
     PibaqConfig, PibaqFamilyRows, PibaqSharedMode, PreprocessingFilterConfig, ProteinId,
     QuantMethod, RatioConfig, Result, RunQcFilterConfig, RuntimeConfig, SampleId, StringIdRegistry,
-    TmtConfig,
+    TmtConfig, TransferredFeatures,
 };
 use mokume_imputation::imputed_values;
 use mokume_io::{
@@ -26,8 +27,9 @@ use mokume_normalization::{
     SampleNormalizationMethod,
 };
 use mokume_quant::{
-    direct_lfq_aligned, direct_lfq_aligned_with_ions, solve_max_lfq_with_stabilization,
-    DirectLfqIon, DirectLfqNormalizedIon, PeptideMeasurement,
+    cell_precisions, direct_lfq_aligned, direct_lfq_aligned_with, profile_residuals,
+    solve_max_lfq_with_stabilization, DirectLfqIon, DirectLfqNormalizedIon, DirectLfqResult,
+    DirectLfqRetain, PeptideMeasurement, ProfileResiduals,
 };
 use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
@@ -44,7 +46,7 @@ mod tmt;
 
 use memory::MemoryPlan;
 
-pub use de::{differential_expression_matrix, MatrixDifferentialExpressionResults};
+pub use de::{differential_expression_matrix, MatrixDeInputs, MatrixDifferentialExpressionResults};
 pub use matrix::{impute_matrix, normalize_matrix};
 pub use maxlfq::run_maxlfq_from_peptides_with_threads;
 
@@ -439,22 +441,25 @@ impl FeatureToProteinState {
             charge: feature.charge,
         };
         let contextual = self.aggregation.preserves_contextual_canonical_rows();
-        // Exported peptide rows need the contextual ids here; otherwise a
-        // pipelined ingest leaves them to its aggregation worker.
-        if deferred.is_none() || self.export_rows.peptides.is_some() {
-            self.contextual.resolve(&mut record, contextual)?;
-        }
-        self.export_rows.push(IntermediateMeasurement {
+        let measurement = IntermediateMeasurement {
             protein,
             sample,
             peptide: record.peptide,
+            canonical: record.canonical,
             intensity,
             protein_name: &protein_group,
             peptide_canonical: &feature.sequence,
             sample_name: &sample_name,
             run_file_name: &feature.run_file_name,
             sdrf_record,
-        });
+        };
+        self.export_measurement(
+            &mut record,
+            measurement,
+            feature.intensity,
+            intensity_factors,
+            deferred.is_some(),
+        )?;
         if let Some(records) = deferred {
             records.push(record);
         } else {
@@ -468,6 +473,31 @@ impl FeatureToProteinState {
         self.accepted_measurements += 1;
         self.accepted_features += 1;
         Ok(())
+    }
+
+    fn export_measurement(
+        &mut self,
+        record: &mut IngestRecord,
+        measurement: IntermediateMeasurement<'_>,
+        raw_intensity: f64,
+        intensity_factors: Option<&IntensityFactors>,
+        deferred: bool,
+    ) -> Result<()> {
+        // Exports need contextual ion ids before the deferred aggregation worker.
+        if !deferred || self.export_rows.has_peptides() {
+            self.contextual.resolve(
+                record,
+                self.aggregation.preserves_contextual_canonical_rows(),
+            )?;
+        }
+        self.export_rows.push(
+            IntermediateMeasurement {
+                peptide: record.peptide,
+                ..measurement
+            },
+            raw_intensity,
+            intensity_factors,
+        )
     }
 
     fn rejects_protein_group(
@@ -523,6 +553,7 @@ impl FeatureToProteinState {
         // ModificationFilter, matched against the modified sequence.
         if filters::peptide_has_excluded_modification(
             &feature.peptidoform,
+            feature.modifications.as_deref(),
             &config.peptide.exclude_modifications,
         ) {
             return false;
@@ -553,67 +584,68 @@ impl FeatureToProteinState {
     fn write_intermediate_exports(
         &mut self,
         config: &FeatureToProteinsConfig,
-        min_unique_peptides: usize,
+        allowed_cells: &HashSet<CellKey>,
         options: PeptideExportOptions,
         dataset_normalization: Option<SampleNormalizationMethod>,
     ) -> Result<()> {
-        let allowed_cells = self.allowed_cells(min_unique_peptides);
         let low_frequency_peptides = self
             .low_frequency
             .as_ref()
             .map(LowFrequencyTracker::low_frequency_peptides)
             .unwrap_or_default();
-        // When a dataset-level sample normalization is requested, the exported
-        // peptides must carry it: Python applies it in `load_for_mokume` before
-        // writing the peptide CSV. Reuse the exact aggregation helper on cells
-        // rebuilt from the export rows so the export matches the protein matrix.
+        // Read MaxLFQ's already-normalized species traces. Cell-based methods
+        // reuse their normalization helper on cells rebuilt from export rows.
         let dataset_normalized = dataset_normalization
-            .map(|method| self.export_dataset_normalized_values(method, &allowed_cells));
+            .map(|method| self.export_dataset_normalized_values(method, allowed_cells));
         self.export_rows.write(
             config,
-            &allowed_cells,
+            allowed_cells,
             &low_frequency_peptides,
             options,
             dataset_normalized.as_ref(),
+            &PeptideExportNames {
+                proteins: self.proteins.iter().map(|(_, name)| name).collect(),
+                samples: self.samples.iter().map(|(_, name)| name).collect(),
+                canonicals: self
+                    .canonical_peptides
+                    .iter()
+                    .map(|(_, name)| name)
+                    .collect(),
+            },
         )?;
         self.aggregation.write_intermediate_exports(
             config,
             &self.proteins,
             &self.canonical_peptides,
             &self.samples,
-            &allowed_cells,
+            allowed_cells,
         )
     }
 
-    /// Dataset-level-normalized canonical peptide values for `--export-peptides`,
-    /// keyed by `(protein, sample, canonical sequence)`. Rebuilds the same
+    /// Dataset-normalized canonical values for `--export-peptides`. MaxLFQ
+    /// reads its actual solver traces; cell-based methods rebuild the same
     /// max-merged `(protein, sample) -> {peptide: intensity}` cells the
     /// aggregation holds (both come from `push_peptide_max` over the same
-    /// ingest), then applies the identical [`apply_dataset_norm_to_peptide_cells`]
+    /// ingest), then apply the identical [`apply_dataset_norm_to_peptide_cells`]
     /// helper, so the exported peptides match the protein-matrix normalization.
     fn export_dataset_normalized_values(
         &self,
         method: SampleNormalizationMethod,
         allowed_cells: &HashSet<CellKey>,
-    ) -> HashMap<(ProteinId, SampleId, String), f64> {
+    ) -> CanonicalExportValues {
         let mut result = HashMap::new();
-        let Some(export) = self.export_rows.peptides.as_ref() else {
+        if !self.export_rows.peptides {
             return result;
-        };
-        let mut cells: HashMap<CellKey, HashMap<PeptideId, f64>> = HashMap::new();
-        for (key, peptides) in &export.rows {
-            let cell = CellKey {
-                protein: key.protein,
-                sample: key.sample,
-            };
-            let target = cells.entry(cell).or_default();
-            for (peptide, intensity) in peptides {
-                let current = target.entry(*peptide).or_insert(0.0);
-                if *intensity > *current {
-                    *current = *intensity;
-                }
-            }
         }
+        if let FeatureAggregation::Lfq {
+            route_to_directlfq: false,
+            traces,
+            ..
+        } = &self.aggregation
+        {
+            return traces.normalized_canonical_values();
+        }
+        let mut cells = self.export_peptide_cells();
         apply_dataset_norm_to_peptide_cells(
             &mut cells,
             method,
@@ -621,18 +653,42 @@ impl FeatureToProteinState {
             &self.index.peptide_to_canonical,
             &self.samples,
         );
-        for (cell, canonical_values) in cells {
+        for (cell, values) in cells {
+            // TMM scales contextual ions in place; the other normalizers
+            // already replace them with canonical values.
+            let canonical_values = if method == SampleNormalizationMethod::Tmm {
+                collapse_to_canonical(values, &self.index.peptide_to_canonical)
+            } else {
+                values
+            };
             for (canonical, value) in canonical_values {
-                if let Some(sequence) = self.canonical_peptides.resolve(canonical) {
-                    result.insert((cell.protein, cell.sample, sequence.to_owned()), value);
-                }
+                result.insert((cell.protein, cell.sample, canonical), value);
             }
         }
         result
     }
 
+    fn export_peptide_cells(&self) -> HashMap<CellKey, HashMap<PeptideId, f64>> {
+        let mut cells: HashMap<CellKey, HashMap<PeptideId, f64>> = HashMap::new();
+        for (key, ions) in &self.export_rows.rows.rows {
+            let cell = CellKey {
+                protein: key.protein,
+                sample: key.sample,
+            };
+            let target = cells.entry(cell).or_default();
+            for (peptide, values) in ions.iter() {
+                let current = target.entry(peptide).or_insert(0.0);
+                if values.intensity > *current {
+                    *current = values.intensity;
+                }
+            }
+        }
+        cells
+    }
+
     fn into_matrix(
         mut self,
+        config: &FeatureToProteinsConfig,
         min_unique_peptides: usize,
         dataset_normalization: Option<SampleNormalizationMethod>,
     ) -> Result<ProteinMatrix> {
@@ -640,6 +696,8 @@ impl FeatureToProteinState {
         // Per-(protein, sample) unique-canonical-peptide counts for the DEqMS DE
         // path, captured BEFORE the `min_unique_peptides` cell filter.
         let peptide_counts = self.cell_peptide_counts();
+        // The per-cell unique-peptide sets only feed the two lookups above.
+        self.index.unique_peptides = HashMap::new();
         if let Some(method) = dataset_normalization {
             if self.aggregation.applies_dataset_normalization() {
                 self.aggregation.apply_dataset_normalization(
@@ -650,6 +708,8 @@ impl FeatureToProteinState {
                 );
             }
         }
+        let options = PeptideExportOptions::default();
+        self.write_intermediate_exports(config, &allowed_cells, options, dataset_normalization)?;
         let empty_mapping = HashMap::new();
         // TMM scales contextual peptidoforms in place, so `finalize` must still
         // collapse them; the other dataset normalizers write canonical cells.
@@ -661,7 +721,7 @@ impl FeatureToProteinState {
         } else {
             &self.index.peptide_to_contextual_canonical
         };
-        let values = self.aggregation.finalize(
+        let (values, precision) = self.aggregation.finalize(
             &allowed_cells,
             &mut self.proteins,
             collapse_mapping,
@@ -675,6 +735,7 @@ impl FeatureToProteinState {
             allowed_proteins,
             excluded_samples: HashSet::new(),
             peptide_counts,
+            precision,
             values,
         })
     }
@@ -756,7 +817,10 @@ impl LowFrequencyTracker {
 
 #[derive(Debug, Default)]
 struct IntermediateExports {
-    peptides: Option<PeptideExport>,
+    peptides: bool,
+    unnormalized_peptides: bool,
+    /// Shared by both exports, whose keys and ions always match.
+    rows: PeptideExport,
 }
 
 /// `RazorPeptideFilter` mode (Python `preprocessing/filters/protein.py:334-378`).
@@ -789,7 +853,10 @@ fn parse_razor_handling(handling: &str) -> RazorHandling {
 
 #[derive(Debug, Default)]
 struct PeptideExport {
-    rows: HashMap<PeptideExportKey, HashMap<PeptideId, f64>>,
+    rows: HashMap<PeptideExportKey, ExportIons>,
+    contexts: Vec<PeptideExportContext>,
+    context_ids: HashMap<(u32, u32, Option<u32>, i64), u32>,
+    context_labels: StringIdRegistry<u32>,
     /// When set, the export keys on `(Run, TechReplicate)` in addition to the
     /// sample, reproducing Python `aggregation_level == "run"`. Off (sample
     /// level) for the `features2proteins --export-peptides` path, which never
@@ -810,20 +877,54 @@ struct PeptideExport {
     razor_order: HashMap<(SampleId, String), Vec<String>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct PeptideExportKey {
     protein: ProteinId,
     sample: SampleId,
-    peptide_canonical: String,
-    protein_name: String,
-    sample_name: String,
+    canonical: PeptideId,
+    context: u32,
+}
+
+/// Per-ion maxima for `--export-peptides` and `--export-unnormalized-peptides`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct IonValues {
+    intensity: f64,
+    unnormalized: f64,
+}
+
+/// A canonical cell's ions in `PeptideId` order. Most cells hold a single ion,
+/// so it stays inline in the row table.
+#[derive(Debug, PartialEq)]
+enum ExportIons {
+    One(PeptideId, IonValues),
+    Many(Box<[(PeptideId, IonValues)]>),
+}
+
+#[derive(Debug)]
+struct PeptideExportContext {
     bio_replicate: String,
     condition: String,
-    /// Run identifier (`feature.run_file_name`) and technical replicate, only
-    /// populated in run mode. In sample mode both are `None`/`0`, so the key is
-    /// identical to the pre-run-mode key and the protein-export path is
-    /// unaffected.
     run: Option<String>,
+    tech_replicate: i64,
+}
+
+type CanonicalExportValues = HashMap<(ProteinId, SampleId, PeptideId), f64>;
+
+struct PeptideExportNames<'a> {
+    proteins: Vec<&'a str>,
+    samples: Vec<&'a str>,
+    canonicals: Vec<&'a str>,
+}
+
+/// Borrowed metadata in the exact lexical ordering used by both export formats.
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+struct PeptideExportRow<'a> {
+    protein_name: &'a str,
+    peptide_canonical: &'a str,
+    sample_name: &'a str,
+    bio_replicate: &'a str,
+    condition: &'a str,
+    run: Option<&'a str>,
     tech_replicate: i64,
 }
 
@@ -832,6 +933,7 @@ struct IntermediateMeasurement<'a> {
     protein: ProteinId,
     sample: SampleId,
     peptide: PeptideId,
+    canonical: PeptideId,
     intensity: f64,
     protein_name: &'a str,
     peptide_canonical: &'a str,
@@ -851,13 +953,15 @@ struct PeptideExportOptions {
 }
 
 impl IntermediateExports {
+    fn has_peptides(&self) -> bool {
+        self.peptides || self.unnormalized_peptides
+    }
+
     fn new(config: &FeatureToProteinsConfig) -> Self {
         Self {
-            peptides: config
-                .output
-                .export_peptides
-                .as_ref()
-                .map(|_| PeptideExport::default()),
+            peptides: config.output.export_peptides.is_some(),
+            unnormalized_peptides: config.output.export_unnormalized_peptides.is_some(),
+            rows: PeptideExport::default(),
         }
     }
 
@@ -865,22 +969,33 @@ impl IntermediateExports {
     /// keys, used only by `features2peptides --aggregation_level run`.
     fn new_with_run_mode(config: &FeatureToProteinsConfig, run_mode: bool) -> Self {
         Self {
-            peptides: config
-                .output
-                .export_peptides
-                .as_ref()
-                .map(|_| PeptideExport {
-                    rows: HashMap::new(),
-                    run_mode,
-                    ..PeptideExport::default()
-                }),
+            peptides: config.output.export_peptides.is_some(),
+            unnormalized_peptides: false,
+            rows: PeptideExport {
+                run_mode,
+                ..PeptideExport::default()
+            },
         }
     }
 
-    fn push(&mut self, measurement: IntermediateMeasurement<'_>) {
-        if let Some(peptides) = &mut self.peptides {
-            peptides.push(measurement);
+    fn push(
+        &mut self,
+        measurement: IntermediateMeasurement<'_>,
+        raw_intensity: f64,
+        intensity_factors: Option<&IntensityFactors>,
+    ) -> Result<()> {
+        if !self.has_peptides() {
+            return Ok(());
         }
+        let unnormalized = match intensity_factors {
+            Some(factors) if self.unnormalized_peptides => factors.normalize_run(
+                raw_intensity,
+                measurement.sample_name,
+                measurement.run_file_name,
+            ),
+            _ => raw_intensity,
+        };
+        self.rows.push(measurement, unnormalized)
     }
 
     fn write(
@@ -889,33 +1004,35 @@ impl IntermediateExports {
         allowed_cells: &HashSet<CellKey>,
         low_frequency_peptides: &HashSet<(String, String)>,
         options: PeptideExportOptions,
-        dataset_normalized: Option<&HashMap<(ProteinId, SampleId, String), f64>>,
+        dataset_normalized: Option<&CanonicalExportValues>,
+        names: &PeptideExportNames<'_>,
     ) -> Result<()> {
-        if let (Some(path), Some(peptides_export)) = (
-            config.output.export_peptides.as_deref(),
-            self.peptides.as_ref(),
-        ) {
-            let rows = peptides_export.materialize(
-                allowed_cells,
-                low_frequency_peptides,
-                options.log2,
+        let keys = self
+            .rows
+            .ordered_keys(allowed_cells, low_frequency_peptides, names);
+        // Both exports keep the same keys and columns. Dataset-level
+        // normalization drops BioReplicate/Condition, as in Python's melt.
+        let omit_replicate_condition = dataset_normalized.is_some();
+        for (path, unnormalized, normalized) in [
+            (
+                config.output.export_peptides.as_deref(),
+                false,
                 dataset_normalized,
-            );
-            // Python's dataset-level normalization (`_apply_dataset_normalization`,
-            // stages.py:961-1047) pivots the peptide table to
-            // `(ProteinName, PeptideCanonical) x SampleID`, normalizes, then melts
-            // back keying only on `[ProteinName, PeptideCanonical]` — dropping
-            // BioReplicate and Condition. So the exported CSV carries four columns,
-            // not six. The non-dataset path returns the combined table unchanged and
-            // keeps all six. `dataset_normalized.is_some()` is exactly the
-            // dataset-level case (features2peptides always passes `None`, so its
-            // export is unaffected).
-            let omit_replicate_condition = dataset_normalized.is_some();
-            peptides_export.write_csv(path, &rows, omit_replicate_condition)?;
-            if options.save_parquet {
-                let parquet_path = parquet_sibling(path);
-                write_peptide_parquet(&parquet_path, &rows, peptides_export.run_mode)?;
-            }
+            ),
+            (
+                config.output.export_unnormalized_peptides.as_deref(),
+                true,
+                None,
+            ),
+        ] {
+            let Some(path) = path else {
+                continue;
+            };
+            let rows =
+                self.rows
+                    .exported_rows(&keys, unnormalized, options.log2, normalized, names);
+            self.rows
+                .write_csv(path, rows, omit_replicate_condition, options.save_parquet)?;
         }
         Ok(())
     }
@@ -927,11 +1044,100 @@ fn parquet_sibling(path: &Path) -> PathBuf {
     path.with_extension("parquet")
 }
 
+impl PeptideExportNames<'_> {
+    fn row<'a>(
+        &'a self,
+        key: &PeptideExportKey,
+        export: &'a PeptideExport,
+    ) -> PeptideExportRow<'a> {
+        let context = &export.contexts[key.context as usize];
+        PeptideExportRow {
+            protein_name: self.proteins[key.protein.get() as usize],
+            peptide_canonical: self.canonicals[key.canonical.get() as usize],
+            sample_name: self.samples[key.sample.get() as usize],
+            bio_replicate: &context.bio_replicate,
+            condition: &context.condition,
+            run: context.run.as_deref(),
+            tech_replicate: context.tech_replicate,
+        }
+    }
+}
+
+impl IonValues {
+    fn merge(&mut self, other: Self) {
+        if other.intensity > self.intensity {
+            self.intensity = other.intensity;
+        }
+        if other.unnormalized > self.unnormalized {
+            self.unnormalized = other.unnormalized;
+        }
+    }
+
+    fn value(self, unnormalized: bool) -> f64 {
+        if unnormalized {
+            self.unnormalized
+        } else {
+            self.intensity
+        }
+    }
+}
+
+impl ExportIons {
+    fn merge(&mut self, peptide: PeptideId, values: IonValues) {
+        match self {
+            Self::One(current, current_values) if *current == peptide => {
+                current_values.merge(values);
+            }
+            Self::One(current, current_values) => {
+                let first = (*current, *current_values);
+                let second = (peptide, values);
+                let (low, high) = if first.0 < second.0 {
+                    (first, second)
+                } else {
+                    (second, first)
+                };
+                *self = Self::Many(Box::new([low, high]));
+            }
+            Self::Many(ions) => match ions.binary_search_by_key(&peptide, |(id, _)| *id) {
+                Ok(index) => ions[index].1.merge(values),
+                Err(index) => {
+                    let mut grown = std::mem::take(ions).into_vec();
+                    grown.reserve_exact(1);
+                    grown.insert(index, (peptide, values));
+                    *ions = grown.into_boxed_slice();
+                }
+            },
+        }
+    }
+
+    fn iter(&self) -> impl Iterator<Item = (PeptideId, IonValues)> + '_ {
+        let (one, many) = match self {
+            Self::One(peptide, values) => (Some((*peptide, *values)), &[][..]),
+            Self::Many(ions) => (None, &ions[..]),
+        };
+        one.into_iter().chain(many.iter().copied())
+    }
+}
+
 impl PeptideExport {
-    fn push(&mut self, measurement: IntermediateMeasurement<'_>) {
-        let (run, tech_replicate) = if self.run_mode {
+    fn context(&mut self, measurement: IntermediateMeasurement<'_>) -> Result<u32> {
+        let bio = measurement
+            .sdrf_record
+            .and_then(|record| record.biological_replicate)
+            .unwrap_or(1);
+        // On an SDRF miss Python's `_create_unnest_view` / `enrich_with_sdrf`
+        // fall the Condition column back to the `sa_fallback` (`run_file_name`
+        // for new QPX, the unnested `sample_accession` for legacy), which is
+        // exactly the value `sample_name()` already resolves to. This is
+        // `sample_condition` without allocating for every row.
+        let condition = measurement
+            .sdrf_record
+            .and_then(|record| record.condition.as_deref())
+            .unwrap_or(measurement.sample_name);
+        let condition_id = register_id(&mut self.context_labels, condition, "export condition")?;
+        let (run, tech) = if self.run_mode {
             (
-                Some(measurement.run_file_name.to_owned()),
+                Some(measurement.run_file_name),
                 measurement
                     .sdrf_record
                     .and_then(|record| record.technical_replicate)
@@ -941,25 +1147,31 @@ impl PeptideExport {
         } else {
             (None, 0)
         };
+        let run_id = run
+            .map(|name| register_id(&mut self.context_labels, name, "export run"))
+            .transpose()?;
+        let key = (bio, condition_id, run_id, tech);
+        if let Some(id) = self.context_ids.get(&key) {
+            return Ok(*id);
+        }
+        let id = u32::try_from(self.contexts.len())
+            .map_err(|_| invalid_input("export context id overflow"))?;
+        self.contexts.push(PeptideExportContext {
+            bio_replicate: bio.to_string(),
+            condition: condition.to_owned(),
+            run: run.map(str::to_owned),
+            tech_replicate: tech,
+        });
+        self.context_ids.insert(key, id);
+        Ok(id)
+    }
+
+    fn push(&mut self, measurement: IntermediateMeasurement<'_>, unnormalized: f64) -> Result<()> {
         let key = PeptideExportKey {
             protein: measurement.protein,
             sample: measurement.sample,
-            peptide_canonical: measurement.peptide_canonical.to_owned(),
-            protein_name: measurement.protein_name.to_owned(),
-            sample_name: measurement.sample_name.to_owned(),
-            bio_replicate: measurement
-                .sdrf_record
-                .and_then(|record| record.biological_replicate)
-                .map_or_else(|| "1".to_owned(), |value| value.to_string()),
-            // On an SDRF miss Python's `_create_unnest_view` / `enrich_with_sdrf`
-            // fall the Condition column back to the `sa_fallback` (`run_file_name`
-            // for new QPX, the unnested `sample_accession` for legacy), which is
-            // exactly the value `sample_name()` already resolves to. Reusing
-            // `sample_condition` keeps that fallback identical to Python instead of
-            // emitting the literal "Empty".
-            condition: sample_condition(measurement.sample_name, measurement.sdrf_record),
-            run,
-            tech_replicate,
+            canonical: measurement.canonical,
+            context: self.context(measurement)?,
         };
         // Record the first-appearance order of proteins per `(sample, canonical)`
         // for the `AssignToTop` tie-break. Only this mode needs it, so the other
@@ -974,29 +1186,32 @@ impl PeptideExport {
                 order.push(measurement.protein_name.to_owned());
             }
         }
-        let peptide_values = self.rows.entry(key).or_default();
-        peptide_values
-            .entry(measurement.peptide)
-            .and_modify(|current| {
-                if measurement.intensity > *current {
-                    *current = measurement.intensity;
-                }
-            })
-            .or_insert(measurement.intensity);
+        let peptide = measurement.peptide;
+        let values = IonValues {
+            intensity: measurement.intensity,
+            unnormalized,
+        };
+        self.rows
+            .entry(key)
+            .and_modify(|ions| ions.merge(peptide, values))
+            .or_insert(ExportIons::One(peptide, values));
+        Ok(())
     }
 
-    /// Build the sorted, filtered, summed peptide rows shared by the CSV and
-    /// parquet writers, so the two serialisations are value-identical. Mirrors
-    /// `sum_peptidoform_intensities` (the per-cell sum) followed by the optional
-    /// `--log2`, then drops cells failing the unique-peptide gate and the
-    /// `(ProteinName, PeptideCanonical)` low-frequency set.
-    fn materialize(
-        &self,
+    /// Filter and sort the row keys shared by both exports. Drops cells failing
+    /// the unique-peptide gate and the `(ProteinName, PeptideCanonical)`
+    /// low-frequency set (Python `peptide.py:373-378`; empty when
+    /// `--remove_low_frequency_peptides` is off).
+    fn ordered_keys<'a>(
+        &'a self,
         allowed_cells: &HashSet<CellKey>,
         low_frequency_peptides: &HashSet<(String, String)>,
-        log2: bool,
-        dataset_normalized: Option<&HashMap<(ProteinId, SampleId, String), f64>>,
-    ) -> Vec<PeptideParquetRow> {
+        names: &PeptideExportNames<'_>,
+    ) -> Vec<&'a PeptideExportKey> {
+        let low_frequency = low_frequency_peptides
+            .iter()
+            .map(|(protein, canonical)| (protein.as_str(), canonical.as_str()))
+            .collect::<HashSet<_>>();
         let mut keys = self
             .rows
             .keys()
@@ -1004,131 +1219,126 @@ impl PeptideExport {
                 allowed_cells.contains(&CellKey {
                     protein: key.protein,
                     sample: key.sample,
-                })
-            })
-            // Drop low-frequency peptides by `(ProteinName, PeptideCanonical)`
-            // (Python `peptide.py:373-378`); the set is empty when the
-            // `--remove_low_frequency_peptides` filter is off.
-            .filter(|key| {
-                !low_frequency_peptides
-                    .contains(&(key.protein_name.clone(), key.peptide_canonical.clone()))
+                }) && !low_frequency.contains(&(
+                    names.proteins[key.protein.get() as usize],
+                    names.canonicals[key.canonical.get() as usize],
+                ))
             })
             .collect::<Vec<_>>();
-        // RazorPeptideFilter (Python protein.py:348-357), applied after the
-        // `min_unique` gate as in the Python pipeline. A razor peptide is a
-        // canonical mapping to more than one protein within a sample; `Remove`
-        // drops all its rows. Python re-applies no `min_unique` gate afterwards.
-        if self.razor_handling == RazorHandling::Remove {
-            let mut canonical_proteins: HashMap<(SampleId, &str), HashSet<&str>> = HashMap::new();
-            for key in &keys {
-                canonical_proteins
-                    .entry((key.sample, key.peptide_canonical.as_str()))
-                    .or_default()
-                    .insert(key.protein_name.as_str());
-            }
-            keys.retain(|key| {
-                canonical_proteins
-                    .get(&(key.sample, key.peptide_canonical.as_str()))
-                    .is_none_or(|proteins| proteins.len() <= 1)
-            });
-        }
-        // RazorPeptideFilter `assign_to_top` (Python protein.py:358-378). For a
-        // razor canonical (mapping to >1 protein in the sample), keep only the
-        // rows of the protein with the most unique peptides in the sample; ties
-        // are broken by first-appearance order (the protein that arrived earliest
-        // in parquet row order wins), matching pandas `unique()` ordering and
-        // `max`'s keep-first behaviour. Non-razor canonicals (<=1 protein) are
-        // kept untouched.
-        if self.razor_handling == RazorHandling::AssignToTop {
-            // `(sample, canonical) -> proteins` to detect razor peptides.
-            let mut canonical_proteins: HashMap<(SampleId, &str), HashSet<&str>> = HashMap::new();
-            // `(sample, protein) -> canonicals` to count unique peptides per
-            // protein (Python `protein_peptide_counts` = nunique canonical).
-            let mut protein_canonicals: HashMap<(SampleId, &str), HashSet<&str>> = HashMap::new();
-            for key in &keys {
-                canonical_proteins
-                    .entry((key.sample, key.peptide_canonical.as_str()))
-                    .or_default()
-                    .insert(key.protein_name.as_str());
-                protein_canonicals
-                    .entry((key.sample, key.protein_name.as_str()))
-                    .or_default()
-                    .insert(key.peptide_canonical.as_str());
-            }
-            let razor_order = &self.razor_order;
-            keys.retain(|key| {
-                let proteins =
-                    canonical_proteins.get(&(key.sample, key.peptide_canonical.as_str()));
-                // Non-razor (canonical maps to <=1 protein): keep as-is.
-                if proteins.is_none_or(|proteins| proteins.len() <= 1) {
-                    return true;
-                }
-                // Razor: pick the top protein in first-appearance order. Iterate
-                // the recorded order and update `best` only on a strictly greater
-                // unique-peptide count, so the earliest protein wins ties.
-                let order = razor_order.get(&(key.sample, key.peptide_canonical.clone()));
-                let top = order.and_then(|order| {
-                    let mut best: Option<(&str, usize)> = None;
-                    for name in order {
-                        let count = protein_canonicals
-                            .get(&(key.sample, name.as_str()))
-                            .map_or(0, HashSet::len);
-                        if best.is_none_or(|(_, best_count)| count > best_count) {
-                            best = Some((name.as_str(), count));
-                        }
-                    }
-                    best.map(|(name, _)| name)
-                });
-                // Keep only the winning protein's rows; if the order is somehow
-                // missing (should not happen), drop the razor rows like `remove`.
-                top.is_some_and(|top| key.protein_name == top)
-            });
-        }
-        keys.sort_by(|left, right| {
-            left.protein_name
-                .cmp(&right.protein_name)
-                .then_with(|| left.peptide_canonical.cmp(&right.peptide_canonical))
-                .then_with(|| left.sample_name.cmp(&right.sample_name))
-                .then_with(|| left.bio_replicate.cmp(&right.bio_replicate))
-                .then_with(|| left.condition.cmp(&right.condition))
-                .then_with(|| left.run.cmp(&right.run))
-                .then_with(|| left.tech_replicate.cmp(&right.tech_replicate))
-        });
-        keys.into_iter()
-            .filter_map(|key| {
-                let peptides = self.rows.get(key)?;
-                // Sum peptidoform intensities per canonical-peptide cell (Python
-                // `sum_peptidoform_intensities`). When a dataset-level sample
-                // normalization was applied, use the normalized canonical value
-                // (Python normalizes the peptide table before export) instead of
-                // the raw sum. Then optionally log2-transform (Python applies
-                // `--log2` after the sum), keeping both paths consistent.
-                let raw = dataset_normalized
-                    .and_then(|normalized| {
-                        normalized.get(&(key.protein, key.sample, key.peptide_canonical.clone()))
-                    })
-                    .copied()
-                    .unwrap_or_else(|| sum_peptide_values(peptides));
-                let value = if log2 { raw.log2() } else { raw };
-                Some(PeptideParquetRow {
-                    protein_name: key.protein_name.clone(),
-                    peptide_canonical: key.peptide_canonical.clone(),
-                    sample_id: key.sample_name.clone(),
-                    bio_replicate: key.bio_replicate.parse::<i32>().unwrap_or(1),
-                    condition: key.condition.clone(),
-                    run: key.run.clone(),
-                    tech_replicate: key.run.as_ref().map(|_| key.tech_replicate),
-                    norm_intensity: value,
-                })
-            })
-            .collect()
+        self.filter_razor(&mut keys, names);
+        keys.sort_by(|left, right| names.row(left, self).cmp(&names.row(right, self)));
+        keys
     }
 
-    fn write_csv(
+    /// Yield rows for the CSV and parquet writers without keeping them, so both
+    /// serialisations are value-identical. Mirrors `sum_peptidoform_intensities`
+    /// (the per-cell sum) followed by the optional `--log2`.
+    fn exported_rows<'a>(
+        &'a self,
+        keys: &'a [&'a PeptideExportKey],
+        unnormalized: bool,
+        log2: bool,
+        dataset_normalized: Option<&'a CanonicalExportValues>,
+        names: &'a PeptideExportNames<'a>,
+    ) -> impl Iterator<Item = (PeptideExportRow<'a>, f64)> + 'a {
+        keys.iter().map(move |key| {
+            // When a dataset-level sample normalization was applied, use the
+            // normalized canonical value (Python normalizes the peptide table
+            // before export) instead of the raw sum, summed in `PeptideId` order.
+            let raw = dataset_normalized
+                .and_then(|values| values.get(&(key.protein, key.sample, key.canonical)))
+                .copied()
+                .unwrap_or_else(|| {
+                    self.rows[*key]
+                        .iter()
+                        .map(|(_, values)| values.value(unnormalized))
+                        .sum()
+                });
+            (names.row(key, self), if log2 { raw.log2() } else { raw })
+        })
+    }
+
+    /// RazorPeptideFilter (Python protein.py:348-378), applied after the
+    /// `min_unique` gate as in the Python pipeline. A razor peptide is a
+    /// canonical mapping to more than one protein within a sample; `Remove`
+    /// drops all its rows. Python re-applies no `min_unique` gate afterwards.
+    fn filter_razor(&self, keys: &mut Vec<&PeptideExportKey>, names: &PeptideExportNames<'_>) {
+        if self.razor_handling == RazorHandling::Keep {
+            return;
+        }
+        let mut canonical_proteins: HashMap<(SampleId, PeptideId), HashSet<ProteinId>> =
+            HashMap::new();
+        for key in keys.iter() {
+            canonical_proteins
+                .entry((key.sample, key.canonical))
+                .or_default()
+                .insert(key.protein);
+        }
+        if self.razor_handling == RazorHandling::Remove {
+            keys.retain(|key| canonical_proteins[&(key.sample, key.canonical)].len() <= 1);
+        } else {
+            self.assign_razor(keys, &canonical_proteins, names);
+        }
+    }
+
+    /// `assign_to_top`: for a razor canonical, keep only the rows of the protein
+    /// with the most unique peptides in the sample. Ties go to the protein that
+    /// arrived earliest in parquet row order, matching pandas `unique()` ordering
+    /// and `max`'s keep-first behaviour. Non-razor canonicals stay untouched.
+    fn assign_razor(
+        &self,
+        keys: &mut Vec<&PeptideExportKey>,
+        canonical_proteins: &HashMap<(SampleId, PeptideId), HashSet<ProteinId>>,
+        names: &PeptideExportNames<'_>,
+    ) {
+        let mut protein_canonicals: HashMap<(SampleId, &str), HashSet<PeptideId>> = HashMap::new();
+        for key in keys.iter() {
+            protein_canonicals
+                .entry((key.sample, names.proteins[key.protein.get() as usize]))
+                .or_default()
+                .insert(key.canonical);
+        }
+        keys.retain(|key| {
+            if canonical_proteins[&(key.sample, key.canonical)].len() <= 1 {
+                return true;
+            }
+            let canonical = names.canonicals[key.canonical.get() as usize];
+            let order = self.razor_order.get(&(key.sample, canonical.to_owned()));
+            let top = order.and_then(|order| {
+                let mut best: Option<(&str, usize)> = None;
+                for name in order {
+                    let count = protein_canonicals
+                        .get(&(key.sample, name.as_str()))
+                        .map_or(0, HashSet::len);
+                    if best.is_none_or(|(_, best_count)| count > best_count) {
+                        best = Some((name.as_str(), count));
+                    }
+                }
+                best.map(|(name, _)| name)
+            });
+            // If the order is somehow missing, drop the razor rows like `remove`.
+            top.is_some_and(|top| names.proteins[key.protein.get() as usize] == top)
+        });
+    }
+
+    fn csv_header(&self, omit_replicate_condition: bool) -> Vec<&'static str> {
+        let mut header = vec!["ProteinName", "PeptideCanonical", "SampleID"];
+        if !omit_replicate_condition {
+            header.extend(["BioReplicate", "Condition"]);
+        }
+        if self.run_mode {
+            header.extend(["Run", "TechReplicate"]);
+        }
+        header.push("NormIntensity");
+        header
+    }
+
+    fn write_csv<'a>(
         &self,
         path: &Path,
-        rows: &[PeptideParquetRow],
+        rows: impl Iterator<Item = (PeptideExportRow<'a>, f64)>,
         omit_replicate_condition: bool,
+        save_parquet: bool,
     ) -> Result<()> {
         create_parent_dir(path)?;
         let file = File::create(path).map_err(|source| MokumeError::Io {
@@ -1136,47 +1346,74 @@ impl PeptideExport {
             source,
         })?;
         let mut writer = WriterBuilder::new().from_writer(file);
-        let mut header = vec!["ProteinName", "PeptideCanonical", "SampleID"];
-        if !omit_replicate_condition {
-            header.push("BioReplicate");
-            header.push("Condition");
-        }
-        if self.run_mode {
-            header.push("Run");
-            header.push("TechReplicate");
-        }
-        header.push("NormIntensity");
         writer
-            .write_record(&header)
+            .write_record(self.csv_header(omit_replicate_condition))
             .map_err(|source| csv_error(path, source))?;
-
-        for row in rows {
-            let bio = row.bio_replicate.to_string();
-            let intensity = format_float(row.norm_intensity);
-            let mut record = vec![
-                row.protein_name.as_str(),
-                row.peptide_canonical.as_str(),
-                row.sample_id.as_str(),
-            ];
-            if !omit_replicate_condition {
-                record.push(bio.as_str());
-                record.push(row.condition.as_str());
+        let mut parquet_rows = Vec::new();
+        for (row, value) in rows {
+            row.write_csv(
+                &mut writer,
+                path,
+                value,
+                omit_replicate_condition,
+                self.run_mode,
+            )?;
+            if save_parquet {
+                parquet_rows.push(row.parquet(value));
             }
-            let tech = row.tech_replicate.unwrap_or(1).to_string();
-            if self.run_mode {
-                record.push(row.run.as_deref().unwrap_or_default());
-                record.push(tech.as_str());
-            }
-            record.push(intensity.as_str());
-            writer
-                .write_record(&record)
-                .map_err(|source| csv_error(path, source))?;
         }
         writer.flush().map_err(|source| MokumeError::Io {
             path: path.to_path_buf(),
             source,
         })?;
+        if save_parquet {
+            write_peptide_parquet(&parquet_sibling(path), &parquet_rows, self.run_mode)?;
+        }
         Ok(())
+    }
+}
+
+impl PeptideExportRow<'_> {
+    fn write_csv(
+        &self,
+        writer: &mut csv::Writer<File>,
+        path: &Path,
+        value: f64,
+        omit: bool,
+        run_mode: bool,
+    ) -> Result<()> {
+        let bio = self.bio_replicate.parse::<i32>().unwrap_or(1).to_string();
+        let intensity = format_float(value);
+        let mut record = vec![self.protein_name, self.peptide_canonical, self.sample_name];
+        if !omit {
+            record.extend([bio.as_str(), self.condition]);
+        }
+        let tech = if self.run.is_some() {
+            self.tech_replicate
+        } else {
+            1
+        }
+        .to_string();
+        if run_mode {
+            record.extend([self.run.unwrap_or_default(), tech.as_str()]);
+        }
+        record.push(&intensity);
+        writer
+            .write_record(record)
+            .map_err(|source| csv_error(path, source))
+    }
+
+    fn parquet(&self, value: f64) -> PeptideParquetRow {
+        PeptideParquetRow {
+            protein_name: self.protein_name.to_owned(),
+            peptide_canonical: self.peptide_canonical.to_owned(),
+            sample_id: self.sample_name.to_owned(),
+            bio_replicate: self.bio_replicate.parse::<i32>().unwrap_or(1),
+            condition: self.condition.to_owned(),
+            run: self.run.map(str::to_owned),
+            tech_replicate: self.run.map(|_| self.tech_replicate),
+            norm_intensity: value,
+        }
     }
 }
 
@@ -1204,9 +1441,12 @@ enum FeatureAggregation {
         /// Contextual ion maxima. MaxLFQ preserves modification and charge;
         /// DirectLFQ collapses them into canonical peptide traces.
         traces: MaxLfqFeatureAggregation,
+        /// Also estimate each cell's quantification precision for
+        /// `--de-precision-weights`.
+        cell_precision: bool,
         /// Populated only when DirectLFQ ion export runs before matrix
         /// materialization, avoiding a second solver pass.
-        cached_directlfq_values: Option<HashMap<ProteinId, Vec<(SampleId, f64)>>>,
+        cached_directlfq: Option<DirectLfqCells>,
     },
 }
 
@@ -1322,6 +1562,10 @@ fn tech_replicate_of(run_file_name: &str) -> i64 {
 impl IntensityFactors {
     fn normalize(&self, intensity: f64, sample: &str, run: &str) -> f64 {
         let sample_factor = self.sample.get(sample).copied().unwrap_or(1.0);
+        self.normalize_run(intensity, sample, run) * sample_factor
+    }
+
+    fn normalize_run(&self, intensity: f64, sample: &str, run: &str) -> f64 {
         let run_intensity = self
             .run
             .get(&RunCellKey {
@@ -1336,7 +1580,7 @@ impl IntensityFactors {
         // (`peptide.py:333-340`), then `peptide_normalized` (sample) runs later
         // (`peptide.py:370`). Missing runs map to 1.0.
         let irs_scale = self.irs_scale_by_run.get(run).copied().unwrap_or(1.0);
-        run_intensity * irs_scale * sample_factor
+        run_intensity * irs_scale
     }
 
     fn is_empty(&self) -> bool {
@@ -1401,7 +1645,9 @@ impl FeatureAggregation {
                 directlfq_num_samples_quadratic: config.directlfq.num_samples_quadratic,
                 directlfq_normalize_samples: config.directlfq.normalize_samples,
                 traces: MaxLfqFeatureAggregation::default(),
-                cached_directlfq_values: None,
+                cell_precision: config.differential_expression.precision_weights
+                    || config.output.export_precision.is_some(),
+                cached_directlfq: None,
             }),
         }
     }
@@ -1513,7 +1759,8 @@ impl FeatureAggregation {
             directlfq_num_samples_quadratic,
             directlfq_normalize_samples,
             traces,
-            cached_directlfq_values,
+            cell_precision,
+            cached_directlfq,
             ..
         } = self
         else {
@@ -1523,18 +1770,19 @@ impl FeatureAggregation {
             return Ok(());
         };
 
-        let prepared = prepare_directlfq_ions(
+        let mut prepared = prepare_directlfq_ions(
             traces.directlfq_sums(),
             allowed_cells,
             proteins,
             canonical_peptides,
             samples,
         );
-        let result = direct_lfq_aligned_with_ions(
-            &prepared.ions,
+        let result = direct_lfq_aligned_with(
+            std::mem::take(&mut prepared.ions),
             *directlfq_min_nonan,
             *directlfq_num_samples_quadratic,
             *directlfq_normalize_samples,
+            DirectLfqRetain::ions(*cell_precision),
         );
         write_directlfq_ions(
             path,
@@ -1544,8 +1792,7 @@ impl FeatureAggregation {
             canonical_peptides,
             samples,
         )?;
-        *cached_directlfq_values =
-            Some(remap_directlfq_values(result.protein_quantities, &prepared));
+        *cached_directlfq = Some(directlfq_cells(result, &prepared));
         Ok(())
     }
 
@@ -1582,6 +1829,7 @@ impl FeatureAggregation {
                 directlfq_min_nonan,
                 directlfq_num_samples_quadratic,
                 directlfq_normalize_samples,
+                cell_precision,
                 ..
             } => Self::Lfq {
                 method: *method,
@@ -1592,7 +1840,8 @@ impl FeatureAggregation {
                 directlfq_num_samples_quadratic: *directlfq_num_samples_quadratic,
                 directlfq_normalize_samples: *directlfq_normalize_samples,
                 traces: MaxLfqFeatureAggregation::default(),
-                cached_directlfq_values: None,
+                cell_precision: *cell_precision,
+                cached_directlfq: None,
             },
             Self::Pibaq(_) | Self::Ratio(_) => return None,
         })
@@ -1633,6 +1882,7 @@ impl FeatureAggregation {
         }
     }
 
+    /// The protein values and, for `cell_precision`, each cell's precision.
     fn finalize(
         self,
         allowed_cells: &HashSet<CellKey>,
@@ -1640,8 +1890,8 @@ impl FeatureAggregation {
         peptide_to_canonical: &HashMap<PeptideId, PeptideId>,
         canonical_peptides: &StringIdRegistry<PeptideId>,
         samples: &StringIdRegistry<SampleId>,
-    ) -> Result<ProteinValues> {
-        Ok(match self {
+    ) -> Result<(ProteinValues, HashMap<CellKey, f64>)> {
+        let values = match self {
             Self::Sum(cells) => ProteinValues::Cells(
                 cells
                     .into_iter()
@@ -1721,46 +1971,70 @@ impl FeatureAggregation {
                 directlfq_num_samples_quadratic,
                 directlfq_normalize_samples,
                 traces,
-                cached_directlfq_values,
+                cell_precision,
+                cached_directlfq,
                 ..
             } => {
-                let values = if let Some(values) = cached_directlfq_values {
-                    values
-                } else {
-                    let prepared = prepare_directlfq_ions(
-                        traces.into_directlfq_sums(),
-                        allowed_cells,
-                        proteins,
-                        canonical_peptides,
-                        samples,
-                    );
-                    let values = direct_lfq_aligned(
-                        &prepared.ions,
-                        directlfq_min_nonan,
-                        directlfq_num_samples_quadratic,
-                        directlfq_normalize_samples,
-                    );
-                    remap_directlfq_values(values, &prepared)
-                };
-                ProteinValues::Rows(values)
+                if let Some((values, precision)) = cached_directlfq {
+                    return Ok((ProteinValues::Rows(values), precision));
+                }
+                let prepared = prepare_directlfq_ions(
+                    traces.into_directlfq_sums(),
+                    allowed_cells,
+                    proteins,
+                    canonical_peptides,
+                    samples,
+                );
+                let (values, precision) = solve_directlfq(
+                    prepared,
+                    directlfq_min_nonan,
+                    directlfq_num_samples_quadratic,
+                    directlfq_normalize_samples,
+                    cell_precision,
+                );
+                return Ok((ProteinValues::Rows(values), precision));
             }
             Self::Lfq {
                 traces,
                 maxlfq_min_ratio_count,
                 stabilize,
+                cell_precision,
                 ..
-            } => traces.into_protein_values(
-                allowed_cells,
-                proteins,
-                samples,
-                maxlfq_min_ratio_count,
-                stabilize,
-            )?,
-        })
+            } => {
+                return traces.into_protein_values(
+                    allowed_cells,
+                    proteins,
+                    samples,
+                    maxlfq_min_ratio_count,
+                    stabilize,
+                    cell_precision,
+                );
+            }
+        };
+        Ok((values, HashMap::new()))
     }
 }
 
 impl MaxLfqFeatureAggregation {
+    /// Read the normalized species traces without changing the solver input.
+    fn normalized_canonical_values(&self) -> CanonicalExportValues {
+        let species_to_canonical = self
+            .ion_to_species
+            .iter()
+            .map(|(ion, species)| (*species, self.ion_to_canonical[ion]))
+            .collect::<HashMap<_, _>>();
+        let mut traces = self.peptide_traces.iter().collect::<Vec<_>>();
+        traces.sort_by_key(|(key, _)| (key.protein, key.sample, key.peptide));
+        let mut values = HashMap::new();
+        for (key, intensity) in traces {
+            let canonical = species_to_canonical[&key.peptide];
+            *values
+                .entry((key.protein, key.sample, canonical))
+                .or_insert(0.0) += intensity;
+        }
+        values
+    }
+
     fn into_protein_values(
         self,
         allowed_cells: &HashSet<CellKey>,
@@ -1768,7 +2042,8 @@ impl MaxLfqFeatureAggregation {
         samples: &StringIdRegistry<SampleId>,
         min_ratio_count: usize,
         stabilize: bool,
-    ) -> Result<ProteinValues> {
+        cell_precision: bool,
+    ) -> Result<(ProteinValues, HashMap<CellKey, f64>)> {
         let traces = self.into_species_traces();
         let mut sample_ids = allowed_cells
             .iter()
@@ -1800,15 +2075,12 @@ impl MaxLfqFeatureAggregation {
                     warn!(protein = ?proteins.resolve(protein), components = result.components.len(),
                         "MaxLFQ sample graph is disconnected; between-component ratios are not identifiable");
                 }
-                Ok((protein, result.intensities.into_iter().filter(|(_, x)| *x > 0.0).collect::<Vec<_>>(), result.stabilized_pairs))
+                let values = result.intensities.into_iter().filter(|(_, x)| *x > 0.0).collect::<Vec<_>>();
+                let residuals = cell_precision.then(|| maxlfq_residuals(measurements, &values));
+                Ok((protein, values, result.stabilized_pairs, residuals))
             }).collect::<Result<Vec<_>>>()?;
         maxlfq::log_stabilization(min_ratio_count, stabilize, rows.iter().map(|row| row.2));
-        Ok(ProteinValues::Rows(
-            rows.into_iter()
-                .map(|(protein, values, _)| (protein, values))
-                .filter(|(_, values)| !values.is_empty())
-                .collect(),
-        ))
+        Ok(maxlfq_values_and_precision(rows))
     }
 
     fn push(&mut self, measurement: AggregationMeasurement<'_>) {
@@ -1835,6 +2107,10 @@ impl MaxLfqFeatureAggregation {
             .collect::<Vec<_>>();
         cells.sort_by_key(|(cell, _)| (cell.protein.get(), cell.sample.get()));
         let mapping = if preserve_species {
+            // A cell has one loading context, so its ions are distinct species:
+            // reserve them all rather than hold old and new tables on growth.
+            self.peptide_traces
+                .reserve(cells.iter().map(|(_, peptides)| peptides.len()).sum());
             &self.ion_to_species
         } else {
             &self.ion_to_canonical
@@ -3486,51 +3762,67 @@ fn hierarchical_shifts_by_sample(
         .iter()
         .map(|sample| columns.remove(sample).unwrap_or_default())
         .collect::<Vec<_>>();
-    let shifts = hierarchical_compute_shifts(&ordered, HIERARCHICAL_NUM_SAMPLES_QUADRATIC);
+    let shifts = hierarchical_compute_shifts(ordered, HIERARCHICAL_NUM_SAMPLES_QUADRATIC);
     samples.into_iter().zip(shifts).collect()
 }
 
 /// Preserve the sparse pivot's feature order when using the shared DirectLFQ
 /// sample-alignment kernel. Missing canonical peptides remain NaN.
 fn hierarchical_compute_shifts(
-    columns: &[Vec<(QuantilePeptideKey, f64)>],
+    columns: Vec<Vec<(QuantilePeptideKey, f64)>>,
     num_samples_quadratic: usize,
 ) -> Vec<f64> {
+    // Distinct keys without first collecting every value's key.
     let mut keys = columns
-        .iter()
-        .flat_map(|column| column.iter().map(|&(key, _)| key))
+        .par_iter()
+        .fold(HashSet::new, |mut keys, column| {
+            keys.extend(column.iter().map(|&(key, _)| key));
+            keys
+        })
+        .reduce(HashSet::new, |mut left, right| {
+            left.extend(right);
+            left
+        })
+        .into_iter()
         .collect::<Vec<_>>();
     keys.par_sort_unstable();
-    keys.dedup();
-    // One pass per column fills the dense rows; a lookup per (key, column)
-    // costs keys x samples hash probes on large studies.
-    let mut rows = vec![vec![f64::NAN; columns.len()]; keys.len()];
-    for (sample, column) in columns.iter().enumerate() {
-        for (key, value) in column {
-            if let Ok(row) = keys.binary_search(key) {
-                rows[row][sample] = *value;
-            }
-        }
-    }
-    hierarchical_sample_shifts(&rows, columns.len(), num_samples_quadratic)
+    // Columns keep only their observed rows; a dense keys x samples matrix
+    // dominated peak memory on large studies.
+    let columns = columns
+        .into_par_iter()
+        .map(|column| {
+            column
+                .into_iter()
+                .filter_map(|(key, value)| keys.binary_search(&key).ok().map(|row| (row, value)))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let counts = columns.iter().map(Vec::len).collect();
+    let shifts =
+        mokume_quant::direct_lfq_sparse_sample_shifts(&columns, keys.len(), num_samples_quadratic);
+    mask_unaligned_samples(shifts, counts, num_samples_quadratic)
 }
 
-/// Upstream quadratic alignment masks samples with fewer than two observed
-/// features. Linear-to-reference samples are not subject to that masking.
 fn hierarchical_sample_shifts(
     rows: &[Vec<f64>],
     n_samples: usize,
     quadratic_limit: usize,
 ) -> Vec<f64> {
-    let mut shifts = mokume_quant::direct_lfq_sample_shifts(rows, n_samples, quadratic_limit);
-    let mut counts: Vec<_> = (0..n_samples)
-        .map(|sample| {
-            (
-                sample,
-                rows.iter().filter(|row| row[sample].is_finite()).count(),
-            )
-        })
+    let shifts = mokume_quant::direct_lfq_sample_shifts(rows, n_samples, quadratic_limit);
+    let counts = (0..n_samples)
+        .map(|sample| rows.iter().filter(|row| row[sample].is_finite()).count())
         .collect();
+    mask_unaligned_samples(shifts, counts, quadratic_limit)
+}
+
+/// Upstream quadratic alignment masks samples with fewer than two observed
+/// features. Linear-to-reference samples are not subject to that masking.
+fn mask_unaligned_samples(
+    mut shifts: Vec<f64>,
+    counts: Vec<usize>,
+    quadratic_limit: usize,
+) -> Vec<f64> {
+    let mut counts = counts.into_iter().enumerate().collect::<Vec<_>>();
     counts.sort_by(|(i, a), (j, b)| b.cmp(a).then(i.cmp(j)));
     for (sample, count) in counts.into_iter().take(quadratic_limit) {
         if count < 2 {
@@ -3576,10 +3868,9 @@ fn apply_quantile_to_lfq_traces(
     }
 }
 
-/// Hierarchical (DirectLFQ) sample normalization on the MaxLFQ species traces,
-/// mirroring Python's `apply_hierarchical` over the `(protein, canonical,
-/// peptidoform, charge)` rows that `_sum_maxlfq_species` produces. Every trace
-/// of a sample is scaled by that sample's shift.
+/// DirectLFQ sample normalization on MaxLFQ's modification/charge species.
+/// Every trace of a sample is scaled by that sample's shift. Python currently
+/// uses an independent clustering/least-squares normalizer on the same species.
 fn apply_hierarchical_to_lfq_traces(
     traces: &mut HashMap<PeptideCellKey, f64>,
     allowed_cells: &HashSet<CellKey>,
@@ -3591,28 +3882,9 @@ fn apply_hierarchical_to_lfq_traces(
             sample: key.sample,
         })
     };
-    let columns = traces
-        .par_iter()
-        .filter(|(key, intensity)| allowed(key) && intensity.is_finite() && **intensity > 0.0)
-        .fold(
-            HashMap::<SampleId, Vec<(QuantilePeptideKey, f64)>>::new,
-            |mut columns, (key, intensity)| {
-                columns.entry(key.sample).or_default().push((
-                    QuantilePeptideKey {
-                        protein: key.protein,
-                        peptide: key.peptide,
-                    },
-                    intensity.log2(),
-                ));
-                columns
-            },
-        )
-        .reduce(HashMap::new, |mut merged, columns| {
-            for (sample, mut values) in columns {
-                merged.entry(sample).or_default().append(&mut values);
-            }
-            merged
-        });
+    let columns = log2_trace_columns(traces, |key, intensity| {
+        allowed(key) && intensity.is_finite() && intensity > 0.0
+    });
     if columns.is_empty() {
         return;
     }
@@ -3622,6 +3894,51 @@ fn apply_hierarchical_to_lfq_traces(
             *intensity *= shift.exp2();
         }
     });
+}
+
+/// The log2 values of the `kept` traces, one column per sample, in no
+/// particular order. Every column is sized before it is filled: growing
+/// per-thread columns and appending them held several copies of all values at
+/// once.
+fn log2_trace_columns(
+    traces: &HashMap<PeptideCellKey, f64>,
+    kept: impl Fn(&PeptideCellKey, f64) -> bool + Sync,
+) -> HashMap<SampleId, Vec<(QuantilePeptideKey, f64)>> {
+    let counts = traces
+        .par_iter()
+        .filter(|(key, intensity)| kept(key, **intensity))
+        .fold(HashMap::<SampleId, usize>::new, |mut counts, (key, _)| {
+            *counts.entry(key.sample).or_default() += 1;
+            counts
+        })
+        .reduce(HashMap::new, |mut merged, counts| {
+            for (sample, count) in counts {
+                *merged.entry(sample).or_default() += count;
+            }
+            merged
+        });
+    let columns = counts
+        .into_iter()
+        .map(|(sample, count)| (sample, Mutex::new(Vec::with_capacity(count))))
+        .collect::<HashMap<_, _>>();
+    traces
+        .par_iter()
+        .filter(|(key, intensity)| kept(key, **intensity))
+        .for_each(|(key, intensity)| {
+            if let Some(Ok(mut column)) = columns.get(&key.sample).map(Mutex::lock) {
+                column.push((
+                    QuantilePeptideKey {
+                        protein: key.protein,
+                        peptide: key.peptide,
+                    },
+                    intensity.log2(),
+                ));
+            }
+        });
+    columns
+        .into_iter()
+        .filter_map(|(sample, column)| Some((sample, column.into_inner().ok()?)))
+        .collect()
 }
 
 /// Quantile-normalize each sample (column) by mapping every value to a mean
@@ -3769,6 +4086,9 @@ struct ProteinMatrix {
     /// DE path (the count-aware `spectraCounteBayes` moderation); every other
     /// stage ignores it.
     peptide_counts: HashMap<CellKey, usize>,
+    /// Per-(protein, sample) quantification precision (1/SE^2) of MaxLFQ and
+    /// DirectLFQ cells, filled only for `--de-precision-weights`.
+    precision: HashMap<CellKey, f64>,
     values: ProteinValues,
 }
 
@@ -4100,7 +4420,7 @@ fn extract_sdrf_covariates(
 fn encode_covariate(column: &str, values: &[String]) -> Result<Vec<Vec<f64>>> {
     if values.iter().any(|value| value.trim().is_empty()) {
         return Err(invalid_input(format!(
-            "batch covariate column `{column}` contains a missing value"
+            "covariate column `{column}` contains a missing value"
         )));
     }
     let parsed = values
@@ -4114,7 +4434,7 @@ fn encode_covariate(column: &str, values: &[String]) -> Result<Vec<Vec<f64>>> {
             .collect::<Vec<_>>();
         if numeric.iter().any(|value| !value.is_finite()) {
             return Err(invalid_input(format!(
-                "batch covariate column `{column}` contains a non-finite value"
+                "covariate column `{column}` contains a non-finite value"
             )));
         }
         return Ok(vec![numeric]);
@@ -4631,6 +4951,38 @@ impl ProteinMatrix {
             .unwrap_or(0)
     }
 
+    /// Write each cell's quantification precision in the layout of the protein
+    /// matrix; a cell without one stays empty.
+    fn write_precision_csv(
+        &mut self,
+        path: &Path,
+        output_format: OutputFormat,
+        drop_empty_samples: bool,
+    ) -> Result<()> {
+        let mut values = ProteinValues::Cells(std::mem::take(&mut self.precision));
+        std::mem::swap(&mut self.values, &mut values);
+        let written = self.write_csv(path, output_format, drop_empty_samples, None);
+        std::mem::swap(&mut self.values, &mut values);
+        if let ProteinValues::Cells(precision) = values {
+            self.precision = precision;
+        }
+        written
+    }
+
+    /// Cell precisions of protein `name` over `samples`, zero where none.
+    fn sample_precisions(&self, name: &str, samples: &[SampleId]) -> Vec<f64> {
+        let protein = self.proteins.get(name);
+        samples
+            .iter()
+            .map(|&sample| {
+                protein
+                    .and_then(|protein| self.precision.get(&CellKey { protein, sample }))
+                    .copied()
+                    .unwrap_or(0.0)
+            })
+            .collect()
+    }
+
     fn set_value(&mut self, protein: ProteinId, sample: SampleId, value: f64) {
         match &mut self.values {
             ProteinValues::Cells(values) => {
@@ -5117,7 +5469,7 @@ pub fn run_lfq_from_peptides(
     }
 
     let mut result = Vec::new();
-    for (protein, per_sample) in direct_lfq_aligned(&ions, min_nonan, num_samples_quadratic, true) {
+    for (protein, per_sample) in direct_lfq_aligned(ions, min_nonan, num_samples_quadratic, true) {
         let Some(protein_name) = proteins.resolve(protein) else {
             continue;
         };
@@ -5320,16 +5672,16 @@ fn finalize_pibaq_observations(
 fn pibaq_only_config(params: &PibaqFromPeptidesParams) -> FeatureToProteinsConfig {
     FeatureToProteinsConfig {
         input: InputConfig {
-            parquet: None,
-            msstats: None,
-            psm: None,
-            sdrf: None,
             fasta: Some(params.fasta.clone()),
+            ..InputConfig::default()
         },
         output: OutputConfig {
             protein_matrix: PathBuf::new(),
             export_peptides: None,
+            export_unnormalized_peptides: None,
+            export_unimputed: None,
             export_ions: None,
+            export_precision: None,
             format: OutputFormat::default(),
         },
         filtering: FilterConfig {
@@ -5528,15 +5880,7 @@ fn run_features_to_proteins_inner(
     } else {
         config.filtering.min_unique_peptides
     };
-    // The protein pipeline never log2-transforms the peptide intermediates;
-    // only the standalone `features2peptides` honors `--log2`.
-    state.write_intermediate_exports(
-        config,
-        min_unique_peptides,
-        PeptideExportOptions::default(),
-        dataset_normalization,
-    )?;
-    let matrix = state.into_matrix(min_unique_peptides, dataset_normalization)?;
+    let matrix = state.into_matrix(config, min_unique_peptides, dataset_normalization)?;
     memory.check("protein matrix materialization")?;
     finish_protein_matrix(config, sdrf.as_ref(), raw_sdrf.as_ref(), &memory, matrix)
 }
@@ -5615,7 +5959,7 @@ struct IngestSinks {
 
 impl IngestSinks {
     fn take(state: &mut FeatureToProteinState, placeholder: FeatureAggregation) -> Self {
-        let defer_context = state.export_rows.peptides.is_none();
+        let defer_context = !state.export_rows.has_peptides();
         Self {
             contextual: state.aggregation.preserves_contextual_canonical_rows(),
             aggregation: std::mem::replace(&mut state.aggregation, placeholder),
@@ -5695,17 +6039,16 @@ fn finish_protein_matrix(
     memory.check("matrix post-processing")?;
     // Python's dataset-level normalization pivots through sparse long form, so
     // absent cells remain missing even for additive quantification methods.
-    let missing_fill = if dataset_sample_normalization_method(config)?.is_some() {
-        None
-    } else {
-        missing_protein_value(config.quantification)
-    };
+    let missing_fill = missing_protein_value(config)?;
     matrix.write_csv(
         &config.output.protein_matrix,
         config.output.format,
         drop_empty_samples,
         missing_fill,
     )?;
+    if let Some(path) = &config.output.export_precision {
+        matrix.write_precision_csv(path, config.output.format, drop_empty_samples)?;
+    }
     if config.differential_expression.enabled {
         let mut differential_expression = config.differential_expression.clone();
         differential_expression.method = resolve_de_method(config, || {
@@ -5719,6 +6062,7 @@ fn finish_protein_matrix(
         de::run_differential_expression(
             &matrix,
             sdrf,
+            raw_sdrf,
             &differential_expression,
             drop_empty_samples,
         )?;
@@ -5748,6 +6092,10 @@ fn apply_protein_postprocessing(
     if let Some(threshold) = config.coverage_threshold {
         matrix.apply_coverage_filter(sdrf, threshold, drop_empty_samples)?;
     }
+    if let Some(path) = &config.output.export_unimputed {
+        let missing_fill = missing_protein_value(config)?;
+        matrix.write_csv(path, config.output.format, drop_empty_samples, missing_fill)?;
+    }
     if config.imputation.enabled {
         matrix.apply_imputation(&config.imputation, drop_empty_samples)?;
     }
@@ -5762,10 +6110,13 @@ fn apply_protein_postprocessing(
     Ok(())
 }
 
-fn missing_protein_value(method: QuantMethod) -> Option<f64> {
+fn missing_protein_value(config: &FeatureToProteinsConfig) -> Result<Option<f64>> {
+    if dataset_sample_normalization_method(config)?.is_some() {
+        return Ok(None);
+    }
     // Missing protein x sample cells follow Python's per-method convention: the
     // additive methods write `0`, the average/ratio methods leave the cell empty.
-    match method {
+    Ok(match config.quantification {
         QuantMethod::Sum
         | QuantMethod::Intensity
         | QuantMethod::PeptideCount
@@ -5777,7 +6128,7 @@ fn missing_protein_value(method: QuantMethod) -> Option<f64> {
         | QuantMethod::MaxLfq
         | QuantMethod::Ratio
         | QuantMethod::Pibaq => None,
-    }
+    })
 }
 
 fn spectral_count_matrix(
@@ -5819,6 +6170,7 @@ fn spectral_count_matrix(
         allowed_proteins,
         excluded_samples: HashSet::new(),
         peptide_counts,
+        precision: HashMap::new(),
         values: ProteinValues::Cells(values),
     })
 }
@@ -6154,10 +6506,8 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
     state.peptide_filters = filter_pipeline.cloned();
     if let Some(pipeline) = filter_pipeline {
         configure_fdr_and_sequence_filters(&mut state, parquet, pipeline, named_score)?;
-        if let Some(peptides) = &mut state.export_rows.peptides {
-            peptides.razor_handling =
-                parse_razor_handling(&pipeline.protein.razor_peptide_handling);
-        }
+        state.export_rows.rows.razor_handling =
+            parse_razor_handling(&pipeline.protein.razor_peptide_handling);
     }
     // Run-QC filters run inside each sample frame and group by technical
     // replicate. Decide which runs to drop in a pre-pass (the median is computed
@@ -6213,15 +6563,23 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         state.replicate_agreement_wipes_all = pipeline.intensity.min_replicate_agreement > 1;
     }
     let mut sdrf_lookup = sdrf.as_ref().map(SdrfLookupCache::new);
-    stream_qpx_features(parquet, &MemoryPlan::unlimited(), named_score, |feature| {
-        state.ingest(
-            &feature,
-            sdrf_lookup.as_mut(),
-            proteins_config.filtering,
-            intensity_factors,
-            None,
-        )
-    })?;
+    let with_modifications =
+        filter_pipeline.is_some_and(|pipeline| !pipeline.peptide.exclude_modifications.is_empty());
+    stream_selected_qpx_features(
+        parquet,
+        &MemoryPlan::unlimited(),
+        named_score,
+        with_modifications,
+        |feature| {
+            state.ingest(
+                &feature,
+                sdrf_lookup.as_mut(),
+                proteins_config.filtering,
+                intensity_factors,
+                None,
+            )
+        },
+    )?;
 
     info!(
         accepted_features = state.accepted_features,
@@ -6247,7 +6605,7 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
     };
     state.write_intermediate_exports(
         &proteins_config,
-        min_unique,
+        &state.allowed_cells(min_unique),
         PeptideExportOptions {
             log2: config.log2,
             save_parquet: config.save_parquet,
@@ -6457,7 +6815,10 @@ fn peptide_export_config(config: &FeatureToPeptidesConfig) -> FeatureToProteinsC
         output: OutputConfig {
             protein_matrix: config.output.clone(),
             export_peptides: Some(config.output.clone()),
+            export_unnormalized_peptides: None,
+            export_unimputed: None,
             export_ions: None,
+            export_precision: None,
             format: OutputFormat::PythonCompatible,
         },
         filtering: config.filtering,
@@ -6511,34 +6872,106 @@ fn stream_qpx_features<F>(
     parquet: &Path,
     memory: &MemoryPlan,
     score: Option<&NamedScoreFilterConfig>,
+    consume: F,
+) -> Result<()>
+where
+    F: FnMut(QpxFeatureRecord) -> Result<()>,
+{
+    stream_selected_qpx_features(parquet, memory, score, false, consume)
+}
+
+fn stream_selected_qpx_features<F>(
+    parquet: &Path,
+    memory: &MemoryPlan,
+    score: Option<&NamedScoreFilterConfig>,
+    with_modifications: bool,
     mut consume: F,
 ) -> Result<()>
 where
     F: FnMut(QpxFeatureRecord) -> Result<()>,
 {
-    let mut reader = QpxParquetReader::open(parquet, memory.qpx_batch_size(), score.is_some())?;
+    let mut reader = QpxParquetReader::open(
+        parquet,
+        memory.qpx_batch_size(),
+        score.map(|score| score.name.as_str()),
+        false,
+        with_modifications,
+    )?;
+    stream_qpx_reader(&mut reader, memory, score, &mut consume)
+}
+
+/// [`stream_qpx_features`] for quantification input: `TransferredFeatures::Drop`
+/// skips features without an identification in their run.
+fn stream_quant_qpx_features<F>(
+    parquet: &Path,
+    transferred: TransferredFeatures,
+    memory: &MemoryPlan,
+    score: Option<&NamedScoreFilterConfig>,
+    mut consume: F,
+) -> Result<()>
+where
+    F: FnMut(QpxFeatureRecord) -> Result<()>,
+{
+    if transferred == TransferredFeatures::Keep {
+        return stream_qpx_features(parquet, memory, score, consume);
+    }
+    let mut reader = QpxParquetReader::open(
+        parquet,
+        memory.qpx_batch_size(),
+        score.map(|score| score.name.as_str()),
+        true,
+        false,
+    )?;
+    let mut dropped = 0usize;
+    let mut kept = 0usize;
+    stream_qpx_reader(
+        &mut reader,
+        memory,
+        score,
+        &mut |feature: QpxFeatureRecord| {
+            if feature.transferred {
+                dropped += 1;
+                return Ok(());
+            }
+            kept += 1;
+            consume(feature)
+        },
+    )?;
+    info!(dropped, "dropped transferred QPX features");
+    if dropped > 0 && kept == 0 {
+        return Err(invalid_input(
+            "--transferred-features drop removed all QPX features; check identification_type and id_run_file_name, or use keep",
+        ));
+    }
+    Ok(())
+}
+
+fn stream_qpx_reader<F>(
+    reader: &mut QpxParquetReader,
+    memory: &MemoryPlan,
+    score: Option<&NamedScoreFilterConfig>,
+    consume: &mut F,
+) -> Result<()>
+where
+    F: FnMut(QpxFeatureRecord) -> Result<()>,
+{
     let Some(score) = score else {
-        return read_qpx_features(&mut reader, memory, None, &mut consume);
+        return read_qpx_features(reader, memory, None, consume);
     };
     let mut filter = ScoreFilter {
         score,
         seen: 0,
         higher_better: None,
     };
-    read_qpx_features(
-        &mut reader,
-        memory,
-        Some(score.name.as_str()),
-        &mut |feature| {
-            let Some(value) = feature.selected_score else {
-                return Ok(());
-            };
-            if filter.passes(value)? {
-                consume(feature)?;
-            }
-            Ok(())
-        },
-    )?;
+    read_qpx_features(reader, memory, Some(score.name.as_str()), &mut |feature| {
+        let Some(value) = feature.selected_score else {
+            return Ok(());
+        };
+        if filter.passes(value)? {
+            consume(feature)?;
+        }
+        Ok(())
+    })?;
     if filter.seen == 0 {
         return Err(invalid_input(format!(
             "--filter-score requires QPX `additional_scores` entry `{}`",
@@ -6792,7 +7225,9 @@ where
     F: FnMut(QpxFeatureRecord) -> Result<()>,
 {
     match (&input.parquet, &input.msstats) {
-        (Some(parquet), None) => stream_qpx_features(parquet, memory, score, consume),
+        (Some(parquet), None) => {
+            stream_quant_qpx_features(parquet, input.transferred_features, memory, score, consume)
+        }
         (None, Some(msstats)) => {
             let sdrf = sdrf.ok_or_else(|| invalid_input("MSstats input requires --sdrf option"))?;
             for (index, feature) in MsstatsReader::open(msstats, sdrf)?.enumerate() {
@@ -6819,8 +7254,8 @@ fn required_parquet(input: &InputConfig) -> Result<&Path> {
 /// Quant methods whose aggregation collapses to `(protein, sample)` peptide
 /// cells normalized by [`apply_dataset_norm_to_peptide_cells`]. These share the
 /// dataset-level normalization with the `--export-peptides` path, so the
-/// exported peptides match the protein matrix. piBAQ / LFQ / Ratio normalize
-/// through aggregation-specific paths not connected to the peptide export.
+/// exported peptides match the protein matrix. piBAQ / DirectLFQ / Ratio use
+/// aggregation-specific paths; MaxLFQ exports its normalized species traces.
 fn is_cell_based_linear_quant(method: QuantMethod) -> bool {
     matches!(
         method,
@@ -6908,12 +7343,13 @@ fn require_existing_input(path: &Path) -> Result<()> {
 fn validate_implemented_subset(config: &FeatureToProteinsConfig) -> Result<()> {
     let dataset_normalization = dataset_sample_normalization_method(config)?;
     // Dataset-level sample normalization is carried into the exported peptides
-    // only for the cell-based linear methods (their aggregation and export share
-    // one normalization helper); other aggregations would emit peptides whose
-    // normalization does not match the protein matrix.
-    if config.output.export_peptides.is_some()
+    // for cell-based methods and MaxLFQ. Other aggregations use structures
+    // whose normalized values are not connected to the peptide export.
+    if (config.output.export_peptides.is_some()
+        || config.output.export_unnormalized_peptides.is_some())
         && dataset_normalization.is_some()
         && !is_cell_based_linear_quant(config.quantification)
+        && config.quantification != QuantMethod::MaxLfq
     {
         return unsupported("dataset-normalization-export-peptides");
     }
@@ -6989,8 +7425,10 @@ fn validate_de_ensemble_options(config: &FeatureToProteinsConfig) -> Result<()> 
 /// quantification selects `deqms`, every other quantification selects
 /// `limrots`. The LimROTS kernel accepts only complete finite log2 matrices, so
 /// `auto` selects `deqms` instead when `matrix_is_complete` reports a missing
-/// cell; Python's LimROTS accepts missing values and keeps `limrots`. A
-/// non-`auto` method is returned unchanged. Resolved just before the DE stage so
+/// cell; Python's LimROTS accepts missing values and keeps `limrots`. With
+/// `--de-covariate` or `--de-block`, which only limma and DEqMS support, `auto`
+/// selects `deqms`.
+/// A non-`auto` method is returned unchanged. Resolved just before the DE stage so
 /// both the validation and the `de::run_differential_expression` dispatch
 /// observe a concrete method.
 fn resolve_de_method(
@@ -7001,7 +7439,11 @@ fn resolve_de_method(
     if !method.eq_ignore_ascii_case("auto") {
         return method.to_string();
     }
-    let resolved = if config.quantification != QuantMethod::DirectLfq && matrix_is_complete() {
+    let resolved = if config.differential_expression.covariates.is_empty()
+        && config.differential_expression.block.is_none()
+        && config.quantification != QuantMethod::DirectLfq
+        && matrix_is_complete()
+    {
         "limrots"
     } else {
         "deqms"
@@ -8111,6 +8553,120 @@ fn prepare_directlfq_ions(
         lexical_to_sample,
         solver_samples,
     }
+}
+
+/// One solved MaxLFQ protein: its positive values, the stabilized ratio pairs,
+/// and its ion residuals when cell precision is requested.
+type MaxLfqRow = (
+    ProteinId,
+    Vec<(SampleId, f64)>,
+    usize,
+    Option<ProfileResiduals>,
+);
+
+/// The proteins with values, and the cell precisions of every protein with
+/// residuals.
+fn maxlfq_values_and_precision(rows: Vec<MaxLfqRow>) -> (ProteinValues, HashMap<CellKey, f64>) {
+    let mut residuals = Vec::new();
+    let values = rows
+        .into_iter()
+        .filter_map(|(protein, values, _, fit)| {
+            residuals.extend(fit.map(|fit| (protein, fit)));
+            (!values.is_empty()).then_some((protein, values))
+        })
+        .collect();
+    let precision = cell_precisions(&residuals)
+        .into_iter()
+        .map(|((protein, sample), value)| (CellKey { protein, sample }, value))
+        .collect();
+    (ProteinValues::Rows(values), precision)
+}
+
+/// One MaxLFQ protein's species traces around its solved profile, ions in
+/// species order and samples in id order.
+fn maxlfq_residuals(
+    mut measurements: Vec<PeptideMeasurement>,
+    profile: &[(SampleId, f64)],
+) -> ProfileResiduals {
+    measurements.sort_by_key(|measurement| (measurement.peptide.get(), measurement.sample.get()));
+    let ions = measurements
+        .chunk_by(|left, right| left.peptide == right.peptide)
+        .map(|ion| {
+            log2_present(
+                ion.iter()
+                    .map(|measurement| (measurement.sample, measurement.intensity)),
+            )
+        })
+        .collect::<Vec<_>>();
+    profile_residuals(&ions, &log2_present(profile.iter().copied()))
+}
+
+/// DirectLFQ protein values keyed by the matrix ids, with their cell
+/// precisions when requested.
+type DirectLfqCells = (
+    HashMap<ProteinId, Vec<(SampleId, f64)>>,
+    HashMap<CellKey, f64>,
+);
+
+/// Solve DirectLFQ on the prepared ions, with each protein's ion residuals
+/// when the cell precisions are requested.
+fn solve_directlfq(
+    mut prepared: PreparedDirectLfq,
+    min_nonan: usize,
+    num_samples_quadratic: usize,
+    normalize_samples: bool,
+    cell_precision: bool,
+) -> DirectLfqCells {
+    let result = direct_lfq_aligned_with(
+        std::mem::take(&mut prepared.ions),
+        min_nonan,
+        num_samples_quadratic,
+        normalize_samples,
+        DirectLfqRetain {
+            ions: false,
+            residuals: cell_precision,
+        },
+    );
+    directlfq_cells(result, &prepared)
+}
+
+fn directlfq_cells(result: DirectLfqResult, prepared: &PreparedDirectLfq) -> DirectLfqCells {
+    let precision = directlfq_precision(&result.residuals, prepared);
+    (
+        remap_directlfq_values(result.protein_quantities, prepared),
+        precision,
+    )
+}
+
+/// Cell precisions of a DirectLFQ run, keyed by the matrix ids.
+fn directlfq_precision(
+    residuals: &[(ProteinId, ProfileResiduals)],
+    prepared: &PreparedDirectLfq,
+) -> HashMap<CellKey, f64> {
+    cell_precisions(residuals)
+        .into_iter()
+        .map(|((protein, sample), value)| {
+            let protein = prepared
+                .lexical_to_protein
+                .get(&protein)
+                .copied()
+                .unwrap_or(protein);
+            let sample = prepared
+                .lexical_to_sample
+                .get(&sample)
+                .copied()
+                .unwrap_or(sample);
+            (CellKey { protein, sample }, value)
+        })
+        .collect()
+}
+
+/// Log2 of the positive finite intensities.
+fn log2_present(values: impl Iterator<Item = (SampleId, f64)>) -> Vec<(SampleId, f64)> {
+    values
+        .filter(|(_, value)| value.is_finite() && *value > 0.0)
+        .map(|(sample, value)| (sample, value.log2()))
+        .collect()
 }
 
 fn remap_directlfq_values(
@@ -10200,10 +10756,10 @@ mod tests {
         FeatureToProteinsConfig, FilterConfig, ImputationConfig, InputConfig, IrsConfig,
         MaxLfqConfig, MokumeError, NormalizationConfig, OutputConfig, OutputFormat, PeptideId,
         PibaqConfig, PibaqFamilyRows, PibaqSharedMode, ProteinId, QuantMethod, RatioConfig,
-        RuntimeConfig, SampleId, StringIdRegistry, TmtConfig,
+        RuntimeConfig, SampleId, StringIdRegistry, TmtConfig, TransferredFeatures,
     };
     use mokume_io::{QpxFeatureRecord, SdrfRawTable, SdrfTable};
-    use mokume_normalization::SampleNormalizationMethod;
+    use mokume_normalization::{RunCellKey, RunNormalizationTransform, SampleNormalizationMethod};
 
     use super::{
         batch_column_values_for_samples, detect_reference_samples, expand_de_contrasts_file,
@@ -10213,9 +10769,26 @@ mod tests {
         resolve_irs_autodetect_channel, resolve_irs_reference_samples, resolve_reference_batch,
         run_features_to_proteins, sample_plex, sum_peptide_values, validate_batch_sizes,
         validate_combat_design, validate_de_ensemble_options, validate_features_to_proteins,
-        validate_implemented_subset, CellKey, IrsStat, NormalizationFactorCollector, ProteinMatrix,
-        ProteinValues,
+        validate_implemented_subset, CellKey, IntensityFactors, IrsStat,
+        NormalizationFactorCollector, ProteinMatrix, ProteinValues,
     };
+
+    #[test]
+    fn before_sample_normalization_retains_run_transform_and_channel_irs() {
+        let factors = IntensityFactors {
+            run: HashMap::from([(
+                RunCellKey {
+                    sample: "sample".to_owned(),
+                    run: "run".to_owned(),
+                },
+                RunNormalizationTransform::new(2.0, 3.0),
+            )]),
+            irs_scale_by_run: HashMap::from([("run".to_owned(), 3.0)]),
+            sample: HashMap::from([("sample".to_owned(), 5.0)]),
+        };
+        assert_eq!(factors.normalize_run(10.0, "sample", "run"), 69.0);
+        assert_eq!(factors.normalize(10.0, "sample", "run"), 345.0);
+    }
 
     #[test]
     fn peptide_sums_follow_stable_id_order() {
@@ -10235,6 +10808,136 @@ mod tests {
             sum_peptide_values(&reordered)
         );
         assert_eq!(sum_peptide_values(&expected), (1.0 + 1.0) + 1.0e16);
+    }
+
+    #[test]
+    fn peptide_export_ions_merge_max_in_id_order() -> mokume_core::Result<()> {
+        let mut export = super::PeptideExport::default();
+        for (peptide, intensity) in [(2, 1.0e16), (1, 0.5), (0, 1.0), (1, 1.0), (2, 20.0)] {
+            export.push(
+                super::IntermediateMeasurement {
+                    protein: ProteinId::new(0),
+                    sample: SampleId::new(0),
+                    peptide: PeptideId::new(peptide),
+                    canonical: PeptideId::new(0),
+                    intensity,
+                    protein_name: "P",
+                    peptide_canonical: "PEPTIDE",
+                    sample_name: "S",
+                    run_file_name: "run",
+                    sdrf_record: None,
+                },
+                intensity * 2.0,
+            )?;
+        }
+        let ions = export.rows[&super::PeptideExportKey {
+            protein: ProteinId::new(0),
+            sample: SampleId::new(0),
+            canonical: PeptideId::new(0),
+            context: 0,
+        }]
+            .iter()
+            .collect::<Vec<_>>();
+        let expected = |peptide, intensity: f64| {
+            (
+                PeptideId::new(peptide),
+                super::IonValues {
+                    intensity,
+                    unnormalized: intensity * 2.0,
+                },
+            )
+        };
+        assert_eq!(
+            ions,
+            [expected(0, 1.0), expected(1, 1.0), expected(2, 1.0e16)]
+        );
+        assert_eq!(
+            ions.iter().map(|(_, values)| values.intensity).sum::<f64>(),
+            (1.0 + 1.0) + 1.0e16
+        );
+        assert_eq!(std::mem::size_of::<super::ExportIons>(), 24);
+        assert_eq!(export.contexts.len(), 1);
+        Ok(())
+    }
+
+    fn contextual_peptide_export(
+        table: &SdrfTable,
+        names: &super::PeptideExportNames<'_>,
+    ) -> mokume_core::Result<super::PeptideExport> {
+        let mut export = super::PeptideExport {
+            run_mode: true,
+            ..super::PeptideExport::default()
+        };
+        for protein in [0, 1] {
+            for sample in [0, 1] {
+                for canonical in [0, 1] {
+                    for record in table.records() {
+                        export.push(
+                            super::IntermediateMeasurement {
+                                protein: ProteinId::new(protein),
+                                sample: SampleId::new(sample),
+                                canonical: PeptideId::new(canonical),
+                                peptide: PeptideId::new(0),
+                                intensity: 8.0,
+                                protein_name: names.proteins[protein as usize],
+                                peptide_canonical: names.canonicals[canonical as usize],
+                                sample_name: names.samples[sample as usize],
+                                run_file_name: &record.data_file,
+                                sdrf_record: Some(record),
+                            },
+                            8.0,
+                        )?;
+                    }
+                }
+            }
+        }
+        Ok(export)
+    }
+
+    #[test]
+    fn peptide_export_streams_lexically_sorted_contexts() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let table = SdrfTable::from_reader(concat!(
+            "source name\tcomment[data file]\tcharacteristics[biological replicate]\tfactor value[condition]\tcomment[technical replicate]\n",
+            "S\ta\t2\tA\t2\nS\ta\t10\tB\t2\nS\tb\t10\tA\t2\nS\ta\t10\tA\t10\nS\ta\t10\tA\t2\n"
+        ).as_bytes())?;
+        let names = super::PeptideExportNames {
+            proteins: vec!["Z", "A"],
+            samples: vec!["z", "a"],
+            canonicals: vec!["ZZ", "AA"],
+        };
+        let export = contextual_peptide_export(&table, &names)?;
+        let allowed = [0, 1]
+            .into_iter()
+            .flat_map(|protein| {
+                [0, 1].map(move |sample| CellKey {
+                    protein: ProteinId::new(protein),
+                    sample: SampleId::new(sample),
+                })
+            })
+            .collect();
+        assert_eq!(export.contexts.len(), 5);
+        let root = tempfile::tempdir()?;
+        let path = root.path().join("peptides.csv");
+        let keys = export.ordered_keys(&allowed, &HashSet::new(), &names);
+        export.write_csv(
+            &path,
+            export.exported_rows(&keys, false, true, None, &names),
+            false,
+            false,
+        )?;
+        let mut expected = "ProteinName,PeptideCanonical,SampleID,BioReplicate,Condition,Run,TechReplicate,NormIntensity\n".to_owned();
+        for protein in ["A", "Z"] {
+            for canonical in ["AA", "ZZ"] {
+                for sample in ["a", "z"] {
+                    for context in ["10,A,a,2", "10,A,a,10", "10,A,b,2", "10,B,a,2", "2,A,a,2"] {
+                        expected.push_str(&format!("{protein},{canonical},{sample},{context},3\n"));
+                    }
+                }
+            }
+        }
+        assert_eq!(std::fs::read(path)?, expected.as_bytes());
+        Ok(())
     }
 
     #[test]
@@ -10611,6 +11314,8 @@ mod tests {
                 peptide_qvalue: None,
                 pg_global_qvalue: None,
                 selected_score: None,
+                modifications: None,
+                transferred: false,
                 label: None,
                 intensity: 100.0,
                 row_start: true,
@@ -10641,6 +11346,8 @@ mod tests {
             peptide_qvalue: None,
             pg_global_qvalue: None,
             selected_score: None,
+            modifications: None,
+            transferred: false,
             label: None,
             intensity: 100.0,
             row_start: true,
@@ -11055,6 +11762,7 @@ mod tests {
             allowed_proteins: protein_ids[..2].iter().copied().collect(),
             excluded_samples: HashSet::new(),
             peptide_counts: HashMap::new(),
+            precision: HashMap::new(),
             values: ProteinValues::Cells(cells),
         };
 
@@ -11228,6 +11936,7 @@ mod tests {
             allowed_proteins: protein_ids.iter().copied().collect(),
             excluded_samples: HashSet::new(),
             peptide_counts: HashMap::new(),
+            precision: HashMap::new(),
             values: ProteinValues::Cells(cells),
         };
         let sdrf = SdrfTable::from_reader(
@@ -11288,6 +11997,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
             allowed_proteins: protein_ids.iter().copied().collect(),
             excluded_samples: HashSet::new(),
             peptide_counts: HashMap::new(),
+            precision: HashMap::new(),
             values: ProteinValues::Cells(cells),
         };
 
@@ -11621,6 +12331,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
             allowed_proteins,
             excluded_samples: HashSet::new(),
             peptide_counts: std::collections::HashMap::new(),
+            precision: std::collections::HashMap::new(),
             values: ProteinValues::Cells(cells),
         };
 
@@ -11701,6 +12412,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
             allowed_proteins: ids.iter().copied().collect(),
             excluded_samples: HashSet::new(),
             peptide_counts: std::collections::HashMap::new(),
+            precision: std::collections::HashMap::new(),
             values: ProteinValues::Cells(cells),
         };
         (matrix, sample_ids, ids)
@@ -11819,6 +12531,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                     allowed_proteins,
                     excluded_samples: HashSet::new(),
                     peptide_counts: std::collections::HashMap::new(),
+                    precision: std::collections::HashMap::new(),
                     values: ProteinValues::Cells(cells),
                 },
                 sample_ids,
@@ -11923,6 +12636,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                     allowed_proteins,
                     excluded_samples: HashSet::new(),
                     peptide_counts: std::collections::HashMap::new(),
+                    precision: std::collections::HashMap::new(),
                     values: ProteinValues::Cells(cells),
                 },
                 sample_ids,
@@ -11987,6 +12701,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
             allowed_proteins: [p1, p2].into_iter().collect(),
             excluded_samples: HashSet::new(),
             peptide_counts: std::collections::HashMap::new(),
+            precision: std::collections::HashMap::new(),
             values: ProteinValues::Cells(cells),
         };
 
@@ -12138,11 +12853,15 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 psm: None,
                 sdrf: None,
                 fasta: None,
+                transferred_features: TransferredFeatures::Keep,
             },
             output: OutputConfig {
                 protein_matrix: PathBuf::from("protein.csv"),
                 export_peptides: None,
+                export_unnormalized_peptides: None,
+                export_unimputed: None,
                 export_ions: None,
+                export_precision: None,
                 format: OutputFormat::PythonCompatible,
             },
             filtering: FilterConfig::default(),
@@ -12198,7 +12917,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 peptide_traces,
                 ..super::MaxLfqFeatureAggregation::default()
             },
-            cached_directlfq_values: None,
+            cell_precision: false,
+            cached_directlfq: None,
         }
     }
 
@@ -12277,6 +12997,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 &fixture.canonical_peptides,
                 &StringIdRegistry::<SampleId>::new(),
             )?
+            .0
             .protein_ids())
     }
 
@@ -12299,6 +13020,65 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
             !direct_proteins.contains(&fixture.scattered),
             "DirectLFQ applies the same per-cell unique-peptide gate"
         );
+        Ok(())
+    }
+
+    // With `cell_precision`, both LFQ methods give a finite precision for
+    // exactly the cells they quantify, keyed by the matrix ids.
+    #[test]
+    fn lfq_cell_precision_covers_quantified_cells() -> mokume_core::Result<()> {
+        let fixture = lfq_min_unique_fixture();
+        let protein = fixture.dense;
+        let mut sums = HashMap::new();
+        for (index, sample) in (1..=4).map(SampleId::new).enumerate() {
+            for (factor, peptide) in [(1.0, 9), (1.3, 10), (0.8, 11)] {
+                let noise = 1.0 + 0.05 * ((index * peptide) % 3) as f64;
+                let canonical = PeptideId::new(peptide as u32);
+                let key = super::DirectLfqCellKey {
+                    protein,
+                    canonical,
+                    sample,
+                };
+                sums.insert(key, 1000.0 * factor * noise);
+            }
+        }
+        for method in [super::QuantMethod::MaxLfq, super::QuantMethod::DirectLfq] {
+            let mut aggregation = lfq_aggregation(method, sums.clone());
+            if let super::FeatureAggregation::Lfq { cell_precision, .. } = &mut aggregation {
+                *cell_precision = true;
+            }
+            let (values, precision) = aggregation.finalize(
+                &fixture.allowed_cells,
+                &mut StringIdRegistry::<ProteinId>::new(),
+                &HashMap::new(),
+                &fixture.canonical_peptides,
+                &StringIdRegistry::<SampleId>::new(),
+            )?;
+            let super::ProteinValues::Rows(rows) = values else {
+                panic!("{method:?} returns protein rows");
+            };
+            let cells = rows
+                .iter()
+                .flat_map(|(protein, values)| {
+                    values
+                        .iter()
+                        .filter(|(_, value)| *value > 0.0)
+                        .map(|(sample, _)| super::CellKey {
+                            protein: *protein,
+                            sample: *sample,
+                        })
+                })
+                .collect::<HashSet<_>>();
+            assert_eq!(cells.len(), 4, "{method:?}");
+            assert_eq!(
+                precision.keys().copied().collect::<HashSet<_>>(),
+                cells,
+                "{method:?}"
+            );
+            assert!(precision
+                .values()
+                .all(|value| value.is_finite() && *value > 0.0));
+        }
         Ok(())
     }
 

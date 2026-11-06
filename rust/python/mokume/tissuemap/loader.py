@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
+from mokume.io._qpx import measured_intensity_clause
+
 logger = logging.getLogger(__name__)
 
 # Patterns that identify GIS / reference / pool channels in organism_part
@@ -36,17 +38,24 @@ _NON_REFERENCE_POOLED_VALUES = frozenset(
     }
 )
 
-_TMT_FLAT_VIEW_QUERY = """
+# A LATERAL UNNEST materialises the expansion and cannot spill; this form streams.
+_FLAT_VIEW_QUERY = """
     CREATE TEMP VIEW flat_input AS
     SELECT
-        feature.anchor_protein AS protein,
-        feature.run_file_name,
-        reporter.label AS tmt_label,
+        protein,
+        run_file_name,
+        {label_expression} AS tmt_label,
         CAST(reporter.intensity AS DOUBLE) AS intensity
-    FROM feature_input AS feature,
-         UNNEST(feature.intensities) AS reporter_row(reporter)
-    WHERE NOT COALESCE(feature.is_decoy, FALSE)
-      AND reporter.intensity > 0
+    FROM (
+        SELECT
+            anchor_protein AS protein,
+            run_file_name,
+            {imputed_projection}
+            UNNEST(intensities) AS reporter
+        FROM feature_input
+        WHERE NOT COALESCE(is_decoy, FALSE)
+    )
+    WHERE reporter.intensity > 0 AND {measured_clause}
 """
 
 _TMT_GIS_AGGREGATION_QUERY = """
@@ -58,7 +67,7 @@ _TMT_GIS_AGGREGATION_QUERY = """
             mapping.is_gis,
             flat_input.intensity
         FROM flat_input
-        INNER JOIN tmt_label_map AS mapping
+        INNER JOIN sample_map AS mapping
             USING (run_file_name, tmt_label)
     ),
     gis AS (
@@ -87,9 +96,22 @@ _TMT_RAW_AGGREGATION_QUERY = """
         mapping.sample_accession,
         SUM(flat_input.intensity) AS intensity
     FROM flat_input
-    INNER JOIN tmt_label_map AS mapping
+    INNER JOIN sample_map AS mapping
         USING (run_file_name, tmt_label)
     GROUP BY flat_input.protein, mapping.sample_accession
+"""
+
+# DuckDB orders NaN above every number, so the positive filter alone keeps it.
+_LFQ_AGGREGATION_QUERY = """
+    SELECT
+        flat_input.protein,
+        mapping.sample_accession,
+        flat_input.tmt_label,
+        SUM(flat_input.intensity) AS intensity
+    FROM flat_input
+    LEFT JOIN sample_map AS mapping USING (run_file_name)
+    WHERE NOT isnan(flat_input.intensity)
+    GROUP BY flat_input.protein, mapping.sample_accession, flat_input.tmt_label
 """
 
 
@@ -172,93 +194,6 @@ def _detect_gis_accessions(
     return gis_accessions
 
 
-def _read_and_explode_features(
-    ds_dir: Path,
-    ds_id: str,
-    feature_prefix: str | None,
-) -> pd.DataFrame:
-    """Read feature parquet, filter decoys, explode intensities."""
-    prefix = feature_prefix or ds_id
-    parquet_path = ds_dir / "qpx_output" / f"{prefix}.feature.parquet"
-    logger.info("[%s] Reading %s", ds_id, parquet_path.name)
-
-    feat = pq.read_table(
-        parquet_path,
-        columns=["anchor_protein", "run_file_name", "intensities", "is_decoy"],
-    ).to_pandas()
-    feat = feat[~feat["is_decoy"].fillna(False)]
-    feat = feat.dropna(subset=["intensities"])
-    feat = feat[feat["intensities"].map(lambda x: x is not None and len(x) > 0)]
-    long = feat[["anchor_protein", "run_file_name", "intensities"]].explode(
-        "intensities"
-    )
-    long = long.rename(columns={"anchor_protein": "protein"})
-
-    # Extract label and intensity from dicts — single-pass list comprehension
-    raw = long["intensities"].tolist()
-    labels = [d.get("label", "LFQ") if isinstance(d, dict) else str(d) for d in raw]
-    values = [d.get("intensity", 0.0) if isinstance(d, dict) else 0.0 for d in raw]
-    long["tmt_label"] = labels
-    long["intensity"] = values
-    long = long.drop(columns=["intensities"])
-    long["intensity"] = pd.to_numeric(long["intensity"], errors="coerce").fillna(0.0)
-    long = long[long["intensity"] > 0]
-
-    if long.empty:
-        raise ValueError(f"{ds_id}: no valid intensity values")
-    return long
-
-
-def _normalize_tmt(
-    long: pd.DataFrame,
-    run_map: pd.DataFrame,
-    ds_dir: Path,
-    ds_id: str,
-) -> pd.DataFrame:
-    """Merge with run map and apply GIS normalization for TMT data."""
-    long = long.merge(run_map, on=["run_file_name", "tmt_label"], how="left")
-    long = long.dropna(subset=["sample_accession"])
-
-    gis_accessions = _detect_gis_accessions(ds_dir, ds_id)
-    if not gis_accessions:
-        fallback_labels = {"TMT126", "TMT131"}
-        gis_rows = run_map[run_map["tmt_label"].isin(fallback_labels)]
-        gis_accessions = set(gis_rows["sample_accession"])
-        logger.warning(
-            "[%s] GIS auto-detect found nothing, falling back to "
-            "labels %s (%d accessions)",
-            ds_id,
-            fallback_labels,
-            len(gis_accessions),
-        )
-
-    is_gis = long["sample_accession"].isin(gis_accessions)
-    gis_data = long[is_gis]
-    bio_data = long[~is_gis].copy()
-
-    if gis_data.empty:
-        logger.warning("[%s] No GIS data found, skipping normalization", ds_id)
-        return bio_data
-
-    gis_mean = (
-        gis_data.groupby(["protein", "run_file_name"])["intensity"]
-        .mean()
-        .reset_index()
-        .rename(columns={"intensity": "gis_intensity"})
-    )
-    bio_data = bio_data.merge(gis_mean, on=["protein", "run_file_name"], how="inner")
-    bio_data = bio_data[bio_data["gis_intensity"] > 0].copy()
-    bio_data["intensity"] = bio_data["intensity"] / bio_data["gis_intensity"]
-    bio_data = bio_data.drop(columns=["gis_intensity"])
-    logger.info(
-        "[%s] TMT GIS norm: %d GIS accessions, %d bio rows",
-        ds_id,
-        len(gis_accessions),
-        len(bio_data),
-    )
-    return bio_data
-
-
 def _labels_indicate_tmt(labels: pd.Series) -> bool:
     """Return whether any canonical run label identifies TMT/iTRAQ."""
     normalized = labels.fillna("").astype(str)
@@ -328,21 +263,34 @@ def _resolve_gis_accessions(
     return gis_accessions
 
 
-def _execute_tmt_aggregation(
+def _execute_aggregation(
     parquet_path: Path,
-    label_map: pd.DataFrame,
+    sample_map: pd.DataFrame,
     workers: int,
-    use_gis: bool,
+    query: str,
 ) -> pd.DataFrame:
-    """Execute the bounded DuckDB expansion and aggregation query."""
+    """Execute a bounded DuckDB expansion and aggregation query."""
     con = duckdb.connect(database=":memory:")
     try:
         con.execute(f"SET threads = {workers}")
         con.execute("SET preserve_insertion_order = false")
-        con.register("tmt_label_map", label_map)
+        con.register("sample_map", sample_map)
         con.read_parquet(str(parquet_path)).create_view("feature_input")
-        con.execute(_TMT_FLAT_VIEW_QUERY)
-        query = _TMT_GIS_AGGREGATION_QUERY if use_gis else _TMT_RAW_AGGREGATION_QUERY
+        columns = con.read_parquet(str(parquet_path)).columns
+        intensity_fields = (
+            pq.read_schema(parquet_path).field("intensities").type.value_type
+        )
+        con.execute(
+            _FLAT_VIEW_QUERY.format(
+                label_expression="reporter.label"
+                if "label" in intensity_fields.names
+                else "'LFQ'",
+                imputed_projection="imputed_labels,"
+                if "imputed_labels" in columns
+                else "",
+                measured_clause=measured_intensity_clause(columns, "reporter"),
+            )
+        )
         return con.execute(query).df()
     finally:
         con.close()
@@ -372,11 +320,11 @@ def _aggregate_tmt_with_duckdb(
     workers = max(1, int(n_jobs))
     if not gis_accessions:
         logger.warning("[%s] No GIS data found; aggregating raw TMT intensities", ds_id)
-    aggregated = _execute_tmt_aggregation(
+    aggregated = _execute_aggregation(
         parquet_path,
         label_map,
         workers,
-        bool(gis_accessions),
+        _TMT_GIS_AGGREGATION_QUERY if gis_accessions else _TMT_RAW_AGGREGATION_QUERY,
     )
 
     if aggregated.empty:
@@ -389,6 +337,32 @@ def _aggregate_tmt_with_duckdb(
         len(aggregated),
         len(gis_accessions),
     )
+    return aggregated
+
+
+def _aggregate_lfq_with_duckdb(
+    ds_dir: Path,
+    ds_id: str,
+    feature_prefix: str | None,
+    run_map: pd.DataFrame,
+    n_jobs: int,
+) -> pd.DataFrame:
+    """Stream LFQ intensities into protein/sample/label aggregates.
+
+    Unmatched runs stay in the result with a null sample so that their labels
+    still count towards detecting TMT input; the caller drops them.
+    """
+    prefix = feature_prefix or ds_id
+    parquet_path = ds_dir / "qpx_output" / f"{prefix}.feature.parquet"
+    logger.info("[%s] Reading %s with DuckDB", ds_id, parquet_path.name)
+    aggregated = _execute_aggregation(
+        parquet_path,
+        run_map.drop_duplicates("run_file_name")[["run_file_name", "sample_accession"]],
+        max(1, int(n_jobs)),
+        _LFQ_AGGREGATION_QUERY,
+    )
+    if aggregated.empty:
+        raise ValueError(f"{ds_id}: no valid intensity values")
     return aggregated
 
 
@@ -465,38 +439,6 @@ def _filter_low_sample_tissues(
     return mat, meta
 
 
-def _detect_quant_type(
-    long: pd.DataFrame,
-    is_tmt: bool | None,
-    run_map: pd.DataFrame | None = None,
-) -> tuple[bool, str]:
-    """Auto-detect quantification type from TMT labels."""
-    detected_tmt = _labels_indicate_tmt(long["tmt_label"])
-    if run_map is not None:
-        detected_tmt = detected_tmt or _labels_indicate_tmt(run_map["tmt_label"])
-    if is_tmt is None:
-        is_tmt = detected_tmt
-    return is_tmt, "TMT" if is_tmt else "LFQ"
-
-
-def _merge_quant_data(
-    long: pd.DataFrame,
-    run_map: pd.DataFrame,
-    ds_dir: Path,
-    ds_id: str,
-    is_tmt: bool,
-) -> pd.DataFrame:
-    """Merge feature data with sample mapping (TMT or LFQ path)."""
-    if is_tmt:
-        merged = _normalize_tmt(long, run_map, ds_dir, ds_id)
-    else:
-        run_map_lfq = run_map.drop_duplicates("run_file_name")[
-            ["run_file_name", "sample_accession", "fraction"]
-        ]
-        merged = long.merge(run_map_lfq, on="run_file_name", how="left")
-    return merged.dropna(subset=["sample_accession"])
-
-
 def _attach_metadata(
     tissue_meta: pd.DataFrame,
     run_map: pd.DataFrame,
@@ -543,22 +485,19 @@ def load_dataset(
         Index = sample_accession, columns = tissue, batch, quant_type.
     """
     run_map = build_run_to_sample_map(ds_dir, ds_id)
-    run_map_is_tmt = _labels_indicate_tmt(run_map["tmt_label"])
-
-    if is_tmt is True or (is_tmt is None and run_map_is_tmt):
-        is_tmt = True
-        quant_type = "TMT"
-        merged = _aggregate_tmt_with_duckdb(
-            ds_dir,
-            ds_id,
-            feature_prefix,
-            run_map,
-            options.n_jobs,
-        )
+    source = (ds_dir, ds_id, feature_prefix, run_map, options.n_jobs)
+    quant_type = "TMT"
+    if is_tmt is True or (
+        is_tmt is None and _labels_indicate_tmt(run_map["tmt_label"])
+    ):
+        merged = _aggregate_tmt_with_duckdb(*source)
     else:
-        long = _read_and_explode_features(ds_dir, ds_id, feature_prefix)
-        is_tmt, quant_type = _detect_quant_type(long, is_tmt, run_map)
-        merged = _merge_quant_data(long, run_map, ds_dir, ds_id, is_tmt)
+        merged = _aggregate_lfq_with_duckdb(*source)
+        if is_tmt is None and _labels_indicate_tmt(merged["tmt_label"]):
+            merged = _aggregate_tmt_with_duckdb(*source)
+        else:
+            quant_type = "LFQ"
+            merged = merged.dropna(subset=["sample_accession"])
 
     mat, tissue_meta = _pivot_and_annotate(merged, ds_dir, ds_id)
     _attach_metadata(tissue_meta, run_map, quant_type, ds_id)

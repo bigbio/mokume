@@ -374,18 +374,17 @@ fn differential_expression_py(
     let count_by_protein = peptide_count_map(&proteins, options.peptide_counts.as_deref());
     let config = differential_expression_config(&method, &options);
     let peptide_counts = options.peptide_counts;
+    let precision = options.precision.map(decode_matrix);
     let threads = options.threads;
     let condition_a = options.condition_a;
     let condition_b = options.condition_b;
     let results = py.detach(move || {
+        let inputs = mokume_pipeline::MatrixDeInputs {
+            peptide_counts: peptide_counts.as_deref(),
+            precision: precision.as_deref(),
+        };
         mokume_pipeline::differential_expression_matrix(
-            &proteins,
-            &matrix,
-            n_a,
-            n_b,
-            peptide_counts.as_deref(),
-            &config,
-            threads,
+            &proteins, &matrix, n_a, n_b, inputs, &config, threads,
         )
     });
     match results.map_err(|error| PyRuntimeError::new_err(error.to_string()))? {
@@ -427,11 +426,15 @@ fn differential_expression_config(
         fdr_threshold: options.fdr_threshold,
         fdr_method: options.fdr_method.clone(),
         output: None,
+        covariates: Vec::new(),
+        block: None,
+        precision_weights: options.precision.is_some(),
     }
 }
 
 struct DifferentialExpressionOptions {
     peptide_counts: Option<Vec<f64>>,
+    precision: Option<Vec<Vec<Option<f64>>>>,
     ensemble_methods: Option<Vec<String>>,
     ensemble_min_k: usize,
     log2fc_threshold: f64,
@@ -450,6 +453,7 @@ impl DifferentialExpressionOptions {
         let defaults = DifferentialExpressionConfig::default();
         let mut parsed = Self {
             peptide_counts: None,
+            precision: None,
             ensemble_methods: None,
             ensemble_min_k: defaults.ensemble_min_k,
             log2fc_threshold: defaults.log2fc_threshold,
@@ -466,32 +470,37 @@ impl DifferentialExpressionOptions {
             return Ok(parsed);
         };
         for (key, value) in options.iter() {
-            let key = key.extract::<String>()?;
-            match key.as_str() {
-                "peptide_counts" => parsed.peptide_counts = value.extract()?,
-                "ensemble_methods" => parsed.ensemble_methods = value.extract()?,
-                "ensemble_min_k" => {
-                    parsed.ensemble_min_k = value.extract()?;
-                    parsed.ensemble_min_k_supplied = true;
-                }
-                "log2fc_threshold" => parsed.log2fc_threshold = value.extract()?,
-                "effect_size_gate" => parsed.effect_size_gate = value.extract()?,
-                "fdr_threshold" => parsed.fdr_threshold = value.extract()?,
-                "fdr_method" => {
-                    parsed.fdr_method = value.extract()?;
-                    parsed.fdr_method_supplied = true;
-                }
-                "condition_a" => parsed.condition_a = value.extract()?,
-                "condition_b" => parsed.condition_b = value.extract()?,
-                "threads" => parsed.threads = value.extract()?,
-                _ => {
-                    return Err(PyTypeError::new_err(format!(
-                        "unknown differential-expression option `{key}`"
-                    )))
-                }
-            }
+            parsed.set(&key.extract::<String>()?, &value)?;
         }
         Ok(parsed)
+    }
+
+    fn set(&mut self, key: &str, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        match key {
+            "peptide_counts" => self.peptide_counts = value.extract()?,
+            "precision" => self.precision = value.extract()?,
+            "ensemble_methods" => self.ensemble_methods = value.extract()?,
+            "ensemble_min_k" => {
+                self.ensemble_min_k = value.extract()?;
+                self.ensemble_min_k_supplied = true;
+            }
+            "log2fc_threshold" => self.log2fc_threshold = value.extract()?,
+            "effect_size_gate" => self.effect_size_gate = value.extract()?,
+            "fdr_threshold" => self.fdr_threshold = value.extract()?,
+            "fdr_method" => {
+                self.fdr_method = value.extract()?;
+                self.fdr_method_supplied = true;
+            }
+            "condition_a" => self.condition_a = value.extract()?,
+            "condition_b" => self.condition_b = value.extract()?,
+            "threads" => self.threads = value.extract()?,
+            _ => {
+                return Err(PyTypeError::new_err(format!(
+                    "unknown differential-expression option `{key}`"
+                )))
+            }
+        }
+        Ok(())
     }
 
     fn validate_for_method(&self, method: &str) -> PyResult<()> {

@@ -46,7 +46,7 @@ pub(crate) struct LimmaStats {
 }
 
 /// Minimum finite observations required per group to test a protein.
-const MIN_PER_GROUP: usize = 2;
+pub(super) const MIN_PER_GROUP: usize = 2;
 
 /// Per-protein cell-means fit and moderated statistics used by DEqMS.
 /// LimROTS uses its own QR fit and shares only the variance-moderation helper.
@@ -80,6 +80,31 @@ pub(crate) fn run_limma_moderation(
         .enumerate()
         .filter_map(|(index, row)| GroupFit::new(row, n_a, n_b).map(|fit| (index, fit)))
         .collect::<Vec<_>>();
+    moderate(fits)
+}
+
+/// [`run_limma_moderation`] with an observation weight per cell (limma's
+/// `lmFit(weights =)` for the cell-means design). A cell needs a finite value
+/// and a positive weight; equal weights give the unweighted fit exactly.
+pub(crate) fn run_weighted_limma_moderation(
+    rows: &[&[f64]],
+    weights: &[&[f64]],
+    n_a: usize,
+    n_b: usize,
+) -> (Vec<(usize, LimmaModeration)>, f64) {
+    let fits = rows
+        .iter()
+        .zip(weights)
+        .enumerate()
+        .filter_map(|(index, (row, weight))| {
+            GroupFit::weighted(row, weight, n_a, n_b).map(|fit| (index, fit))
+        })
+        .collect::<Vec<_>>();
+    moderate(fits)
+}
+
+/// `squeezeVar` and the moderated t over the per-protein fits.
+fn moderate(fits: Vec<(usize, GroupFit)>) -> (Vec<(usize, LimmaModeration)>, f64) {
     if fits.is_empty() {
         return (Vec::new(), 0.0);
     }
@@ -209,6 +234,63 @@ impl GroupFit {
             stdev_unscaled,
         })
     }
+
+    /// Weighted cell-means fit: weighted group means, weighted residual sum of
+    /// squares on `count_a + count_b - 2` df, and `stdev_unscaled` from the
+    /// summed weights (`sqrt(1/sum_w_a + 1/sum_w_b)`). AveExpr stays the
+    /// unweighted mean, as limma's `Amean`.
+    fn weighted(row: &[f64], weights: &[f64], n_a: usize, n_b: usize) -> Option<Self> {
+        let cells = |range: std::ops::Range<usize>| {
+            range
+                .filter(|&column| row[column].is_finite() && weights[column] > 0.0)
+                .map(|column| (row[column], weights[column]))
+                .collect::<Vec<_>>()
+        };
+        let group_a = cells(0..n_a);
+        let group_b = cells(n_a..n_a + n_b);
+        let (count_a, count_b) = (group_a.len(), group_b.len());
+        if count_a < MIN_PER_GROUP || count_b < MIN_PER_GROUP {
+            return None;
+        }
+        let (sum_a, weight_a) = weighted_sums(&group_a);
+        let (sum_b, weight_b) = weighted_sums(&group_b);
+        let mean_a = sum_a / weight_a;
+        let mean_b = sum_b / weight_b;
+        // One running sum over A then B, as in [`GroupFit::new`].
+        let rss = weighted_rss(&group_b, mean_b, weighted_rss(&group_a, mean_a, 0.0));
+        let df_residual = (count_a + count_b) as f64 - 2.0;
+        let sigma = if df_residual > 0.0 {
+            (rss / df_residual).sqrt()
+        } else {
+            f64::NAN
+        };
+        let plain = |cells: &[(f64, f64)]| cells.iter().map(|(value, _)| value).sum::<f64>();
+        Some(Self {
+            log2_fold_change: mean_a - mean_b,
+            ave_expr: (plain(&group_a) + plain(&group_b)) / (count_a + count_b) as f64,
+            mean_a,
+            mean_b,
+            count_a,
+            count_b,
+            sigma,
+            df_residual,
+            stdev_unscaled: (1.0 / weight_a + 1.0 / weight_b).sqrt(),
+        })
+    }
+}
+
+fn weighted_sums(cells: &[(f64, f64)]) -> (f64, f64) {
+    cells
+        .iter()
+        .fold((0.0, 0.0), |(sum, total), (value, weight)| {
+            (sum + weight * value, total + weight)
+        })
+}
+
+fn weighted_rss(cells: &[(f64, f64)], mean: f64, start: f64) -> f64 {
+    cells.iter().fold(start, |rss, (value, weight)| {
+        rss + weight * (value - mean).powi(2)
+    })
 }
 
 fn finite_sum_count(values: &[f64]) -> (f64, usize) {

@@ -36,7 +36,7 @@ def test_knowledge_resolution_prefers_explicit_then_environment_then_bundle(
     override = copied / "knowledge.yaml"
     override.write_text(
         override.read_text(encoding="utf-8").replace(
-            "title: Evaluating differential expression methods for proteomics data",
+            "title: Optimizing differential expression analysis for proteomics data via high-performing rules and ensemble inference",
             "title: Environment-selected knowledge snapshot",
             1,
         ),
@@ -57,7 +57,7 @@ def test_bundled_knowledge_exposes_dataset_summaries_without_promoting_them() ->
     assert len(graph.datasets) == 88
     assert dataset.data_type == "DIA"
     assert dataset.preset_eligible is False
-    assert dataset.benchmark["successful_candidates"] == 744
+    assert dataset.benchmark["successful_candidates"] == 1410
     assert dataset.benchmark["failed_candidates"] == 0
     assert dataset.held_out_evaluation is None
     assert all(

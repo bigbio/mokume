@@ -8,12 +8,19 @@
 
 #[path = "deqms_loess.rs"]
 mod loess;
+#[path = "deqms_weighted.rs"]
+mod weighted;
+
+use mokume_core::Result;
 
 use super::correct::bh_adjust;
 use super::limma::{run_limma_moderation, LimmaModeration};
+use super::limma_design::{reportable, run_design_moderation, DesignContrast};
 use super::special::{digamma, trigamma};
 use super::student_t::{student_t_sf, student_t_two_sided_log_pvalue};
 use super::{classify, DeResult};
+
+pub use weighted::{deqms_two_group_weighted, PrecisionRows};
 
 /// Minimum number of valid (finite `log_var`, `x`, `df`) proteins required for
 /// the quadratic count path (floor(.75*n) must contain at least three points).
@@ -51,19 +58,72 @@ pub fn deqms_two_group(
 
     // Align counts to the kept proteins by original row index (defaulting to 1,
     // matching `_build_count_vector`'s default fill).
-    let kept_counts = moderations
+    let kept_counts = aligned_counts(&moderations, counts);
+    let stats = spectra_count_ebayes(&moderations, &kept_counts, df_prior);
+    deqms_results(
+        proteins,
+        moderations.into_iter().zip(stats),
+        fdr_threshold,
+        log2fc_threshold,
+    )
+}
+
+/// DEqMS for one contrast of a fixed-effects design (see [`limma_design`]).
+///
+/// `counts[i]` is aligned to `rows[i]`. As in DEqMS, the count-variance trend
+/// and the prior df use the proteins with positive residual df; the reported
+/// proteins follow [`limma_design`].
+///
+/// [`limma_design`]: super::limma_design
+pub fn deqms_design(
+    proteins: &[String],
+    rows: &[&[f64]],
+    spec: &DesignContrast<'_>,
+    counts: &[f64],
+    fdr_threshold: f64,
+    log2fc_threshold: f64,
+) -> Result<Vec<DeResult>> {
+    let (moderations, df_prior) = run_design_moderation(rows, spec)?;
+    let fitted = moderations
+        .into_iter()
+        .filter(|(_, fit)| fit.df_residual > 0.0)
+        .collect::<Vec<_>>();
+    let kept_counts = aligned_counts(&fitted, counts);
+    let stats = spectra_count_ebayes(&fitted, &kept_counts, df_prior);
+    Ok(deqms_results(
+        proteins,
+        fitted
+            .into_iter()
+            .zip(stats)
+            .filter(|((_, fit), stat)| reportable(fit) && stat.sca_pvalue.is_finite()),
+        fdr_threshold,
+        log2fc_threshold,
+    ))
+}
+
+fn aligned_counts(moderations: &[(usize, LimmaModeration)], counts: &[f64]) -> Vec<f64> {
+    moderations
         .iter()
         .map(|(index, _)| counts.get(*index).copied().unwrap_or(1.0))
+        .collect()
+}
+
+/// BH-adjust the count-moderated p-values and build the sorted result rows.
+fn deqms_results(
+    proteins: &[String],
+    rows: impl Iterator<Item = ((usize, LimmaModeration), ScaStat)>,
+    fdr_threshold: f64,
+    log2fc_threshold: f64,
+) -> Vec<DeResult> {
+    let rows = rows.collect::<Vec<_>>();
+    let p_values = rows
+        .iter()
+        .map(|(_, stat)| stat.sca_pvalue)
         .collect::<Vec<_>>();
-
-    let stats = spectra_count_ebayes(&moderations, &kept_counts, df_prior);
-
-    let p_values = stats.iter().map(|stat| stat.sca_pvalue).collect::<Vec<_>>();
     let adjusted = bh_adjust(&p_values);
 
-    let mut results = moderations
+    let mut results = rows
         .iter()
-        .zip(&stats)
         .zip(adjusted)
         .filter_map(|(((index, moderation), stat), adj_p_value)| {
             let protein = proteins.get(*index)?.clone();
@@ -137,6 +197,14 @@ fn spectra_count_ebayes(
     }
 
     let y_pred = loess::predict(&inputs.log_var, &inputs.x, &inputs.valid);
+    if inputs
+        .valid
+        .iter()
+        .zip(&y_pred)
+        .any(|(valid, prediction)| *valid && !prediction.is_finite())
+    {
+        return fallback(moderations, df_prior);
+    }
     let (egpred, d0) = count_prior(&inputs, &y_pred);
     moderated_sca_stats(moderations, &inputs, &egpred, d0)
 }
@@ -348,6 +416,26 @@ mod tests {
         vec![
             1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 4.0, 7.0, 11.0, 6.0, 9.0, 15.0, 2.0, 18.0,
         ]
+    }
+
+    #[test]
+    fn tied_counts_fall_back_to_finite_ebayes() {
+        let rows = fixture_rows();
+        let refs = rows.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let proteins = fixture_proteins();
+        let counts = (0..rows.len())
+            .map(|i| if i < 13 { 1.0 } else { i as f64 })
+            .collect::<Vec<_>>();
+        let result = deqms_two_group(&proteins, &refs, 3, 3, &counts, 0.05, 0.5);
+        let plain = limma_two_group(&proteins, &refs, 3, 3, 0.05, 0.5);
+        assert_eq!(result.len(), rows.len());
+        for row in result {
+            let Some(expected) = plain.iter().find(|other| other.protein == row.protein) else {
+                panic!("missing protein {}", row.protein);
+            };
+            assert!(row.p_value.is_finite());
+            assert_eq!(row.p_value, expected.p_value);
+        }
     }
 
     // Non-vacuity guard: the oracle sca_t must differ materially from plain limma

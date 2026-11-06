@@ -85,6 +85,8 @@ def run(method: QuantificationMethod, config: PipelineConfig) -> QpxDataset:
     logger.info(f"Quantifying proteins with method: {config.quantification.method}")
     protein_df = quant_stage.quantify(peptide_df)
     dataset.proteins = protein_df
+    if quant_stage.cell_precision is not None:
+        dataset.layers["cell_precision"] = quant_stage.cell_precision
     dataset.record_step(
         "quantification",
         method=config.quantification.method,

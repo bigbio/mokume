@@ -35,7 +35,9 @@ pub(super) fn learn(
     problem.add_constraint(&budget, ComparisonOp::Le, 0.0);
     let solution = problem
         .solve()
-        .map_err(|e| invalid(format!("IHW linear program failed: {e}")))?;
+        .map_err(|e| invalid(format!("IHW linear program failed: {e}")))?
+        .into_solution()
+        .map_err(|_| invalid("IHW linear program stopped before a solution"))?;
     let thresholds: Vec<f64> = t.iter().map(|&v| solution[v].max(0.0)).collect();
     let weighted_sum: f64 = thresholds.iter().zip(counts).map(|(t, m)| t * m).sum();
     if thresholds.iter().all(|&v| v == 0.0) {

@@ -269,8 +269,13 @@ def _lm_fit_with_na(
     design: np.ndarray,
     gene_names: list[str],
     coef_names: list[str],
+    weights: np.ndarray | None = None,
 ) -> LmFitResult:
-    """Fit per-gene OLS handling NaN values per gene."""
+    """Fit per-gene least squares handling NaN values per gene.
+
+    ``weights`` (limma's ``lmFit(weights =)``) gives each cell a positive
+    observation weight.
+    """
     n_genes, _ = data.shape
     n_coefs = design.shape[1]
 
@@ -286,15 +291,16 @@ def _lm_fit_with_na(
             continue
         y = data[i, obs]
         X = design[obs]
+        w = np.ones(n_obs) if weights is None else weights[i, obs]
         try:
-            XtX_inv = np.linalg.inv(X.T @ X)
+            XtX_inv = np.linalg.inv((X.T * w) @ X)
         except np.linalg.LinAlgError:
             continue
-        b = XtX_inv @ X.T @ y
+        b = XtX_inv @ (X.T * w) @ y
         resid = y - X @ b
         df = n_obs - n_coefs
         beta[i] = b
-        sigma[i] = np.sqrt(np.sum(resid**2) / df) if df > 0 else np.nan
+        sigma[i] = np.sqrt(np.sum(w * resid**2) / df) if df > 0 else np.nan
         df_res[i] = df
         stdev_us[i] = np.sqrt(np.diag(XtX_inv))
 

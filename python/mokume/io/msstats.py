@@ -68,7 +68,7 @@ _RAW_FEATURE_SQL = """
                trim(_peptide) AS peptidoform,
                trim(_protein) AS protein_name,
                list_transform(string_split(trim(_protein), ';'),
-                              accession -> trim(accession)) AS pg_accessions,
+                              lambda accession: trim(accession)) AS pg_accessions,
                TRY_CAST(_charge AS SMALLINT) AS charge,
                r._run_file_name AS run_file_name,
                {label_expression} AS intensity_label,

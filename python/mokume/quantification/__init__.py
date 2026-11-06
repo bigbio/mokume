@@ -148,6 +148,7 @@ def _maxlfq_options(kwargs: dict) -> dict:
         "min_peptides": kwargs.get("min_peptides", 2),
         "min_ratio_count": kwargs.get("min_ratio_count"),
         "stabilize": kwargs.get("stabilize", False),
+        "cell_precision": kwargs.get("cell_precision", False),
         "threads": kwargs.get("threads", kwargs.get("n_jobs", -1)),
         "verbose": kwargs.get("verbose", 0),
     }
@@ -171,6 +172,7 @@ def get_quantification_method(method: str, **kwargs) -> ProteinQuantificationMet
         For MaxLFQ:
             - min_ratio_count: int (default 2; shared species per sample pair)
             - stabilize: bool (default False; Cox Eq. 5 large-ratio stabilization)
+            - cell_precision: bool (default False; adds a Precision column)
             - min_peptides: legacy alias for min_ratio_count
             - threads: int (default -1, all cores)
 

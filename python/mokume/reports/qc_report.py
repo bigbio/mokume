@@ -2,7 +2,7 @@
 Quality control report for proteomics quantification workflows.
 
 Generates interactive HTML reports with sample-level and DE-level QC metrics:
-- PCA and t-SNE (colored by condition, shaped by plex)
+- PCA (colored by condition, shaped by plex for up to six plexes)
 - Sample correlation heatmap
 - Per-condition CV distributions
 - Intensity/ratio distribution boxplots
@@ -18,12 +18,30 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from plotly.offline import get_plotlyjs
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score as sklearn_silhouette_score
-from threadpoolctl import threadpool_limits
 
+from mokume.plotting.style import (
+    CONDITION_COLORS,
+    category_colors,
+    category_order,
+    MISSING_COLOR,
+    PLOTLY_TEMPLATE,
+    REPORT_CSS,
+    SEQUENTIAL_COLORS,
+    SIGNIFICANCE_COLORS,
+    SINGLE_SERIES_COLOR,
+    TEXT_COLOR,
+)
 from mokume.core.logger import get_logger
+from mokume.plotting._common import (
+    group_ellipses,
+    log2_matrix as prepare_log2,
+    read_frame,
+)
+from mokume.reports._plots import EMBEDDING_LABEL_JS, plot_cards, sample_axis
+from mokume.reports._qc_diagnostics import diagnostic_plots
 
 logger = get_logger("mokume.reports.qc")
 
@@ -80,11 +98,6 @@ def compute_qc_metrics(
 
     # 1. PCA
     metrics["pca"] = _compute_pca(
-        log2_matrix, exp_samples, sample_to_condition, sample_to_plex
-    )
-
-    # 2. t-SNE
-    metrics["tsne"] = _compute_tsne(
         log2_matrix, exp_samples, sample_to_condition, sample_to_plex
     )
 
@@ -156,7 +169,7 @@ def _compute_pca(log2_matrix, samples, sample_to_condition, sample_to_plex):
     data = data.fillna(data.median())
 
     n_components = min(3, data.shape[0], data.shape[1])
-    pca = PCA(n_components=n_components)
+    pca = PCA(n_components=n_components, random_state=0)
     coords = pca.fit_transform(data)
 
     result = {
@@ -169,32 +182,21 @@ def _compute_pca(log2_matrix, samples, sample_to_condition, sample_to_plex):
     }
     if n_components >= 3:
         result["pc3"] = coords[:, 2].tolist()
+    groups = pd.DataFrame(
+        {"pc1": result["pc1"], "pc2": result["pc2"], "condition": result["conditions"]}
+    )
+    result["ellipses"] = (
+        {
+            condition: {"x": outline[:, 0].tolist(), "y": outline[:, 1].tolist()}
+            for condition, outline in group_ellipses(
+                groups, ("pc1", "pc2"), "condition"
+            ).items()
+        }
+        if n_components >= 2
+        else {}
+    )
 
     return result
-
-
-def _compute_tsne(log2_matrix, samples, sample_to_condition, sample_to_plex):
-    """Compute t-SNE coordinates."""
-    data = log2_matrix[samples].T.dropna(axis=1)
-    data = data.fillna(data.median())
-
-    if data.shape[0] < 4:
-        return None
-
-    perplexity = min(5, data.shape[0] - 1)
-    tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42)
-    # t-SNE embeds samples (a few to a few hundred points), so extra OpenMP threads
-    # only contend; on a busy many-core host they stall every iteration.
-    with threadpool_limits(limits=1):
-        coords = tsne.fit_transform(data)
-
-    return {
-        "samples": list(data.index),
-        "conditions": [sample_to_condition.get(s, "Unknown") for s in data.index],
-        "plexes": [sample_to_plex.get(s, "plex1") for s in data.index],
-        "x": coords[:, 0].tolist(),
-        "y": coords[:, 1].tolist(),
-    }
 
 
 def _compute_sample_correlation(log2_matrix, samples):
@@ -220,6 +222,7 @@ def _compute_condition_cv(intensity_linear, samples, sample_to_condition):
             "cv_values": cv.tolist(),
             "q25": float(cv.quantile(0.25)) if len(cv) > 0 else float("nan"),
             "q75": float(cv.quantile(0.75)) if len(cv) > 0 else float("nan"),
+            "q99": float(cv.quantile(0.99)),
         }
     return result
 
@@ -337,7 +340,7 @@ def _compute_variance_decomposition(
 
     # PCA first (reduce to top components explaining 90% variance)
     n_components = min(10, data.shape[0] - 1, data.shape[1])
-    pca = PCA(n_components=n_components)
+    pca = PCA(n_components=n_components, random_state=0)
     pc_data = pca.fit_transform(data)
 
     # For each PC, compute R² for condition and plex using simple 1-way ANOVA
@@ -437,10 +440,9 @@ def _compute_de_quality(de_results):
             "mean": float(sig_fc.mean()),
             "q25": float(sig_fc.quantile(0.25)),
             "q75": float(sig_fc.quantile(0.75)),
-            "values": sig_fc.tolist(),
         }
     else:
-        effect_size = {"median": 0, "mean": 0, "q25": 0, "q75": 0, "values": []}
+        effect_size = {"median": 0, "mean": 0, "q25": 0, "q75": 0}
 
     # Direction balance (UP/DOWN ratio)
     if n_de > 0:
@@ -474,7 +476,7 @@ def generate_qc_report(
     output_html: str = "qc_report.html",
     title: str = "QC Report",
     is_log2: bool = False,
-    highlight_genes: Optional[list[str]] = None,
+    **options,
 ) -> str:
     """
     Generate interactive HTML QC report.
@@ -495,8 +497,14 @@ def generate_qc_report(
         Report title.
     is_log2 : bool
         If True, data is already in log2 space.
-    highlight_genes : list, optional
-        Protein accessions to highlight.
+    **options
+        Optional keyword inputs:
+
+        - ``highlight_genes`` (list): protein accessions to highlight.
+        - ``peptides``, ``unnormalized_peptides`` (path or DataFrame): normalized
+          and pre-normalization peptide exports for paired distributions.
+        - ``unimputed_matrix`` (path or DataFrame): protein matrix before
+          imputation, used for missingness and filled-cell diagnostics.
 
     Returns
     -------
@@ -511,7 +519,17 @@ def generate_qc_report(
         is_log2,
     )
 
-    html = _build_qc_html(title, metrics, highlight_genes, de_results)
+    if options.get("unimputed_matrix") is not None:
+        options["unimputed_matrix"] = read_frame(options["unimputed_matrix"])
+        metrics["missing"] = _compute_missing_values(
+            prepare_log2(options["unimputed_matrix"], is_log2),
+            metrics["pca"]["samples"],
+            sample_to_condition,
+        )
+    metrics["diagnostics"] = diagnostic_plots(
+        protein_df, sample_to_condition, is_log2, **options
+    )
+    html = _build_qc_html(title, metrics, options.get("highlight_genes"), de_results)
 
     with open(output_html, "w", encoding="utf-8") as f:
         f.write(html)
@@ -525,12 +543,79 @@ def _safe_json(obj):
     return json.dumps(obj).replace("</", "<\\/")
 
 
+def _cv_axis_range(condition_cv):
+    """Return the CV axis range, or None so plotly autoranges without any CV."""
+    # Conditions with a single sample have no CV values.
+    cv_q99 = [cv["q99"] for cv in condition_cv.values() if cv["cv_values"]]
+    return [0, max(cv_q99) * 1.1] if cv_q99 else None
+
+
+def _plex_sections(n_plexes, pvca):
+    """Build the PVCA bars and plex-related HTML pieces for the QC report."""
+    # With a single plex there is no batch to assess, so plex variance is not shown.
+    multi_plex = n_plexes > 1
+    pvca_sources = [("Condition", pvca["condition_pct"], CONDITION_COLORS[0])]
+    if multi_plex:
+        pvca_sources.append(("Plex", pvca["plex_pct"], CONDITION_COLORS[1]))
+    pvca_sources.append(
+        ("Residual", pvca["residual_pct"], SIGNIFICANCE_COLORS["Unchanged"])
+    )
+    pvca_bars = {
+        "x": [name for name, _, _ in pvca_sources],
+        "y": [round(value, 1) for _, value, _ in pvca_sources],
+        "colors": [color for _, _, color in pvca_sources],
+    }
+    plex_class = (
+        "good"
+        if pvca["plex_pct"] < 10
+        else "warning"
+        if pvca["plex_pct"] < 25
+        else "bad"
+    )
+    plex_label = (
+        "Good"
+        if pvca["plex_pct"] < 10
+        else "Warning"
+        if pvca["plex_pct"] < 25
+        else "High"
+    )
+    plex_stat = (
+        f"""<div class="header-stat">
+            <div class="number {plex_class}">{pvca["plex_pct"]:.1f}%</div>
+            <div class="label">Var: Plex</div>
+        </div>"""
+        if multi_plex
+        else ""
+    )
+    plex_row = (
+        f"""<tr><td>Plex (batch)</td>
+                                <td><b>{pvca["plex_pct"]:.1f}%</b></td>
+                                <td>{plex_label} batch effect</td></tr>"""
+        if multi_plex
+        else ""
+    )
+    pvca_intro = (
+        "What fraction of total variance is explained by biology (condition) vs technical "
+        "batch (plex)? Good normalization maximizes condition and minimizes plex contribution."
+        if multi_plex
+        else "What fraction of total variance is explained by biology (condition)? All samples "
+        "come from one plex, so batch variance is not assessed."
+    )
+    return {
+        "multi_plex": multi_plex,
+        "pvca_bars": pvca_bars,
+        "plex_stat": plex_stat,
+        "plex_row": plex_row,
+        "pvca_intro": pvca_intro,
+    }
+
+
 def _build_qc_html(title, metrics, highlight_genes, de_results):
     """Build the complete QC report HTML."""
     _ = highlight_genes, de_results
+    cards, diagnostic_js = plot_cards(metrics.get("diagnostics", []))
     summary = metrics["summary"]
     pca = metrics["pca"]
-    tsne = metrics["tsne"]
     corr = metrics["correlation"]
     condition_cv = metrics["condition_cv"]
     intra_corr = metrics["intra_condition_corr"]
@@ -539,6 +624,8 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
     silhouette = metrics["silhouette"]
     pvca = metrics["pvca"]
     de_quality = metrics.get("de_quality")
+
+    plex = _plex_sections(summary["n_plexes"], pvca)
 
     # Format condition CV summary
     cv_summary_rows = ""
@@ -574,11 +661,13 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
                     <div class="metric-label">Tested</div>
                 </div>
                 <div class="metric-item">
-                    <div class="metric-value" style="color:#d62728">{de_quality["n_up"]}</div>
+                    <div class="metric-value sig-up">
+                        {de_quality["n_up"]}</div>
                     <div class="metric-label">UP</div>
                 </div>
                 <div class="metric-item">
-                    <div class="metric-value" style="color:#1f77b4">{de_quality["n_down"]}</div>
+                    <div class="metric-value sig-down">
+                        {de_quality["n_down"]}</div>
                     <div class="metric-label">DOWN</div>
                 </div>
                 <div class="metric-item">
@@ -596,54 +685,40 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
             </div>
             <div class="row" style="margin-top:16px">
                 <div style="flex:1"><div id="pval-hist" style="height:300px"></div></div>
-                <div style="flex:1"><div id="effect-hist" style="height:300px"></div></div>
             </div>
         </div>
         """
+
+    condition_names = category_order(pca["conditions"])
 
     return f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <title>{html_module.escape(title)}</title>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>{get_plotlyjs()}</script>
     <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-               background: #f5f5f5; color: #333; }}
-        .header {{ background: #2c3e50; color: white; padding: 20px 30px; }}
-        .header h1 {{ font-size: 22px; margin-bottom: 8px; }}
+        {REPORT_CSS}
         .header-stats {{ display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }}
-        .header-stat {{ background: rgba(255,255,255,0.15); padding: 8px 14px;
+        .header-stat {{ background: #f5f5f5; padding: 8px 14px;
                         border-radius: 6px; text-align: center; }}
         .header-stat .number {{ font-size: 20px; font-weight: bold; }}
         .header-stat .label {{ font-size: 10px; opacity: 0.8; }}
         .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
         .row {{ display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }}
         .row > div {{ min-width: 300px; }}
-        .card {{ background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                 padding: 16px; margin-bottom: 20px; }}
-        .card h3 {{ margin-bottom: 12px; font-size: 15px; color: #2c3e50;
-                    border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; }}
-        table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-        th {{ background: #34495e; color: white; padding: 8px 10px; text-align: left; }}
-        td {{ padding: 6px 10px; border-bottom: 1px solid #eee; }}
-        tr:hover {{ background: #f8f9fa; }}
         .metric-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
                         gap: 12px; }}
         .metric-item {{ text-align: center; padding: 10px; background: #f8f9fa;
                         border-radius: 6px; }}
-        .metric-value {{ font-size: 20px; font-weight: bold; color: #2c3e50; }}
+        .metric-value {{ font-size: 20px; font-weight: bold; color: {TEXT_COLOR}; }}
         .metric-label {{ font-size: 11px; color: #7f8c8d; margin-top: 4px; }}
-        .good {{ color: #27ae60; }}
-        .warning {{ color: #f39c12; }}
-        .bad {{ color: #e74c3c; }}
         .tab-container {{ margin-bottom: 20px; }}
         .tab-buttons {{ display: flex; gap: 4px; margin-bottom: 0; }}
         .tab-btn {{ padding: 10px 20px; cursor: pointer; background: #ecf0f1;
                     border: none; border-radius: 8px 8px 0 0; font-size: 13px;
                     font-weight: 500; }}
-        .tab-btn.active {{ background: white; color: #2c3e50; font-weight: 600; }}
+        .tab-btn.active {{ background: white; color: {TEXT_COLOR}; font-weight: 600; }}
         .tab-content {{ display: none; background: white; border-radius: 0 8px 8px 8px;
                         box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 16px; }}
         .tab-content.active {{ display: block; }}
@@ -684,16 +759,7 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
             <div class="number">{pvca["condition_pct"]:.1f}%</div>
             <div class="label">Var: Condition</div>
         </div>
-        <div class="header-stat">
-            <div class="number {
-        "good"
-        if pvca["plex_pct"] < 10
-        else "warning"
-        if pvca["plex_pct"] < 25
-        else "bad"
-    }">{pvca["plex_pct"]:.1f}%</div>
-            <div class="label">Var: Plex</div>
-        </div>
+        {plex["plex_stat"]}
     </div>
 </div>
 
@@ -711,14 +777,17 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
         <div id="tab-sample-qc" class="tab-content active">
             <div class="row">
                 <div style="flex:1"><div id="pca-plot" style="height:450px"></div></div>
-                <div style="flex:1"><div id="tsne-plot" style="height:450px"></div></div>
             </div>
+            {
+        '<p style="font-size:12px; margin-bottom:16px">Colors identify conditions. '
+        "Hover text names each sample's condition and plex.</p>"
+        if plex["multi_plex"]
+        else ""
+    }
             <div class="card">
                 <h3>Variance Decomposition (PVCA)</h3>
                 <p style="font-size:13px; color:#666; margin-bottom:12px">
-                    What fraction of total variance is explained by biology (condition) vs
-                    technical batch (plex)? Good normalization maximizes condition and
-                    minimizes plex contribution.
+                    {plex["pvca_intro"]}
                 </p>
                 <div class="row">
                     <div style="flex:1"><div id="pvca-plot" style="height:250px"></div></div>
@@ -730,15 +799,7 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
                                 <td>{
         "Good" if pvca["condition_pct"] > 30 else "Low"
     } biological signal</td></tr>
-                            <tr><td>Plex (batch)</td>
-                                <td><b>{pvca["plex_pct"]:.1f}%</b></td>
-                                <td>{
-        "Good"
-        if pvca["plex_pct"] < 10
-        else "Warning"
-        if pvca["plex_pct"] < 25
-        else "High"
-    } batch effect</td></tr>
+                            {plex["plex_row"]}
                             <tr><td>Residual</td>
                                 <td>{pvca["residual_pct"]:.1f}%</td>
                                 <td>Individual variation + noise</td></tr>
@@ -750,6 +811,7 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
                 <div style="flex:1"><div id="corr-plot" style="height:450px"></div></div>
                 <div style="flex:1"><div id="boxplot" style="height:450px"></div></div>
             </div>
+            {cards}
         </div>
 
         <!-- Tab 2: Reproducibility -->
@@ -773,7 +835,6 @@ def _build_qc_html(title, metrics, highlight_genes, de_results):
                             {missing_summary_rows}
                         </table>
                     </div>
-                    <div id="missing-plot" style="height:250px; margin-top:16px"></div>
                 </div>
             </div>
         </div>
@@ -801,220 +862,191 @@ function showTab(tabId) {{
     window.dispatchEvent(new Event('resize'));
 }}
 
-// Color palette
-const condColors = {{}};
-const plexSymbols = {{}};
-const palette = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b'];
-const symbols = ['circle', 'square', 'diamond', 'cross', 'triangle-up', 'star'];
+const multiPlex = {_safe_json(plex["multi_plex"])};
+const sampleConditions = {_safe_json(dict(zip(pca["samples"], pca["conditions"])))};
+const missingColor = {_safe_json(MISSING_COLOR)};
+function paddedRange(values) {{
+    const low = Math.min(...values), high = Math.max(...values);
+    const padding = (high - low || 1) * 0.15;
+    return [low - padding, high + padding];
+}}
+function sampleOrder(a, b) {{
+    return categoryOrder(sampleConditions[a], sampleConditions[b]) || a.localeCompare(b);
+}}
 
-// PCA Plot
-(function() {{
-    const pca = {_safe_json(pca)};
-    const conditions = [...new Set(pca.conditions)].sort();
-    const plexes = [...new Set(pca.plexes)].sort();
-
-    conditions.forEach((c, i) => condColors[c] = palette[i % palette.length]);
-    plexes.forEach((p, i) => plexSymbols[p] = symbols[i % symbols.length]);
-
+// Shared colors are computed in Python for every condition panel.
+const condColors = {
+        _safe_json(dict(zip(condition_names, category_colors(len(condition_names)))))
+    };
+const singleColor = {_safe_json(SINGLE_SERIES_COLOR)};
+const sequentialColors = {_safe_json(SEQUENTIAL_COLORS)};
+const plotConfig = {{responsive: true, displaylogo: false, displayModeBar: 'hover'}};
+const sampleAxis = {_safe_json(sample_axis(len(distributions)))};
+const plotTemplate = {_safe_json(PLOTLY_TEMPLATE)};
+const pca = {_safe_json(pca)};
+{EMBEDDING_LABEL_JS}
+function embeddingTraces(data, xKey, yKey) {{
+    const conditions = [...new Set(data.conditions)].sort(categoryOrder);
+    const plexes = [...new Set(data.plexes)].sort();
     const traces = [];
-    conditions.forEach(cond => {{
+    conditions.forEach(condition => {{
+        let first = true;
         plexes.forEach(plex => {{
-            const idx = pca.samples.map((s, i) => i)
-                .filter(i => pca.conditions[i] === cond && pca.plexes[i] === plex);
-            if (idx.length === 0) return;
+            const indices = data.samples.map((sample, i) => i)
+                .filter(i => data.conditions[i] === condition && data.plexes[i] === plex);
+            if (!indices.length) return;
             traces.push({{
-                type: 'scatter', mode: 'markers+text',
-                x: idx.map(i => pca.pc1[i]),
-                y: idx.map(i => pca.pc2[i]),
-                text: idx.map(i => pca.samples[i]),
-                textposition: 'top right',
-                textfont: {{ size: 8 }},
-                marker: {{
-                    color: condColors[cond],
-                    symbol: plexSymbols[plex],
-                    size: 12,
-                    line: {{ width: 1, color: '#333' }}
-                }},
-                name: cond + ' / ' + plex,
-                legendgroup: cond,
+                type: 'scatter', mode: 'markers', cliponaxis: false,
+                meta: {{condition}},
+                x: indices.map(i => data[xKey][i]), y: indices.map(i => data[yKey][i]),
+                text: indices.map(i => data.samples[i]),
+                hovertext: indices.map(i => data.samples[i] + '<br>Condition: ' + condition
+                    + (multiPlex ? '<br>Plex: ' + plex : '')), hoverinfo: 'text',
+                marker: {{color: condColors[condition], size: 7, opacity: 0.85,
+                    symbol: 'circle',
+                    line: {{width: 0}}}},
+                name: condition, legendgroup: condition, showlegend: first,
             }});
+            first = false;
         }});
     }});
-
-    Plotly.newPlot('pca-plot', traces, {{
-        title: {{ text: 'PCA (color=condition, shape=plex)', font: {{ size: 14 }} }},
-        xaxis: {{ title: 'PC1 (' + pca.var_explained[0].toFixed(1) + '%)' }},
-        yaxis: {{ title: 'PC2 (' + pca.var_explained[1].toFixed(1) + '%)' }},
-        legend: {{ font: {{ size: 10 }} }},
-        margin: {{ t: 50, b: 50, l: 60, r: 20 }},
-    }}, {{responsive: true}});
-}})();
-
-// t-SNE Plot
-(function() {{
-    const tsne = {_safe_json(tsne)};
-    if (!tsne) {{
-        document.getElementById('tsne-plot').innerHTML = '<p style="padding:20px;color:#999">t-SNE requires scikit-learn</p>';
-        return;
-    }}
-    const conditions = [...new Set(tsne.conditions)].sort();
-    const plexes = [...new Set(tsne.plexes)].sort();
-    const traces = [];
-    conditions.forEach(cond => {{
-        plexes.forEach(plex => {{
-            const idx = tsne.samples.map((s, i) => i)
-                .filter(i => tsne.conditions[i] === cond && tsne.plexes[i] === plex);
-            if (idx.length === 0) return;
-            traces.push({{
-                type: 'scatter', mode: 'markers+text',
-                x: idx.map(i => tsne.x[i]),
-                y: idx.map(i => tsne.y[i]),
-                text: idx.map(i => tsne.samples[i]),
-                textposition: 'top right',
-                textfont: {{ size: 8 }},
-                marker: {{
-                    color: condColors[cond],
-                    symbol: plexSymbols[plex],
-                    size: 12,
-                    line: {{ width: 1, color: '#333' }}
-                }},
-                name: cond + ' / ' + plex,
-                legendgroup: cond,
-            }});
-        }});
-    }});
-    Plotly.newPlot('tsne-plot', traces, {{
-        title: {{ text: 't-SNE (color=condition, shape=plex)', font: {{ size: 14 }} }},
-        xaxis: {{ title: 't-SNE 1' }},
-        yaxis: {{ title: 't-SNE 2' }},
-        legend: {{ font: {{ size: 10 }} }},
-        margin: {{ t: 50, b: 50, l: 60, r: 20 }},
-    }}, {{responsive: true}});
-}})();
-
+    return traces;
+}}
+function drawEmbedding(target, data, axes, title) {{
+    const traces = embeddingTraces(data, axes[0][0], axes[1][0]);
+    const outlines = Object.values(data.ellipses);
+    Plotly.newPlot(target, [...ellipseTraces(data.ellipses, condColors), ...traces,
+            ...labelTraces(traces)], {{
+        template: plotTemplate,
+        title: {{x: 0, xanchor: 'left', font: {{size: 14}},
+            text: title + (traces.length === 1 ? ' (' + traces[0].name + ')' : '')}},
+        xaxis: {{title: {{text: axes[0][1]}},
+            range: paddedRange(data[axes[0][0]].concat(...outlines.map(outline => outline.x)))}},
+        yaxis: {{title: {{text: axes[1][1]}},
+            range: paddedRange(data[axes[1][0]].concat(...outlines.map(outline => outline.y)))}},
+        showlegend: traces.length > 1, legend: {{font: {{size: 10}}}},
+        margin: {{t: 50, b: 50, l: 60, r: 35}},
+        ...categoryLayout(target, traces, 450),
+    }}, plotConfig).then(labelEmbedding);
+}}
+drawEmbedding('pca-plot', pca,
+    [['pc1', 'PC1 (' + pca.var_explained[0].toFixed(1) + '%)'],
+     ['pc2', 'PC2 (' + pca.var_explained[1].toFixed(1) + '%)']], 'PCA');
 // PVCA bar chart
+(function() {{
+const pvcaBars = {_safe_json(plex["pvca_bars"])};
 Plotly.newPlot('pvca-plot', [{{
     type: 'bar',
-    x: ['Condition', 'Plex', 'Residual'],
-    y: [{pvca["condition_pct"]:.1f}, {pvca["plex_pct"]:.1f}, {
-        pvca["residual_pct"]:.1f}],
-    marker: {{ color: ['#27ae60', '#e74c3c', '#95a5a6'] }},
-    text: ['{pvca["condition_pct"]:.1f}%', '{pvca["plex_pct"]:.1f}%', '{
-        pvca["residual_pct"]:.1f}%'],
+    x: pvcaBars.x,
+    y: pvcaBars.y,
+    marker: {{ color: pvcaBars.colors }},
+    text: pvcaBars.y.map(v => v.toFixed(1) + '%'),
     textposition: 'auto',
 }}], {{
-    title: {{ text: 'Variance Decomposition', font: {{ size: 14 }} }},
-    yaxis: {{ title: '% Variance Explained', range: [0, 100] }},
+    template: plotTemplate,
+    showlegend: false,
+    title: {{ x: 0, xanchor: 'left', text: 'Variance Decomposition', font: {{ size: 14 }} }},
+    yaxis: {{ title: {{ text: '% Variance Explained' }}, range: [0, 100] }},
+    bargap: 0.6,
     margin: {{ t: 50, b: 40, l: 60, r: 20 }},
-}}, {{responsive: true}});
+}}, plotConfig);
+}})();
 
 // Correlation heatmap
 (function() {{
     const corr = {_safe_json(corr)};
+    const order = corr.samples.map((sample, index) => index)
+        .sort((a, b) => sampleOrder(corr.samples[a], corr.samples[b]));
+    const samples = order.map(index => corr.samples[index]);
+    const matrix = order.map(y => order.map(x => corr.matrix[y][x]));
+    const offDiagonal = matrix.flatMap((row, y) => row.filter((value, x) =>
+        x !== y && Number.isFinite(value)));
+    // Reduced, as spreading a large cohort's cells into Math.min overflows the stack.
+    const lowest = offDiagonal.reduce((low, value) => Math.min(low, value), Infinity);
     Plotly.newPlot('corr-plot', [{{
         type: 'heatmap',
-        z: corr.matrix,
-        x: corr.samples,
-        y: corr.samples,
-        colorscale: 'RdBu',
-        reversescale: true,
-        zmin: 0.5,
+        z: matrix,
+        x: samples,
+        y: samples,
+        colorscale: sequentialColors.map((color, index) =>
+            [index / (sequentialColors.length - 1), color]),
+        zmin: Math.floor(lowest * 100) / 100,
         zmax: 1.0,
         hovertemplate: '%{{x}} vs %{{y}}: %{{z:.3f}}<extra></extra>',
     }}], {{
-        title: {{ text: 'Sample Correlation (Pearson)', font: {{ size: 14 }} }},
-        xaxis: {{ tickangle: 45, tickfont: {{ size: 9 }} }},
-        yaxis: {{ tickfont: {{ size: 9 }} }},
+        template: plotTemplate,
+        title: {{ x: 0, xanchor: 'left', text: 'Sample Correlation (Pearson)',
+                  font: {{ size: 14 }} }},
+        plot_bgcolor: missingColor, showlegend: false,
+        xaxis: {{ ...sampleAxis, tickangle: 45, tickfont: {{ size: 9 }},
+                  categoryorder: 'array', categoryarray: samples }},
+        yaxis: {{ ...sampleAxis, tickfont: {{ size: 9 }},
+                  categoryorder: 'array', categoryarray: samples }},
         margin: {{ t: 50, b: 100, l: 100, r: 20 }},
-    }}, {{responsive: true}});
+    }}, plotConfig);
 }})();
 
 // Per-sample boxplots (distribution)
 (function() {{
     const dist = {json.dumps(distributions)};
-    const samples = Object.keys(dist).sort();
-    const traces = [];
-    samples.forEach(s => {{
-        const d = dist[s];
-        traces.push({{
-            type: 'box',
-            name: s,
-            y: [d.min, d.q25, d.median, d.q75, d.max],
-            boxmean: true,
-            marker: {{ color: condColors[d.condition] || '#999' }},
-            line: {{ width: 1 }},
-        }});
-    }});
-    // Use simplified box representation
+    const samples = Object.keys(dist).sort(sampleOrder);
     const boxTraces = [];
-    const conds = [...new Set(samples.map(s => dist[s].condition))].sort();
+    const conds = [...new Set(samples.map(sample => dist[sample].condition))].sort(categoryOrder);
     conds.forEach(cond => {{
-        const condSamples = samples.filter(s => dist[s].condition === cond);
+        const group = samples.filter(sample => dist[sample].condition === cond);
         boxTraces.push({{
-            type: 'bar',
-            name: cond,
-            x: condSamples,
-            y: condSamples.map(s => dist[s].median),
-            error_y: {{
-                type: 'data',
-                symmetric: false,
-                array: condSamples.map(s => dist[s].q75 - dist[s].median),
-                arrayminus: condSamples.map(s => dist[s].median - dist[s].q25),
-            }},
-            marker: {{ color: condColors[cond] || '#999' }},
+            type: 'box', name: cond, x: group,
+            q1: group.map(sample => dist[sample].q25),
+            median: group.map(sample => dist[sample].median),
+            q3: group.map(sample => dist[sample].q75),
+            lowerfence: group.map(sample => dist[sample].min),
+            upperfence: group.map(sample => dist[sample].max),
+            marker: {{color: condColors[cond]}}, line: {{width: 1}}, boxpoints: false,
         }});
     }});
     Plotly.newPlot('boxplot', boxTraces, {{
-        title: {{ text: 'Per-Sample Distribution (median + IQR)', font: {{ size: 14 }} }},
-        xaxis: {{ tickangle: 45, tickfont: {{ size: 9 }} }},
-        yaxis: {{ title: '{
+        template: plotTemplate, showlegend: boxTraces.length > 1 && boxTraces.length <= 12,
+        title: {{ x: 0, xanchor: 'left',
+                  text: 'Per-Sample Distribution (quartiles; whiskers=min/max)',
+                  font: {{ size: 14 }} }},
+        yaxis: {{ title: {{ text: '{
         "log2 ratio" if summary["is_log2"] else "log2 intensity"
-    }' }},
-        barmode: 'group',
+    }' }} }},
+        xaxis: {{...sampleAxis, tickangle: 45, tickfont: {{size: 9}},
+                 categoryorder: 'array', categoryarray: samples}},
         margin: {{ t: 50, b: 100, l: 60, r: 20 }},
-    }}, {{responsive: true}});
+    }}, plotConfig);
 }})();
 
 // CV violin/box by condition
 (function() {{
     const cvData = {json.dumps({k: v["cv_values"] for k, v in condition_cv.items()})};
     const traces = [];
-    Object.keys(cvData).sort().forEach(cond => {{
+    Object.keys(cvData).sort(categoryOrder).forEach(cond => {{
         traces.push({{
-            type: 'violin',
+            type: 'violin', points: false,
             name: cond,
             y: cvData[cond],
             box: {{ visible: true }},
             meanline: {{ visible: true }},
-            marker: {{ color: condColors[cond] || '#999' }},
+            marker: {{ color: condColors[cond] }},
             line: {{ width: 1 }},
         }});
     }});
     Plotly.newPlot('cv-violin', traces, {{
-        title: {{ text: 'Per-Protein CV Distribution by Condition', font: {{ size: 14 }} }},
-        yaxis: {{ title: 'Coefficient of Variation', range: [0, 3] }},
+        // Beyond 12 conditions a legend would take the plot's width; hover names them.
+        template: plotTemplate, showlegend: traces.length > 1 && traces.length <= 12,
+        title: {{ x: 0, xanchor: 'left', text: 'Per-Protein CV Distribution by Condition',
+                  font: {{ size: 14 }} }},
+        xaxis: {{ showticklabels: traces.length <= 12 }},
+        yaxis: {{ title: {{ text: 'Coefficient of Variation' }}, range: {
+        _safe_json(_cv_axis_range(condition_cv))
+    } }},
         margin: {{ t: 50, b: 40, l: 60, r: 20 }},
-    }}, {{responsive: true}});
+    }}, plotConfig);
 }})();
 
-// Missing values per sample
-(function() {{
-    const missing = {json.dumps(missing["per_sample"])};
-    const samples = Object.keys(missing).sort();
-    Plotly.newPlot('missing-plot', [{{
-        type: 'bar',
-        x: samples,
-        y: samples.map(s => (missing[s].rate * 100).toFixed(1)),
-        marker: {{ color: samples.map(s => missing[s].rate > 0.3 ? '#e74c3c' : '#27ae60') }},
-        text: samples.map(s => (missing[s].rate * 100).toFixed(1) + '%'),
-        textposition: 'auto',
-    }}], {{
-        title: {{ text: 'Missing Value Rate per Sample', font: {{ size: 14 }} }},
-        xaxis: {{ tickangle: 45, tickfont: {{ size: 9 }} }},
-        yaxis: {{ title: '% Missing', range: [0, 100] }},
-        margin: {{ t: 50, b: 100, l: 60, r: 20 }},
-    }}, {{responsive: true}});
-}})();
+{diagnostic_js}
 
 // DE quality plots
 {_build_de_quality_js(de_quality) if de_quality else ""}
@@ -1045,42 +1077,26 @@ def _build_de_quality_js(de_quality):
         type: 'bar',
         x: {json.dumps(bin_centers)},
         y: {json.dumps(hist["counts"])},
-        marker: {{ color: '#3498db' }},
-        width: 0.045,
+        marker: {{ color: singleColor }},
     }}], {{
-        title: {{ text: 'P-value Distribution (raw)', font: {{ size: 13 }} }},
-        xaxis: {{ title: 'p-value', range: [0, 1] }},
-        yaxis: {{ title: 'Count' }},
+        template: plotTemplate,
+        showlegend: false,
+        title: {{ x: 0, xanchor: 'left', text: 'P-value Distribution (raw)',
+                  font: {{ size: 13 }} }},
+        xaxis: {{ title: {{ text: 'p-value' }}, range: [0, 1] }},
+        yaxis: {{ title: {{ text: 'Count' }} }},
         margin: {{ t: 40, b: 50, l: 50, r: 20 }},
         shapes: [{{
             type: 'line', x0: 0, x1: 1,
             y0: {sum(hist["counts"]) / 20}, y1: {sum(hist["counts"]) / 20},
-            line: {{ dash: 'dash', color: 'red', width: 1 }}
+            line: {{ color: '#777777', width: 1, dash: 'dash' }}
         }}],
         annotations: [{{
-            x: 0.75, y: {max(hist["counts"]) * 0.9},
+            x: 0.75, y: {sum(hist["counts"]) / 20}, yanchor: 'bottom',
             text: 'Expected under null',
-            showarrow: false, font: {{ size: 10, color: 'red' }}
+            showarrow: false, font: {{ size: 10 }}
         }}],
-    }}, {{responsive: true}});
-}})();
-"""
-
-    # Effect size histogram
-    if de_quality.get("effect_size", {}).get("values"):
-        js += f"""
-(function() {{
-    Plotly.newPlot('effect-hist', [{{
-        type: 'histogram',
-        x: {json.dumps(de_quality["effect_size"]["values"])},
-        nbinsx: 30,
-        marker: {{ color: '#e67e22' }},
-    }}], {{
-        title: {{ text: 'Effect Size Distribution (significant DE)', font: {{ size: 13 }} }},
-        xaxis: {{ title: '|log2FC|' }},
-        yaxis: {{ title: 'Count' }},
-        margin: {{ t: 40, b: 50, l: 50, r: 20 }},
-    }}, {{responsive: true}});
+    }}, plotConfig);
 }})();
 """
 

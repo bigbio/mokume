@@ -12,6 +12,7 @@ _PERIPHERY_COMMANDS = {
     ("interactive-report",): ("interactive_report", None),
     ("plot", "tsne"): ("visualize", None),
     ("plot", "pca"): ("de_plots", "pca"),
+    ("plot", "profile"): ("profile", None),
     ("plot", "de"): ("de_plots", "de"),
 }
 
@@ -45,7 +46,8 @@ Usage:
 Commands:
   pca   Render a PCA-by-condition plot
   tsne  Render a t-SNE plot from protein tables
-  de    Render volcano plots and DE heatmaps
+  de    Render volcano, MA, DE heatmap and multi-contrast plots
+  profile  Render peptide and protein profiles
 
 Run `mokume help plot <COMMAND>` for command-specific options.
 """

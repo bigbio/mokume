@@ -13,6 +13,19 @@ from mokume.core.constants import (
     NORM_INTENSITY,
 )
 from mokume.core.dataset import QpxDataset
+from mokume.core.duckdb_backend import LazyFrame
+
+
+@pytest.mark.parametrize("row_count", [0, 3])
+def test_lazy_frame_row_count_and_shape(row_count):
+    """Relation aggregates report both empty and populated lazy frame sizes."""
+    frame = LazyFrame.from_dataframe(pd.DataFrame({"value": range(row_count)}))
+    try:
+        assert frame.row_count == row_count
+        assert frame.shape == (row_count, 1)
+        assert len(frame) == row_count
+    finally:
+        frame.close()
 
 
 # ---------------------------------------------------------------------------

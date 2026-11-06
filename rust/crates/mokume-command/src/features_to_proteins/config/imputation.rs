@@ -5,6 +5,11 @@ use super::Features2ProteinsArgs;
 pub(super) fn resolve_imputation(
     args: &Features2ProteinsArgs,
 ) -> mokume_core::Result<ImputationConfig> {
+    if args.export_unimputed.is_some() && args.impute_method.is_none() {
+        return Err(MokumeError::InvalidInput {
+            message: "--export-unimputed requires --impute-method".to_owned(),
+        });
+    }
     let tuning_supplied = args.impute_quantile.is_some()
         || args.impute_shift.is_some()
         || args.impute_scale.is_some()

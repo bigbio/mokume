@@ -1,5 +1,7 @@
 #![cfg(test)]
 
+mod exports;
+
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fs::{create_dir_all, File};
@@ -20,6 +22,7 @@ use mokume_core::{
     MokumeError, NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat,
     PeptideFilterConfig, PibaqConfig, PibaqSharedMode, PreprocessingFilterConfig,
     ProteinFilterConfig, QuantMethod, RatioConfig, RunQcFilterConfig, RuntimeConfig, TmtConfig,
+    TransferredFeatures,
 };
 use mokume_pipeline::{
     run_features_to_peptides, run_features_to_proteins, run_features_to_proteins_with_pibaq_digest,
@@ -296,6 +299,7 @@ fn default_peptides_config(parquet: PathBuf, output: PathBuf) -> FeatureToPeptid
             psm: None,
             sdrf: None,
             fasta: None,
+            transferred_features: TransferredFeatures::Keep,
         },
         output,
         filtering: FilterConfig {
@@ -2119,6 +2123,83 @@ fn features2proteins_filter_protein_fdr_keeps_groups_at_or_below_threshold(
     Ok(())
 }
 
+// quantms leaves `id_run_file_name` null for features transferred by match
+// between runs; `TransferredFeatures::Drop` removes them before quantification.
+#[test]
+fn features2proteins_drops_transferred_features() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    create_dir_all(&root)?;
+    let parquet = root.join("proteins.transferred.features.parquet");
+    let sdrf = root.join("proteins.transferred.sdrf.tsv");
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new("PEPTIDEAK", "run1.raw", 100.0, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run1.raw", 200.0, &["P1"]),
+            QpxRow::new("THIRDPEPK", "run1.raw", 500.0, &["P1"]),
+            QpxRow::new("PEPTIDEAK", "run2.raw", 300.0, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run2.raw", 400.0, &["P1"]),
+            QpxRow::new("THIRDPEPK", "run2.raw", 600.0, &["P1"]),
+        ],
+    )?;
+    write_synthetic_sdrf(&sdrf)?;
+
+    let output = root.join("proteins.transferred.csv");
+    let mut config = default_sum_config(parquet.clone(), sdrf, output.clone());
+    config.input.transferred_features = TransferredFeatures::Drop;
+    let Err(error) = run_features_to_proteins(&config) else {
+        return Err("drop without id_run_file_name must fail".into());
+    };
+    assert!(error.to_string().contains("id_run_file_name"), "{error}");
+
+    add_id_run_column(
+        &parquet,
+        &[
+            Some("run1.raw"),
+            Some("run1.raw"),
+            Some("run1.raw"),
+            Some("run2.raw"),
+            None,
+            Some("run2.raw"),
+        ],
+    )?;
+    run_features_to_proteins(&config)?;
+    let dropped = read_csv(&output)?;
+    assert_numeric_cell_close(&dropped, "P1", "sample-1", 800.0);
+    assert_numeric_cell_close(&dropped, "P1", "sample-2", 300.0 + 600.0);
+
+    config.input.transferred_features = TransferredFeatures::Keep;
+    run_features_to_proteins(&config)?;
+    assert_numeric_cell_close(&read_csv(&output)?, "P1", "sample-2", 1300.0);
+    Ok(())
+}
+
+#[test]
+fn dropping_all_transferred_features_is_an_explicit_error() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    let parquet = root.join("features.parquet");
+    let sdrf = root.join("samples.tsv");
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new("PEPTIDEAK", "run1.raw", 100.0, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run1.raw", 200.0, &["P1"]),
+        ],
+    )?;
+    add_id_run_column(&parquet, &[None; 2])?;
+    write_synthetic_sdrf(&sdrf)?;
+    let mut config = default_sum_config(parquet, sdrf, root.join("proteins.csv"));
+    config.input.transferred_features = TransferredFeatures::Drop;
+    let Err(error) = run_features_to_proteins(&config) else {
+        return Err("dropping every transferred feature must fail explicitly".into());
+    };
+    assert!(
+        error.to_string().contains("removed all QPX features"),
+        "{error}"
+    );
+    Ok(())
+}
+
 #[test]
 fn features2proteins_filter_protein_fdr_applies_to_maxlfq() -> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
@@ -3773,11 +3854,15 @@ fn run_synthetic_quantification_with(
             psm: None,
             sdrf: Some(sdrf),
             fasta,
+            transferred_features: TransferredFeatures::Keep,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
             export_peptides: None,
+            export_unnormalized_peptides: None,
+            export_unimputed: None,
             export_ions: None,
+            export_precision: None,
             format: OutputFormat::PythonCompatible,
         },
         filtering: FilterConfig {
@@ -3896,11 +3981,15 @@ fn run_ratio_quantification() -> Result<CsvTable, Box<dyn Error>> {
             psm: None,
             sdrf: Some(sdrf),
             fasta: None,
+            transferred_features: TransferredFeatures::Keep,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
             export_peptides: None,
+            export_unnormalized_peptides: None,
+            export_unimputed: None,
             export_ions: None,
+            export_precision: None,
             format: OutputFormat::PythonCompatible,
         },
         filtering: FilterConfig {
@@ -4009,11 +4098,15 @@ fn run_family_pibaq_quantification_with(pibaq: PibaqConfig) -> Result<CsvTable, 
             psm: None,
             sdrf: Some(sdrf),
             fasta: Some(fasta),
+            transferred_features: TransferredFeatures::Keep,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
             export_peptides: None,
+            export_unnormalized_peptides: None,
+            export_unimputed: None,
             export_ions: None,
+            export_precision: None,
             format: OutputFormat::PythonCompatible,
         },
         filtering: FilterConfig {
@@ -4690,11 +4783,15 @@ fn default_sum_config(parquet: PathBuf, sdrf: PathBuf, output: PathBuf) -> Featu
             psm: None,
             sdrf: Some(sdrf),
             fasta: None,
+            transferred_features: TransferredFeatures::Keep,
         },
         output: OutputConfig {
             protein_matrix: output,
             export_peptides: None,
+            export_unnormalized_peptides: None,
+            export_unimputed: None,
             export_ions: None,
+            export_precision: None,
             format: OutputFormat::PythonCompatible,
         },
         filtering: FilterConfig {
@@ -4755,11 +4852,15 @@ fn run_coverage_quantification() -> Result<CsvTable, Box<dyn Error>> {
             psm: None,
             sdrf: Some(sdrf),
             fasta: None,
+            transferred_features: TransferredFeatures::Keep,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
             export_peptides: None,
+            export_unnormalized_peptides: None,
+            export_unimputed: None,
             export_ions: None,
+            export_precision: None,
             format: OutputFormat::PythonCompatible,
         },
         filtering: FilterConfig {
@@ -5134,6 +5235,28 @@ fn write_synthetic_sdrf(path: &Path) -> Result<(), Box<dyn Error>> {
             "sample-2\trun 2\trun2.raw\tAC=MS:1002038;NT=label free sample\tB\n",
         ),
     )?;
+    Ok(())
+}
+
+/// Rewrites a QPX file with an `id_run_file_name` column, one value per row.
+fn add_id_run_column(path: &Path, id_runs: &[Option<&str>]) -> Result<(), Box<dyn Error>> {
+    let batch = ParquetRecordBatchReaderBuilder::try_new(File::open(path)?)?
+        .build()?
+        .next()
+        .ok_or("empty QPX fixture")??;
+    let mut fields = batch.schema().fields().to_vec();
+    fields.push(Arc::new(Field::new(
+        "id_run_file_name",
+        DataType::Utf8,
+        true,
+    )));
+    let mut columns = batch.columns().to_vec();
+    columns.push(Arc::new(StringArray::from(id_runs.to_vec())) as ArrayRef);
+    let schema = Arc::new(Schema::new(fields));
+    let batch = RecordBatch::try_new(schema.clone(), columns)?;
+    let mut writer = ArrowWriter::try_new(File::create(path)?, schema, None)?;
+    writer.write(&batch)?;
+    writer.close()?;
     Ok(())
 }
 

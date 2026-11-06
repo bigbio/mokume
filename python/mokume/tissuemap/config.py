@@ -82,7 +82,7 @@ class EmbeddingConfig:
 class PlottingConfig:
     """Plotting configuration."""
 
-    dpi: int = 250
+    dpi: int = 300
     save_pdf: bool = True
     n_marker_top: int = 10
 
@@ -266,7 +266,7 @@ _YAML_TEMPLATE = """\
 
 # ── Plotting ─────────────────────────────────────────────────────────
 # plotting:
-#   dpi: 250
+#   dpi: 300
 #   save_pdf: true
 #   n_marker_top: 10                   # Top markers per tissue to save
 

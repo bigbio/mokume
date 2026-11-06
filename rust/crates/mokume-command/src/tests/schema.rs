@@ -1,6 +1,11 @@
 use std::path::Path;
 
-use crate::{command_schema, command_schema_json, validate_args, CommandSpec, FlagSpec};
+use clap::Parser;
+
+use crate::{
+    command_schema, command_schema_json, validate_args, Cli, CommandSpec, Commands, FlagSpec,
+    QuantifyCommands,
+};
 
 #[test]
 fn schema_lists_only_executable_leaf_commands() {
@@ -147,4 +152,78 @@ fn find_flag<'a>(command: &'a CommandSpec, id: &str) -> &'a FlagSpec {
         .iter()
         .find(|flag| flag.id == id)
         .unwrap_or_else(|| panic!("missing flag `{id}` for {}", command.path.join(" ")))
+}
+
+#[test]
+fn intermediate_export_paths_reach_output_config() -> mokume_core::Result<()> {
+    let cli = Cli::parse_from([
+        "mokume",
+        "quantify",
+        "features2proteins",
+        "-p",
+        "in.parquet",
+        "-o",
+        "proteins.csv",
+        "--export-peptides",
+        "normalized.csv",
+        "--export-unnormalized-peptides",
+        "unnormalized.csv",
+        "--export-unimputed",
+        "unimputed.csv",
+        "--impute-method",
+        "minprob",
+    ]);
+    let Commands::Quantify(quantify) = cli.command else {
+        panic!("expected quantify");
+    };
+    let QuantifyCommands::Features2Proteins(args) = quantify.command else {
+        panic!("expected features2proteins");
+    };
+    let config = args.into_config()?;
+    assert_eq!(
+        config.output.export_peptides.as_deref(),
+        Some(Path::new("normalized.csv"))
+    );
+    assert_eq!(
+        config.output.export_unnormalized_peptides.as_deref(),
+        Some(Path::new("unnormalized.csv"))
+    );
+    assert_eq!(
+        config.output.export_unimputed.as_deref(),
+        Some(Path::new("unimputed.csv"))
+    );
+    assert!(config.imputation.enabled);
+    Ok(())
+}
+
+#[test]
+fn intermediate_exports_reject_invalid_option_combinations() {
+    for (options, expected) in [
+        (
+            "--export-unimputed proteins.csv",
+            "--export-unimputed requires --impute-method",
+        ),
+        (
+            "--quant-method directlfq --export-unnormalized-peptides peptides.csv",
+            "export-unnormalized-peptides is not supported by directlfq quantification",
+        ),
+        (
+            "--quant-method ratio --sdrf s.tsv --export-unnormalized-peptides peptides.csv",
+            "export-unnormalized-peptides is not supported by ratio quantification",
+        ),
+    ] {
+        let argv = [
+            "mokume",
+            "quantify",
+            "features2proteins",
+            "-p",
+            "in.parquet",
+            "-o",
+            "out.csv",
+        ]
+        .into_iter()
+        .chain(options.split_whitespace());
+        let error = validate_args(argv).err().map(|error| error.to_string());
+        assert!(error.is_some_and(|error| error.contains(expected)));
+    }
 }

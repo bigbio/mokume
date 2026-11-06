@@ -41,6 +41,7 @@ Exit code 0 on success; non-zero (with a message on stderr) otherwise.
 from __future__ import annotations
 
 import argparse
+import importlib
 import sys
 
 from mokume.commands._de_cli import (
@@ -75,6 +76,17 @@ def _parse_args(argv, mode):
     )
     parser.add_argument("--volcano", action="store_true")
     parser.add_argument("--heatmap", action="store_true")
+    parser.add_argument("--ma", action="store_true", help="Render mean/FC plots.")
+    parser.add_argument(
+        "--protein-groups", metavar="<TSV>", help="ProteinName/group mapping."
+    )
+    parser.add_argument(
+        "--expected-log2fc",
+        nargs=3,
+        action="append",
+        default=[],
+        metavar=("<KEY>", "<GROUP>", "<VALUE>"),
+    )
     add_de_result_arguments(parser)
     return parser.parse_args(argv)
 
@@ -113,6 +125,7 @@ def _generate_volcano_plots(pd, contrasts, plot_dir, args):
             highlight_genes=highlight,
             title=f"Volcano Plot: {key} ({cond_a} vs {cond_b})",
             output_file=output_file,
+            conditions=(cond_a, cond_b),
         )
         print("Volcano plot saved to {0}".format(output_file))
 
@@ -132,9 +145,10 @@ def _generate_heatmap_plots(
             continue
 
         sig_proteins = (
-            sig.sort_values(
-                by="log2FC", key=lambda series: series.abs(), ascending=False
-            )["ProteinName"]
+            sig.assign(abs_log2FC=sig["log2FC"].abs())
+            .sort_values(["adj_pvalue", "abs_log2FC"], ascending=[True, False])[
+                "ProteinName"
+            ]
             .head(50)
             .tolist()
         )
@@ -176,18 +190,28 @@ def _generate_pca_plot(protein_df, sample_to_condition, output_file):
 
 
 def _validate_de_args(args):
-    if not any((args.volcano, args.heatmap)):
-        raise SystemExit("DE plots aborted: select --volcano or --heatmap")
-    if (args.volcano or args.heatmap) and not args.contrast:
+    if not any((args.volcano, args.heatmap, args.ma, len(args.contrast) > 1)):
+        raise SystemExit("DE plots aborted: select --volcano, --heatmap or --ma")
+    if not args.contrast:
         raise SystemExit(
-            "DE plots aborted: --volcano/--heatmap require at least one --contrast"
+            "DE plots aborted: --volcano/--heatmap/--ma require at least one --contrast"
         )
     if args.heatmap and not args.sdrf:
         raise SystemExit("DE plots aborted: --heatmap requires --sdrf")
-    if args.sdrf and not args.heatmap:
-        raise SystemExit("DE plots aborted: --sdrf only applies to --heatmap")
-    if args.highlight_protein and not args.volcano:
-        raise SystemExit("DE plots aborted: --highlight-protein requires --volcano")
+    if args.sdrf and not (args.heatmap or args.ma):
+        raise SystemExit("DE plots aborted: --sdrf only applies to --heatmap or --ma")
+    if (args.protein_groups or args.expected_log2fc) and not args.ma:
+        raise SystemExit(
+            "DE plots aborted: --protein-groups/--expected-log2fc require --ma"
+        )
+    if args.highlight_protein and not (args.volcano or len(args.contrast) > 1):
+        raise SystemExit(
+            "DE plots aborted: --highlight-protein requires --volcano or multiple contrasts"
+        )
+    _validate_thresholds(args)
+
+
+def _validate_thresholds(args):
     if args.log2fc < 0:
         raise SystemExit("DE plots aborted: --log2fc must be non-negative")
     if not 0 <= args.fdr <= 1:
@@ -248,13 +272,23 @@ def main(argv=None, mode="de"):
     plot_dir = Path(args.outdir)
     plot_dir.mkdir(parents=True, exist_ok=True)
 
-    if args.volcano and args.contrast:
+    _render_de_plots(pd, protein_df, sample_to_condition, plot_dir, args)
+    return 0
+
+
+def _render_de_plots(pd, protein_df, sample_to_condition, plot_dir, args):
+    """Dispatch plots after inputs and output directory have been prepared."""
+    if args.volcano:
         _generate_volcano_plots(pd, args.contrast, plot_dir, args)
-    if args.heatmap and args.contrast and sample_to_condition:
+    if args.heatmap:
         _generate_heatmap_plots(
             pd, args.contrast, protein_df, sample_to_condition, plot_dir, args
         )
-    return 0
+    if args.ma or len(args.contrast) > 1:
+        diagnostics = importlib.import_module("mokume.commands._de_diagnostics")
+        diagnostics.generate_diagnostics(
+            args, protein_df, sample_to_condition, plot_dir
+        )
 
 
 if __name__ == "__main__":

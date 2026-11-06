@@ -210,8 +210,8 @@ profile. The independent Rust quantification paths share 4,647 protein effects
 not an independent validation set.*
 
 On the workstation used to render this figure (Intel Core Ultra 7 270K Plus,
-24 hardware threads, 125 GiB RAM), the four single runs took 22.97–42.53
-seconds with 2.01–3.15 GiB peak RSS. These measurements document this exact
+24 hardware threads, 125 GiB RAM), the four single runs took 23.08–42.61
+seconds with 2.01–2.91 GiB peak RSS. These measurements document this exact
 run; they are not a portable hardware benchmark.
 
 ![PDC000125 UCEC differential expression](../assets/cptac_ucec_biology.png)

@@ -18,6 +18,9 @@
 //!      `sca_t`/`sca_pvalue`/`sca_adj_pvalue` plus a `peptide_count` column, and
 //!      rots carries a single `d_stat` column).
 //!
+//! With `--de-covariate` or `--de-block`, limma and DEqMS fit one model over
+//! all samples with a condition instead (see `design`).
+//!
 //! `--de-method ensemble` is also wired: it runs each configured member method
 //! (default members `[limrots, deqms, proda]`, with `limma` in place of
 //! `limrots` on a contrast with missing values; overridable via
@@ -30,7 +33,7 @@
 //! BH, IHW, BKY, and Storey are wired. BKY/Storey use the Python reliability
 //! gate and fall back to BH when pi0 is not trustworthy; ROTS/LimROTS preserve
 //! their permutation FDR, including as ensemble members. Eligible non-ROTS
-//! ensemble members use the requested correction, and the combined Fisher
+//! ensemble members use the requested correction, and the Cauchy-combined
 //! p-values are corrected again, matching Python. A fixed
 //! `--de-log2fc` threshold or the Python-compatible `auto` mixture gate is
 //! applied to both member and ensemble classifications; `null_quantile` is also
@@ -52,15 +55,17 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use mokume_core::{DifferentialExpressionConfig, MokumeError, Result, SampleId};
-use mokume_io::{normalize_file_key, SdrfTable};
+use mokume_io::{normalize_file_key, SdrfRawTable, SdrfTable};
 use mokume_stats::de::{
-    adaptive_adjust, combine_de_results, deqms_two_group, estimate_effect_size_gate,
-    ihw_correction, limma_two_group, limrots_two_group, proda_two_group, rots_two_group,
-    AdaptiveFdrMethod, AppliedFdrMethod, DeResult, EffectSizeGateMethod, EnsembleResult,
-    Significance,
+    adaptive_adjust, combine_de_results, deqms_two_group, deqms_two_group_weighted,
+    estimate_effect_size_gate, ihw_correction, limma_two_group, limrots_two_group, proda_two_group,
+    rots_two_group, AdaptiveFdrMethod, AppliedFdrMethod, DeResult, EffectSizeGateMethod,
+    EnsembleResult, PrecisionRows, Significance,
 };
 
 use crate::{create_parent_dir, invalid_input, ProteinMatrix};
+
+mod design;
 
 /// A parsed contrast: condition A versus condition B.
 struct Contrast {
@@ -83,6 +88,7 @@ impl Contrast {
 pub(crate) fn run_differential_expression(
     matrix: &ProteinMatrix,
     sdrf: Option<&SdrfTable>,
+    raw_sdrf: Option<&SdrfRawTable>,
     config: &DifferentialExpressionConfig,
     drop_empty_samples: bool,
 ) -> Result<()> {
@@ -99,6 +105,17 @@ pub(crate) fn run_differential_expression(
     let method = de_method(config)?;
     let condition_by_sample = condition_by_sample(sdrf);
     let samples = matrix.sample_columns(drop_empty_samples);
+    if !config.covariates.is_empty() || config.block.is_some() {
+        return design::run_contrasts(
+            matrix,
+            raw_sdrf,
+            &samples,
+            &condition_by_sample,
+            &contrasts,
+            method,
+            config,
+        );
+    }
 
     for contrast in &contrasts {
         let output = de_output_path(config, contrast, contrasts.len());
@@ -125,6 +142,16 @@ pub enum MatrixDifferentialExpressionResults {
     Ensemble(Vec<EnsembleResult>),
 }
 
+/// Optional row and cell inputs of [`differential_expression_matrix`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct MatrixDeInputs<'a> {
+    /// Peptide count of each row, required by DEqMS.
+    pub peptide_counts: Option<&'a [f64]>,
+    /// Quantification precision (1/SE^2) of each cell, zero or NaN where
+    /// unknown, for precision-weighted DEqMS.
+    pub precision: Option<&'a [Vec<f64>]>,
+}
+
 /// Run one two-group differential-expression analysis on a row-major linear
 /// protein matrix without loading QPX or writing a result file.
 ///
@@ -138,18 +165,18 @@ pub fn differential_expression_matrix(
     values: &[Vec<f64>],
     n_a: usize,
     n_b: usize,
-    peptide_counts: Option<&[f64]>,
+    inputs: MatrixDeInputs<'_>,
     config: &DifferentialExpressionConfig,
     threads: Option<usize>,
 ) -> Result<MatrixDifferentialExpressionResults> {
     validate_config(config)?;
-    validate_matrix_de_inputs(proteins, values, n_a, n_b, peptide_counts, config)?;
+    validate_matrix_de_inputs(proteins, values, n_a, n_b, inputs, config)?;
 
     crate::threading::install(threads, || {
         let rows = log2_matrix(values);
         let row_refs = rows.iter().map(Vec::as_slice).collect::<Vec<_>>();
         let default_counts;
-        let counts = match peptide_counts {
+        let counts = match inputs.peptide_counts {
             Some(counts) => counts,
             None => {
                 default_counts = vec![1.0; values.len()];
@@ -160,6 +187,7 @@ pub fn differential_expression_matrix(
             proteins,
             rows: &row_refs,
             peptide_counts: counts,
+            precision: inputs.precision,
             n_a,
             n_b,
         };
@@ -179,12 +207,23 @@ fn validate_matrix_de_inputs(
     values: &[Vec<f64>],
     n_a: usize,
     n_b: usize,
-    peptide_counts: Option<&[f64]>,
+    inputs: MatrixDeInputs<'_>,
     config: &DifferentialExpressionConfig,
 ) -> Result<()> {
     validate_matrix_shape(proteins.len(), values, n_a, n_b)?;
     validate_protein_identifiers(proteins)?;
-    validate_matrix_peptide_counts(peptide_counts, values.len(), config)
+    validate_matrix_peptide_counts(inputs.peptide_counts, values.len(), config)?;
+    let mismatched = inputs.precision.is_some_and(|precision| {
+        precision.len() != values.len()
+            || precision
+                .iter()
+                .zip(values)
+                .any(|(weights, row)| weights.len() != row.len())
+    });
+    if mismatched {
+        return Err(invalid_input("precision must have the shape of the matrix"));
+    }
+    Ok(())
 }
 
 fn validate_matrix_shape(
@@ -301,22 +340,8 @@ fn run_one_contrast(
     output: Option<&Path>,
     config: &DifferentialExpressionConfig,
 ) -> Result<()> {
-    let samples_a = group_samples(samples, condition_by_sample, &contrast.cond_a);
-    let samples_b = group_samples(samples, condition_by_sample, &contrast.cond_b);
-    if samples_a.is_empty() {
-        return Err(invalid_input(format!(
-            "No samples for '{}'. Available: {}",
-            contrast.cond_a,
-            available_conditions(condition_by_sample)
-        )));
-    }
-    if samples_b.is_empty() {
-        return Err(invalid_input(format!(
-            "No samples for '{}'. Available: {}",
-            contrast.cond_b,
-            available_conditions(condition_by_sample)
-        )));
-    }
+    let samples_a = condition_samples(samples, condition_by_sample, &contrast.cond_a)?;
+    let samples_b = condition_samples(samples, condition_by_sample, &contrast.cond_b)?;
 
     // Build the log2 protein x sample matrix with group A columns first, then
     // group B, matching the column order the two-group methods expect.
@@ -324,10 +349,17 @@ fn run_one_contrast(
     let (proteins, rows) = matrix.log2_rows(&ordered)?;
     let row_refs = rows.iter().map(Vec::as_slice).collect::<Vec<_>>();
     let peptide_counts = build_count_vector(matrix, &proteins, &ordered);
+    let precision = config.precision_weights.then(|| {
+        proteins
+            .iter()
+            .map(|protein| matrix.sample_precisions(protein, &ordered))
+            .collect::<Vec<_>>()
+    });
     let prepared = Prepared {
         proteins: &proteins,
         rows: &row_refs,
         peptide_counts: &peptide_counts,
+        precision: precision.as_deref(),
         n_a: samples_a.len(),
         n_b: samples_b.len(),
     };
@@ -346,13 +378,30 @@ fn run_one_contrast(
     }
 }
 
+/// Samples of `condition`, in matrix order; an error when it has none.
+fn condition_samples(
+    samples: &[(SampleId, &str)],
+    condition_by_sample: &HashMap<String, String>,
+    condition: &str,
+) -> Result<Vec<SampleId>> {
+    let found = group_samples(samples, condition_by_sample, condition);
+    if found.is_empty() {
+        return Err(invalid_input(format!(
+            "No samples for '{condition}'. Available: {}",
+            available_conditions(condition_by_sample)
+        )));
+    }
+    Ok(found)
+}
+
 /// The per-contrast inputs shared by every single-method run: the
-/// contrast-ordered protein names, the log2 rows, the deqms count vector, and
-/// the two group sizes.
+/// contrast-ordered protein names, the log2 rows, the deqms count vector, the
+/// cell precisions of precision-weighted DEqMS, and the two group sizes.
 struct Prepared<'a> {
     proteins: &'a [String],
     rows: &'a [&'a [f64]],
     peptide_counts: &'a [f64],
+    precision: Option<&'a [Vec<f64>]>,
     n_a: usize,
     n_b: usize,
 }
@@ -408,15 +457,27 @@ fn run_method_bh(
             // moderation runs; an all-equal vector still trips the
             // `ptp(log2 counts) < 1e-10` guard and falls back to plain eBayes
             // (== limma), so behaviour degrades gracefully.
-            deqms_two_group(
-                proteins,
-                rows,
-                n_a,
-                n_b,
-                prepared.peptide_counts,
-                fdr,
-                log2fc,
-            )
+            match prepared.precision {
+                Some(precision) => {
+                    let precision = precision.iter().map(Vec::as_slice).collect::<Vec<_>>();
+                    let data = PrecisionRows {
+                        rows,
+                        precision: &precision,
+                        n_a,
+                        n_b,
+                    };
+                    deqms_two_group_weighted(proteins, data, prepared.peptide_counts, fdr, log2fc)
+                }
+                None => deqms_two_group(
+                    proteins,
+                    rows,
+                    n_a,
+                    n_b,
+                    prepared.peptide_counts,
+                    fdr,
+                    log2fc,
+                ),
+            }
         }
         MemberMethod::Limma => limma_two_group(proteins, rows, n_a, n_b, fdr, log2fc),
     })
@@ -707,6 +768,14 @@ pub(crate) fn validate_config(config: &DifferentialExpressionConfig) -> Result<(
     if is_ensemble {
         validated_ensemble_member_names(config)?;
     }
+    if config.precision_weights && method != "deqms" {
+        return Err(invalid_input("precision weights require DEqMS"));
+    }
+    if config.precision_weights && (!config.covariates.is_empty() || config.block.is_some()) {
+        return Err(invalid_input(
+            "precision weights cannot be combined with covariates or a block",
+        ));
+    }
     validate_de_thresholds(config)?;
     validate_effect_size_gate(config)
 }
@@ -911,6 +980,9 @@ fn parse_contrasts(config: &DifferentialExpressionConfig) -> Result<Vec<Contrast
         let cond_b = right.trim().to_owned();
         if cond_a.is_empty() || cond_b.is_empty() {
             continue;
+        }
+        if cond_a == cond_b {
+            return Err(invalid_input("a contrast requires two distinct conditions"));
         }
         contrasts.push(Contrast { cond_a, cond_b });
     }
@@ -1201,11 +1273,15 @@ fn significance_label(significance: Significance) -> &'static str {
 /// Format a float for the DE CSV. Non-finite values (e.g. a NaN log2FC coerced
 /// by the P20 guard) are written as an empty cell, matching how pandas renders
 /// NaN to CSV.
+/// Shortest round-trip text; like Python's `repr`, magnitudes below 1e-4 use
+/// exponent notation, which every CSV reader parses exactly.
 fn format_float(value: f64) -> String {
-    if value.is_finite() {
-        value.to_string()
-    } else {
+    if !value.is_finite() {
         String::new()
+    } else if value != 0.0 && value.abs() < 1e-4 {
+        format!("{value:e}")
+    } else {
+        value.to_string()
     }
 }
 
@@ -1229,14 +1305,15 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use mokume_core::{DifferentialExpressionConfig, ProteinId, SampleId};
-    use mokume_io::SdrfTable;
+    use mokume_io::{SdrfRawTable, SdrfTable};
     use mokume_stats::de::{DeResult, EnsembleResult, Significance};
 
     use super::{
         available_conditions, build_count_vector, classify_significance, condition_by_sample,
         differential_expression_matrix, finalize_ensemble_results, finalize_member_results,
         run_differential_expression, sample_condition, shorten_factor_label, split_contrast,
-        validated_ensemble_member_names, write_de_csv, Contrast, MemberMethod, Prepared,
+        validated_ensemble_member_names, write_de_csv, Contrast, MatrixDeInputs, MemberMethod,
+        Prepared,
     };
     use crate::{CellKey, ProteinMatrix, ProteinValues};
 
@@ -1369,6 +1446,7 @@ mod tests {
             // protein 0 + 1, which is what this 6-protein fixture exercises
             // (< 10 valid points -> eBayes).
             peptide_counts: HashMap::new(),
+            precision: HashMap::new(),
             values: ProteinValues::Cells(values),
         })
     }
@@ -1400,6 +1478,7 @@ mod tests {
             proteins: &[],
             rows: &[],
             peptide_counts: &[],
+            precision: None,
             n_a: 3,
             n_b: 3,
         };
@@ -1448,6 +1527,7 @@ mod tests {
             allowed_proteins: HashSet::new(),
             excluded_samples: HashSet::new(),
             peptide_counts,
+            precision: HashMap::new(),
             values: ProteinValues::Cells(HashMap::new()),
         };
 
@@ -1645,6 +1725,34 @@ mod tests {
     }
 
     #[test]
+    fn same_condition_contrasts_are_rejected() {
+        let config = DifferentialExpressionConfig {
+            contrasts: Some(vec!["A vs A".to_owned()]),
+            ..DifferentialExpressionConfig::default()
+        };
+        let error = super::parse_contrasts(&config).err();
+        assert!(error.is_some_and(|error| error.to_string().contains("distinct conditions")));
+    }
+
+    #[test]
+    fn config_rejects_precision_on_design_paths() {
+        for (covariates, block) in [
+            (vec!["age".to_owned()], None),
+            (vec![], Some("subject".to_owned())),
+        ] {
+            let config = DifferentialExpressionConfig {
+                method: "deqms".to_owned(),
+                precision_weights: true,
+                covariates,
+                block,
+                ..DifferentialExpressionConfig::default()
+            };
+            let error = super::validate_config(&config).err();
+            assert!(error.is_some_and(|error| error.to_string().contains("cannot be combined")));
+        }
+    }
+
+    #[test]
     fn matrix_de_rejects_infinite_input() {
         let proteins = vec!["P1".to_owned()];
         let values = vec![vec![1.0, f64::INFINITY, 2.0, 3.0]];
@@ -1654,12 +1762,37 @@ mod tests {
             ..DifferentialExpressionConfig::default()
         };
 
-        let Err(error) =
-            differential_expression_matrix(&proteins, &values, 2, 2, None, &config, Some(2))
-        else {
+        let Err(error) = differential_expression_matrix(
+            &proteins,
+            &values,
+            2,
+            2,
+            MatrixDeInputs::default(),
+            &config,
+            Some(2),
+        ) else {
             panic!("Inf must be rejected");
         };
         assert!(error.to_string().contains("contains an infinite value"));
+    }
+
+    #[test]
+    fn de_csv_writes_tiny_values_with_an_exponent() {
+        assert_eq!(
+            super::format_float(9.778087686539625e-17),
+            "9.778087686539625e-17"
+        );
+        assert_eq!(super::format_float(-2.5e-5), "-2.5e-5");
+        assert_eq!(super::format_float(0.0123), "0.0123");
+        assert_eq!(super::format_float(0.0), "0");
+        assert_eq!(super::format_float(f64::NAN), "");
+    }
+
+    fn counted(counts: &[f64]) -> MatrixDeInputs<'_> {
+        MatrixDeInputs {
+            peptide_counts: Some(counts),
+            ..MatrixDeInputs::default()
+        }
     }
 
     #[test]
@@ -1671,10 +1804,11 @@ mod tests {
             method: "deqms".to_owned(),
             ..DifferentialExpressionConfig::default()
         };
+        let run = |inputs: MatrixDeInputs<'_>| {
+            differential_expression_matrix(&proteins, &values, 2, 2, inputs, &config, Some(2))
+        };
 
-        let Err(error) =
-            differential_expression_matrix(&proteins, &values, 2, 2, None, &config, Some(2))
-        else {
+        let Err(error) = run(MatrixDeInputs::default()) else {
             panic!("DEqMS accepted missing peptide counts");
         };
         assert!(error.to_string().contains("peptide_counts are required"));
@@ -1685,30 +1819,13 @@ mod tests {
             vec![1.5, 2.0],
             vec![f64::NAN, 2.0],
         ] {
-            let Err(error) = differential_expression_matrix(
-                &proteins,
-                &values,
-                2,
-                2,
-                Some(&counts),
-                &config,
-                Some(2),
-            ) else {
+            let Err(error) = run(counted(&counts)) else {
                 panic!("DEqMS accepted invalid peptide counts");
             };
             assert!(error.to_string().contains("finite positive integers"));
         }
 
-        assert!(differential_expression_matrix(
-            &proteins,
-            &values,
-            2,
-            2,
-            Some(&[1.0, 2.0]),
-            &config,
-            Some(2),
-        )
-        .is_ok());
+        assert!(run(counted(&[1.0, 2.0])).is_ok());
     }
 
     #[test]
@@ -1729,7 +1846,7 @@ mod tests {
                 &values,
                 2,
                 2,
-                None,
+                MatrixDeInputs::default(),
                 &config,
                 Some(2),
             )
@@ -1748,9 +1865,15 @@ mod tests {
             ..DifferentialExpressionConfig::default()
         };
 
-        let Err(error) =
-            differential_expression_matrix(&proteins, &values, 2, 2, None, &config, Some(2))
-        else {
+        let Err(error) = differential_expression_matrix(
+            &proteins,
+            &values,
+            2,
+            2,
+            MatrixDeInputs::default(),
+            &config,
+            Some(2),
+        ) else {
             panic!("DEqMS ensemble accepted missing peptide counts");
         };
         assert!(error.to_string().contains("peptide_counts are required"));
@@ -1766,7 +1889,7 @@ mod tests {
             &values,
             2,
             2,
-            None,
+            MatrixDeInputs::default(),
             &without_deqms,
             Some(2),
         )
@@ -1790,7 +1913,15 @@ mod tests {
             ..DifferentialExpressionConfig::default()
         };
         let run = |values: &[Vec<f64>], config: &DifferentialExpressionConfig| {
-            differential_expression_matrix(&proteins, values, 2, 2, Some(&counts), config, Some(2))
+            differential_expression_matrix(
+                &proteins,
+                values,
+                2,
+                2,
+                counted(&counts),
+                config,
+                Some(2),
+            )
         };
 
         // On a complete contrast the default members still run LimROTS, which
@@ -1859,7 +1990,8 @@ mod tests {
         let matrix = fixture_matrix()?;
         let sdrf = fixture_sdrf()?;
 
-        run_differential_expression(&matrix, Some(&sdrf), &de_config(&output, "limma"), false)?;
+        let config = de_config(&output, "limma");
+        run_differential_expression(&matrix, Some(&sdrf), None, &config, false)?;
 
         let text = std::fs::read_to_string(&output)?;
         let mut lines = text.lines();
@@ -1923,6 +2055,224 @@ mod tests {
         Ok(())
     }
 
+    // `--de-covariate batch`: one ~0 + condition + batch fit over the six
+    // samples. Expected (log2FC, pvalue, adj_pvalue, t) from R 4.5.3 / limma
+    // 3.66.0 on log2(RAW):
+    //   batch <- factor(c("b1","b1","b2","b1","b2","b2"))
+    //   design <- model.matrix(~0 + condition + batch)
+    //   fit <- eBayes(contrasts.fit(lmFit(y, design),
+    //                 makeContrasts(conditiongroupA - conditiongroupB, levels = design)))
+    //   topTable(fit, number = Inf, sort.by = "none")
+    const EXPECTED_BATCH: &[(&str, f64, f64, f64, f64)] = &[
+        (
+            "P1",
+            -2.050_593_305_945_616_5,
+            1.607_675_472_643_838_8e-4,
+            4.823_026_417_931_516e-4,
+            -16.652_382_183_648_18,
+        ),
+        (
+            "P2",
+            1.983_518_856_233_685,
+            3.519_666_284_833_612_7e-4,
+            7.039_332_569_667_225e-4,
+            13.339_154_690_627_4,
+        ),
+        (
+            "P3",
+            -0.006_788_784_149_508_231,
+            0.876_113_971_495_986_9,
+            0.937_535_721_134_293_4,
+            -0.167_353_941_749_986_08,
+        ),
+        (
+            "P4",
+            -1.5,
+            0.420_479_726_747_895,
+            0.630_719_590_121_842_4,
+            -0.908_741_206_962_765_3,
+        ),
+        (
+            "P5",
+            -1.002_261_284_900_752_6,
+            3.535_864_039_868_584e-6,
+            2.121_518_423_921_150_6e-5,
+            -48.603_533_437_402_52,
+        ),
+        (
+            "P6",
+            -0.032_944_214_011_390_47,
+            0.937_535_721_134_293_4,
+            0.937_535_721_134_293_4,
+            -0.084_007_229_142_228_34,
+        ),
+    ];
+
+    // `--de-block individual`: the individuals pair A1/B2, A2/B3 and A3/B1.
+    // Expected (log2FC, pvalue, adj_pvalue, t) from R 4.5.3 / limma 3.66.0 on
+    // log2(RAW); the consensus correlation is -0.22904427344429432:
+    //   pair <- c("p1","p2","p3","p3","p1","p2")
+    //   design <- model.matrix(~0 + condition)
+    //   dc <- duplicateCorrelation(y, design, block = pair)
+    //   fit <- eBayes(contrasts.fit(lmFit(y, design, block = pair,
+    //                 correlation = dc$consensus.correlation),
+    //                 makeContrasts(conditiongroupA - conditiongroupB, levels = design)))
+    //   topTable(fit, number = Inf, sort.by = "none")
+    // Pairing A1/B1, A2/B2, A3/B3 instead leaves P5 no residual variance, where
+    // R's NA or a clamped correlation for it depends on rounding.
+    const EXPECTED_BLOCK: &[(&str, f64, f64, f64, f64)] = &[
+        (
+            "P1",
+            -2.000_486_843_285_49,
+            4.481_983_699_022_344e-5,
+            1.121_010_719_082_057_1e-4,
+            -15.084_917_879_127_838,
+        ),
+        (
+            "P2",
+            2.009_061_609_775_408,
+            5.605_053_595_410_286e-5,
+            1.121_010_719_082_057_1e-4,
+            14.352_543_293_066_294,
+        ),
+        (
+            "P3",
+            0.015_910_691_677_653_688,
+            0.767_566_097_969_161,
+            0.825_376_880_108_116_8,
+            0.313_672_840_858_025_9,
+        ),
+        (
+            "P4",
+            -1.000_000_000_000_007,
+            0.611_535_723_300_775_6,
+            0.825_376_880_108_116_8,
+            -0.544_561_835_004_548_7,
+        ),
+        (
+            "P5",
+            -1.000_000_000_000_000_9,
+            1.265_932_580_240_996e-7,
+            7.595_595_481_445_976e-7,
+            -54.868_315_513_307_65,
+        ),
+        (
+            "P6",
+            0.091_755_950_826_584_61,
+            0.825_376_880_108_116_8,
+            0.825_376_880_108_116_8,
+            0.233_614_263_623_038_8,
+        ),
+    ];
+
+    /// The fixture SDRF plus a batch and an individual column. `run_level`
+    /// keys the samples by data file only, as run-level matrices are.
+    fn batch_sdrf(run_level: bool) -> TestResult<(SdrfTable, SdrfRawTable)> {
+        let mut tsv = String::from(
+            "source name\tcomment[data file]\tcharacteristics[batch]\tcharacteristics[individual]\tfactor value[phenotype]\n",
+        );
+        let individuals = ["p1", "p2", "p3", "p3", "p1", "p2"];
+        for ((name, batch), individual) in SAMPLES
+            .iter()
+            .zip(["b1", "b1", "b2", "b1", "b2", "b2"])
+            .zip(individuals)
+        {
+            let source = if run_level {
+                format!("source-{name}")
+            } else {
+                (*name).to_owned()
+            };
+            let condition = if name.starts_with('A') {
+                "groupA"
+            } else {
+                "groupB"
+            };
+            tsv.push_str(&format!(
+                "{source}\t{name}.raw\t{batch}\t{individual}\t{condition}\n"
+            ));
+        }
+        Ok((
+            SdrfTable::from_reader(tsv.as_bytes())?,
+            SdrfRawTable::from_reader(tsv.as_bytes())?,
+        ))
+    }
+
+    fn assert_design_table(
+        path: &std::path::Path,
+        expected: &[(&str, f64, f64, f64, f64)],
+    ) -> TestResult<()> {
+        let text = std::fs::read_to_string(path)?;
+        let rows = text
+            .lines()
+            .skip(1)
+            .map(|line| line.split(',').map(ToOwned::to_owned).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), expected.len());
+        for &(protein, log2fc, pvalue, adj, t_stat) in expected {
+            let fields = rows
+                .iter()
+                .find(|fields| fields[0] == protein)
+                .ok_or_else(|| format!("missing {protein}"))?;
+            assert_exact(parse(fields, 1)?, log2fc, "log2FC", protein);
+            assert_exact(parse(fields, 2)?, pvalue, "pvalue", protein);
+            assert_exact(parse(fields, 3)?, adj, "adj_pvalue", protein);
+            assert_exact(parse(fields, 4)?, t_stat, "t_stat", protein);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn de_covariate_design_matches_r_limma() -> TestResult<()> {
+        let (_tempdir, dir) = temp_dir("covariate")?;
+        let output = dir.join("de_results.csv");
+        let matrix = fixture_matrix()?;
+        let config = DifferentialExpressionConfig {
+            covariates: vec!["batch".to_owned()],
+            ..de_config(&output, "limma")
+        };
+        for run_level in [false, true] {
+            let (sdrf, raw) = batch_sdrf(run_level)?;
+            run_differential_expression(&matrix, Some(&sdrf), Some(&raw), &config, false)?;
+            assert_design_table(&output, EXPECTED_BATCH)?;
+        }
+
+        let (sdrf, raw) = batch_sdrf(false)?;
+        let rots = DifferentialExpressionConfig {
+            covariates: vec!["batch".to_owned()],
+            ..de_config(&output, "rots")
+        };
+        assert!(
+            run_differential_expression(&matrix, Some(&sdrf), Some(&raw), &rots, false).is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn de_block_design_matches_r_limma() -> TestResult<()> {
+        let (_tempdir, dir) = temp_dir("block")?;
+        let output = dir.join("de_results.csv");
+        let matrix = fixture_matrix()?;
+        let config = DifferentialExpressionConfig {
+            block: Some("individual".to_owned()),
+            ..de_config(&output, "limma")
+        };
+        for run_level in [false, true] {
+            let (sdrf, raw) = batch_sdrf(run_level)?;
+            run_differential_expression(&matrix, Some(&sdrf), Some(&raw), &config, false)?;
+            assert_design_table(&output, EXPECTED_BLOCK)?;
+        }
+
+        let (sdrf, raw) = batch_sdrf(false)?;
+        let rots = DifferentialExpressionConfig {
+            block: Some("individual".to_owned()),
+            ..de_config(&output, "rots")
+        };
+        assert!(
+            run_differential_expression(&matrix, Some(&sdrf), Some(&raw), &rots, false).is_err()
+        );
+        Ok(())
+    }
+
     // Pipeline wiring test for `--de-method deqms`. The 6-protein fixture has
     // fewer than 10 valid points, so the in-pipeline deqms (with its all-ones
     // default counts) falls back to plain eBayes and reproduces the limma oracle
@@ -1939,7 +2289,8 @@ mod tests {
         let matrix = fixture_matrix()?;
         let sdrf = fixture_sdrf()?;
 
-        run_differential_expression(&matrix, Some(&sdrf), &de_config(&output, "deqms"), false)?;
+        let config = de_config(&output, "deqms");
+        run_differential_expression(&matrix, Some(&sdrf), None, &config, false)?;
 
         let text = std::fs::read_to_string(&output)?;
         let mut lines = text.lines();
@@ -2003,7 +2354,8 @@ mod tests {
         let matrix = fixture_matrix()?;
         let sdrf = fixture_sdrf()?;
 
-        run_differential_expression(&matrix, Some(&sdrf), &de_config(&output, "rots"), false)?;
+        let config = de_config(&output, "rots");
+        run_differential_expression(&matrix, Some(&sdrf), None, &config, false)?;
 
         let text = std::fs::read_to_string(&output)?;
         let mut lines = text.lines();
@@ -2041,6 +2393,7 @@ mod tests {
         let result = run_differential_expression(
             &fixture_matrix()?,
             Some(&fixture_sdrf()?),
+            None,
             &de_config(&output, "limrots"),
             false,
         );
@@ -2079,8 +2432,9 @@ mod tests {
             .map(|r| r.iter().map(|v| v.exp2()).collect())
             .collect::<Vec<_>>();
         let config = de_config(&dir.join("unused.csv"), "limrots");
+        let inputs = MatrixDeInputs::default();
         let output =
-            differential_expression_matrix(&proteins, &values, 4, 4, None, &config, Some(4))?;
+            differential_expression_matrix(&proteins, &values, 4, 4, inputs, &config, Some(4))?;
         let super::MatrixDifferentialExpressionResults::Standard(results) = output else {
             return Err("expected standard LimROTS results".into());
         };
@@ -2273,6 +2627,7 @@ mod tests {
         run_differential_expression(
             &matrix,
             Some(&sdrf),
+            None,
             &ensemble_config(&output, &["limma", "rots"]),
             false,
         )?;

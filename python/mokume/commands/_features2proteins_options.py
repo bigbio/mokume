@@ -235,6 +235,7 @@ def _validate_de_options(ctx: click.Context, quant_method: str) -> None:
         "de_fdr_threshold",
         "de_fdr_method",
         "de_output",
+        "de_precision_weights",
     )
     if not params["differential_expression"] and _supplied(ctx, *de_options):
         raise click.UsageError("differential-expression options require --de")
@@ -271,6 +272,19 @@ def _validate_de_options(ctx: click.Context, quant_method: str) -> None:
             f"--de-fdr-method {params['de_fdr_method']} does not apply to "
             f"{resolved_method}, which retains its permutation FDR"
         )
+
+
+def _validate_precision_weights(ctx: click.Context, quant_method: str) -> None:
+    # Data-aware `auto` may pick another method, so DEqMS must be explicit.
+    params = ctx.params
+    if not params["de_precision_weights"]:
+        return
+    if quant_method not in {"maxlfq", "directlfq"}:
+        raise click.UsageError(
+            "--de-precision-weights requires --quant-method maxlfq or directlfq"
+        )
+    if params["de_method"].lower() != "deqms":
+        raise click.UsageError("--de-precision-weights requires --de-method deqms")
 
 
 def _validate_plot_options(ctx: click.Context) -> None:

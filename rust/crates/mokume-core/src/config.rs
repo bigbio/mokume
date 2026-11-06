@@ -156,13 +156,27 @@ impl AggregationLevel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct InputConfig {
     pub parquet: Option<PathBuf>,
     pub msstats: Option<PathBuf>,
     pub psm: Option<PathBuf>,
     pub sdrf: Option<PathBuf>,
     pub fasta: Option<PathBuf>,
+    /// QPX features quantified in a run without an identification in that run
+    /// (match-between-runs transfers).
+    #[serde(default)]
+    pub transferred_features: TransferredFeatures,
+}
+
+/// Whether QPX feature input keeps transferred features. A feature is
+/// transferred when its `id_run_file_name` is null or names another run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum TransferredFeatures {
+    #[default]
+    Keep,
+    Drop,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -185,7 +199,12 @@ impl OutputFormat {
 pub struct OutputConfig {
     pub protein_matrix: PathBuf,
     pub export_peptides: Option<PathBuf>,
+    pub export_unnormalized_peptides: Option<PathBuf>,
+    pub export_unimputed: Option<PathBuf>,
     pub export_ions: Option<PathBuf>,
+    /// MaxLFQ/DirectLFQ only: each cell's quantification precision, in the
+    /// layout of the protein matrix.
+    pub export_precision: Option<PathBuf>,
     pub format: OutputFormat,
 }
 
@@ -735,6 +754,17 @@ pub struct DifferentialExpressionConfig {
     pub fdr_threshold: f64,
     pub fdr_method: String,
     pub output: Option<PathBuf>,
+    /// SDRF columns entering a fixed-effects design with the conditions; empty
+    /// keeps the two-group tests.
+    #[serde(default)]
+    pub covariates: Vec<String>,
+    /// SDRF column whose levels are random blocks of that design (limma's
+    /// `duplicateCorrelation` + `lmFit(block =)`); `None` fits no block.
+    #[serde(default)]
+    pub block: Option<String>,
+    /// Weight DEqMS by each cell's MaxLFQ/DirectLFQ quantification precision.
+    #[serde(default)]
+    pub precision_weights: bool,
 }
 
 impl Default for DifferentialExpressionConfig {
@@ -751,6 +781,9 @@ impl Default for DifferentialExpressionConfig {
             fdr_threshold: 0.05,
             fdr_method: "bh".to_string(),
             output: None,
+            covariates: Vec::new(),
+            block: None,
+            precision_weights: false,
         }
     }
 }

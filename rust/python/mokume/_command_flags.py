@@ -16,13 +16,15 @@ _ALLOWED = {
     ),
     "features2proteins": set(
         "parquet msstats psm output sdrf quant_method min_aa "
-        "min_unique filter_protein_fdr keep_contaminants "
+        "min_unique filter_protein_fdr transferred_features keep_contaminants "
         "run_normalization sample_normalization normalization_proteins "
         "fasta pibaq_enzyme pibaq_max_aa pibaq_missed_cleavages "
         "pibaq_min_shared pibaq_families pibaq_min_anchors "
         "pibaq_shared pibaq_family_rows pibaq_evidence "
         "directlfq_min_nonan directlfq_num_samples_quadratic "
-        "export_peptides export_ions batch_correction batch_method batch_column "
+        "export_peptides export_unnormalized_peptides export_unimputed export_ions "
+        "export_precision "
+        "batch_correction batch_method batch_column "
         "batch_covariate batch_nonparametric batch_mean_only "
         "batch_ref irs irs_reference_sample irs_sdrf_column "
         "irs_sdrf_value irs_reference_regex irs_stat irs_remove_reference irs_plex_column "
@@ -32,8 +34,8 @@ _ALLOWED = {
         "ratio_fraction_merge impute_method impute_quantile "
         "impute_seed impute_tune_sigma impute_shift "
         "impute_scale impute_n_neighbors de_contrast "
-        "de_contrast_file de_method de_ensemble_method de_ensemble_min_k "
-        "de_log2fc de_effect_size_gate de_fdr "
+        "de_contrast_file de_method de_covariate de_block de_precision_weights "
+        "de_ensemble_method de_ensemble_min_k de_log2fc de_effect_size_gate de_fdr "
         "de_fdr_method de_output memory threads".split()
     ),
     "peptides2protein": set(
@@ -71,7 +73,7 @@ _BOOLEAN = {
     ),
     "features2proteins": set(
         "keep_contaminants batch_correction batch_nonparametric "
-        "batch_mean_only irs irs_remove_reference".split()
+        "batch_mean_only irs irs_remove_reference de_precision_weights".split()
     ),
     "peptides2protein": {"normalize", "tpa", "ruler"},
     "correct-batches": {"export_anndata"},
@@ -96,6 +98,7 @@ _REPEAT = {
         "irs_reference_sample",
         "irs_sdrf_value",
         "de_ensemble_method",
+        "de_covariate",
     },
     "tissuemap": {"tmt_dataset"},
 }

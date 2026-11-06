@@ -470,6 +470,8 @@ fn rejects_option_combinations_before_running() {
         ("--msstats in.csv -s s.tsv --tmt-row-merge best-row", "TMT reporter corrections (--tmt-row-merge best-row, --tmt-impurity, --tmt-interference-floor) require QPX input"),
         ("--msstats in.csv -s s.tsv --filter-protein-fdr 0.01", "--filter-protein-fdr requires QPX --parquet input"),
         ("-p in.parquet --psm in.psm.parquet -s s.tsv --quant-method spectral-count --filter-protein-fdr 0.01", "--filter-protein-fdr is not supported with --quant-method spectral-count"),
+        ("--msstats in.csv -s s.tsv --transferred-features drop", "--transferred-features requires QPX --parquet feature input"),
+        ("-p in.parquet --psm in.psm.parquet -s s.tsv --quant-method spectral-count --transferred-features drop", "--transferred-features requires QPX --parquet feature input"),
         ("-p in.parquet -s s.tsv --normalization-proteins np.txt --sample-normalization quantile", "--normalization-proteins requires globalmedian or conditionmedian"),
         ("-p in.parquet --quant-method pibaq", "piBAQ quantification requires --fasta option"),
         ("-p in.parquet --pibaq-max-aa 30", "piBAQ FASTA/digestion options require --quant-method pibaq"),
@@ -488,6 +490,9 @@ fn rejects_option_combinations_before_running() {
         ("-p in.parquet -s s.tsv --de-contrast A B", "differential expression requires --de-output"),
         (&format!("{SDRF_DE} --de-method limma --de-ensemble-method deqms"), "--de-ensemble-method only applies to --de-method ensemble"),
         (&format!("{SDRF_DE} --de-method rots --de-fdr-method ihw"), "--de-fdr-method does not apply to rots"),
+        (&format!("{SDRF_DE} --de-method limrots --de-covariate batch"), "--de-covariate requires --de-method limma or deqms"),
+        (&format!("{SDRF_DE} --de-method ensemble --de-covariate batch"), "--de-covariate requires --de-method limma or deqms"),
+        (&format!("{SDRF_DE} --de-method rots --de-block characteristics[individual]"), "--de-block requires --de-method limma or deqms"),
     ];
     for (options, expected) in cases {
         let argv = [

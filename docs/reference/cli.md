@@ -428,7 +428,7 @@ them through `features2proteins`, where the full matrix exists.
 | `--filter-max-missed-cleavages` | none | Max missed cleavages (override) |
 | `--filter-peptide-fdr` | none | Max QPX peptide q-value (override) |
 | `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better`, or from the `qpx.struct_lists` footer for struct scores; complete top-level `precursor_qvalue`/`global_qvalue` columns are read directly |
-| `--filter-exclude-modification` | none | Modification name or accession to exclude, matched exactly against the QPX `modifications` list when present; repeat for multiple values |
+| `--filter-exclude-modification` | none | Modification name or accession to exclude, compared case-insensitively with the `name` and `accession` of the QPX `modifications` list when present; repeat for multiple values |
 | `--filter-protein-fdr` | none | Max QPX protein-group q-value (override) |
 | `--filter-min-features` | none | Min features per run (override) |
 | `--filter-max-missing-rate` | none | Max missing feature fraction per technical run (override) |

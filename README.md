@@ -391,10 +391,6 @@ before and after IRS, pooled-reference alignment, intensity-versus-ratio effect
 concordance, and a transparent single-workstation execution profile. The
 timing panel is a local 24-thread measurement, not a cross-machine benchmark.*
 
-The QPX 1.3 compatibility rerun retained identical protein matrices and DE
-tables. The four CPTAC runs took 23.08–42.61 seconds with 2.01–2.91 GiB peak
-RSS on the workstation documented in the example.
-
 <p align="center">
   <img src="docs/assets/cptac_ucec_biology.png" alt="Six-panel CPTAC UCEC differential-expression showcase with heatmap, volcano, MA, and representative protein panels" width="100%">
 </p>

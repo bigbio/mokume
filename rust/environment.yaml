@@ -38,7 +38,7 @@ dependencies:
   - pandas
   - scipy
   - duckdb >=0.10.1
-  - matplotlib
+  - matplotlib >=3.7
   - seaborn
   - scikit-learn
   - plotly

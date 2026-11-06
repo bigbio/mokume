@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -33,10 +33,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
   
@@ -2311,6 +2311,11 @@ PSM-level QPX evidence and does not accept MSstats feature tables.</p>
 <td>Keep protein groups whose best QPX <code>pg_global_qvalue</code> is <code>&lt;=</code> this value (e.g. <code>0.01</code>); requires QPX <code>--parquet</code> input with a populated <code>pg_global_qvalue</code>; not available for <code>spectral-count</code></td>
 </tr>
 <tr>
+<td><code>--transferred-features</code></td>
+<td>keep</td>
+<td><code>drop</code> removes QPX features without an identification in their own run before normalization and quantification; see the rules below</td>
+</tr>
+<tr>
 <td><code>--min-unique</code></td>
 <td>2</td>
 <td>Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option</td>
@@ -2322,6 +2327,11 @@ PSM-level QPX evidence and does not accept MSstats feature tables.</p>
 </tr>
 </tbody>
 </table>
+<p>For <code>--transferred-features drop</code>, <code>identification_type=transferred</code> marks a
+transfer. Rows without a type use <code>id_run_file_name</code>: null or another run
+marks a transfer. QPX input must have at least one of those columns. Removing
+every feature is an error. <code>drop</code> is unavailable for MSstats input and
+<code>spectral-count</code>; explicit <code>keep</code> is accepted and has no effect there.</p>
 <h3 id="quantification">Quantification<a class="headerlink" href="#quantification" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2738,6 +2748,21 @@ wraps scikit-learn. Install <code>mokume[analysis]</code> and call the wheel's P
 <td>Method: auto, limrots, limma, deqms, proda, rots, ensemble</td>
 </tr>
 <tr>
+<td><code>--de-covariate</code></td>
+<td>none</td>
+<td>SDRF column added to the limma/DEqMS design; repeat for several columns</td>
+</tr>
+<tr>
+<td><code>--de-block</code></td>
+<td>none</td>
+<td>SDRF column whose levels are random blocks (e.g. the subject) in the limma/DEqMS design</td>
+</tr>
+<tr>
+<td><code>--de-precision-weights</code></td>
+<td>off</td>
+<td>Weight DEqMS by each cell's MaxLFQ/DirectLFQ quantification precision</td>
+</tr>
+<tr>
 <td><code>--de-ensemble-method</code></td>
 <td><code>limrots</code>, <code>deqms</code>, <code>proda</code></td>
 <td>Ensemble member; repeat to override the defaults</td>
@@ -2786,7 +2811,31 @@ reject alternative <code>--de-fdr-method</code> values. Deterministic methods (l
 deqms) are cell-exact against frozen Python-generated compatibility output;
 RNG/optimizer-driven methods (rots / limrots / proda) match log2 fold change
 cell-exactly and p-values at rank level.</p>
-<p><code>--de-method ensemble</code> runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least <code>--de-ensemble-min-k</code> members agree on direction and the Fisher-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Fisher-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate. The default members are <code>limrots</code>, <code>deqms</code>, and <code>proda</code>; on a contrast with missing values they run <code>limma</code> in place of <code>limrots</code>, because LimROTS needs a complete matrix. An explicit <code>--de-ensemble-method limrots</code> member still needs a complete matrix.</p>
+<p><code>--de-covariate</code> fits limma or DEqMS on a fixed-effects design
+(<code>~0 + condition + covariates</code>): all samples with a condition enter one fit, and
+each contrast compares two condition coefficients, as limma's <code>lmFit</code> and
+<code>contrasts.fit</code> do. A column whose values all parse as numbers is a numeric
+covariate; any other column is categorical. For a paired design, pass the
+subject column. Values are looked up like the conditions (source name, then data
+file). A constant, missing, or confounded covariate is rejected. With covariates
+<code>auto</code> selects <code>deqms</code>, and the other methods reject the option. Without
+covariates each contrast keeps the two-group fit on its own samples.</p>
+<p><code>--de-block</code> treats the levels of an SDRF column as random blocks of that
+design, as limma's <code>duplicateCorrelation</code> and <code>lmFit(block =, correlation =)</code>
+do: one intra-block correlation is estimated from all proteins and design
+samples, and every contrast uses the generalized least-squares fit. Use it for
+repeated measures of a subject or for technical replicates nested in biological
+replicates; it combines with <code>--de-covariate</code>. Blocks of one sample each, or a
+block column already in the fixed design, give a zero correlation with a
+warning, as in limma. The same method rules as for covariates apply.</p>
+<p><code>--de-precision-weights</code> weights each protein value in DEqMS by its
+quantification precision, estimated from the residuals of the protein's ions
+around its MaxLFQ or DirectLFQ profile. It requires <code>--quant-method maxlfq</code> or
+<code>directlfq</code> and <code>--de-method deqms</code> (<code>auto</code> resolves to DEqMS only for
+DirectLFQ), and does not combine with <code>--de-covariate</code>, <code>--de-block</code>, or an
+ensemble. See <a href="../../concepts/differential-expression/#precision-weights">Differential Expression
+concepts</a>.</p>
+<p><code>--de-method ensemble</code> runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least <code>--de-ensemble-min-k</code> members agree on direction and the Cauchy-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Cauchy-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate. The default members are <code>limrots</code>, <code>deqms</code>, and <code>proda</code>; on a contrast with missing values they run <code>limma</code> in place of <code>limrots</code>, because LimROTS needs a complete matrix. An explicit <code>--de-ensemble-method limrots</code> member still needs a complete matrix.</p>
 <h3 id="plots-reports">Plots &amp; Reports<a class="headerlink" href="#plots-reports" title="Anchor link to this section">&para;</a></h3>
 <p><code>features2proteins</code> is pure compute and writes no figures. The kernel emits the protein-matrix CSV and (with <code>--de-output</code>) one DE result CSV per contrast; render plots and HTML reports from those CSVs with the wheel periphery:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># PCA from the protein matrix (analysis extra)</span>
@@ -2803,7 +2852,21 @@ cell-exactly and p-values at rank level.</p>
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--output<span class="w"> </span>report.html<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span>--contrast<span class="w"> </span>c1<span class="w"> </span>A<span class="w"> </span>B<span class="w"> </span>de.csv
 </span></code></pre></div>
-<p>Pass <code>--help</code> to either command for the full flag set.</p>
+<p><code>plot de --ma</code> adds mean-log2-intensity versus log2FC plots (<code>ma_&lt;key&gt;.png</code>).
+<code>--protein-groups FILE</code> reads a TSV with <code>ProteinName</code> and <code>group</code> columns.
+Repeat <code>--expected-log2fc KEY GROUP VALUE</code> for contrast-specific composition
+reference lines; both require <code>--ma</code>. Unknown contrasts or groups fail.
+Multiple contrasts also produce <code>upset_significant.png</code>; <code>--highlight-protein</code>
+adds a cross-contrast fold-change plot and no longer requires <code>--volcano</code> in
+that case.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>profile<span class="w"> </span>-p<span class="w"> </span>proteins.csv<span class="w"> </span>--peptides<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--protein<span class="w"> </span>P00549<span class="w"> </span>--protein<span class="w"> </span>P12345<span class="w"> </span>-o<span class="w"> </span>profiles
+</span></code></pre></div>
+<p><code>plot profile</code> writes one PNG per protein, with peptide trajectories in gray and
+the protein summary in the main color. <code>interactive-report --peptides FILE</code>
+adds the same profile to its selected-protein view. Conditions come from SDRF,
+including for four-column peptide exports.</p>
+<p>Pass <code>--help</code> to any command for the full flag set.</p>
 <h3 id="export">Export<a class="headerlink" href="#export" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2820,15 +2883,34 @@ cell-exactly and p-values at rank level.</p>
 <td>Export normalized peptides (not supported with DirectLFQ)</td>
 </tr>
 <tr>
+<td><code>--export-unnormalized-peptides</code></td>
+<td>none</td>
+<td>Rust only: export the same peptide rows before sample normalization, after run normalization and feature filtering</td>
+</tr>
+<tr>
+<td><code>--export-unimputed</code></td>
+<td>none</td>
+<td>Rust only: export the protein matrix after IRS and sample/coverage filtering, before imputation; requires <code>--impute-method</code></td>
+</tr>
+<tr>
 <td><code>--export-ions</code></td>
 <td>none</td>
 <td>Export normalized ions (DirectLFQ only)</td>
 </tr>
+<tr>
+<td><code>--export-precision</code></td>
+<td>none</td>
+<td>Rust only: export each cell's quantification precision in the protein matrix's layout (MaxLFQ/DirectLFQ only)</td>
+</tr>
 </tbody>
 </table>
-<p><code>--export-peptides</code> also rejects dataset-level sample normalization for
-non-cell-based aggregation methods, because those peptide values would not
-represent the normalized protein matrix.</p>
+<p>MaxLFQ peptide export supports quantile and hierarchical sample normalization.
+It sums the normalized modification/charge species into canonical peptide rows.
+Both peptide exports have identical keys and columns: dataset-level normalization
+uses <code>ProteinName,PeptideCanonical,SampleID,NormIntensity</code>; other configurations
+also include <code>BioReplicate</code> and <code>Condition</code>. DirectLFQ, Ratio and SpectralCount
+reject peptide export. piBAQ still rejects peptide export with dataset-level
+sample normalization.</p>
 <h3 id="runtime-resource-controls">Runtime Resource Controls<a class="headerlink" href="#runtime-resource-controls" title="Anchor link to this section">&para;</a></h3>
 <table>
 <thead>
@@ -2867,7 +2949,7 @@ pipeline and therefore lies outside this soft budget.</p>
 <hr />
 <h2 id="features2peptides">features2peptides<a class="headerlink" href="#features2peptides" title="Anchor link to this section">&para;</a></h2>
 <p>Feature-level to peptide-level normalization.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>features2peptides<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="core-options">Core Options<a class="headerlink" href="#core-options" title="Anchor link to this section">&para;</a></h3>
 <table>
@@ -3059,12 +3141,12 @@ conflicts with IRS. SDRF-driven multi-plex IRS is also available in
 <tr>
 <td><code>--filter-score NAME=THRESHOLD</code></td>
 <td>none</td>
-<td>Named QPX score threshold; direction comes from <code>higher_better</code></td>
+<td>Named QPX score threshold; direction comes from <code>higher_better</code>, or from the <code>qpx.struct_lists</code> footer for struct scores; complete top-level <code>precursor_qvalue</code>/<code>global_qvalue</code> columns are read directly</td>
 </tr>
 <tr>
 <td><code>--filter-exclude-modification</code></td>
 <td>none</td>
-<td>Modification override; repeat for multiple names</td>
+<td>Modification name or accession to exclude, compared case-insensitively with the <code>name</code> and <code>accession</code> of the QPX <code>modifications</code> list when present; repeat for multiple values</td>
 </tr>
 <tr>
 <td><code>--filter-protein-fdr</code></td>
@@ -3095,7 +3177,7 @@ ignored.</p>
 <hr />
 <h2 id="peptides2protein">peptides2protein<a class="headerlink" href="#peptides2protein" title="Anchor link to this section">&para;</a></h2>
 <p>Protein quantification from normalized peptide data.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>quantify<span class="w"> </span>peptides2protein<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3235,7 +3317,7 @@ plots from those exact values. Install <code>mokume[analysis]</code> to use this
 <hr />
 <h2 id="correct-batches">correct-batches<a class="headerlink" href="#correct-batches" title="Anchor link to this section">&para;</a></h2>
 <p>Standalone batch correction for pre-quantified data.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>correct-batches<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>correct-batches<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3309,11 +3391,11 @@ options; for those, use <code>features2proteins --batch-correction</code>.</p>
 <h2 id="periphery-commands">Periphery commands<a class="headerlink" href="#periphery-commands" title="Anchor link to this section">&para;</a></h2>
 <p>These commands ship in the <code>pip install mokume</code> wheel but remain implemented in
 Python rather than the Rust compute kernel:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[analysis]"</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span>--input<span class="w"> </span>./proteins<span class="w"> </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span>--output<span class="w"> </span>tsne.pdf
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[tissuemap]"</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>./data<span class="w"> </span>--outdir<span class="w"> </span>./out<span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[analysis]"</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span>--input<span class="w"> </span>./proteins<span class="w"> </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span>--output<span class="w"> </span>tsne.pdf
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[tissuemap]"</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>mokume<span class="w"> </span>tissuemap<span class="w"> </span>--input<span class="w"> </span>./data<span class="w"> </span>--outdir<span class="w"> </span>./out<span class="w"> </span>--threads<span class="w"> </span><span class="m">24</span>
 </span></code></pre></div>
 <p>t-SNE visualization reads protein tables, while TissueMap derives a downstream
 atlas from QPX data. See the <a href="../python-api/">Python API</a> for the corresponding
@@ -3456,10 +3538,10 @@ in-process functions and the full periphery surface.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

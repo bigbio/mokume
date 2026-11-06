@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -33,10 +33,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
   
@@ -2159,7 +2159,7 @@ list repeats <code>--tmt-dataset</code>.</p>
 </tr>
 <tr>
 <td><code>--dpi</code></td>
-<td><code>250</code></td>
+<td><code>300</code></td>
 <td>Plot resolution override</td>
 </tr>
 <tr>
@@ -2232,27 +2232,27 @@ enabled (the default), an accompanying PDF:</p>
 <tbody>
 <tr>
 <td><code>tissue_atlas.png</code></td>
-<td>t-SNE tissue atlas: samples coloured by organ, with proteomic-group hulls</td>
+<td>t-SNE tissue atlas: samples coloured by proteomic cluster with matching group markers</td>
 </tr>
 <tr>
 <td><code>tissue_dendrogram.png</code></td>
-<td>Hierarchical dendrogram of tissues (Ward linkage, correlation distance)</td>
+<td>Ward/correlation tissue dendrogram with neutral leaf labels and group markers</td>
 </tr>
 <tr>
 <td><code>slide_atlas_dendrogram.png</code></td>
-<td>Combined atlas + dendrogram in one 16:9 slide</td>
+<td>Combined atlas + dendrogram with the same group colours and shapes</td>
 </tr>
 <tr>
 <td><code>marker_tsne.png</code></td>
-<td>t-SNE panels, each coloured by a top tissue marker's expression</td>
+<td>t-SNE marker panels sharing a 0–1 within-protein relative-abundance scale</td>
 </tr>
 <tr>
 <td><code>marker_heatmap.png</code></td>
-<td>Heatmap of top tissue markers across tissues</td>
+<td>Row z-scores of top tissue markers across tissues (<code>RdBu_r</code>, centred at zero)</td>
 </tr>
 <tr>
 <td><code>marker_dotplot.png</code></td>
-<td>Dot plot of marker expression and detection fraction per tissue</td>
+<td>Dot plot of mean relative abundance and fraction of samples detected per tissue</td>
 </tr>
 <tr>
 <td><code>ts_distribution.png</code></td>
@@ -2268,15 +2268,30 @@ enabled (the default), an accompanying PDF:</p>
 </tr>
 </tbody>
 </table>
+<p>The atlas uses the shared six-colour palette for proteomic groups, with circles
+for up to six groups and distinct colour/shape pairs for larger group counts.
+The dendrogram leaf markers use the same codes; all text stays neutral. A group
+is named for an organ family only when that family includes more than half its
+tissues. Mixed groups and repeated names use <code>Group N</code>.</p>
+<p>Marker t-SNE colours are clipped and scaled between each protein's detected
+1st and 99th percentiles. The shared colourbar shows relative abundance within
+each protein, not comparable absolute abundance between proteins. Missing
+samples stay grey. Marker heatmaps display <code>ENTRY</code> for UniProt identifiers of
+the form <code>db|ACC|ENTRY_SPECIES</code>; the underlying identifiers are unchanged.
+Scree and specificity charts use the shared single-series colour. Thresholds
+use neutral dashed lines with direct labels; GMM components use the condition
+palette with a legend. <code>specific_per_tissue.png</code> is also available through
+<code>plot_specific_per_tissue</code>; the CLI includes these counts in <code>ts_distribution.png</code>.</p>
 <h2 id="example-outputs">Example Outputs<a class="headerlink" href="#example-outputs" title="Anchor link to this section">&para;</a></h2>
-<p>Figures below are real <code>tissuemap</code> output on <strong>PXD030304</strong> (a 949-cell-line
-proteomic panel), rendered by the plotting code described above.</p>
-<p><img alt="Tissue atlas: cell-line proteomes embedded and grouped by tissue of origin" src="../../assets/pxd030304_tissue_atlas.png" width="100%" /></p>
+<p>Figures below are real <code>tissuemap</code> output on the full <strong>PXD030304</strong> panel: 948 of
+its 949 cell lines across 114 annotated tissues (the remaining cell line has no
+tissue annotation).</p>
+<p><img alt="Tissue atlas: cell-line proteomes embedded and coloured by proteomic group" src="../../assets/pxd030304_tissue_atlas.png" width="100%" /></p>
 <p><em><code>tissue_atlas.png</code> — the cell-line proteomes embedded by t-SNE and coloured by
-organ of origin.</em></p>
+proteomic group.</em></p>
 <p><img alt="t-SNE panels coloured by top tissue-marker expression" src="../../assets/pxd030304_marker_tsne.png" width="100%" /></p>
 <p><em><code>marker_tsne.png</code> — the same embedding, each panel coloured by a top
-tissue-marker's expression.</em></p>
+tissue-marker's relative abundance on the shared within-protein scale.</em></p>
 <p><img alt="AdaTiSS tissue-specificity score distribution and tissue-specific protein counts" src="../../assets/pxd030304_ts_distribution.png" width="100%" /></p>
 <p><em><code>ts_distribution.png</code> — AdaTiSS tissue-specificity score distribution (with the
 GMM-fitted thresholds) and the tissue-specific protein count per tissue.</em></p>
@@ -2428,10 +2443,10 @@ GMM-fitted thresholds) and the tissue-specific protein count per tissue.</em></p
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

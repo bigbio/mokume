@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -33,10 +33,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
   
@@ -1662,6 +1662,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#static-figure-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Static Figure Style
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#de-plots-from-features2proteins-output" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1673,10 +1684,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#interactive-html-report" class="md-nav__link">
+  <a href="#interactive-de-report" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Interactive HTML Report
+        Interactive DE Report
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#protein-and-peptide-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protein and Peptide Profiles
       
     </span>
   </a>
@@ -2036,6 +2058,26 @@ implemented in its Python periphery. Install the shared analysis extra:
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mokume[all]"</span><span class="w">       </span><span class="c1"># every optional capability</span>
 </span></code></pre></div></p>
 </div>
+<h2 id="static-figure-style">Static Figure Style<a class="headerlink" href="#static-figure-style" title="Anchor link to this section">&para;</a></h2>
+<p>Matplotlib figures use the first installed font from Arial, Helvetica,
+Liberation Sans and Nimbus Sans. The caller's configured fonts remain available
+for missing glyphs, including Chinese sample names. Body text and axis labels
+are 10 pt, ticks and legends 9 pt, and regular-weight titles 11 pt. Dense labels
+may use smaller type, down to 6 pt. Multi-panel letters are lowercase and bold.</p>
+<p>Static plots have no background grid. Only the left and bottom axes are shown,
+with outward ticks. Bitmap exports default to 300 dpi; TissueMap's <code>--dpi</code> can
+override this. PDF and PostScript embed TrueType fonts, and SVG keeps text as
+text. Dense protein and peptide scatter layers and marker t-SNE layers are
+rasterized; PCA and atlas sample markers, labels and axes remain vector graphics.
+Default canvases match journal columns: about 3.5 in for single panels and at
+most 7.2 in for multi-panel figures, while heatmaps and marker grids grow with
+their rows and columns. Protein points are small, translucent and unringed so
+overlaps read as density. No marker has a white ring: sample points, profile
+and variance-curve markers and UpSet dots have no outline, and highlighted
+proteins are larger with a thin dark outline. These settings apply only while
+Mokume creates and exports a figure; matplotlib defaults are restored.
+Interactive HTML reports follow the same point rules but keep their own fonts
+and layout.</p>
 <h2 id="de-plots-from-features2proteins-output">DE Plots from features2proteins Output<a class="headerlink" href="#de-plots-from-features2proteins-output" title="Anchor link to this section">&para;</a></h2>
 <p>First run the kernel to write the protein matrix and one DE result CSV per
 contrast:</p>
@@ -2052,7 +2094,7 @@ contrast:</p>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>--outdir<span class="w"> </span>plots<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>--volcano<span class="w"> </span>--heatmap<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>--volcano<span class="w"> </span>--heatmap<span class="w"> </span>--ma<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span>--highlight-protein<span class="w"> </span>COL10A1<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span>--highlight-protein<span class="w"> </span>FN1<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span>--highlight-protein<span class="w"> </span>ALB<span class="w"> </span><span class="se">\</span>
@@ -2062,95 +2104,196 @@ contrast:</p>
 <p>This generates:</p>
 <ul>
 <li><code>plots/volcano_NASH-HL.png</code> -- Volcano plot for each contrast</li>
-<li><code>plots/heatmap_NASH-HL.png</code> -- Per-contrast heatmap showing top 50 significant proteins (by |log2FC|) and only the two compared conditions. Skipped if no significant proteins exist for that contrast.
-The <code>--volcano</code> / <code>--heatmap</code> flags select which plots to render;
-<code>--log2fc</code> (default 0.5) and <code>--fdr</code> (default 0.05) mirror the
-kernel's <code>--de-log2fc</code> / <code>--de-fdr</code> so the significance cutoffs match. Volcano
-and heatmap require at least one <code>--contrast</code>; heatmap requires <code>--sdrf</code>.
-Invalid option scopes are rejected instead of producing an empty plot directory.</li>
+<li><code>plots/heatmap_NASH-HL.png</code> -- Per-contrast heatmap showing the top 50 significant proteins by ascending adjusted p-value, breaking ties by descending |log2FC|. Only the two compared conditions are included. Skipped if no significant proteins exist for that contrast.</li>
 </ul>
+<p>Volcano heights are <code>-log10(p-value)</code>, using the raw <code>pvalue</code> column. Point
+colors use the adjusted p-value and |log2FC| significance cutoffs. The horizontal
+guide marks the largest raw p-value among proteins with adjusted p-value below
+<code>--fdr</code>, including those below the fold-change cutoff. It is omitted when no
+protein passes the adjusted p-value cutoff.</p>
+<p>The <code>--volcano</code> / <code>--heatmap</code> / <code>--ma</code> flags select which plots to render;
+<code>--log2fc</code> (default 0.5) and <code>--fdr</code> (default 0.05) mirror the
+kernel's <code>--de-log2fc</code> / <code>--de-fdr</code> so the significance cutoffs match. Volcano,
+MA and heatmap require at least one <code>--contrast</code>; heatmap requires <code>--sdrf</code>.
+Invalid option scopes are rejected instead of producing an empty plot directory.</p>
 <p>Render PCA as a separate command because it produces one output file:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>pca<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--output<span class="w"> </span>pca_conditions.png
 </span></code></pre></div>
-<h2 id="interactive-html-report">Interactive HTML Report<a class="headerlink" href="#interactive-html-report" title="Anchor link to this section">&para;</a></h2>
-<p>Generate a comprehensive interactive QC + DE report from the same kernel CSVs:</p>
+<p>PCA uses complete-case proteins and reports their count below the title.
+It uses <code>random_state=0</code> so repeated runs are reproducible. Small
+plots (at most 30 samples) include sample labels, placed from the outermost
+sample inward; a label that would cover a placed label or another sample's
+point is omitted. HTML PCA plots in the QC and comparison reports apply the
+same rule after each zoom or resize, and hover always names the sample.
+Conditions are distinguished only by color. All category markers are small
+circles with opacity 0.85 and no outline: static scatter area is 20 pt² and
+HTML marker diameter is 7 px. The first six colors use the shared palette.
+Additional colors are selected greedily from an in-gamut OKLCH grid
+(lightness 0.43-0.77, chroma 0.10-0.17, the seeds' range) to maximize
+separation in OKLab. Palettes are deterministic and preserve their prefixes as
+the number of categories grows. Plex information remains in hover text.</p>
+<p>Above 12 categories, static and HTML PCA label each category at the sample
+nearest its coordinate-wise median, replacing sample-name labels. Legends move
+below the plot in columns. Static PCA uses a 7.2-inch-wide figure with an axes
+area of about 6.4 by 4.5 inches. Labels stay inside that axes area; the canvas
+grows downwards for the legend. Long category names may wrap. TissueMap also
+places legends below the atlas above 12 proteomic groups.</p>
+<p>Category, atlas-group and highlighted-protein labels try nearby positions in
+eight directions, moving outwards from the anchor. They avoid earlier labels
+and prefer positions clear of points. All static labels stay inside their own
+axes. A label more than 8 pt from its anchor gets a thin leader to it. If no
+gap remains, labels may overlap. HTML leaders end at the label edge. HTML
+labels are repositioned after zooms, resizing and legend changes.</p>
+<h2 id="interactive-de-report">Interactive DE Report<a class="headerlink" href="#interactive-de-report" title="Anchor link to this section">&para;</a></h2>
+<p>Generate one interactive HTML report per contrast from the same kernel CSVs:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mokume<span class="w"> </span>interactive-report<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--protein-matrix<span class="w"> </span>proteins.csv<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--sdrf<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--output<span class="w"> </span>qc_report.html<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--output<span class="w"> </span>de_report.html<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--highlight-protein<span class="w"> </span>COL10A1<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>--highlight-protein<span class="w"> </span>FN1<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>--contrast<span class="w"> </span>NASH-HL<span class="w"> </span>NASH<span class="w"> </span>HL<span class="w"> </span>de_results/NASH_vs_HL.csv
 </span></code></pre></div>
-<p>Omit <code>--output</code> to write <code>report_&lt;contrast&gt;.html</code> in the current directory.</p>
-<p>The interactive report includes:</p>
+<p>With one contrast, <code>--output</code> is used as given; with several, each report is
+written as <code>&lt;stem&gt;_&lt;key&gt;.html</code>. Omit <code>--output</code> to write <code>report_&lt;key&gt;.html</code> in
+the current directory. The report embeds plotly.js, so it opens without a
+network connection.</p>
+<p>Each report includes:</p>
 <ul>
-<li><strong>PCA plot</strong> -- Interactive scatter with hover annotations</li>
-<li><strong>t-SNE plot</strong> -- Non-linear dimensionality reduction</li>
-<li><strong>Sample correlation heatmap</strong> -- Pairwise Pearson correlations</li>
-<li><strong>CV distribution</strong> -- Per-condition coefficient of variation</li>
-<li><strong>Missing value analysis</strong> -- Missing rate per sample</li>
-<li><strong>Distribution box plots</strong> -- Intensity distributions</li>
-<li><strong>Silhouette score</strong> -- Condition clustering quality</li>
-<li><strong>Variance decomposition</strong> -- PVCA-style analysis (condition vs batch vs residual)</li>
-<li><strong>Volcano plot</strong> -- DE results with searchable gene names</li>
-<li><strong>Expression heatmap</strong> -- Top DE proteins</li>
+<li><strong>Summary</strong> -- proteins tested, up, down, unchanged and not tested, with the
+  fold-change and FDR cutoffs</li>
+<li><strong>Volcano plot</strong> -- hover details and highlighted proteins; click a point to
+  show that protein below</li>
+<li><strong>MA plot</strong> -- A is the average of the two groups' mean log2 intensities;
+  M is log2FC. Colors and hover details match the volcano plot. DE <code>mean_&lt;condition&gt;</code>
+  columns are already log2; if absent, A is computed from the protein matrix.</li>
+<li><strong>Protein expression</strong> -- log2 intensities as sample points grouped by
+  condition, with neutral gray points and a black mean marker for each condition.
+  Only samples from the two
+  conditions in the current contrast are included.</li>
+<li><strong>Results table</strong> -- raw and adjusted p-values, searchable and filterable by
+  significance</li>
 </ul>
+<p>For PCA, sample correlation, CV, missing values and variance
+decomposition, use the QC report below.</p>
+<h2 id="protein-and-peptide-profiles">Protein and Peptide Profiles<a class="headerlink" href="#protein-and-peptide-profiles" title="Anchor link to this section">&para;</a></h2>
+<p>Supply <code>--peptides peptides.csv</code> to <code>interactive-report</code> to add a selected-protein
+profile beside the grouped expression points. Both four-column and six-column
+peptide exports are accepted; conditions always come from SDRF. Only the current
+contrast's two conditions are included. Thin gray lines show individual canonical
+peptides; the main colored line shows the protein summary. Their agreement helps
+identify inconsistent peptide trajectories; their absolute levels need not match.</p>
+<p>For one static PNG per protein:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>profile<span class="w"> </span>-p<span class="w"> </span>proteins.csv<span class="w"> </span>--peptides<span class="w"> </span>peptides.csv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>--protein<span class="w"> </span>COL10A1<span class="w"> </span>--protein<span class="w"> </span>FN1<span class="w"> </span>-o<span class="w"> </span>profiles
+</span></code></pre></div>
+<p>For known-composition spike-ins, color an MA plot by a <code>ProteinName</code> / <code>group</code>
+TSV and add contrast-specific expected log2 ratios:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>de<span class="w"> </span>-p<span class="w"> </span>proteins.csv<span class="w"> </span>-s<span class="w"> </span>experiment.sdrf.tsv<span class="w"> </span>-o<span class="w"> </span>plots<span class="w"> </span>--ma<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--protein-groups<span class="w"> </span>protein_groups.tsv<span class="w"> </span>--expected-log2fc<span class="w"> </span>B-A<span class="w"> </span>yeast<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--contrast<span class="w"> </span>B-A<span class="w"> </span>B<span class="w"> </span>A<span class="w"> </span>de_B-A.csv
+</span></code></pre></div>
+<p>The mapping may omit proteins; they are drawn as gray <code>Unassigned</code> points
+behind the groups and do not count as a group. Each <code>ProteinName</code> must occur
+only once. Duplicate protein entries are rejected.</p>
+<p>MA plots with more than three composition groups use one panel per group,
+sorted by group name in three columns with shared axes. Each panel emphasizes
+its group over gray background proteins and shows that group's expected ratio,
+when supplied. All group points are circles; these panels have no legend.
+Plots without composition groups or with up to three groups keep one panel.</p>
+<p>Unknown contrast or group references fail. With two or more contrasts, <code>plot de</code>
+automatically writes <code>upset_significant.png</code> with exclusive significant-protein
+intersections. With <code>--highlight-protein</code>, it also writes
+<code>log2fc_across_contrasts.png</code>: each protein is a colored dot, side by side
+within each contrast and not joined, since contrasts have no order. Filled dots
+are significant and open dots are not. More than six proteins use small
+multiples. Confidence intervals are omitted because DE tables contain no
+standard errors.</p>
 <h2 id="single-matrix-qc-report">Single-Matrix QC Report<a class="headerlink" href="#single-matrix-qc-report" title="Anchor link to this section">&para;</a></h2>
 <p>For a QC report built directly from a protein matrix CSV (with optional DE
 results and SDRF grouping), use <code>mokume.qc_report</code> (<code>analysis</code> extra). It computes
-PCA / t-SNE / silhouette / variance decomposition / CV / missing-value and
+PCA / silhouette / variance decomposition / CV / missing-value and
 DE-quality metrics and writes an interactive HTML report:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">qc_report</span><span class="p">(</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">protein_matrix</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>   <span class="c1"># optional sample -&gt; condition grouping</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">de_results</span><span class="o">=</span><span class="s2">"de_results/NASH_vs_HL.csv"</span><span class="p">,</span>  <span class="c1"># optional</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"qc_report.html"</span><span class="p">,</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">title</span><span class="o">=</span><span class="s2">"My Experiment QC Report"</span><span class="p">,</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">is_log2</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">)</span>
+<p>Sample correlation uses a light-to-dark sequential blue scale, from the minimum
+off-diagonal correlation (rounded down to 0.01) to 1. The zero-centered DE
+z-score heatmap uses a diverging RdBu scale. Missing heatmap cells remain gray.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">qc_report</span><span class="p">(</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">protein_matrix</span><span class="o">=</span><span class="s2">"proteins.csv"</span><span class="p">,</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">sdrf</span><span class="o">=</span><span class="s2">"experiment.sdrf.tsv"</span><span class="p">,</span>   <span class="c1"># optional sample -&gt; condition grouping</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">de_results</span><span class="o">=</span><span class="s2">"de_results/NASH_vs_HL.csv"</span><span class="p">,</span>  <span class="c1"># optional</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"qc_report.html"</span><span class="p">,</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">title</span><span class="o">=</span><span class="s2">"My Experiment QC Report"</span><span class="p">,</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">is_log2</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">peptides</span><span class="o">=</span><span class="s2">"peptides.csv"</span><span class="p">,</span>                    <span class="c1"># optional normalized export</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="n">unnormalized_peptides</span><span class="o">=</span><span class="s2">"peptides_before.csv"</span><span class="p">,</span> <span class="c1"># optional pre-normalization export</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="n">unimputed_matrix</span><span class="o">=</span><span class="s2">"proteins_before.csv"</span><span class="p">,</span>     <span class="c1"># optional pre-imputation export</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>    <span class="n">highlight_genes</span><span class="o">=</span><span class="p">[</span><span class="s2">"COL10A1"</span><span class="p">],</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="p">)</span>
 </span></code></pre></div>
-<p>For volcano gene-highlighting, call
-<code>mokume.reports.qc_report.generate_qc_report</code> directly.</p>
+<p>Optional intermediate tables come from <code>features2proteins --export-peptides</code>,
+<code>--export-unnormalized-peptides</code> and <code>--export-unimputed</code>. The QC report adds:</p>
+<ul>
+<li>Peptide boxplots before and after sample normalization, with a shared log2 axis.</li>
+<li>Missingness versus observed mean abundance: complete and incomplete proteins
+  have separate density curves. Lower abundance among incomplete proteins is
+  evidence compatible with MNAR, not proof of the missingness mechanism.</li>
+<li>Observed versus filled-cell intensity distributions when an unimputed matrix
+  is supplied. Filled cells were missing before imputation and observed afterward.</li>
+<li>Quantified protein counts per sample, a completeness histogram (observed in k
+  samples), and a binary missingness heatmap. Missingness uses the unimputed
+  matrix when available. More than 500 incomplete proteins are sampled by
+  missing-count strata for the heatmap.</li>
+<li>An abundance-rank curve with optional <code>highlight_genes</code> labels. The piBAQ QC
+  PDF also includes this curve.</li>
+</ul>
+<p>Diagnostic distributions use observed values and log2 intensities. If the main
+matrix has already been filled, supply <code>unimputed_matrix</code> to recover missingness.
+The MNAR panel is omitted when its source has no missing values. QC reports
+retain the raw p-value histogram. The standalone <code>plot tsne</code> command remains
+available.</p>
 <h2 id="workflow-comparison-report">Workflow Comparison Report<a class="headerlink" href="#workflow-comparison-report" title="Anchor link to this section">&para;</a></h2>
 <p>Compare multiple quantification workflows side by side (<code>analysis</code> extra). Pass a
 list of workflow dicts, each with a <code>name</code> and either a <code>protein_df</code> DataFrame or
 a <code>protein_matrix</code> CSV path (plus optional <code>de_results</code>, <code>sample_to_condition</code> /
 <code>sdrf</code>, and <code>is_log2</code>):</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">workflow_comparison</span><span class="p">(</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">workflows</span><span class="o">=</span><span class="p">[</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"IRS_RLR"</span><span class="p">,</span>     <span class="s2">"protein_matrix"</span><span class="p">:</span> <span class="s2">"irs_rlr.csv"</span><span class="p">,</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>         <span class="s2">"de_results"</span><span class="p">:</span> <span class="s2">"irs_rlr_de.csv"</span><span class="p">,</span>     <span class="s2">"sdrf"</span><span class="p">:</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">},</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Ratio_ComBat"</span><span class="p">,</span> <span class="s2">"protein_matrix"</span><span class="p">:</span> <span class="s2">"ratio_combat.csv"</span><span class="p">,</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>         <span class="s2">"de_results"</span><span class="p">:</span> <span class="s2">"ratio_combat_de.csv"</span><span class="p">,</span> <span class="s2">"sdrf"</span><span class="p">:</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">},</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="p">],</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"comparison.html"</span><span class="p">,</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">title</span><span class="o">=</span><span class="s2">"Method Comparison"</span><span class="p">,</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">marker_genes</span><span class="o">=</span><span class="p">[</span><span class="s2">"COL10A1"</span><span class="p">,</span> <span class="s2">"FN1"</span><span class="p">,</span> <span class="s2">"ALB"</span><span class="p">],</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mokume</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">mokume</span><span class="o">.</span><span class="n">workflow_comparison</span><span class="p">(</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">workflows</span><span class="o">=</span><span class="p">[</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"IRS_RLR"</span><span class="p">,</span>     <span class="s2">"protein_matrix"</span><span class="p">:</span> <span class="s2">"irs_rlr.csv"</span><span class="p">,</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>         <span class="s2">"de_results"</span><span class="p">:</span> <span class="s2">"irs_rlr_de.csv"</span><span class="p">,</span>     <span class="s2">"sdrf"</span><span class="p">:</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">},</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Ratio_ComBat"</span><span class="p">,</span> <span class="s2">"protein_matrix"</span><span class="p">:</span> <span class="s2">"ratio_combat.csv"</span><span class="p">,</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>         <span class="s2">"de_results"</span><span class="p">:</span> <span class="s2">"ratio_combat_de.csv"</span><span class="p">,</span> <span class="s2">"sdrf"</span><span class="p">:</span> <span class="s2">"experiment.sdrf.tsv"</span><span class="p">},</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="p">],</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    <span class="n">output</span><span class="o">=</span><span class="s2">"comparison.html"</span><span class="p">,</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="n">title</span><span class="o">=</span><span class="s2">"Method Comparison"</span><span class="p">,</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="n">marker_genes</span><span class="o">=</span><span class="p">{</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>        <span class="s2">"Q03692"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"COL10A1"</span><span class="p">,</span> <span class="s2">"expected"</span><span class="p">:</span> <span class="s2">"UP"</span><span class="p">},</span>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>        <span class="s2">"P02751"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"FN1"</span><span class="p">,</span> <span class="s2">"expected"</span><span class="p">:</span> <span class="s2">"UP"</span><span class="p">},</span>
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>    <span class="p">},</span>
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>This generates a report with:</p>
 <ul>
 <li>Summary metrics table (silhouette, CV, DE count, pi1)</li>
 <li>PCA grids for each workflow</li>
 <li>DE concordance analysis (Jaccard, log2FC correlation, CAT curves)</li>
-<li>Marker gene results across workflows</li>
+<li>Marker gene results across workflows, with each marker's sample profile
+  centered at that workflow's own protein median. Missing markers are noted.</li>
 </ul>
 <h2 id="t-sne-visualization-command">t-SNE Visualization Command<a class="headerlink" href="#t-sne-visualization-command" title="Anchor link to this section">&para;</a></h2>
 <p>A standalone periphery command for t-SNE visualization from a folder of protein
 files (<code>analysis</code> extra). It is exposed by the wheel CLI while remaining outside
 the Rust compute kernel:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>--input<span class="w"> </span>protein_folder/<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>--output<span class="w"> </span>tsne.pdf
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mokume<span class="w"> </span>plot<span class="w"> </span>tsne<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>--input<span class="w"> </span>protein_folder/<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>--pattern<span class="w"> </span>proteins.tsv<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>--output<span class="w"> </span>tsne.pdf
 </span></code></pre></div>
 <p>The equivalent Python APIs remain available as <code>mokume.de_plots([...])</code>,
 <code>mokume.interactive_report([...])</code>, and <code>mokume.tsne_visualization(**kwargs)</code>.</p>
@@ -2206,16 +2349,22 @@ returns a matplotlib <code>Figure</code> or writes to an <code>output_file</code
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_volcano</span><span class="p">,</span> <span class="n">plot_heatmap</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">de</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"proteins.de.Treatment_vs_Control.csv"</span><span class="p">)</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">plot_volcano</span><span class="p">(</span><span class="n">de</span><span class="p">,</span> <span class="n">fdr_threshold</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">log2fc_threshold</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>             <span class="n">output_file</span><span class="o">=</span><span class="s2">"volcano.png"</span><span class="p">)</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="n">proteins</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="n">sample_to_condition</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"S1"</span><span class="p">:</span> <span class="s2">"Treatment"</span><span class="p">,</span> <span class="s2">"S2"</span><span class="p">:</span> <span class="s2">"Control"</span><span class="p">}</span>  <span class="c1"># ...</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="n">plot_heatmap</span><span class="p">(</span><span class="n">proteins</span><span class="p">,</span> <span class="n">sample_to_condition</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="s2">"heatmap.png"</span><span class="p">)</span>
+<p><code>plot_distributions</code> and <code>plot_box_plot</code> use the frame's <code>Condition</code> column when
+present and sort samples by condition then name. The palette expands for
+additional conditions. Without condition information, sample curves and boxes
+are neutral and have no legend.
+<code>plot_pca</code> and <code>plot_tsne</code> use small circles and the expanding category palette;
+<code>plot_pca</code>'s <code>palette</code> argument is ignored.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mokume.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_volcano</span><span class="p">,</span> <span class="n">plot_heatmap</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">de</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"proteins.de.Treatment_vs_Control.csv"</span><span class="p">)</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">plot_volcano</span><span class="p">(</span><span class="n">de</span><span class="p">,</span> <span class="n">fdr_threshold</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">log2fc_threshold</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>             <span class="n">output_file</span><span class="o">=</span><span class="s2">"volcano.png"</span><span class="p">)</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="n">proteins</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"proteins.csv"</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="n">sample_to_condition</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"S1"</span><span class="p">:</span> <span class="s2">"Treatment"</span><span class="p">,</span> <span class="s2">"S2"</span><span class="p">:</span> <span class="s2">"Control"</span><span class="p">}</span>  <span class="c1"># ...</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="n">plot_heatmap</span><span class="p">(</span><span class="n">proteins</span><span class="p">,</span> <span class="n">sample_to_condition</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="s2">"heatmap.png"</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Functions that return a <code>Figure</code> (volcano, heatmap, PCA-by-condition,
 distributions, box plot) also save to <code>output_file</code>/<code>file_name</code> when given one;
@@ -2358,10 +2507,10 @@ without it they return the figure for you to compose or save yourself.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

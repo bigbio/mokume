@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -33,10 +33,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
   
@@ -2659,6 +2659,7 @@ matches the installed version rather than a hand-written copy.</p>
 <p>For MaxLFQ:
     - min_ratio_count: int (default 2; shared species per sample pair)
     - stabilize: bool (default False; Cox Eq. 5 large-ratio stabilization)
+    - cell_precision: bool (default False; adds a Precision column)
     - min_peptides: legacy alias for min_ratio_count
     - threads: int (default -1, all cores)</p>
 <p>For TopN:
@@ -3039,7 +3040,9 @@ pair (default 2). <code>min_peptides</code> is its legacy argument alias. Protei
 samples without a valid ratio are not replaced by median aggregation.
 <code>force_builtin</code> is retained as a no-op for compatibility. MaxLFQ never
 dispatches to DirectLFQ. <code>threads</code> follows joblib's worker-count semantics.
-<code>stabilize</code> enables Eq. 5's overlap-dependent large-ratio stabilization.</p>
+<code>stabilize</code> enables Eq. 5's overlap-dependent large-ratio stabilization.
+<code>cell_precision</code> adds each value's quantification precision (see
+:mod:<code>mokume.quantification.precision</code>) as a <code>Precision</code> column.</p>
 
 
 
@@ -3339,7 +3342,7 @@ is performed at the run level instead of sample level.</p>
 
 
 <h3 id="mokume.analysis.DifferentialExpression.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'limrots'</span><span class="p">,</span> <span class="n">peptide_counts</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'limrots'</span><span class="p">,</span> <span class="n">peptide_counts</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">precision</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span></code>
 
 <a href="#mokume.analysis.DifferentialExpression.__init__" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -3347,6 +3350,9 @@ is performed at the run level instead of sample level.</p>
     <div class="doc doc-contents ">
 
         <p>Initialize differential expression analysis settings.</p>
+<p><code>precision</code> holds each cell's quantification precision in the
+protein matrix layout (protein names in the first column) and switches
+DEqMS to precision weights.</p>
 
 
     </div>
@@ -6335,10 +6341,10 @@ import name.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

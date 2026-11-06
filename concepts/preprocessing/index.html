@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -33,10 +33,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
   
@@ -2092,6 +2092,7 @@
 <h2 id="qpx-and-sdrf-sample-identity">QPX and SDRF sample identity<a class="headerlink" href="#qpx-and-sdrf-sample-identity" title="Anchor link to this section">&para;</a></h2>
 <p>When an SDRF is supplied for the current QPX list-of-label/intensity schema, every positive intensity must resolve to exactly one SDRF record before preprocessing starts. Run keys use the filename basename, ignore ASCII case, and remove one trailing <code>.raw</code>, <code>.mzml</code>, <code>.d</code>, or <code>.wiff</code> extension. Labels ignore surrounding whitespace and ASCII case, and SDRF controlled-vocabulary values use their <code>NT=</code> term. <code>LFQ</code>, <code>label-free</code>, and <code>label free sample</code> are the only equivalent label aliases.</p>
 <p>Label-free QPX entries whose intensity labels are run filenames use each intensity label as its owning run. Isobaric entries use the row run together with the reporter label. Duplicate normalized SDRF keys, unmatched runs, missing reporter channels, and ambiguous run-only matches are errors; mokume does not fall back to the first SDRF row or a run name when an SDRF mapping is invalid.</p>
+<p>QPX 1.3 rows can list in <code>imputed_labels</code> the labels whose intensity the upstream tool imputed instead of measuring (for example Spectronaut <code>EG.IsImputed</code>). mokume drops those intensities before preprocessing and quantification; inputs without the column, and rows where it is null, are unchanged.</p>
 <h2 id="filter-categories">Filter Categories<a class="headerlink" href="#filter-categories" title="Anchor link to this section">&para;</a></h2>
 <h3 id="intensity-filters">Intensity Filters<a class="headerlink" href="#intensity-filters" title="Anchor link to this section">&para;</a></h3>
 <table>
@@ -2157,7 +2158,7 @@
 <td>ModificationFilter</td>
 <td><code>exclude_modifications</code></td>
 <td>[]</td>
-<td>Remove specific modifications</td>
+<td>Remove rows carrying these modifications (name or accession)</td>
 </tr>
 <tr>
 <td>MissedCleavageFilter</td>
@@ -2501,10 +2502,10 @@ translates to repeated <code>--filter-charge-state</code> and
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "search.share", "toc.follow", "toc.integrate", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

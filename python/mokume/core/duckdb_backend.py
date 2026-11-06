@@ -170,7 +170,7 @@ class LazyFrame:
         """Number of rows (executes COUNT(*) query)."""
         if self._row_count is None:
             result = self._relation.aggregate("COUNT(*)")
-            self._row_count = result.fetchone()[0]
+            self._row_count = result.fetchall()[0][0]
         return self._row_count
 
     @property

@@ -19,6 +19,7 @@ from ._features2proteins_options import (
     _validate_batch_options,
     _validate_de_options,
     _validate_plot_options,
+    _validate_precision_weights,
     _validate_quantification_options,
     _validate_reference_options,
 )
@@ -558,6 +559,13 @@ QUANT_METHOD = QuantMethodParamType()
     type=click.Path(),
     default=None,
 )
+@click.option(
+    "--de-precision-weights",
+    "de_precision_weights",
+    help="Weight DEqMS by each cell's MaxLFQ/DirectLFQ quantification precision",
+    is_flag=True,
+    default=False,
+)
 # Plotting options
 @click.option(
     "--plot-dir",
@@ -696,6 +704,7 @@ def features2proteins(
     de_fdr_threshold: float,
     de_fdr_method: str,
     de_output: str,
+    de_precision_weights: bool,
     # Plots
     plot_output_dir: str,
     plot_volcano: bool,
@@ -778,6 +787,7 @@ def features2proteins(
     _validate_reference_options(ctx, quant_method_lower)
     impute_method = _resolved_imputation_method(ctx)
     _validate_de_options(ctx, quant_method_lower)
+    _validate_precision_weights(ctx, quant_method_lower)
     _validate_plot_options(ctx)
 
     # 'top<N>' carries N in the method name; the engine parses it out.
@@ -849,6 +859,7 @@ def features2proteins(
         de_output=de_output,
         de_ensemble_methods=parsed_de_ensemble_methods,
         de_ensemble_min_k=de_ensemble_min_k,
+        de_precision_weights=de_precision_weights,
         # Coverage filter
         coverage_threshold=coverage_threshold,
         # Sample correlation QC

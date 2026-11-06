@@ -1,19 +1,21 @@
 use mokume_core::{
     BatchCorrectionConfig, DifferentialExpressionConfig, DirectLfqConfig, FeatureToProteinsConfig,
     FilterConfig, ImputationConfig, InputConfig, IrsConfig, MaxLfqConfig, MokumeError,
-    NormalizationConfig, OutputConfig, OutputFormat, PibaqConfig, PibaqFamilyRows, PibaqSharedMode,
-    QuantMethod, RatioConfig, RuntimeConfig, TmtConfig, TmtRowMerge,
+    NormalizationConfig, OutputConfig, OutputFormat, QuantMethod, RatioConfig, RuntimeConfig,
+    TmtConfig, TmtRowMerge, TransferredFeatures,
 };
 
 mod differential_expression;
 mod imputation;
 mod irs;
+mod pibaq;
 
 use super::Features2ProteinsArgs;
 use crate::parsers::{QuantMethodArg, DEFAULT_TOPN_PEPTIDES};
 use differential_expression::resolve_differential_expression;
 use imputation::resolve_imputation;
 use irs::resolve_irs;
+use pibaq::{pibaq_config, validate_pibaq_options};
 
 fn invalid_input(message: impl Into<String>) -> MokumeError {
     MokumeError::InvalidInput {
@@ -67,6 +69,7 @@ fn resolve_quantification(
 ) -> mokume_core::Result<QuantificationOptions> {
     let QuantMethodArg { method, topn } = args.quant_method;
     validate_lfq_options(args, method)?;
+    validate_export_precision(args, method)?;
     if method == QuantMethod::Pibaq && args.min_unique.is_some() {
         return Err(MokumeError::InvalidInput {
             message: "piBAQ defines its denominator independently; do not pass --min-unique"
@@ -75,6 +78,7 @@ fn resolve_quantification(
     }
     validate_input_for_quantification(args, method)?;
     validate_protein_fdr_request(args, method)?;
+    validate_transferred_features_request(args, method)?;
     validate_method_requirements(args, method)?;
     let manages_normalization = matches!(
         method,
@@ -181,6 +185,25 @@ fn validate_protein_fdr_request(
     Ok(())
 }
 
+/// `--transferred-features` reads `id_run_file_name` from QPX feature input;
+/// MSstats input has no such column and spectral-count does not read features.
+fn validate_transferred_features_request(
+    args: &Features2ProteinsArgs,
+    method: QuantMethod,
+) -> mokume_core::Result<()> {
+    if args
+        .transferred_features
+        .as_deref()
+        .is_some_and(|value| value.eq_ignore_ascii_case("drop"))
+        && (args.msstats.is_some() || method == QuantMethod::SpectralCount)
+    {
+        return Err(invalid_input(
+            "--transferred-features requires QPX --parquet feature input and a feature-based quantification method",
+        ));
+    }
+    Ok(())
+}
+
 /// Inputs, outputs, and FASTA options that only some quantification methods use.
 fn validate_method_requirements(
     args: &Features2ProteinsArgs,
@@ -191,62 +214,32 @@ fn validate_method_requirements(
             "Ratio quantification requires PSM-level QPX input; MSstats feature tables do not contain PSM evidence",
         ));
     }
-    if method == QuantMethod::Pibaq && args.fasta.is_none() {
-        return Err(invalid_input(
-            "piBAQ quantification requires --fasta option",
-        ));
-    }
-    if method != QuantMethod::Pibaq && pibaq_options_supplied(args) {
-        return Err(invalid_input(
-            "piBAQ FASTA/digestion options require --quant-method pibaq",
-        ));
-    }
-    if pibaq_family_rows_with_proportional(args) {
-        return Err(invalid_input(
-            "--pibaq-family-rows requires --pibaq-shared unique or stable-ratio",
-        ));
-    }
+    validate_pibaq_options(args, method)?;
     if method == QuantMethod::Ratio && args.sdrf.is_none() {
         return Err(invalid_input("Ratio quantification requires --sdrf option"));
     }
-    if args.export_peptides.is_some()
-        && matches!(
-            method,
-            QuantMethod::DirectLfq | QuantMethod::Ratio | QuantMethod::SpectralCount
-        )
-    {
-        return Err(invalid_input(format!(
-            "export-peptides is not supported by {method} quantification"
-        )));
+    if matches!(
+        method,
+        QuantMethod::DirectLfq | QuantMethod::Ratio | QuantMethod::SpectralCount
+    ) {
+        for (name, path) in [
+            ("export-peptides", &args.export_peptides),
+            (
+                "export-unnormalized-peptides",
+                &args.export_unnormalized_peptides,
+            ),
+        ] {
+            if path.is_some() {
+                return Err(invalid_input(format!(
+                    "{name} is not supported by {method} quantification"
+                )));
+            }
+        }
     }
     if args.coverage_threshold.is_some() && args.sdrf.is_none() {
         return Err(invalid_input("coverage-threshold requires --sdrf option"));
     }
     Ok(())
-}
-
-fn pibaq_options_supplied(args: &Features2ProteinsArgs) -> bool {
-    args.fasta.is_some()
-        || args.pibaq_enzyme.is_some()
-        || args.pibaq_max_aa.is_some()
-        || args.pibaq_min_shared.is_some()
-        || args.pibaq_families_yaml.is_some()
-        || args.pibaq_min_anchors.is_some()
-        || args.pibaq_missed_cleavages.is_some()
-        || args.pibaq_shared.is_some()
-        || args.pibaq_family_rows.is_some()
-        || args.pibaq_evidence.is_some()
-}
-
-/// Proportional piBAQ has no family rows, so only `none` may be requested.
-fn pibaq_family_rows_with_proportional(args: &Features2ProteinsArgs) -> bool {
-    args.pibaq_shared
-        .as_deref()
-        .is_some_and(|mode| mode.eq_ignore_ascii_case("proportional"))
-        && args
-            .pibaq_family_rows
-            .as_deref()
-            .is_some_and(|rows| !rows.eq_ignore_ascii_case("none"))
 }
 
 fn validate_normalization_options(
@@ -319,6 +312,20 @@ fn validate_lfq_options(
     if method != QuantMethod::MaxLfq && args.stabilize {
         return Err(MokumeError::InvalidInput {
             message: "--stabilize requires --quant-method maxlfq".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn validate_export_precision(
+    args: &Features2ProteinsArgs,
+    method: QuantMethod,
+) -> mokume_core::Result<()> {
+    if !matches!(method, QuantMethod::MaxLfq | QuantMethod::DirectLfq)
+        && args.export_precision.is_some()
+    {
+        return Err(MokumeError::InvalidInput {
+            message: "--export-precision requires --quant-method maxlfq or directlfq".to_owned(),
         });
     }
     Ok(())
@@ -450,6 +457,15 @@ fn input_config(args: &Features2ProteinsArgs) -> InputConfig {
         psm: args.psm.clone(),
         sdrf: args.sdrf.clone(),
         fasta: args.fasta.clone(),
+        transferred_features: if args
+            .transferred_features
+            .as_deref()
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("drop"))
+        {
+            TransferredFeatures::Drop
+        } else {
+            TransferredFeatures::Keep
+        },
     }
 }
 
@@ -457,43 +473,11 @@ fn output_config(args: &Features2ProteinsArgs) -> OutputConfig {
     OutputConfig {
         protein_matrix: args.output.clone(),
         export_peptides: args.export_peptides.clone(),
+        export_unnormalized_peptides: args.export_unnormalized_peptides.clone(),
+        export_unimputed: args.export_unimputed.clone(),
         export_ions: args.export_ions.clone(),
+        export_precision: args.export_precision.clone(),
         format: OutputFormat::PythonCompatible,
-    }
-}
-
-fn pibaq_config(args: &Features2ProteinsArgs) -> PibaqConfig {
-    let defaults = PibaqConfig::default();
-    PibaqConfig {
-        enzyme: args.pibaq_enzyme.clone().unwrap_or(defaults.enzyme),
-        max_aa: args.pibaq_max_aa.unwrap_or(defaults.max_aa),
-        min_shared: args.pibaq_min_shared.unwrap_or(defaults.min_shared),
-        families_yaml: args.pibaq_families_yaml.clone(),
-        min_anchors: args.pibaq_min_anchors.unwrap_or(defaults.min_anchors),
-        high_anchor_threshold: defaults.high_anchor_threshold,
-        missed_cleavages: args
-            .pibaq_missed_cleavages
-            .unwrap_or(defaults.missed_cleavages),
-        shared_mode: match args
-            .pibaq_shared
-            .as_deref()
-            .map(str::to_ascii_lowercase)
-            .as_deref()
-        {
-            Some("proportional") => PibaqSharedMode::Proportional,
-            Some("stable-ratio") => PibaqSharedMode::StableRatio,
-            _ => PibaqSharedMode::Unique,
-        },
-        family_rows: args
-            .pibaq_family_rows
-            .as_deref()
-            .map(str::to_ascii_lowercase)
-            .map(|value| match value.as_str() {
-                "all" => PibaqFamilyRows::All,
-                "none" => PibaqFamilyRows::None,
-                _ => PibaqFamilyRows::FamilyOnly,
-            }),
-        evidence_output: args.pibaq_evidence.clone(),
     }
 }
 

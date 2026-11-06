@@ -178,19 +178,17 @@ def _postprocess(dataset: QpxDataset, config: PipelineConfig) -> QpxDataset:
         dataset.record_step("batch_correction", method=config.batch.method)
 
     # Differential expression
+    de_results = None
     if config.de.enabled:
-        de_results = post_stage.run_differential_expression(protein_df, dataset=dataset)
+        de_results = post_stage.run_differential_expression(
+            protein_df,
+            dataset=dataset,
+            precision=dataset.layers.get("cell_precision"),
+        )
         if de_results:
             dataset.uns["de_results"] = {
-                k: v.to_dict(orient="records") for k, v in de_results.items()
+                k: v["df"].to_dict(orient="records") for k, v in de_results.items()
             }
-
-    # Reconstruct DE DataFrames for plotting/report (shared helper)
-    de_dfs = None
-    if config.de.enabled and "de_results" in dataset.uns:
-        import pandas as pd
-
-        de_dfs = {k: pd.DataFrame(v) for k, v in dataset.uns["de_results"].items()}
 
     # Plotting
     if config.output.plot_dir and any(
@@ -200,11 +198,11 @@ def _postprocess(dataset: QpxDataset, config: PipelineConfig) -> QpxDataset:
             config.output.plot_pca,
         ]
     ):
-        post_stage.generate_plots(protein_df, de_dfs, dataset=dataset)
+        post_stage.generate_plots(protein_df, de_results, dataset=dataset)
 
     # Interactive report
-    if config.output.interactive_report and config.de.enabled and de_dfs:
-        post_stage.generate_interactive_report(protein_df, de_dfs, dataset=dataset)
+    if config.output.interactive_report and de_results:
+        post_stage.generate_interactive_report(protein_df, de_results, dataset=dataset)
 
     # AnnData export — uses QPX naming convention via qpx.Dataset.save_anndata()
     if config.output.export_anndata and config.input.qpx_dir:

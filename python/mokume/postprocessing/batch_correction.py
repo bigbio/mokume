@@ -64,7 +64,7 @@ def compute_pca(df, n_components=5) -> pd.DataFrame:
             "scikit-learn is required for PCA-based batch correction. "
             "Install it with: pip install mokume-py[batch-correction]"
         ) from exc
-    pca = PCA(n_components=n_components)
+    pca = PCA(n_components=n_components, random_state=0)
     pca.fit(df)
     df_pca = pca.transform(df)
     df_pca = pd.DataFrame(

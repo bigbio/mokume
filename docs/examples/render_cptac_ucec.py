@@ -8,18 +8,28 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.decomposition import PCA
 from threadpoolctl import threadpool_limits
 
+from mokume.plotting._common import panel_label, static_style, style_axes
+from mokume.plotting.style import (
+    SAMPLE_POINT_COLOR,
+    SIGNIFICANCE_COLORS,
+    SINGLE_SERIES_COLOR,
+    TEXT_COLOR,
+    WHITE,
+    category_colors,
+)
+
 
 CONDITION_COL = "factor value[condition]"
-CONDITION_COLORS = {
-    "Primary Tumor": "#2A9D8F",
-    "Solid Tissue Normal": "#F9844A",
-}
+CONDITION_COLORS = dict(
+    zip(("Primary Tumor", "Solid Tissue Normal"), category_colors(2), strict=True)
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,17 +93,25 @@ def plot_pca_condition(
         ax.scatter(
             pca.loc[samples, "PC1"],
             pca.loc[samples, "PC2"],
-            s=42,
+            s=14,
             color=color,
-            edgecolor="white",
-            linewidth=0.4,
-            alpha=0.9,
+            linewidths=0,
+            alpha=0.85,
             label=f"{condition} (n={len(samples)})",
         )
-    ax.set_title("A  PCA by condition", loc="left", fontweight="bold")
+    ax.set_title("PCA by condition", loc="left")
     ax.set_xlabel(f"PC1 ({variance[0]:.1f}%)")
     ax.set_ylabel(f"PC2 ({variance[1]:.1f}%)")
-    ax.legend(frameon=False, fontsize=9)
+    ax.legend(
+        ncol=2,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.14),
+        frameon=False,
+        labelcolor=TEXT_COLOR,
+        columnspacing=1,
+        handletextpad=0.1,
+    )
+    style_axes(ax)
 
 
 def plot_pca_plex(
@@ -103,24 +121,31 @@ def plot_pca_plex(
     metadata: pd.DataFrame,
 ) -> None:
     """Plot sample PCA colored by TMT plex number."""
-    points = ax.scatter(
-        pca["PC1"],
-        pca["PC2"],
-        c=metadata.loc[pca.index, "plex"],
-        cmap="turbo",
-        vmin=1,
-        vmax=17,
-        s=42,
-        edgecolor="white",
-        linewidth=0.4,
-        alpha=0.9,
-    )
-    colorbar = ax.figure.colorbar(points, ax=ax, pad=0.01)
-    colorbar.set_label("TMT plex")
-    colorbar.set_ticks([1, 5, 9, 13, 17])
-    ax.set_title("B  PCA by TMT plex", loc="left", fontweight="bold")
+    plexes = metadata.loc[pca.index, "plex"]
+    for plex, color in zip(sorted(plexes.unique()), category_colors(17), strict=True):
+        ax.scatter(
+            pca.loc[plexes == plex, "PC1"],
+            pca.loc[plexes == plex, "PC2"],
+            s=14,
+            color=color,
+            linewidths=0,
+            alpha=0.85,
+            label=str(plex),
+        )
+    ax.set_title("PCA by TMT plex", loc="left")
     ax.set_xlabel(f"PC1 ({variance[0]:.1f}%)")
     ax.set_ylabel(f"PC2 ({variance[1]:.1f}%)")
+    ax.legend(
+        title="TMT plex",
+        ncol=9,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.14),
+        frameon=False,
+        labelcolor=TEXT_COLOR,
+        columnspacing=0.6,
+        handletextpad=0.1,
+    )
+    style_axes(ax)
 
 
 def plot_cohort_composition(ax: plt.Axes, metadata: pd.DataFrame) -> None:
@@ -130,13 +155,30 @@ def plot_cohort_composition(ax: plt.Axes, metadata: pd.DataFrame) -> None:
     bottom = np.zeros(len(counts))
     for condition, color in CONDITION_COLORS.items():
         values = counts[condition].to_numpy()
-        ax.bar(counts.index, values, bottom=bottom, color=color, label=condition)
+        ax.bar(
+            counts.index,
+            values,
+            bottom=bottom,
+            color=color,
+            linewidth=0,
+            label=condition,
+        )
         bottom += values
     ax.set_xticks(range(1, 18))
+    ax.tick_params(axis="x", labelsize=6)
     ax.set_xlabel("TMT plex")
     ax.set_ylabel("Biological samples")
-    ax.set_title("C  Cohort composition", loc="left", fontweight="bold")
-    ax.legend(frameon=False, fontsize=8)
+    ax.set_title("Cohort composition", loc="left")
+    # Every plex fills to nine samples, so the legend cannot sit inside the axes.
+    ax.legend(
+        ncol=2,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.14),
+        frameon=False,
+        labelcolor=TEXT_COLOR,
+        columnspacing=1,
+    )
+    style_axes(ax)
 
 
 def plot_missingness(
@@ -151,15 +193,49 @@ def plot_missingness(
         y="missing",
         hue=CONDITION_COL,
         palette=CONDITION_COLORS,
-        s=38,
+        s=14,
+        linewidth=0,
         alpha=0.85,
         ax=ax,
         legend=False,
     )
     ax.set_xticks(range(1, 18))
+    ax.tick_params(axis="x", labelsize=6)
     ax.set_xlabel("TMT plex")
     ax.set_ylabel("Missing protein values per sample (%)")
-    ax.set_title("D  Sample completeness", loc="left", fontweight="bold")
+    ax.set_title("Sample completeness", loc="left")
+    style_axes(ax)
+
+
+def condition_box(ax: plt.Axes, frame: pd.DataFrame, column: str) -> None:
+    """Draw per-condition sample points beneath an open box plot."""
+    order = list(CONDITION_COLORS)
+    sns.stripplot(
+        data=frame,
+        x=CONDITION_COL,
+        y=column,
+        hue=CONDITION_COL,
+        order=order,
+        palette=CONDITION_COLORS,
+        legend=False,
+        size=2.5,
+        alpha=0.7,
+        linewidth=0,
+        ax=ax,
+    )
+    sns.boxplot(
+        data=frame,
+        x=CONDITION_COL,
+        y=column,
+        order=order,
+        fill=False,
+        color=TEXT_COLOR,
+        linewidth=0.8,
+        fliersize=0,
+        width=0.5,
+        ax=ax,
+    )
+    ax.set_xlabel("")
 
 
 def plot_detection_by_condition(
@@ -168,73 +244,58 @@ def plot_detection_by_condition(
     """Compare detected-protein counts between tumor and normal samples."""
     frame = metadata[[CONDITION_COL]].copy()
     frame["detected"] = matrix.notna().sum(axis=0).loc[frame.index]
-    order = list(CONDITION_COLORS)
-    sns.boxplot(
-        data=frame,
-        x=CONDITION_COL,
-        y="detected",
-        hue=CONDITION_COL,
-        order=order,
-        palette=CONDITION_COLORS,
-        legend=False,
-        fliersize=0,
-        ax=ax,
-    )
-    sns.stripplot(
-        data=frame,
-        x=CONDITION_COL,
-        y="detected",
-        hue=CONDITION_COL,
-        order=order,
-        palette=CONDITION_COLORS,
-        legend=False,
-        size=3,
-        alpha=0.55,
-        ax=ax,
-    )
-    ax.set_xlabel("")
+    condition_box(ax, frame, "detected")
     ax.set_ylabel("Detected proteins per sample")
-    ax.set_title("E  Detection by condition", loc="left", fontweight="bold")
+    ax.set_title("Detection by condition", loc="left")
+    style_axes(ax)
 
 
 def plot_scree(ax: plt.Axes, variance: np.ndarray) -> None:
     """Plot component-wise and cumulative PCA variance."""
     components = np.arange(1, len(variance) + 1)
-    ax.bar(components, variance, color="#F4A261")
-    ax.plot(components, np.cumsum(variance), color="#264653")
+    ax.bar(
+        components,
+        variance,
+        color=SINGLE_SERIES_COLOR,
+        linewidth=0,
+        label="Per component",
+    )
+    ax.plot(
+        components,
+        np.cumsum(variance),
+        color=SAMPLE_POINT_COLOR,
+        linewidth=1.2,
+        label="Cumulative",
+    )
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_xlabel("Principal component")
     ax.set_ylabel("Variance explained (%)")
-    ax.set_title("F  PCA variance profile", loc="left", fontweight="bold")
+    ax.set_title("PCA variance profile", loc="left")
+    ax.legend(frameon=False, loc="center right", labelcolor=TEXT_COLOR)
+    style_axes(ax)
 
 
 def significance_colors(de_result: pd.DataFrame) -> pd.Series:
     """Map differential-expression calls to plot colors."""
-    colors = pd.Series("#B8BEC3", index=de_result.index)
-    colors.loc[de_result["significance"] == "UP"] = "#E74C3C"
-    colors.loc[de_result["significance"] == "DOWN"] = "#3498DB"
-    return colors
+    return de_result["significance"].map(SIGNIFICANCE_COLORS)
 
 
 def plot_volcano(ax: plt.Axes, de_result: pd.DataFrame) -> None:
     """Plot effect size against adjusted significance."""
     colors = significance_colors(de_result)
     y_value = -np.log10(de_result["adj_pvalue"])
-    ax.scatter(de_result["log2FC"], y_value, c=colors, s=13, alpha=0.7, linewidth=0)
-    ax.axvline(-0.5, color="#777777", linestyle="--", linewidth=0.8)
-    ax.axvline(0.5, color="#777777", linestyle="--", linewidth=0.8)
-    ax.axhline(-np.log10(0.05), color="#777777", linestyle="--", linewidth=0.8)
+    ax.scatter(de_result["log2FC"], y_value, c=colors, s=6, alpha=0.6, linewidths=0)
+    ax.axvline(-0.5, color=SAMPLE_POINT_COLOR, linestyle="--", linewidth=0.8)
+    ax.axvline(0.5, color=SAMPLE_POINT_COLOR, linestyle="--", linewidth=0.8)
+    ax.axhline(-np.log10(0.05), color=SAMPLE_POINT_COLOR, linestyle="--", linewidth=0.8)
     counts = de_result["significance"].value_counts()
-    ax.text(
-        0.02,
-        0.98,
-        f"UP {counts.get('UP', 0):,}  |  DOWN {counts.get('DOWN', 0):,}",
-        transform=ax.transAxes,
-        va="top",
-        fontsize=9,
-    )
     ax.set_xlabel("log2 fold change")
     ax.set_ylabel("-log10(BH adjusted p-value)")
-    ax.set_title("B  Tumor vs normal volcano", loc="left", fontweight="bold")
+    ax.set_title(
+        f"Volcano (up {counts.get('UP', 0):,}, down {counts.get('DOWN', 0):,})",
+        loc="left",
+    )
+    style_axes(ax)
 
 
 def plot_ma(ax: plt.Axes, de_result: pd.DataFrame) -> None:
@@ -244,15 +305,16 @@ def plot_ma(ax: plt.Axes, de_result: pd.DataFrame) -> None:
         de_result["AveExpr"],
         de_result["log2FC"],
         c=colors,
-        s=13,
-        alpha=0.7,
-        linewidth=0,
+        s=6,
+        alpha=0.6,
+        linewidths=0,
     )
-    ax.axhline(-0.5, color="#777777", linestyle="--", linewidth=0.8)
-    ax.axhline(0.5, color="#777777", linestyle="--", linewidth=0.8)
+    ax.axhline(-0.5, color=SAMPLE_POINT_COLOR, linestyle="--", linewidth=0.8)
+    ax.axhline(0.5, color=SAMPLE_POINT_COLOR, linestyle="--", linewidth=0.8)
     ax.set_xlabel("Average log2 expression")
     ax.set_ylabel("log2 fold change")
-    ax.set_title("C  Mean-abundance effect sizes", loc="left", fontweight="bold")
+    ax.set_title("Mean-abundance effect sizes", loc="left")
+    style_axes(ax)
 
 
 def top_de_proteins(de_result: pd.DataFrame, count: int = 12) -> list[str]:
@@ -268,8 +330,8 @@ def plot_heatmap(
     matrix: pd.DataFrame,
     metadata: pd.DataFrame,
     de_result: pd.DataFrame,
-) -> None:
-    """Plot standardized profiles for the strongest DE proteins."""
+) -> plt.Axes:
+    """Plot standardized profiles and return the strip that carries the title."""
     proteins = [name for name in top_de_proteins(de_result) if name in matrix.index]
     sample_order = metadata.sort_values([CONDITION_COL, "plex"]).index
     values = matrix.loc[proteins, sample_order].copy()
@@ -279,30 +341,29 @@ def plot_heatmap(
     values = values.div(scale, axis=0).clip(-3, 3)
     image = ax.imshow(values, aspect="auto", cmap="RdBu_r", vmin=-3, vmax=3)
     ax.set_yticks(range(len(proteins)))
-    ax.set_yticklabels(proteins, fontsize=7)
+    ax.set_yticklabels(proteins, fontsize=6)
     ax.set_xticks([])
     ax.set_xlabel("Samples ordered by condition, then plex")
-    ax.set_title(
-        "A  Strongest DE protein profiles",
-        loc="left",
-        fontweight="bold",
-        pad=24,
-    )
     colorbar = ax.figure.colorbar(image, ax=ax, pad=0.01)
-    colorbar.set_label("Protein-wise z-score")
+    colorbar.set_label("Protein-wise z-score", color=TEXT_COLOR)
 
     condition_codes = metadata.loc[sample_order, CONDITION_COL].map(
         {"Primary Tumor": 0, "Solid Tissue Normal": 1}
     )
-    inset = ax.inset_axes([0, 1.01, 1, 0.018])
-    inset.imshow(
+    strip = ax.inset_axes([0, 1.01, 1, 0.025])
+    strip.imshow(
         np.asarray(condition_codes)[None, :],
         aspect="auto",
         cmap=ListedColormap(list(CONDITION_COLORS.values())),
         vmin=0,
         vmax=1,
     )
-    inset.set_axis_off()
+    strip.set_xticks([])
+    strip.set_yticks([])
+    for spine in strip.spines.values():
+        spine.set_visible(False)
+    strip.set_title("Strongest DE protein profiles", loc="left")
+    return strip
 
 
 def representative_de_proteins(de_result: pd.DataFrame) -> pd.DataFrame:
@@ -323,44 +384,16 @@ def plot_protein_distribution(
     matrix: pd.DataFrame,
     metadata: pd.DataFrame,
     protein: pd.Series,
-    panel: str,
 ) -> None:
     """Plot one representative protein across tumor and normal samples."""
     protein_name = str(protein["ProteinName"])
     frame = metadata[[CONDITION_COL]].copy()
     frame["expression"] = matrix.loc[protein_name, frame.index]
     frame = frame.dropna(subset=["expression"])
-    order = list(CONDITION_COLORS)
-    sns.boxplot(
-        data=frame,
-        x=CONDITION_COL,
-        y="expression",
-        hue=CONDITION_COL,
-        order=order,
-        palette=CONDITION_COLORS,
-        legend=False,
-        fliersize=0,
-        ax=ax,
-    )
-    sns.stripplot(
-        data=frame,
-        x=CONDITION_COL,
-        y="expression",
-        hue=CONDITION_COL,
-        order=order,
-        palette=CONDITION_COLORS,
-        legend=False,
-        size=3,
-        alpha=0.5,
-        ax=ax,
-    )
-    ax.set_xlabel("")
+    condition_box(ax, frame, "expression")
     ax.set_ylabel("log2 protein abundance")
-    ax.set_title(
-        f"{panel}  {protein_name}\nlog2FC {protein['log2FC']:.2f}",
-        loc="left",
-        fontweight="bold",
-    )
+    ax.set_title(f"{protein_name} (log2FC {protein['log2FC']:.2f})", loc="left")
+    style_axes(ax)
 
 
 def render_overview(
@@ -370,19 +403,16 @@ def render_overview(
 ) -> None:
     """Render the six-panel cohort and computational overview."""
     pca, variance = pca_coordinates(matrix)
-    fig, axes = plt.subplots(2, 3, figsize=(24, 15), constrained_layout=True)
+    fig, axes = plt.subplots(2, 3, figsize=(10.8, 6.8), layout="constrained")
     plot_pca_condition(axes[0, 0], pca, variance, metadata)
     plot_pca_plex(axes[0, 1], pca, variance, metadata)
     plot_cohort_composition(axes[0, 2], metadata)
     plot_missingness(axes[1, 0], matrix, metadata)
     plot_detection_by_condition(axes[1, 1], matrix, metadata)
     plot_scree(axes[1, 2], variance)
-    fig.suptitle(
-        "PDC000125 CPTAC UCEC — Rust Mokume overview",
-        fontsize=22,
-        fontweight="bold",
-    )
-    fig.savefig(output, dpi=180, facecolor="white")
+    for letter, ax in zip("abcdef", axes.flat, strict=True):
+        panel_label(ax, letter)
+    fig.savefig(output, dpi=300, facecolor=WHITE)
     plt.close(fig)
 
 
@@ -393,21 +423,17 @@ def render_biology(
     output: Path,
 ) -> None:
     """Render the six-panel differential-expression showcase."""
-    fig, axes = plt.subplots(2, 3, figsize=(24, 15), constrained_layout=True)
-    plot_heatmap(axes[0, 0], matrix, metadata, de_result)
+    fig, axes = plt.subplots(2, 3, figsize=(10.8, 6.8), layout="constrained")
+    strip = plot_heatmap(axes[0, 0], matrix, metadata, de_result)
     plot_volcano(axes[0, 1], de_result)
     plot_ma(axes[0, 2], de_result)
     representatives = representative_de_proteins(de_result)
-    for panel, (ax, (_, protein)) in zip(
-        "DEF", zip(axes[1], representatives.iterrows()), strict=True
-    ):
-        plot_protein_distribution(ax, matrix, metadata, protein, panel)
-    fig.suptitle(
-        "PDC000125 CPTAC UCEC — differential expression",
-        fontsize=22,
-        fontweight="bold",
-    )
-    fig.savefig(output, dpi=180, facecolor="white")
+    for ax, (_, protein) in zip(axes[1], representatives.iterrows(), strict=True):
+        plot_protein_distribution(ax, matrix, metadata, protein)
+    panel_label(strip, "a")
+    for letter, ax in zip("bcdef", axes.flat[1:], strict=True):
+        panel_label(ax, letter)
+    fig.savefig(output, dpi=300, facecolor=WHITE)
     plt.close(fig)
 
 
@@ -415,8 +441,7 @@ def main() -> None:
     """Load Rust outputs and render both CPTAC UCEC showcase figures."""
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    sns.set_theme(style="whitegrid", context="notebook")
-    with threadpool_limits(limits=args.threads):
+    with static_style(), threadpool_limits(limits=args.threads):
         matrix, metadata, de_result = load_inputs(
             args.protein_matrix, args.sdrf, args.de_result
         )

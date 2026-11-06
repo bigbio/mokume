@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use clap::Parser;
+use mokume_core::TransferredFeatures;
 
 use crate::{Cli, Commands, Features2ProteinsArgs, QuantifyCommands};
 
@@ -302,6 +303,57 @@ fn filter_protein_fdr_is_off_by_default_and_parsed_when_given() {
 }
 
 #[test]
+fn transferred_features_are_kept_unless_dropped() {
+    let base = [
+        "mokume",
+        "quantify",
+        "features2proteins",
+        "--parquet",
+        "input.parquet",
+        "--output",
+        "protein.csv",
+    ];
+    for (extra, expected) in [
+        (&[][..], TransferredFeatures::Keep),
+        (
+            &["--transferred-features", "keep"][..],
+            TransferredFeatures::Keep,
+        ),
+        (
+            &["--transferred-features", "DROP"][..],
+            TransferredFeatures::Drop,
+        ),
+    ] {
+        let cli = Cli::parse_from(base.iter().chain(extra).copied());
+        let Ok(config) = features_to_proteins_args(cli).into_config() else {
+            panic!("expected a valid config for {extra:?}");
+        };
+        assert_eq!(config.input.transferred_features, expected, "{extra:?}");
+    }
+}
+
+#[test]
+fn explicit_keep_is_valid_for_msstats_input() {
+    let cli = Cli::parse_from([
+        "mokume",
+        "quantify",
+        "features2proteins",
+        "--msstats",
+        "in.csv",
+        "--sdrf",
+        "s.tsv",
+        "--output",
+        "out.csv",
+        "--transferred-features",
+        "keep",
+    ]);
+    let Ok(config) = features_to_proteins_args(cli).into_config() else {
+        panic!("keep should be a no-op for MSstats");
+    };
+    assert_eq!(config.input.transferred_features, TransferredFeatures::Keep);
+}
+
+#[test]
 fn filter_protein_fdr_rejects_values_outside_unit_interval() {
     for value in ["1.5", "-0.1", "nan"] {
         let result = Cli::try_parse_from([
@@ -317,6 +369,120 @@ fn filter_protein_fdr_rejects_values_outside_unit_interval() {
         ]);
         assert!(result.is_err(), "`{value}` should be rejected");
     }
+}
+
+#[test]
+fn de_covariates_are_kept_in_order() -> mokume_core::Result<()> {
+    let argv = [
+        "mokume",
+        "quantify",
+        "features2proteins",
+        "-p",
+        "features.parquet",
+        "-o",
+        "proteins.csv",
+        "-s",
+        "samples.sdrf.tsv",
+        "--de-contrast",
+        "A",
+        "B",
+        "--de-output",
+        "de.csv",
+        "--de-covariate",
+        "characteristics[individual]",
+        "--de-covariate",
+        "batch",
+    ];
+    let config = features_to_proteins_args(Cli::parse_from(argv)).into_config()?;
+    assert_eq!(
+        config.differential_expression.covariates,
+        ["characteristics[individual]", "batch"]
+    );
+    assert_eq!(config.differential_expression.method, "auto");
+    assert_eq!(config.differential_expression.block, None);
+    Ok(())
+}
+
+#[test]
+fn de_block_enables_differential_expression() -> mokume_core::Result<()> {
+    let argv = [
+        "mokume",
+        "quantify",
+        "features2proteins",
+        "-p",
+        "features.parquet",
+        "-o",
+        "proteins.csv",
+        "-s",
+        "samples.sdrf.tsv",
+        "--de-contrast",
+        "A",
+        "B",
+        "--de-output",
+        "de.csv",
+        "--de-block",
+        "characteristics[individual]",
+    ];
+    let config = features_to_proteins_args(Cli::parse_from(argv)).into_config()?;
+    assert!(config.differential_expression.enabled);
+    assert_eq!(
+        config.differential_expression.block.as_deref(),
+        Some("characteristics[individual]")
+    );
+    Ok(())
+}
+
+#[test]
+fn de_precision_weights_require_lfq_deqms_two_group() -> mokume_core::Result<()> {
+    let base = "mokume quantify features2proteins -p features.parquet -o proteins.csv \
+                -s samples.sdrf.tsv --de-contrast A B --de-output de.csv --de-precision-weights";
+    let parse = |extra: &str| {
+        let argv = base.split_whitespace().chain(extra.split_whitespace());
+        features_to_proteins_args(Cli::parse_from(argv)).into_config()
+    };
+    let config = parse("--quant-method directlfq")?;
+    assert!(config.differential_expression.enabled);
+    assert!(config.differential_expression.precision_weights);
+    for (extra, expected) in [
+        (
+            "--quant-method sum --de-method deqms",
+            "requires --quant-method maxlfq or directlfq",
+        ),
+        ("--quant-method maxlfq", "requires --de-method deqms"),
+        (
+            "--quant-method directlfq --de-block batch",
+            "does not apply to --de-covariate or --de-block",
+        ),
+    ] {
+        let Err(error) = parse(extra) else {
+            panic!("{extra} was accepted");
+        };
+        assert!(error.to_string().contains(expected), "{extra}: {error}");
+    }
+    Ok(())
+}
+
+#[test]
+fn export_precision_requires_maxlfq_or_directlfq() -> mokume_core::Result<()> {
+    let parse = |method: &str| {
+        let argv = format!(
+            "mokume quantify features2proteins -p features.parquet -o proteins.csv \
+             --quant-method {method} --export-precision precision.csv"
+        );
+        features_to_proteins_args(Cli::parse_from(argv.split_whitespace())).into_config()
+    };
+    let config = parse("maxlfq")?;
+    assert_eq!(
+        config.output.export_precision.as_deref(),
+        Some(std::path::Path::new("precision.csv"))
+    );
+    let Err(error) = parse("top3") else {
+        panic!("--export-precision was accepted for top3");
+    };
+    assert!(error
+        .to_string()
+        .contains("requires --quant-method maxlfq or directlfq"));
+    Ok(())
 }
 
 fn features_to_proteins_args(cli: Cli) -> Box<Features2ProteinsArgs> {

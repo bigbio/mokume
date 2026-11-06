@@ -8,6 +8,8 @@ When an SDRF is supplied for the current QPX list-of-label/intensity schema, eve
 
 Label-free QPX entries whose intensity labels are run filenames use each intensity label as its owning run. Isobaric entries use the row run together with the reporter label. Duplicate normalized SDRF keys, unmatched runs, missing reporter channels, and ambiguous run-only matches are errors; mokume does not fall back to the first SDRF row or a run name when an SDRF mapping is invalid.
 
+QPX 1.3 rows can list in `imputed_labels` the labels whose intensity the upstream tool imputed instead of measuring (for example Spectronaut `EG.IsImputed`). mokume drops those intensities before preprocessing and quantification; inputs without the column, and rows where it is null, are unchanged.
+
 ## Filter Categories
 
 ### Intensity Filters
@@ -25,7 +27,7 @@ Label-free QPX entries whose intensity labels are run filenames use each intensi
 |--------|-----------|---------|-------------|
 | PeptideLengthFilter | `min/max_peptide_length` | 7/50 | Peptide length range |
 | ChargeStateFilter | `allowed_charge_states` | null | Allowed charges (e.g., [2,3,4]) |
-| ModificationFilter | `exclude_modifications` | [] | Remove specific modifications |
+| ModificationFilter | `exclude_modifications` | [] | Remove rows carrying these modifications (name or accession) |
 | MissedCleavageFilter | `max_missed_cleavages` | null | Max missed cleavages |
 | SequencePatternFilter | `exclude_sequence_patterns` | [] | Regex patterns to exclude |
 

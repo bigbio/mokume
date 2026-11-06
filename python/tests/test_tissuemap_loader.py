@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 import yaml
 
 from mokume.commands.tissuemap import _build_config
@@ -10,7 +11,6 @@ from mokume.tissuemap import loader
 from mokume.tissuemap.loader import (
     _aggregate_tmt_with_duckdb as aggregate_tmt_with_duckdb,
     _detect_gis_accessions as detect_gis_accessions,
-    _normalize_tmt as normalize_tmt,
     _tmt_label_aliases as tmt_label_aliases,
     TissueLoadOptions,
     load_dataset,
@@ -184,8 +184,8 @@ def test_canonical_numeric_tmt_labels_win_over_positional_aliases():
     assert aliases.loc[("run-1", "2"), "sample_accession"] == "bio-a"
 
 
-def test_duckdb_tmt_matches_legacy_normalization_for_canonical_labels(tmp_path):
-    """Streaming aggregation preserves the established GIS-normalized result."""
+def test_duckdb_tmt_normalizes_each_run_by_its_reference_channel(tmp_path):
+    """Streaming aggregation divides by the GIS channel of the same run."""
     _write_samples(
         tmp_path,
         [
@@ -251,19 +251,6 @@ def test_duckdb_tmt_matches_legacy_normalization_for_canonical_labels(tmp_path):
             )
         ]
     )
-    long = pd.DataFrame(
-        [
-            {
-                "protein": row["anchor_protein"],
-                "run_file_name": row["run_file_name"],
-                "tmt_label": reporter["label"],
-                "intensity": reporter["intensity"],
-            }
-            for row in feature_rows
-            for reporter in row["intensities"]
-        ]
-    )
-
     streamed = aggregate_tmt_with_duckdb(
         tmp_path,
         "TEST",
@@ -271,17 +258,20 @@ def test_duckdb_tmt_matches_legacy_normalization_for_canonical_labels(tmp_path):
         run_map,
         n_jobs=24,
     ).sort_values(["protein", "sample_accession"], ignore_index=True)
-    legacy = (
-        normalize_tmt(long, run_map, tmp_path, "TEST")
-        .groupby(["protein", "sample_accession"], as_index=False)["intensity"]
-        .sum()
-        .sort_values(["protein", "sample_accession"], ignore_index=True)
+    # Each run divides by its own reference channel, then the runs add up.
+    expected = pd.DataFrame(
+        {
+            "protein": ["P1", "P1"],
+            "sample_accession": ["bio-a", "bio-b"],
+            "intensity": [10.0 / 5.0 + 30.0 / 10.0, 20.0 / 5.0 + 40.0 / 10.0],
+        }
     )
 
-    pd.testing.assert_frame_equal(streamed, legacy)
+    pd.testing.assert_frame_equal(streamed, expected)
 
 
-def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch):
+@pytest.mark.parametrize("legacy", [False, True])
+def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch, legacy):
     """LFQ input remains on the established non-TMT loader path."""
     _write_samples(
         tmp_path,
@@ -319,13 +309,13 @@ def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch):
             {
                 "anchor_protein": "P1",
                 "run_file_name": "run-1",
-                "intensities": [{"label": "LFQ", "intensity": 10.0}],
+                "intensities": [_lfq_intensity(10.0, legacy)],
                 "is_decoy": False,
             },
             {
                 "anchor_protein": "P1",
                 "run_file_name": "run-2",
-                "intensities": [{"label": "LFQ", "intensity": 20.0}],
+                "intensities": [_lfq_intensity(20.0, legacy)],
                 "is_decoy": False,
             },
         ]
@@ -346,3 +336,102 @@ def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch):
     assert matrix.loc["P1", "sample-a"] == 10.0
     assert matrix.loc["P1", "sample-b"] == 20.0
     assert set(metadata["quant_type"]) == {"LFQ"}
+
+
+def _lfq_intensity(value, legacy):
+    """Keep the legacy layout without a label field in its Arrow struct."""
+    metadata = (
+        {"sample_accession": "unused", "channel": "LFQ"} if legacy else {"label": "LFQ"}
+    )
+    return {**metadata, "intensity": value}
+
+
+def test_load_dataset_lfq_matches_exploded_sums(tmp_path):
+    """Decoys, non-positive and NaN intensities and unmatched runs stay out of the sums."""
+    _write_samples(
+        tmp_path,
+        [
+            {"sample_accession": "sample-a", "organism_part": "lung"},
+            {"sample_accession": "sample-b", "organism_part": "liver"},
+        ],
+    )
+    pd.DataFrame(
+        [
+            {
+                "run_file_name": run,
+                "fraction": 1,
+                "samples": [{"label": "label free sample", "sample_accession": sample}],
+            }
+            for run, sample in (
+                ("run-1", "sample-a"),
+                ("run-2", "sample-a"),
+                ("run-3", "sample-b"),
+            )
+        ]
+    ).to_parquet(tmp_path / "qpx_output" / "TEST.run.parquet", index=False)
+    pd.DataFrame(
+        [
+            ("P1", "run-1", 10.0, False),
+            ("P1", "run-1", 1.0, None),
+            ("P1", "run-2", 5.0, False),
+            ("P1", "run-3", 20.0, False),
+            ("P1", "run-3", 7.0, True),
+            ("P2", "run-3", 0.0, False),
+            ("P2", "run-3", float("nan"), False),
+            ("P3", "unknown-run", 9.0, False),
+        ],
+        columns=["anchor_protein", "run_file_name", "value", "is_decoy"],
+    ).assign(
+        intensities=lambda rows: [
+            [{"label": "LFQ", "intensity": value}] for value in rows["value"]
+        ]
+    ).drop(columns="value").to_parquet(
+        tmp_path / "qpx_output" / "TEST.feature.parquet", index=False
+    )
+
+    matrix, metadata = load_dataset(
+        tmp_path, "TEST", options=TissueLoadOptions(n_jobs=2)
+    )
+
+    assert matrix.to_dict() == {"sample-a": {"P1": 16.0}, "sample-b": {"P1": 20.0}}
+    assert set(metadata["quant_type"]) == {"LFQ"}
+
+
+def test_load_dataset_detects_tmt_from_feature_labels(tmp_path, monkeypatch):
+    """TMT labels in the features switch to the TMT path when the run table has none."""
+    _write_samples(
+        tmp_path, [{"sample_accession": "sample-a", "organism_part": "lung"}]
+    )
+    pd.DataFrame(
+        [
+            {
+                "run_file_name": "run-1",
+                "fraction": 1,
+                "samples": [
+                    {"label": "label free sample", "sample_accession": "sample-a"}
+                ],
+            }
+        ]
+    ).to_parquet(tmp_path / "qpx_output" / "TEST.run.parquet", index=False)
+    pd.DataFrame(
+        [
+            {
+                "anchor_protein": "P1",
+                "run_file_name": "run-1",
+                "intensities": [{"label": "TMT126", "intensity": 10.0}],
+                "is_decoy": False,
+            }
+        ]
+    ).to_parquet(tmp_path / "qpx_output" / "TEST.feature.parquet", index=False)
+    monkeypatch.setattr(
+        loader,
+        "_aggregate_tmt_with_duckdb",
+        lambda *_args: pd.DataFrame(
+            {"protein": ["P1"], "sample_accession": ["sample-a"], "intensity": [3.0]}
+        ),
+    )
+
+    matrix, metadata = load_dataset(tmp_path, "TEST")
+
+    assert matrix.loc["P1", "sample-a"] == 3.0
+    assert set(metadata["quant_type"]) == {"TMT"}

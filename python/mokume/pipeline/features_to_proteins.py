@@ -42,6 +42,7 @@ from mokume.pipeline.config import (
     validate_de_config,
 )
 from mokume.pipeline.directlfq_streaming import estimate_protein_intensities_streamed
+from mokume.quantification.precision import precision_matrix
 from mokume.pipeline.stages import (
     LoadingStage,
     NormalizationStage,
@@ -104,6 +105,7 @@ class QuantificationPipeline:
             "ratio_refs": None,
             "ratio_sample_to_plex": None,
             "irs_applied": False,
+            "precision": None,
         }
 
     def _validate_config(self):
@@ -276,6 +278,7 @@ class QuantificationPipeline:
                 self.config.de.output,
                 self.config.de.ensemble_methods,
                 self.config.de.ensemble_min_k != 2,
+                self.config.de.precision_weights,
             )
         )
         if not self.config.de.enabled and options_changed:
@@ -361,7 +364,9 @@ class QuantificationPipeline:
         # Run differential expression if configured
         de_results = None
         if self.config.de.enabled:
-            de_results = self.postprocessing.run_differential_expression(protein_df)
+            de_results = self.postprocessing.run_differential_expression(
+                protein_df, precision=self._run_capture["precision"]
+            )
 
         # Generate plots if configured
         if self.config.output.plot_dir and any(
@@ -504,13 +509,19 @@ class QuantificationPipeline:
         gc.collect()
 
         logger.info("Running DirectLFQ protein estimation...")
+        residuals = [] if self.config.de.precision_weights else None
         protein_df = estimate_protein_intensities_streamed(
             normed_df,
             min_nonan=self.config.quantification.directlfq_min_nonan,
             num_samples_quadratic=self.config.quantification.directlfq_num_samples_quadratic,
             num_cores=self.config.quantification.directlfq_num_cores,
             export_ions=self.config.output.export_ions,
+            residuals=residuals,
         )
+        if residuals is not None:
+            self._run_capture["precision"] = precision_matrix(
+                residuals, normed_df.columns, protein_df.columns[0]
+            )
 
         logger.info("DirectLFQ complete: %d proteins", len(protein_df))
         return protein_df
@@ -535,6 +546,7 @@ class QuantificationPipeline:
             "Quantifying proteins with method: %s", self.config.quantification.method
         )
         protein_df = self.quantification.quantify(peptide_df)
+        self._run_capture["precision"] = self.quantification.cell_precision
         logger.info("Quantification complete: %d proteins", len(protein_df))
 
         return protein_df
@@ -629,6 +641,7 @@ def features_to_proteins(
     de_output: Optional[str] = None,
     de_ensemble_methods: Optional[list] = None,
     de_ensemble_min_k: int = 2,
+    de_precision_weights: bool = False,
     # Plotting parameters
     plot_output_dir: Optional[str] = None,
     plot_volcano: bool = False,
@@ -847,6 +860,7 @@ def features_to_proteins(
             output=de_output,
             ensemble_methods=de_ensemble_methods,
             ensemble_min_k=de_ensemble_min_k,
+            precision_weights=de_precision_weights,
         ),
         output=OutputConfig(
             export_peptides=export_peptides,

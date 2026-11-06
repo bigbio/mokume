@@ -8,11 +8,11 @@ only when at least *k* methods agree on its direction.
 
 from __future__ import annotations
 
+import math
 from typing import Sequence
 
 import numpy as np
 import pandas as pd
-from scipy.stats import combine_pvalues
 
 from mokume.analysis.differential_expression import DifferentialExpression
 from mokume.analysis.ensemble_config import (
@@ -66,7 +66,7 @@ def run_ensemble(
     -------
     pd.DataFrame
         Ensemble DE results with columns: ProteinName, log2FC (median),
-        pvalue (Fisher combined), adj_pvalue, significance,
+        pvalue (Cauchy combined), adj_pvalue, significance,
         n_methods_up, n_methods_down, methods_significant.
 
     Raises
@@ -128,8 +128,21 @@ def _resolve_log2fc_gate(log2fc: np.ndarray, threshold: float | str) -> float:
 
 
 def _combine_member_pvalues(p_values: list[float]) -> float:
+    """Combine member p-values with the equal-weight Cauchy combination.
+
+    The members test the same contrast on the same matrix, so their p-values
+    are strongly dependent. Fisher's method assumes independence and gives
+    p-values that are too small; the Cauchy combination (Liu & Xie 2020) stays
+    valid under arbitrary dependence for small p-values.
+    """
     if len(p_values) >= 2:
-        return float(combine_pvalues(p_values, method="fisher")[1])
+        # cot(p pi) avoids cancellation in 0.5 - p for tiny p-values.
+        terms = [
+            1.0 / math.tan(max(p, np.finfo(float).tiny) * math.pi) for p in p_values
+        ]
+        # Upper tail of the standard Cauchy, 0.5 - atan(t) / pi, kept precise
+        # for large t.
+        return math.atan2(1.0, sum(terms) / len(terms)) / math.pi
     if p_values:
         return float(p_values[0])
     return np.nan
@@ -157,7 +170,7 @@ def _combined_protein_row(
             continue
         fc_values.append(fold_change)
         pvalue = row["pvalue"]
-        if np.isfinite(pvalue) and pvalue > 0:
+        if np.isfinite(pvalue) and 0 <= pvalue <= 1:
             p_values.append(pvalue)
         if significance == "UP":
             n_up += 1
@@ -223,7 +236,7 @@ def combine_de_results(
         Log2 fold-change threshold for re-classification. ``"auto"`` estimates
         the gate from the ensemble's median fold changes.
     fdr_method : str
-        FDR correction applied to the Fisher-combined p-values ("bh", "bky",
+        FDR correction applied to the Cauchy-combined p-values ("bh", "bky",
         "storey"). Adaptive procedures fall back to BH when pi0 is unreliable.
     fdr_threshold : float
         FDR threshold for re-classification.
@@ -249,7 +262,7 @@ def combine_de_results(
     if ensemble.empty:
         return ensemble
 
-    # FDR correction on the Fisher-combined p-values. The requested method must
+    # FDR correction on the Cauchy-combined p-values. The requested method must
     # reach the combination layer too: correcting the members adaptively but the
     # ensemble with BH would silently discard the adaptive-pi0 gain here.
     ensemble["adj_pvalue"] = _adjust_ensemble_pvalues(

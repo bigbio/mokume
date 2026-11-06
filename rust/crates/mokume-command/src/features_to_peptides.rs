@@ -277,10 +277,8 @@ fn feature_to_peptides_config(
     FeatureToPeptidesConfig {
         input: InputConfig {
             parquet: Some(parquet),
-            msstats: None,
-            psm: None,
             sdrf: args.sdrf.clone(),
-            fasta: None,
+            ..InputConfig::default()
         },
         output,
         filtering: FilterConfig {

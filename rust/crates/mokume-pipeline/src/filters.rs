@@ -82,18 +82,34 @@ pub fn trypsin_missed_cleavages(sequence: &str) -> usize {
     count
 }
 
-/// Whether a peptide carries any excluded modification, mirroring
-/// `ModificationFilter` (`preprocessing/filters/peptide.py`): a case-insensitive
-/// substring match of any `exclude` entry against the modified sequence. An empty
-/// `exclude` list never excludes (Python builds no pattern).
-pub fn peptide_has_excluded_modification(modified_sequence: &str, exclude: &[String]) -> bool {
-    if exclude.is_empty() {
-        return false;
+/// Match structured names/accessions exactly, or legacy peptidoform tokens.
+pub fn peptide_has_excluded_modification(
+    modified_sequence: &str,
+    modifications: Option<&[String]>,
+    exclude: &[String],
+) -> bool {
+    if let Some(modifications) = modifications {
+        return exclude.iter().any(|excluded| {
+            modifications
+                .iter()
+                .any(|value| value.eq_ignore_ascii_case(excluded))
+        });
     }
     let haystack = modified_sequence.to_ascii_lowercase();
-    exclude
-        .iter()
-        .any(|modification| haystack.contains(&modification.to_ascii_lowercase()))
+    exclude.iter().any(|modification| {
+        let needle = modification.to_ascii_lowercase();
+        let accession = needle.split_once(':').is_some_and(|(prefix, suffix)| {
+            !prefix.is_empty()
+                && !prefix.chars().any(char::is_whitespace)
+                && !suffix.is_empty()
+                && suffix.bytes().all(|byte| byte.is_ascii_digit())
+        });
+        if accession {
+            haystack.contains(&format!("[{needle}]"))
+        } else {
+            haystack.contains(&needle)
+        }
+    })
 }
 
 /// Whether a canonical peptide sequence matches any exclusion pattern, mirroring
@@ -196,21 +212,65 @@ mod tests {
     }
 
     #[test]
+    fn modification_exclusion_uses_structured_identity_and_legacy_tokens() {
+        let modifications = vec!["Carbamidomethyl".to_owned(), "UNIMOD:4".to_owned()];
+        for name in ["carbamidomethyl", "unimod:4"] {
+            assert!(peptide_has_excluded_modification(
+                "CK",
+                Some(&modifications),
+                &[name.to_owned()]
+            ));
+        }
+        assert!(!peptide_has_excluded_modification(
+            "CK",
+            Some(&modifications),
+            &["Carbamido".to_owned()]
+        ));
+        assert!(!peptide_has_excluded_modification(
+            "M[UNIMOD:35]K",
+            None,
+            &["UNIMOD:3".to_owned()]
+        ));
+        assert!(peptide_has_excluded_modification(
+            "M[UNIMOD:3]K",
+            None,
+            &["UNIMOD:3".to_owned()]
+        ));
+        assert!(!peptide_has_excluded_modification(
+            "M[UNIMOD:3]K",
+            Some(&[]),
+            &["UNIMOD:3".to_owned()]
+        ));
+    }
+
+    #[test]
     fn modification_exclusion_is_case_insensitive_substring() {
         let oxidation = vec!["Oxidation".to_string()];
         assert!(peptide_has_excluded_modification(
             "PEPT(Oxidation)IDE",
+            None,
             &oxidation
         ));
-        assert!(!peptide_has_excluded_modification("PEPTIDE", &oxidation));
+        assert!(!peptide_has_excluded_modification(
+            "PEPTIDE", None, &oxidation
+        ));
         assert!(peptide_has_excluded_modification(
             "pept(oxidation)ide",
+            None,
             &oxidation
         ));
         let both = vec!["Oxidation".to_string(), "Phospho".to_string()];
-        assert!(peptide_has_excluded_modification("AC(Phospho)DE", &both));
+        assert!(peptide_has_excluded_modification(
+            "AC(Phospho)DE",
+            None,
+            &both
+        ));
         // Empty exclude list never excludes.
-        assert!(!peptide_has_excluded_modification("AC(Phospho)DE", &[]));
+        assert!(!peptide_has_excluded_modification(
+            "AC(Phospho)DE",
+            None,
+            &[]
+        ));
     }
 
     fn compile(patterns: &[&str]) -> Vec<Regex> {

@@ -29,6 +29,7 @@ Exit code 0 on success; non-zero (with a message on stderr) otherwise.
 """
 
 import argparse
+import importlib
 import sys
 
 
@@ -101,7 +102,7 @@ def main(argv=None):
         )
 
     try:
-        from mokume.plotting import PdfPages, plot_box_plot, plot_distributions
+        from mokume import plotting
     except ImportError as exc:
         raise SystemExit(
             "QC report aborted: mokume plotting dependencies are not "
@@ -112,79 +113,7 @@ def main(argv=None):
     _require_column(res, SAMPLE_ID, args.protein_table)
     _require_column(res, args.plot_column, args.protein_table)
 
-    # ``plot_width = len(set(SampleID)) * 0.5 + 10`` -- identical to
-    # Same sample-count-based plot width as the canonical piBAQ module.
-    plot_width = len(set(res[SAMPLE_ID])) * 0.5 + 10
-
-    pdf = PdfPages(args.qc_report)
-    try:
-        # Primary piBAQ column: density + box, matching the canonical module.
-        density = plot_distributions(
-            res,
-            args.plot_column,
-            SAMPLE_ID,
-            log2=True,
-            width=plot_width,
-            title="{0} Distribution".format(args.plot_column),
-        )
-        box = plot_box_plot(
-            res,
-            args.plot_column,
-            SAMPLE_ID,
-            log2=True,
-            width=plot_width,
-            title="{0} Distribution".format(args.plot_column),
-            violin=False,
-        )
-        pdf.savefig(density, bbox_inches="tight")
-        pdf.savefig(box, bbox_inches="tight")
-
-        if args.tpa:
-            _require_column(res, TPA, args.protein_table)
-            density_tpa = plot_distributions(
-                res,
-                TPA,
-                SAMPLE_ID,
-                log2=True,
-                width=plot_width,
-                title="TPA Distribution",
-            )
-            box_tpa = plot_box_plot(
-                res,
-                TPA,
-                SAMPLE_ID,
-                log2=True,
-                width=plot_width,
-                title="{0} Distribution".format(TPA),
-                violin=False,
-            )
-            pdf.savefig(density_tpa, bbox_inches="tight")
-            pdf.savefig(box_tpa, bbox_inches="tight")
-
-        if args.ruler:
-            for column in (COPYNUMBER, CONCENTRATION_NM):
-                _require_column(res, column, args.protein_table)
-                density_col = plot_distributions(
-                    res,
-                    column,
-                    SAMPLE_ID,
-                    width=plot_width,
-                    log2=True,
-                    title="{0} Distribution".format(column),
-                )
-                box_col = plot_box_plot(
-                    res,
-                    column,
-                    SAMPLE_ID,
-                    width=plot_width,
-                    log2=True,
-                    title="{0} Distribution".format(column),
-                    violin=False,
-                )
-                pdf.savefig(density_col, bbox_inches="tight")
-                pdf.savefig(box_col, bbox_inches="tight")
-    finally:
-        pdf.close()
+    _render_pdf(res, args, plotting)
 
     print(
         "QC report written to {0} ({1} sample(s))".format(
@@ -192,6 +121,38 @@ def main(argv=None):
         )
     )
     return 0
+
+
+def _render_pdf(frame, args, plotting):
+    """Render distribution pairs and a primary-abundance rank page."""
+    plt = importlib.import_module("matplotlib.pyplot")
+    common = importlib.import_module("mokume.plotting._common")
+    diagnostics = importlib.import_module("mokume.plotting.diagnostics")
+
+    columns = [args.plot_column]
+    if args.tpa:
+        columns.append(TPA)
+    if args.ruler:
+        columns.extend((COPYNUMBER, CONCENTRATION_NM))
+    width = min(16, frame[SAMPLE_ID].nunique() * 0.5 + 6)
+    with common.static_style(), plotting.PdfPages(args.qc_report) as pdf:
+        for column in columns:
+            _require_column(frame, column, args.protein_table)
+            options = {
+                "log2": True,
+                "width": width,
+                "title": f"{column} Distribution",
+            }
+            for plot in (plotting.plot_distributions, plotting.plot_box_plot):
+                figure = plot(frame, column, SAMPLE_ID, **options)
+                pdf.savefig(figure, bbox_inches="tight")
+                plt.close(figure)
+        matrix = frame.pivot_table(
+            index="ProteinName", columns=SAMPLE_ID, values=args.plot_column
+        ).reset_index()
+        figure = diagnostics.plot_abundance_rank(common.log2_matrix(matrix))
+        pdf.savefig(figure, bbox_inches="tight")
+        plt.close(figure)
 
 
 if __name__ == "__main__":

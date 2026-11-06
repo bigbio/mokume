@@ -147,7 +147,7 @@ def _compute_pca_evr(matrix: pd.DataFrame, n_components: int = 2) -> list[float]
     n_comp = min(n_components, data.shape[0] - 1, data.shape[1])
     if n_comp < 1:
         return []
-    pca = PCA(n_components=n_comp)
+    pca = PCA(n_components=n_comp, random_state=0)
     try:
         pca.fit(data)
     except (ValueError, np.linalg.LinAlgError):

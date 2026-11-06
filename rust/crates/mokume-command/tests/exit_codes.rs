@@ -274,18 +274,17 @@ fn features2proteins_options_return_stable_errors() -> Result<(), Box<dyn std::e
 
     for case in [
         FeatureToProteinsCase {
-            // Cell-based methods (default sum) now carry dataset-level
-            // normalization into the export; non-cell-based methods (maxlfq) do
-            // not and stay rejected.
+            // MaxLFQ exports support its quantile/hierarchical normalizers,
+            // but do not enable other dataset-level normalizers.
             args: &[
                 "--quant-method",
                 "maxlfq",
                 "--sample-normalization",
-                "quantile",
+                "median-center",
                 "--export-peptides",
                 "peptides.csv",
             ],
-            expected: "stage `dataset-normalization-export-peptides` is not implemented yet",
+            expected: "maxlfq supports quantile and hierarchical as its only dataset-level sample normalizations",
         },
         FeatureToProteinsCase {
             args: &["--quant-method", "sum", "--export-ions", "ions.csv"],

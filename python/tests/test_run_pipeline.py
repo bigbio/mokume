@@ -32,6 +32,7 @@ SDRF = os.path.join(EXAMPLE_DIR, "PXD020192.sdrf.tsv")
 
 # Imports (after path setup) -------------------------------------------
 from mokume.pipeline.config import (  # noqa: E402
+    DEConfig,
     PipelineConfig,
     InputConfig,
     FilterConfig,
@@ -135,6 +136,26 @@ class TestRunPipelineMatchesRunDataset:
             pd.read_csv(run_config.output.export_ions),
             pd.read_csv(reference_config.output.export_ions),
         )
+
+    def test_differential_expression_matches(self, tmp_path):
+        configs = {}
+        for name in ("run", "reference"):
+            configs[name] = _make_config("median")
+            configs[name].de = DEConfig(
+                enabled=True,
+                contrasts=["Brain vs Placenta"],
+                method="limma",
+                output=str(tmp_path / f"{name}-de.csv"),
+            )
+
+        dataset = run_pipeline(configs["run"])
+        QuantificationPipeline(configs["reference"]).run()
+
+        reference = pd.read_csv(configs["reference"].de.output)
+        pd.testing.assert_frame_equal(pd.read_csv(configs["run"].de.output), reference)
+        assert [len(rows) for rows in dataset.uns["de_results"].values()] == [
+            len(reference)
+        ]
 
     def test_directlfq_rejects_external_normalization(self):
         config = _make_config("directlfq")

@@ -83,7 +83,7 @@ The current TissueMap workflow is organized around per-dataset processing:
 | `--generate-config` | none | Write a default YAML template and exit |
 | `--tmt-dataset` | auto | Mark one or more dataset IDs as TMT; repeat for multiple datasets |
 | `-t`, `--threads` | `8` | Threads for dataset processing and embedding |
-| `--dpi` | `250` | Plot resolution override |
+| `--dpi` | `300` | Plot resolution override |
 | `--impute-method` | config default | Imputation method used before embedding |
 | `--embedding-method` | config default | `tsne` or `umap` |
 
@@ -126,30 +126,47 @@ enabled (the default), an accompanying PDF:
 
 | Plot file | Shows |
 |-----------|-------|
-| `tissue_atlas.png` | t-SNE tissue atlas: samples coloured by organ, with proteomic-group hulls |
-| `tissue_dendrogram.png` | Hierarchical dendrogram of tissues (Ward linkage, correlation distance) |
-| `slide_atlas_dendrogram.png` | Combined atlas + dendrogram in one 16:9 slide |
-| `marker_tsne.png` | t-SNE panels, each coloured by a top tissue marker's expression |
-| `marker_heatmap.png` | Heatmap of top tissue markers across tissues |
-| `marker_dotplot.png` | Dot plot of marker expression and detection fraction per tissue |
+| `tissue_atlas.png` | t-SNE tissue atlas: samples coloured by proteomic cluster with matching group markers |
+| `tissue_dendrogram.png` | Ward/correlation tissue dendrogram with neutral leaf labels and group markers |
+| `slide_atlas_dendrogram.png` | Combined atlas + dendrogram with the same group colours and shapes |
+| `marker_tsne.png` | t-SNE marker panels sharing a 0–1 within-protein relative-abundance scale |
+| `marker_heatmap.png` | Row z-scores of top tissue markers across tissues (`RdBu_r`, centred at zero) |
+| `marker_dotplot.png` | Dot plot of mean relative abundance and fraction of samples detected per tissue |
 | `ts_distribution.png` | AdaTiSS TS-score distribution + tissue-specific protein counts |
 | `specific_per_tissue.png` | Bar chart of tissue-specific protein counts per tissue |
 | `pca_scree.png` | PCA scree plot (variance explained per component) |
 
+The atlas uses the shared six-colour palette for proteomic groups, with circles
+for up to six groups and distinct colour/shape pairs for larger group counts.
+The dendrogram leaf markers use the same codes; all text stays neutral. A group
+is named for an organ family only when that family includes more than half its
+tissues. Mixed groups and repeated names use `Group N`.
+
+Marker t-SNE colours are clipped and scaled between each protein's detected
+1st and 99th percentiles. The shared colourbar shows relative abundance within
+each protein, not comparable absolute abundance between proteins. Missing
+samples stay grey. Marker heatmaps display `ENTRY` for UniProt identifiers of
+the form `db|ACC|ENTRY_SPECIES`; the underlying identifiers are unchanged.
+Scree and specificity charts use the shared single-series colour. Thresholds
+use neutral dashed lines with direct labels; GMM components use the condition
+palette with a legend. `specific_per_tissue.png` is also available through
+`plot_specific_per_tissue`; the CLI includes these counts in `ts_distribution.png`.
+
 ## Example Outputs
 
-Figures below are real `tissuemap` output on **PXD030304** (a 949-cell-line
-proteomic panel), rendered by the plotting code described above.
+Figures below are real `tissuemap` output on the full **PXD030304** panel: 948 of
+its 949 cell lines across 114 annotated tissues (the remaining cell line has no
+tissue annotation).
 
-![Tissue atlas: cell-line proteomes embedded and grouped by tissue of origin](../assets/pxd030304_tissue_atlas.png){ width="100%" }
+![Tissue atlas: cell-line proteomes embedded and coloured by proteomic group](../assets/pxd030304_tissue_atlas.png){ width="100%" }
 
 *`tissue_atlas.png` — the cell-line proteomes embedded by t-SNE and coloured by
-organ of origin.*
+proteomic group.*
 
 ![t-SNE panels coloured by top tissue-marker expression](../assets/pxd030304_marker_tsne.png){ width="100%" }
 
 *`marker_tsne.png` — the same embedding, each panel coloured by a top
-tissue-marker's expression.*
+tissue-marker's relative abundance on the shared within-protein scale.*
 
 ![AdaTiSS tissue-specificity score distribution and tissue-specific protein counts](../assets/pxd030304_ts_distribution.png){ width="100%" }
 

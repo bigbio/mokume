@@ -66,12 +66,17 @@ pub fn solve_max_lfq_with_stabilization(
         return Err(invalid("sample identifiers must be unique"));
     }
     let rows = intensity_rows(measurements, &sample_index)?;
-    let (edges, stabilized_pairs) =
-        pairwise_ratios(&rows, samples.len(), min_ratio_count, stabilize);
-    let components = connected_components(&edges, samples.len());
+    let columns = SampleColumns::new(&rows, samples.len());
+    let components = connected_components(
+        columns
+            .linked_pairs(min_ratio_count)
+            .map(|(i, j, _)| (i, j)),
+        samples.len(),
+    );
+    let (relatives, stabilized_pairs) =
+        solve_components(&rows, &columns, &components, min_ratio_count, stabilize)?;
     let mut log_profile = vec![f64::NEG_INFINITY; samples.len()];
-    for component in &components {
-        let relative = solve_component(component, &edges, samples.len())?;
+    for (component, relative) in components.iter().zip(relatives) {
         let total = log_total(&rows, component.iter().copied());
         let shift = total - log_sum_exp2(&relative);
         for (&sample, value) in component.iter().zip(relative) {
@@ -109,8 +114,6 @@ fn linear_intensities(samples: &[SampleId], log_profile: Vec<f64>) -> Result<Vec
         })
         .collect()
 }
-
-type RatioEdge = (usize, usize, f64);
 
 fn intensity_rows(
     measurements: &[PeptideMeasurement],
@@ -150,6 +153,8 @@ struct SampleColumns {
     words: usize,
     logs: Vec<f64>,
     observed: Vec<u64>,
+    /// Samples observing at least one species; no other sample can pair.
+    present: Vec<usize>,
 }
 
 impl SampleColumns {
@@ -167,12 +172,34 @@ impl SampleColumns {
                 }
             }
         }
+        let present = (0..n)
+            .filter(|&sample| {
+                observed[sample * words..(sample + 1) * words]
+                    .iter()
+                    .any(|&word| word != 0)
+            })
+            .collect();
         Self {
             species,
             words,
             logs,
             observed,
+            present,
         }
+    }
+
+    /// Pairs `(i, j, shared)` with `i < j`, in ascending order, that share at
+    /// least `min_count` species.
+    fn linked_pairs(&self, min_count: usize) -> impl Iterator<Item = (usize, usize, usize)> + '_ {
+        self.present
+            .iter()
+            .enumerate()
+            .flat_map(move |(position, &i)| {
+                self.present[position + 1..].iter().filter_map(move |&j| {
+                    let shared = self.shared(i, j);
+                    (shared >= min_count).then_some((i, j, shared))
+                })
+            })
     }
 
     fn seen(&self, sample: usize) -> &[u64] {
@@ -203,35 +230,54 @@ impl SampleColumns {
     }
 }
 
-fn pairwise_ratios(
+/// Reduced graph Laplacian and right-hand side of one component.
+type ComponentSystem = (Mat<f64>, Mat<f64>);
+
+/// Add each pair's median log ratio to its component's system as the pair is
+/// visited, in the order a stored edge list would be summed, so no list of all
+/// pairwise ratios is held.
+fn solve_components(
     rows: &[Vec<f64>],
-    n: usize,
+    columns: &SampleColumns,
+    components: &[Vec<usize>],
     min_count: usize,
     stabilize: bool,
-) -> (Vec<RatioEdge>, usize) {
-    let columns = SampleColumns::new(rows, n);
-    let mut edges = Vec::new();
-    let mut stabilized_pairs = 0;
-    let mut ratios = Vec::with_capacity(rows.len());
-    for i in 0..n {
-        for j in i + 1..n {
-            let shared = columns.shared(i, j);
-            if shared < min_count {
-                continue;
-            }
-            columns.ratios_into(i, j, &mut ratios);
-            if let Some(ratio) = median(&mut ratios) {
-                let (ratio, applied) = if stabilize {
-                    stabilized_ratio(rows, (i, j), shared, ratio)
-                } else {
-                    (ratio, false)
-                };
-                stabilized_pairs += usize::from(applied);
-                edges.push((i, j, ratio));
-            }
+) -> Result<(Vec<Vec<f64>>, usize)> {
+    // Component and position of every sample (rows hold one value per sample).
+    let mut slots = vec![(0, 0); rows.first().map_or(0, Vec::len)];
+    for (index, component) in components.iter().enumerate() {
+        for (position, &sample) in component.iter().enumerate() {
+            slots[sample] = (index, position);
         }
     }
-    (edges, stabilized_pairs)
+    let mut systems = components
+        .iter()
+        .map(|component| {
+            let n = component.len() - 1;
+            (Mat::<f64>::zeros(n, n), Mat::<f64>::zeros(n, 1))
+        })
+        .collect::<Vec<_>>();
+    let mut stabilized_pairs = 0;
+    let mut ratios = Vec::with_capacity(rows.len());
+    for (left, right, shared) in columns.linked_pairs(min_count) {
+        columns.ratios_into(left, right, &mut ratios);
+        let Some(ratio) = median(&mut ratios) else {
+            continue;
+        };
+        let (ratio, applied) = if stabilize {
+            stabilized_ratio(rows, (left, right), shared, ratio)
+        } else {
+            (ratio, false)
+        };
+        stabilized_pairs += usize::from(applied);
+        let ((component, i), (_, j)) = (slots[left], slots[right]);
+        add_ratio(&mut systems[component], i, j, ratio);
+    }
+    let relatives = systems
+        .into_iter()
+        .map(solve_system)
+        .collect::<Result<Vec<_>>>()?;
+    Ok((relatives, stabilized_pairs))
 }
 
 fn stabilized_ratio(
@@ -251,11 +297,11 @@ fn stabilized_ratio(
     ((1.0 - weight) * median_ratio + weight * sum_ratio, true)
 }
 
-fn connected_components(edges: &[RatioEdge], n: usize) -> Vec<Vec<usize>> {
+fn connected_components(pairs: impl Iterator<Item = (usize, usize)>, n: usize) -> Vec<Vec<usize>> {
     // Union-find keeps memory linear in the samples, however many edges there are.
     let mut parent = (0..n).collect::<Vec<_>>();
     let mut linked = vec![false; n];
-    for &(i, j, _) in edges {
+    for (i, j) in pairs {
         linked[i] = true;
         linked[j] = true;
         let (a, b) = (find_root(&mut parent, i), find_root(&mut parent, j));
@@ -283,33 +329,26 @@ fn find_root(parent: &mut [usize], mut node: usize) -> usize {
     node
 }
 
-fn solve_component(component: &[usize], edges: &[RatioEdge], samples: usize) -> Result<Vec<f64>> {
-    let n = component.len() - 1;
-    let mut indices = vec![None; samples];
-    for (i, &sample) in component.iter().enumerate() {
-        indices[sample] = Some(i);
+/// Fix the first log intensity to zero. The reduced graph Laplacian is
+/// positive definite for a connected component; no ridge or fallback is used.
+/// Pairs join ascending samples, so (j, i) lies in the lower triangle, the
+/// only part the factorization reads.
+fn add_ratio((matrix, rhs): &mut ComponentSystem, i: usize, j: usize, ratio: f64) {
+    if i > 0 {
+        matrix[(i - 1, i - 1)] += 1.0;
+        rhs[(i - 1, 0)] -= ratio;
     }
-    // Fix the first log intensity to zero. The reduced graph Laplacian is
-    // positive definite for a connected component; no ridge or fallback is used.
-    // Edges join ascending samples, so (j, i) lies in the lower triangle, the
-    // only part the factorization reads.
-    let mut matrix = Mat::<f64>::zeros(n, n);
-    let mut rhs = Mat::<f64>::zeros(n, 1);
-    for &(left, right, ratio) in edges {
-        if let (Some(i), Some(j)) = (indices[left], indices[right]) {
-            if i > 0 {
-                matrix[(i - 1, i - 1)] += 1.0;
-                rhs[(i - 1, 0)] -= ratio;
-            }
-            if j > 0 {
-                matrix[(j - 1, j - 1)] += 1.0;
-                rhs[(j - 1, 0)] += ratio;
-            }
-            if i > 0 && j > 0 {
-                matrix[(j - 1, i - 1)] -= 1.0;
-            }
-        }
+    if j > 0 {
+        matrix[(j - 1, j - 1)] += 1.0;
+        rhs[(j - 1, 0)] += ratio;
     }
+    if i > 0 && j > 0 {
+        matrix[(j - 1, i - 1)] -= 1.0;
+    }
+}
+
+fn solve_system((mut matrix, mut rhs): ComponentSystem) -> Result<Vec<f64>> {
+    let n = matrix.nrows();
     // Proteins are solved in parallel, so each factorization runs on one thread.
     let par = Par::Seq;
     let mut buffer = MemBuffer::new(

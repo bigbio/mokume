@@ -13,7 +13,7 @@ pub use config::{
     MaxLfqConfig, NamedScoreFilterConfig, NormalizationConfig, OutputConfig, OutputFormat,
     PeptideFilterConfig, PibaqConfig, PibaqFamilyRows, PibaqSharedMode, PreprocessingFilterConfig,
     ProteinFilterConfig, RatioConfig, RunQcFilterConfig, RuntimeConfig, TmtConfig,
-    TmtInterferenceFloor, TmtRowMerge,
+    TmtInterferenceFloor, TmtRowMerge, TransferredFeatures,
 };
 pub use error::{MokumeError, Result};
 pub use ids::{IonId, PeptideId, ProteinId, RunId, SampleId};

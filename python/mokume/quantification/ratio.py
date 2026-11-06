@@ -26,6 +26,7 @@ from mokume.core.constants import (
 )
 from mokume.core.logger import get_logger
 from mokume.core.registry import PluginRegistry
+from mokume.io._qpx import measured_intensity_clause
 from mokume.io.feature import SQLFilterBuilder
 
 logger = get_logger("mokume.quantification.ratio")
@@ -351,7 +352,7 @@ def _pg_accessions_projection(
         return "pg_accessions"
 
     if "struct" in type_str:
-        return "list_transform(pg_accessions, x -> x.accession) as pg_accessions"
+        return "list_transform(pg_accessions, lambda x: x.accession) as pg_accessions"
     return "pg_accessions"
 
 
@@ -367,7 +368,7 @@ def _qpx_psm_base_query(pg_col: str, is_new_qpx: bool) -> str:
                 " run_file_name as run_file_name,",
                 " unnest.label as label,",
                 " unnest.intensity as intensity",
-                " FROM read_parquet(?) AS parquet_raw, UNNEST(intensities) as unnest",
+                " FROM (SELECT *, UNNEST(intensities) AS unnest FROM read_parquet(?))",
                 " WHERE unnest.intensity IS NOT NULL AND ",
             ]
         )
@@ -382,7 +383,7 @@ def _qpx_psm_base_query(pg_col: str, is_new_qpx: bool) -> str:
             " reference_file_name as run_file_name,",
             " unnest.channel as label,",
             " unnest.intensity as intensity",
-            " FROM read_parquet(?) AS parquet_raw, UNNEST(intensities) as unnest",
+            " FROM (SELECT *, UNNEST(intensities) AS unnest FROM read_parquet(?))",
             " WHERE unnest.intensity IS NOT NULL AND ",
         ]
     )
@@ -402,7 +403,10 @@ def _load_qpx_psm_rows(
 
         where_clause, where_params = filter_builder.build_where_clause()
         pg_col = _pg_accessions_projection(conn, parquet_path, columns)
-        query = "".join((_qpx_psm_base_query(pg_col, is_new_qpx), where_clause))
+        measured = measured_intensity_clause(columns)
+        query = "".join(
+            (_qpx_psm_base_query(pg_col, is_new_qpx), measured, " AND ", where_clause)
+        )
         return conn.execute(query, [parquet_path] + where_params).df(), is_new_qpx
     finally:
         conn.close()

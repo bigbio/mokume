@@ -11,6 +11,7 @@ COMMAND_MODULES = [
     "visualize",
     "tissuemap",
     "de_plots",
+    "profile",
     "interactive_report",
     "peptides2protein_qc",
     "peptides2protein_pibaq",
@@ -22,6 +23,7 @@ PUBLIC_CLI_PATHS = (
     ("plot", "pca"),
     ("plot", "tsne"),
     ("plot", "de"),
+    ("plot", "profile"),
 )
 
 
@@ -479,7 +481,26 @@ def test_visualize_requires_output(tmp_path):
             "de_plots",
             ["--protein-matrix", "proteins.csv", "--outdir", "plots"],
             "de",
-            "select --volcano or --heatmap",
+            "select --volcano, --heatmap or --ma",
+        ),
+        (
+            "de_plots",
+            [
+                "--protein-matrix",
+                "proteins.csv",
+                "--outdir",
+                "plots",
+                "--volcano",
+                "--contrast",
+                "B-A",
+                "B",
+                "A",
+                "de.csv",
+                "--protein-groups",
+                "groups.tsv",
+            ],
+            "de",
+            "--protein-groups/--expected-log2fc require --ma",
         ),
         (
             "de_plots",

@@ -12,6 +12,7 @@ use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
 use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use parquet::arrow::ProjectionMask;
+use parquet::file::metadata::ParquetMetaData;
 use parquet::schema::types::SchemaDescriptor;
 
 // Column-name candidates in priority order. The reader decodes exactly these
@@ -28,6 +29,7 @@ const DECOY_COLUMNS: &[&str] = &["is_decoy", "decoy"];
 const PEPTIDE_QVALUE_COLUMNS: &[&str] = &["peptide_qvalue", "peptide_q_value"];
 const PG_QVALUE_COLUMNS: &[&str] = &["pg_global_qvalue", "protein_qvalue"];
 const SCORE_COLUMNS: &[&str] = &["additional_scores"];
+const ID_RUN_COLUMNS: &[&str] = &["id_run_file_name"];
 const FEATURE_COLUMNS: [&[&str]; 11] = [
     SEQUENCE_COLUMNS,
     PEPTIDOFORM_COLUMNS,
@@ -42,7 +44,7 @@ const FEATURE_COLUMNS: [&[&str]; 11] = [
     PG_QVALUE_COLUMNS,
 ];
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct QpxFeatureRecord {
     pub sequence: String,
     pub peptidoform: String,
@@ -55,9 +57,13 @@ pub struct QpxFeatureRecord {
     pub is_decoy: Option<bool>,
     pub peptide_qvalue: Option<f64>,
     pub pg_global_qvalue: Option<f64>,
-    /// The requested `additional_scores` entry, populated only by
-    /// [`flatten_qpx_batch_with_score`].
+    /// The requested named score, from a list, a struct field, or a complete
+    /// top-level q-value column; populated by [`flatten_qpx_batch_with_score`].
     pub selected_score: Option<QpxScoreValue>,
+    pub modifications: Option<Vec<String>>,
+    /// Explicit transferred identification, or the legacy identification-run
+    /// fallback; false when transfer columns were not requested.
+    pub transferred: bool,
     pub label: Option<String>,
     pub intensity: f64,
     /// First record flattened from one parquet row (rows of TMT channels follow it).
@@ -79,6 +85,7 @@ pub struct QpxIntensityEntry {
 
 pub struct QpxParquetReader {
     inner: ParquetRecordBatchReader,
+    struct_layout: Option<String>,
 }
 
 impl QpxParquetReader {
@@ -87,14 +94,31 @@ impl QpxParquetReader {
     /// optionally in parallel, while preserving batch order.
     pub fn next_raw_batch(&mut self) -> Option<Result<RecordBatch>> {
         self.inner.next().map(|batch| {
-            batch.map_err(|source| invalid_input(format!("failed to read QPX batch: {source}")))
+            let batch = batch
+                .map_err(|source| invalid_input(format!("failed to read QPX batch: {source}")))?;
+            let Some(layout) = &self.struct_layout else {
+                return Ok(batch);
+            };
+            let mut metadata = batch.schema().metadata().clone();
+            metadata.insert("qpx.struct_lists", layout.clone());
+            let schema = batch.schema().as_ref().clone().with_metadata(metadata);
+            batch
+                .with_schema(std::sync::Arc::new(schema))
+                .map_err(|source| invalid_input(format!("failed to attach QPX footer: {source}")))
         })
     }
 
     /// Opens `path`, decoding only the columns [`flatten_qpx_batch`] reads.
-    /// `with_scores` also decodes `additional_scores` for
-    /// [`flatten_qpx_batch_with_score`].
-    pub fn open(path: impl AsRef<Path>, batch_size: usize, with_scores: bool) -> Result<Self> {
+    /// `score_name` selects a score leaf or a proven non-null top-level q value.
+    /// `with_id_runs` requests transfer classification; `with_modifications`
+    /// carries structured names and accessions for modification exclusion.
+    pub fn open(
+        path: impl AsRef<Path>,
+        batch_size: usize,
+        score_name: Option<&str>,
+        with_id_runs: bool,
+        with_modifications: bool,
+    ) -> Result<Self> {
         let path = path.as_ref().to_path_buf();
         if !path.exists() {
             return Err(MokumeError::MissingInput { path });
@@ -110,7 +134,18 @@ impl QpxParquetReader {
                 path.display()
             ))
         })?;
-        let projection = feature_projection(builder.parquet_schema(), with_scores);
+        let schema = builder.parquet_schema();
+        validate_transfer_columns(schema, with_id_runs, &path)?;
+        let score = score_projection(&builder, score_name)?;
+        let struct_layout = builder
+            .metadata()
+            .file_metadata()
+            .key_value_metadata()
+            .into_iter()
+            .flatten()
+            .find(|kv| kv.key == "qpx.struct_lists")
+            .and_then(|kv| kv.value.clone());
+        let projection = feature_projection(schema, &score, with_id_runs, with_modifications);
         let inner = builder
             .with_projection(projection)
             .with_batch_size(batch_size)
@@ -122,39 +157,151 @@ impl QpxParquetReader {
                 ))
             })?;
 
-        Ok(Self { inner })
+        Ok(Self {
+            inner,
+            struct_layout,
+        })
     }
 }
 
-fn feature_projection(schema: &SchemaDescriptor, with_scores: bool) -> ProjectionMask {
-    let score_columns: &[&str] = if with_scores { SCORE_COLUMNS } else { &[] };
-    let roots = schema
-        .root_schema()
-        .get_fields()
+fn validate_transfer_columns(schema: &SchemaDescriptor, needed: bool, path: &Path) -> Result<()> {
+    if needed
+        && !schema.root_schema().get_fields().iter().any(|field| {
+            ID_RUN_COLUMNS.contains(&field.name()) || field.name() == "identification_type"
+        })
+    {
+        return Err(invalid_input(format!(
+            "QPX parquet `{}` has no id_run_file_name or identification_type column to mark transferred features",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+fn feature_projection(
+    schema: &SchemaDescriptor,
+    score: &[usize],
+    with_id_runs: bool,
+    with_modifications: bool,
+) -> ProjectionMask {
+    let leaves = schema
+        .columns()
         .iter()
         .enumerate()
-        .filter(|(_, field)| {
+        .filter(|(index, column)| {
+            let root = column.path().parts()[0].as_str();
             FEATURE_COLUMNS
                 .iter()
                 .copied()
                 .flatten()
-                .chain(score_columns)
-                .any(|candidate| *candidate == field.name())
+                .any(|name| *name == root)
+                || root == "imputed_labels"
+                || (with_id_runs
+                    && (ID_RUN_COLUMNS.contains(&root) || root == "identification_type"))
+                || (with_modifications && root == "modifications")
+                || score.contains(index)
+        })
+        .map(|(index, _)| index);
+    ProjectionMask::leaves(schema, leaves)
+}
+
+fn complete_qvalue(metadata: &ParquetMetaData, name: &str) -> bool {
+    matches!(name, "precursor_qvalue" | "global_qvalue")
+        && metadata.row_groups().iter().all(|group| {
+            group
+                .columns()
+                .iter()
+                .find(|column| column.column_path().parts() == [name])
+                .and_then(|column| column.statistics())
+                .and_then(|stats| stats.null_count_opt())
+                == Some(0)
+        })
+}
+
+fn struct_score_layout(raw: Option<&str>, name: &str) -> Result<(String, bool)> {
+    let raw = raw.ok_or_else(|| {
+        invalid_input("STRUCT additional_scores requires qpx.struct_lists footer")
+    })?;
+    let layout: serde_json::Value = serde_json::from_str(raw)
+        .map_err(|error| invalid_input(format!("invalid qpx.struct_lists footer: {error}")))?;
+    let (field, entry) = layout
+        .get("additional_scores")
+        .and_then(|value| value.as_array())
+        .and_then(|entries| {
+            entries
+                .iter()
+                .filter_map(|entry| {
+                    entry
+                        .get("name")
+                        .and_then(|value| value.as_str())
+                        .map(|field| (field, entry))
+                })
+                .find(|(field, _)| *field == name)
+        })
+        .ok_or_else(|| {
+            invalid_input(format!("score `{name}` is not in qpx.struct_lists layout"))
+        })?;
+    let direction = entry
+        .get("higher_better")
+        .and_then(|value| value.as_bool())
+        .ok_or_else(|| {
+            invalid_input(format!(
+                "score `{name}` has no boolean higher_better in footer"
+            ))
+        })?;
+    Ok((field.to_owned(), direction))
+}
+
+fn score_projection(
+    builder: &ParquetRecordBatchReaderBuilder<File>,
+    name: Option<&str>,
+) -> Result<Vec<usize>> {
+    let Some(name) = name else {
+        return Ok(Vec::new());
+    };
+    let top = complete_qvalue(builder.metadata(), name);
+    let field = builder.schema().field_with_name("additional_scores");
+    let structured =
+        !top && field.is_ok_and(|field| matches!(field.data_type(), DataType::Struct(_)));
+    let field_name = if structured {
+        let metadata = builder
+            .metadata()
+            .file_metadata()
+            .key_value_metadata()
+            .into_iter()
+            .flatten()
+            .find(|kv| kv.key == "qpx.struct_lists")
+            .and_then(|kv| kv.value.as_deref());
+        Some(struct_score_layout(metadata, name)?.0)
+    } else {
+        None
+    };
+    Ok(builder
+        .parquet_schema()
+        .columns()
+        .iter()
+        .enumerate()
+        .filter(|(_, column)| {
+            let parts = column.path().parts();
+            if top {
+                parts == [name]
+            } else {
+                parts[0] == "additional_scores"
+                    && field_name
+                        .as_ref()
+                        .is_none_or(|field| parts.get(1) == Some(field))
+            }
         })
         .map(|(index, _)| index)
-        .collect::<Vec<_>>();
-    ProjectionMask::roots(schema, roots)
+        .collect())
 }
 
 impl Iterator for QpxParquetReader {
     type Item = Result<Vec<QpxFeatureRecord>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|batch| {
-            batch
-                .map_err(|source| invalid_input(format!("failed to read QPX batch: {source}")))
-                .and_then(|batch| flatten_qpx_batch(&batch))
-        })
+        self.next_raw_batch()
+            .map(|batch| batch.and_then(|batch| flatten_qpx_batch(&batch)))
     }
 }
 
@@ -220,7 +367,11 @@ struct QpxBatchColumns<'a> {
     is_decoy: Option<&'a dyn Array>,
     peptide_qvalue: Option<&'a dyn Array>,
     pg_global_qvalue: Option<&'a dyn Array>,
-    additional_scores: Option<&'a dyn Array>,
+    additional_scores: Option<ScoreColumn<'a>>,
+    modifications: Option<&'a dyn Array>,
+    imputed_labels: Option<&'a dyn Array>,
+    identification_type: Option<&'a dyn Array>,
+    id_run_file_name: Option<&'a dyn Array>,
 }
 
 impl<'a> QpxBatchColumns<'a> {
@@ -238,6 +389,10 @@ impl<'a> QpxBatchColumns<'a> {
             peptide_qvalue: optional_column_by_names(batch, PEPTIDE_QVALUE_COLUMNS),
             pg_global_qvalue: optional_column_by_names(batch, PG_QVALUE_COLUMNS),
             additional_scores: requested_score_column(batch, score_name)?,
+            id_run_file_name: optional_column_by_names(batch, ID_RUN_COLUMNS),
+            modifications: optional_column_by_names(batch, &["modifications"]),
+            imputed_labels: optional_column_by_names(batch, &["imputed_labels"]),
+            identification_type: optional_column_by_names(batch, &["identification_type"]),
         })
     }
 }
@@ -254,6 +409,7 @@ struct QpxRowMetadata {
     peptide_qvalue: Option<f64>,
     pg_global_qvalue: Option<f64>,
     selected_score: Option<QpxScoreValue>,
+    modifications: Option<Vec<String>>,
 }
 
 impl QpxRowMetadata {
@@ -290,6 +446,7 @@ impl QpxRowMetadata {
             peptide_qvalue,
             pg_global_qvalue,
             selected_score: selected_score_value(columns.additional_scores, score_name, row)?,
+            modifications: modification_names(columns.modifications, row)?,
         })
     }
 }
@@ -313,18 +470,57 @@ fn flatten_qpx_row(
     records: &mut Vec<QpxFeatureRecord>,
 ) -> Result<()> {
     let metadata = QpxRowMetadata::from_columns(columns, score_name, row)?;
-    let entries = intensity_entries(columns.intensities, row)?;
+    let mut entries = intensity_entries(columns.intensities, row)?;
     let labels_are_runs = intensity_labels_are_runs(&entries, &metadata.run_file_name, run_keys);
+    let transferred =
+        row_transferred(columns, row, &metadata, &entries, labels_are_runs, run_keys)?;
+    drop_imputed_entries(&mut entries, columns.imputed_labels, row)?;
     records.extend(
         entries
             .into_iter()
             .filter(|entry| entry.intensity.is_finite())
             .enumerate()
             .map(|(index, entry)| {
-                qpx_feature_record(&metadata, entry, labels_are_runs, index == 0)
+                qpx_feature_record(&metadata, entry, labels_are_runs, transferred, index == 0)
             }),
     );
     Ok(())
+}
+
+/// Prefer an explicit identification type. Null or absent types use the legacy
+/// identification-run rule. A multi-run row cannot use that fallback because it
+/// has only one identification run for all its intensities.
+fn row_transferred(
+    columns: &QpxBatchColumns<'_>,
+    row: usize,
+    metadata: &QpxRowMetadata,
+    entries: &[QpxIntensityEntry],
+    labels_are_runs: bool,
+    run_keys: &mut RunKeys,
+) -> Result<bool> {
+    if let Some(column) = columns.identification_type {
+        if let Some(value) = optional_string_value(column, row, "identification_type")? {
+            return Ok(value == "transferred");
+        }
+    }
+    let Some(column) = columns.id_run_file_name else {
+        return Ok(false);
+    };
+    let run = metadata.run_file_name.as_str();
+    if labels_are_runs
+        && entries.iter().any(|entry| {
+            entry
+                .label
+                .as_deref()
+                .is_some_and(|label| !run_keys.same_run(label, run))
+        })
+    {
+        return Err(invalid_input(
+            "QPX rows list several runs, so id_run_file_name cannot mark transferred features",
+        ));
+    }
+    Ok(optional_string_value(column, row, "id_run_file_name")?
+        .is_none_or(|id_run| !run_keys.same_run(&id_run, run)))
 }
 
 /// LFQ intensities are labeled by run file; isobaric intensities are labeled
@@ -346,6 +542,7 @@ fn qpx_feature_record(
     metadata: &QpxRowMetadata,
     entry: QpxIntensityEntry,
     labels_are_runs: bool,
+    transferred: bool,
     row_start: bool,
 ) -> QpxFeatureRecord {
     let (run_file_name, label) = if labels_are_runs {
@@ -371,31 +568,106 @@ fn qpx_feature_record(
         peptide_qvalue: metadata.peptide_qvalue,
         pg_global_qvalue: metadata.pg_global_qvalue,
         selected_score: metadata.selected_score,
+        modifications: metadata.modifications.clone(),
+        transferred,
         label,
         intensity: entry.intensity,
         row_start,
     }
 }
 
+#[derive(Clone, Copy)]
+enum ScoreColumn<'a> {
+    List(&'a dyn Array),
+    Scalar(&'a dyn Array, bool, Option<&'a StructArray>),
+}
+
 fn requested_score_column<'a>(
     batch: &'a RecordBatch,
     score_name: Option<&str>,
-) -> Result<Option<&'a dyn Array>> {
-    score_name
-        .map(|_| column_by_names(batch, SCORE_COLUMNS))
-        .transpose()
+) -> Result<Option<ScoreColumn<'a>>> {
+    let Some(name) = score_name else {
+        return Ok(None);
+    };
+    if matches!(name, "precursor_qvalue" | "global_qvalue") {
+        if let Some(column) = optional_column_by_names(batch, &[name]) {
+            return Ok(Some(ScoreColumn::Scalar(column, false, None)));
+        }
+    }
+    let column = column_by_names(batch, SCORE_COLUMNS)?;
+    if let Some(values) = column.as_any().downcast_ref::<StructArray>() {
+        let (field, direction) = struct_score_layout(
+            batch
+                .schema()
+                .metadata()
+                .get("qpx.struct_lists")
+                .map(String::as_str),
+            name,
+        )?;
+        let value = struct_column_by_names(values, &[field.as_str()])
+            .ok_or_else(|| invalid_input(format!("missing additional_scores field `{name}`")))?;
+        return Ok(Some(ScoreColumn::Scalar(value, direction, Some(values))));
+    }
+    Ok(Some(ScoreColumn::List(column)))
 }
 
 fn selected_score_value(
-    scores: Option<&dyn Array>,
+    scores: Option<ScoreColumn<'_>>,
     name: Option<&str>,
     row: usize,
 ) -> Result<Option<QpxScoreValue>> {
-    scores
-        .zip(name)
-        .map(|(scores, name)| named_score_value(scores, row, name))
-        .transpose()
-        .map(Option::flatten)
+    let Some((scores, name)) = scores.zip(name) else {
+        return Ok(None);
+    };
+    match scores {
+        ScoreColumn::List(array) => named_score_value(array, row, name),
+        ScoreColumn::Scalar(array, higher_better, parent) => {
+            if parent.is_some_and(|parent| parent.is_null(row)) {
+                return Ok(None);
+            }
+            Ok(Some(QpxScoreValue {
+                value: required_score_value(array, row, name, row)?,
+                higher_better,
+            }))
+        }
+    }
+}
+
+fn drop_imputed_entries(
+    entries: &mut Vec<QpxIntensityEntry>,
+    labels: Option<&dyn Array>,
+    row: usize,
+) -> Result<()> {
+    let Some(labels) = labels else {
+        return Ok(());
+    };
+    let labels = list_string_values(labels, row, "imputed_labels", &[])?;
+    entries.retain(|entry| {
+        !entry
+            .label
+            .as_ref()
+            .is_some_and(|label| labels.contains(label))
+    });
+    Ok(())
+}
+
+fn modification_names(column: Option<&dyn Array>, row: usize) -> Result<Option<Vec<String>>> {
+    let Some(column) = column else {
+        return Ok(None);
+    };
+    let Some(values) = list_row_values(column, row, "modifications")? else {
+        return Ok(Some(Vec::new()));
+    };
+    let values = downcast_array::<StructArray>(values.as_ref(), "modifications")?;
+    let mut names = Vec::new();
+    for key in ["name", "accession"] {
+        if let Some(column) = struct_column_by_names(values, &[key]) {
+            for index in 0..values.len() {
+                names.extend(optional_string_value(column, index, key)?);
+            }
+        }
+    }
+    Ok(Some(names))
 }
 
 fn named_score_value(array: &dyn Array, row: usize, name: &str) -> Result<Option<QpxScoreValue>> {
@@ -726,8 +998,12 @@ mod tests {
     };
     use arrow::datatypes::{DataType, Field, Fields, Schema};
 
-    use super::flatten_qpx_batch;
+    use super::{flatten_qpx_batch, QpxParquetReader};
     use crate::sdrf::SdrfTable;
+    use arrow::array::{Float32Array, StructArray};
+    use arrow::record_batch::RecordBatch;
+    use std::fs::File;
+    use std::path::Path;
 
     #[test]
     fn flattens_legacy_qpx_sample_accession() -> Result<(), Box<dyn std::error::Error>> {
@@ -851,7 +1127,7 @@ mod tests {
         // LFQ: the intensity labels are run files (the row's anchor run appears
         // among them), so each intensity must map to its own run/sample instead of
         // collapsing onto the anchor `run_file_name`.
-        let intensities = lfq_run_intensities()?;
+        let intensities = labeled_intensities(&LFQ_RUNS)?;
         let proteins = new_qpx_proteins()?;
         let schema = Arc::new(Schema::new(vec![
             Field::new("sequence", DataType::Utf8, false),
@@ -942,7 +1218,273 @@ mod tests {
 
         assert_eq!(records[0].unique, Some(true));
         assert_eq!(records[0].is_decoy, Some(false));
+        // Without id_run_file_name every feature reads as identified.
+        assert!(!records[0].transferred);
         Ok(())
+    }
+
+    #[test]
+    fn marks_features_without_an_identification_in_their_run(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // quantms leaves id_run_file_name null for match-between-runs features.
+        for (id_run, transferred) in [
+            (Some("Run_A_01.mzML"), false),
+            (Some("run_a_01.raw"), false),
+            (None, true),
+            (Some("Run_B_01.mzML"), true),
+        ] {
+            let batch = id_run_batch(id_run, labeled_intensities(&[("LFQ", 10.0)])?)?;
+            let records = flatten_qpx_batch(&batch)?;
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].transferred, transferred, "{id_run:?}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_identification_runs_for_rows_with_several_runs(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let batch = id_run_batch(Some("Run_A_01.mzML"), labeled_intensities(&LFQ_RUNS)?)?;
+        assert!(flatten_qpx_batch(&batch).is_err());
+        // A row labeled with its own run is still one run.
+        let batch = id_run_batch(None, labeled_intensities(&LFQ_RUNS[..1])?)?;
+        assert!(flatten_qpx_batch(&batch)?[0].transferred);
+        Ok(())
+    }
+
+    fn with_column(
+        batch: RecordBatch,
+        name: &str,
+        values: ArrayRef,
+    ) -> Result<RecordBatch, arrow::error::ArrowError> {
+        let mut fields = batch.schema().fields().to_vec();
+        fields.push(Arc::new(Field::new(name, values.data_type().clone(), true)));
+        let mut columns = batch.columns().to_vec();
+        columns.push(values);
+        RecordBatch::try_new(Arc::new(Schema::new(fields)), columns)
+    }
+
+    fn score_batch(value: Option<f32>) -> Result<RecordBatch, Box<dyn std::error::Error>> {
+        let base = id_run_batch(None, labeled_intensities(&[("LFQ", 10.0)])?)?;
+        let scores = StructArray::from(vec![
+            (
+                Arc::new(Field::new("quality", DataType::Float32, true)),
+                Arc::new(Float32Array::from(vec![value])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("global_qvalue", DataType::Float64, true)),
+                Arc::new(Float64Array::from(vec![0.02])) as ArrayRef,
+            ),
+        ]);
+        Ok(with_column(base, "additional_scores", Arc::new(scores))?)
+    }
+
+    fn write_scores(
+        path: &Path,
+        batches: &[RecordBatch],
+        footer: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use parquet::arrow::ArrowWriter;
+        use parquet::file::metadata::KeyValue;
+        use parquet::file::properties::WriterProperties;
+        let layout = serde_json::json!({"additional_scores": [
+            {"name": "quality", "higher_better": true},
+            {"name": "global_qvalue", "higher_better": false}
+        ]})
+        .to_string();
+        let metadata = footer.then(|| vec![KeyValue::new("qpx.struct_lists".to_owned(), layout)]);
+        let properties = WriterProperties::builder()
+            .set_key_value_metadata(metadata)
+            .build();
+        let mut writer =
+            ArrowWriter::try_new(File::create(path)?, batches[0].schema(), Some(properties))?;
+        for batch in batches {
+            writer.write(batch)?;
+            writer.flush()?;
+        }
+        writer.close()?;
+        Ok(())
+    }
+
+    #[test]
+    fn struct_scores_use_footer_and_project_one_leaf() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("scores.parquet");
+        write_scores(&path, &[score_batch(Some(0.75))?], true)?;
+        for (name, expected, higher) in [("quality", 0.75, true), ("global_qvalue", 0.02, false)] {
+            let mut reader = QpxParquetReader::open(&path, 8, Some(name), false, false)?;
+            let batch = reader.next_raw_batch().ok_or("missing batch")??;
+            let scores = batch
+                .column_by_name("additional_scores")
+                .ok_or("missing scores")?;
+            assert_eq!(
+                scores
+                    .as_any()
+                    .downcast_ref::<StructArray>()
+                    .ok_or("not struct")?
+                    .num_columns(),
+                1
+            );
+            let value = super::flatten_qpx_batch_with_score(&batch, name)?[0]
+                .selected_score
+                .ok_or("missing score")?;
+            assert_eq!(
+                value,
+                super::QpxScoreValue {
+                    value: expected,
+                    higher_better: higher
+                }
+            );
+        }
+        assert!(QpxParquetReader::open(&path, 8, Some("missing"), false, false).is_err());
+        write_scores(&path, &[score_batch(Some(0.75))?], false)?;
+        assert!(QpxParquetReader::open(&path, 8, Some("quality"), false, false).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn struct_scores_distinguish_null_parent_and_invalid_field(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("scores.parquet");
+        for value in [None, Some(f32::INFINITY), Some(f32::NAN)] {
+            write_scores(&path, &[score_batch(value)?], true)?;
+            let mut reader = QpxParquetReader::open(&path, 8, Some("quality"), false, false)?;
+            let batch = reader.next_raw_batch().ok_or("missing batch")??;
+            assert!(super::flatten_qpx_batch_with_score(&batch, "quality").is_err());
+            let schema = batch.schema();
+            let values = batch
+                .column_by_name("additional_scores")
+                .ok_or("missing scores")?;
+            let scores = values
+                .as_any()
+                .downcast_ref::<StructArray>()
+                .ok_or("not struct")?;
+            let null_scores = StructArray::new(
+                scores.fields().clone(),
+                scores.columns().to_vec(),
+                Some(arrow::buffer::NullBuffer::from(vec![false])),
+            );
+            let columns = batch
+                .columns()
+                .iter()
+                .zip(schema.fields())
+                .map(|(column, field)| {
+                    if field.name() == "additional_scores" {
+                        Arc::new(null_scores.clone()) as ArrayRef
+                    } else {
+                        column.clone()
+                    }
+                })
+                .collect();
+            let batch = RecordBatch::try_new(schema, columns)?;
+            assert!(super::flatten_qpx_batch_with_score(&batch, "quality")?[0]
+                .selected_score
+                .is_none());
+        }
+        Ok(())
+    }
+
+    fn top_qvalue_batch(value: Option<f64>) -> Result<RecordBatch, Box<dyn std::error::Error>> {
+        Ok(with_column(
+            score_batch(Some(0.9))?,
+            "global_qvalue",
+            Arc::new(Float64Array::from(vec![value])),
+        )?)
+    }
+
+    #[test]
+    fn top_qvalue_requires_every_row_group_nonnull() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("top.parquet");
+        for partial in [false, true] {
+            let first = top_qvalue_batch(Some(0.01))?;
+            let second = top_qvalue_batch(if partial { None } else { Some(0.2) })?;
+            write_scores(&path, &[first, second], true)?;
+            let mut reader = QpxParquetReader::open(&path, 8, Some("global_qvalue"), false, false)?;
+            let batch = reader.next_raw_batch().ok_or("missing batch")??;
+            assert_eq!(batch.column_by_name("global_qvalue").is_some(), !partial);
+            assert_eq!(batch.column_by_name("additional_scores").is_some(), partial);
+            let records = super::flatten_qpx_batch_with_score(&batch, "global_qvalue")?;
+            assert_eq!(
+                records[0].selected_score.ok_or("missing score")?.value,
+                if partial { 0.02 } else { 0.01 }
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn identification_type_overrides_id_run_and_null_falls_back(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for (kind, id_run, expected) in [
+            (Some("transferred"), Some("Run_A_01.mzML"), true),
+            (Some("secondary"), None, false),
+            (Some("direct"), None, false),
+            (None, None, true),
+            (None, Some("Run_A_01.mzML"), false),
+        ] {
+            let batch = id_run_batch(id_run, labeled_intensities(&[("LFQ", 10.0)])?)?;
+            let batch = with_column(
+                batch,
+                "identification_type",
+                Arc::new(StringArray::from(vec![kind])),
+            )?;
+            assert_eq!(flatten_qpx_batch(&batch)?[0].transferred, expected);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn imputed_labels_drop_entries_and_modifications_are_optional(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let batch = id_run_batch(None, new_qpx_intensities()?)?;
+        let mut labels = ListBuilder::new(StringBuilder::new());
+        labels.values().append_value("TMT126");
+        labels.append(true);
+        let batch = with_column(batch, "imputed_labels", Arc::new(labels.finish()))?;
+        let batch = with_column(batch, "modifications", new_qpx_proteins()?)?;
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("imputed.parquet");
+        write_scores(&path, &[batch], false)?;
+        for with_modifications in [false, true] {
+            let mut reader = QpxParquetReader::open(&path, 8, None, false, with_modifications)?;
+            let batch = reader.next_raw_batch().ok_or("missing batch")??;
+            let records = flatten_qpx_batch(&batch)?;
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].label.as_deref(), Some("TMT127"));
+            assert_eq!(records[0].modifications.is_some(), with_modifications);
+        }
+        Ok(())
+    }
+
+    /// One `Run_A_01.mzML` row with an `id_run_file_name` column.
+    fn id_run_batch(
+        id_run: Option<&str>,
+        intensities: ArrayRef,
+    ) -> Result<arrow::record_batch::RecordBatch, Box<dyn std::error::Error>> {
+        let proteins = new_qpx_proteins()?;
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("sequence", DataType::Utf8, false),
+            Field::new("peptidoform", DataType::Utf8, false),
+            Field::new("charge", DataType::Int16, false),
+            Field::new("run_file_name", DataType::Utf8, false),
+            Field::new("id_run_file_name", DataType::Utf8, true),
+            Field::new("intensities", intensities.data_type().clone(), true),
+            Field::new("pg_accessions", proteins.data_type().clone(), true),
+        ]));
+        Ok(arrow::record_batch::RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
+                Arc::new(Int16Array::from(vec![2])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["Run_A_01.mzML"])) as ArrayRef,
+                Arc::new(StringArray::from(vec![id_run])) as ArrayRef,
+                intensities,
+                proteins,
+            ],
+        )?)
     }
 
     fn legacy_intensities() -> Result<ArrayRef, Box<dyn std::error::Error>> {
@@ -998,8 +1540,17 @@ mod tests {
         Ok(Arc::new(builder.finish()) as ArrayRef)
     }
 
-    fn lfq_run_intensities() -> Result<ArrayRef, Box<dyn std::error::Error>> {
-        // Labels are run files; the anchor run (`Run_A_01.mzML`) appears among them.
+    /// LFQ labels that are run files; the anchor run (`Run_A_01.mzML`) is first.
+    const LFQ_RUNS: [(&str, f32); 3] = [
+        ("Run_A_01.mzML", 10.0),
+        ("Run_B_01.mzML", 20.0),
+        ("Run_B_02.mzML", 30.0),
+    ];
+
+    /// One row whose intensities carry the given labels.
+    fn labeled_intensities(
+        entries: &[(&str, f32)],
+    ) -> Result<ArrayRef, Box<dyn std::error::Error>> {
         let fields = Fields::from(vec![
             Field::new("label", DataType::Utf8, false),
             Field::new("intensity", DataType::Float32, false),
@@ -1012,11 +1563,7 @@ mod tests {
             ],
         );
         let mut builder = ListBuilder::new(struct_builder);
-        for (label, value) in [
-            ("Run_A_01.mzML", 10.0f32),
-            ("Run_B_01.mzML", 20.0),
-            ("Run_B_02.mzML", 30.0),
-        ] {
+        for &(label, value) in entries {
             append_string_field(builder.values(), 0, label)?;
             append_f32_field(builder.values(), 1, value)?;
             builder.values().append(true);

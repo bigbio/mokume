@@ -364,21 +364,34 @@ def _plot_pibaq_report(
         )
         return
     plotting = importlib.import_module("mokume.plotting")
-    pdf = getattr(plotting, "PdfPages")(request.output.qc_report)
-    context = _PlotContext(
-        data=data,
-        plotting=plotting,
-        pdf=pdf,
-        width=len(set(data[SAMPLE_ID])) * 0.5 + 10,
-    )
-    columns = [plot_column]
-    if request.postprocess.tpa:
-        columns.append(TPA)
-    if request.postprocess.ruler:
-        columns.extend((COPYNUMBER, CONCENTRATION_NM))
-    for column in columns:
-        _plot_metric_pair(context, column)
-    getattr(pdf, "close")()
+    common = importlib.import_module("mokume.plotting._common")
+    with common.static_style():
+        pdf = getattr(plotting, "PdfPages")(request.output.qc_report)
+        context = _PlotContext(
+            data=data,
+            plotting=plotting,
+            pdf=pdf,
+            width=min(16, len(set(data[SAMPLE_ID])) * 0.5 + 6),
+        )
+        columns = [plot_column]
+        if request.postprocess.tpa:
+            columns.append(TPA)
+        if request.postprocess.ruler:
+            columns.extend((COPYNUMBER, CONCENTRATION_NM))
+        for column in columns:
+            _plot_metric_pair(context, column)
+        diagnostics = importlib.import_module("mokume.plotting.diagnostics")
+
+        matrix = data.pivot_table(
+            index="ProteinName", columns=SAMPLE_ID, values=plot_column
+        ).reset_index()
+        getattr(pdf, "savefig")(
+            getattr(diagnostics, "plot_abundance_rank")(
+                getattr(common, "log2_matrix")(matrix)
+            ),
+            bbox_inches="tight",
+        )
+        getattr(pdf, "close")()
 
 
 def _run_peptides_to_protein(request: _PeptidesToProteinRequest) -> None:

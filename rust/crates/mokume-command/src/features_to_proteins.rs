@@ -4,13 +4,16 @@ use clap::Args;
 use mokume_core::{FilterConfig, PibaqConfig, QuantMethod, TmtInterferenceFloor};
 
 use crate::parsers::{
-    parse_correlation, parse_de_log2fc, parse_finite_f64, parse_fraction, parse_memory,
-    parse_nonnegative_f64, parse_positive_usize, parse_quant_method, parse_tmt_floor, DeLog2FcArg,
-    QuantMethodArg,
+    parse_correlation, parse_finite_f64, parse_fraction, parse_memory, parse_nonnegative_f64,
+    parse_positive_usize, parse_quant_method, parse_tmt_floor, QuantMethodArg,
 };
 use crate::PibaqDigestRequest;
 
 mod config;
+mod de_args;
+
+use de_args::DeArgs;
+
 #[derive(Debug, Args)]
 pub(crate) struct Features2ProteinsArgs {
     #[arg(
@@ -76,6 +79,15 @@ intensity, peptide-count, spectral-count, top<N> (e.g. top3)]"
         help = "Keep protein groups whose best QPX pg_global_qvalue is <= FRACTION (e.g. 0.01)"
     )]
     filter_protein_fdr: Option<f64>,
+
+    #[arg(
+        long = "transferred-features",
+        value_name = "MODE",
+        value_parser = ["keep", "drop"],
+        ignore_case = true,
+        help = "QPX features without an identification in their run (match between runs): keep or drop [default: keep]"
+    )]
+    transferred_features: Option<String>,
 
     #[arg(long = "keep-contaminants", help = "Decoys are always removed")]
     keep_contaminants: bool,
@@ -215,8 +227,17 @@ mean-center, rlr, loess, tmm]"
     #[arg(long = "export-peptides", value_name = "FILE")]
     export_peptides: Option<PathBuf>,
 
+    #[arg(long = "export-unnormalized-peptides", value_name = "FILE")]
+    export_unnormalized_peptides: Option<PathBuf>,
+
+    #[arg(long = "export-unimputed", value_name = "FILE")]
+    export_unimputed: Option<PathBuf>,
+
     #[arg(long = "export-ions", value_name = "FILE")]
     export_ions: Option<PathBuf>,
+
+    #[arg(long = "export-precision", value_name = "FILE")]
+    export_precision: Option<PathBuf>,
 
     #[arg(long = "batch-correction")]
     batch_correction: bool,
@@ -395,66 +416,8 @@ mean-center, rlr, loess, tmm]"
     #[arg(long = "impute-tune-sigma", value_name = "VALUE", value_parser = parse_nonnegative_f64)]
     impute_tune_sigma: Option<f64>,
 
-    #[arg(
-        long = "de-contrast",
-        num_args = 2,
-        value_names = ["GROUP_A", "GROUP_B"]
-    )]
-    de_contrast: Vec<String>,
-
-    #[arg(long = "de-contrast-file", value_name = "FILE")]
-    de_contrast_file: Option<PathBuf>,
-
-    #[arg(long = "de-method", value_name = "METHOD", value_parser = [
-        "auto",
-        "limrots",
-        "limma",
-        "deqms",
-        "proda",
-        "rots",
-        "ensemble",
-    ], ignore_case = true)]
-    de_method: Option<String>,
-
-    #[arg(long = "de-ensemble-method", value_name = "METHOD")]
-    de_ensemble_method: Vec<String>,
-
-    #[arg(
-        long = "de-ensemble-min-k",
-        value_name = "N",
-        value_parser = parse_positive_usize,
-        help = "Minimum agreeing methods for ensemble DE (default: 2)"
-    )]
-    de_ensemble_min_k: Option<usize>,
-
-    #[arg(
-        long = "de-log2fc",
-        value_name = "AUTO|VALUE",
-        value_parser = parse_de_log2fc
-    )]
-    de_log2fc_threshold: Option<DeLog2FcArg>,
-
-    #[arg(
-        long = "de-effect-size-gate",
-        value_name = "METHOD",
-        value_parser = ["mixture", "null-quantile"],
-        ignore_case = true
-    )]
-    de_effect_size_gate: Option<String>,
-
-    #[arg(long = "de-fdr", value_name = "FRACTION", value_parser = parse_fraction)]
-    de_fdr_threshold: Option<f64>,
-
-    #[arg(
-        long = "de-fdr-method",
-        value_name = "METHOD",
-        value_parser = ["bh", "ihw", "bky", "storey"],
-        ignore_case = true
-    )]
-    de_fdr_method: Option<String>,
-
-    #[arg(long = "de-output", value_name = "FILE")]
-    de_output: Option<PathBuf>,
+    #[command(flatten)]
+    de: DeArgs,
 
     #[arg(
         long = "memory",

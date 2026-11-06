@@ -131,101 +131,6 @@ pub(crate) fn f_sf(x: f64, d1: f64, d2: f64) -> f64 {
     regularized_incomplete_beta(d2 / 2.0, d1 / 2.0, y)
 }
 
-/// Regularized upper incomplete gamma `Q(a, x) = Gamma(a, x) / Gamma(a)`,
-/// matching `scipy.special.gammaincc(a, x)`. This is the chi-squared survival
-/// kernel the ensemble Fisher combiner needs.
-///
-/// Uses the Numerical Recipes split (`gammp`/`gammq`): the power series for the
-/// lower regularized `P(a, x)` when `x < a + 1`, and the Lentz continued
-/// fraction for `Q(a, x)` when `x >= a + 1`, which is the regime each method
-/// converges fastest in. Matches SciPy to ~1e-12 across the chi2 inputs the
-/// Fisher combiner produces (small `x` near the mode through deep upper tail).
-pub(crate) fn gammaincc(a: f64, x: f64) -> f64 {
-    if !a.is_finite() || !x.is_finite() || a <= 0.0 {
-        return f64::NAN;
-    }
-    if x <= 0.0 {
-        // Q(a, 0) = 1 (the whole mass is above 0).
-        return 1.0;
-    }
-    if x < a + 1.0 {
-        // Series gives the lower P(a, x); Q = 1 - P.
-        1.0 - gamma_lower_series(a, x)
-    } else {
-        // Continued fraction gives Q(a, x) directly.
-        gamma_upper_continued_fraction(a, x)
-    }
-}
-
-/// Power series for the regularized lower incomplete gamma `P(a, x)` (Numerical
-/// Recipes `gser`), valid and rapidly convergent for `x < a + 1`.
-fn gamma_lower_series(a: f64, x: f64) -> f64 {
-    const MAX_ITERATIONS: usize = 1000;
-    const EPSILON: f64 = 1e-16;
-
-    let mut ap = a;
-    let mut sum = 1.0 / a;
-    let mut term = sum;
-    for _ in 0..MAX_ITERATIONS {
-        ap += 1.0;
-        term *= x / ap;
-        sum += term;
-        if term.abs() < sum.abs() * EPSILON {
-            break;
-        }
-    }
-    // P(a, x) = sum * exp(-x + a ln x - lgamma(a)).
-    sum * (-x + a * x.ln() - libm::lgamma(a)).exp()
-}
-
-/// Lentz continued fraction for the regularized upper incomplete gamma
-/// `Q(a, x)` (Numerical Recipes `gcf`), valid and rapidly convergent for
-/// `x >= a + 1`.
-fn gamma_upper_continued_fraction(a: f64, x: f64) -> f64 {
-    const MAX_ITERATIONS: usize = 1000;
-    const EPSILON: f64 = 1e-16;
-    const TINY: f64 = 1e-300;
-
-    let mut b = x + 1.0 - a;
-    let mut c = 1.0 / TINY;
-    let mut d = 1.0 / b;
-    let mut h = d;
-    for i in 1..=MAX_ITERATIONS {
-        let an = -(i as f64) * (i as f64 - a);
-        b += 2.0;
-        d = an * d + b;
-        if d.abs() < TINY {
-            d = TINY;
-        }
-        c = b + an / c;
-        if c.abs() < TINY {
-            c = TINY;
-        }
-        d = 1.0 / d;
-        let delta = d * c;
-        h *= delta;
-        if (delta - 1.0).abs() < EPSILON {
-            break;
-        }
-    }
-    // Q(a, x) = h * exp(-x + a ln x - lgamma(a)).
-    h * (-x + a * x.ln() - libm::lgamma(a)).exp()
-}
-
-/// Chi-squared survival `P(X > x)` with `df` degrees of freedom, matching
-/// `scipy.stats.chi2.sf(x, df)`. This is the regularized upper incomplete gamma
-/// `Q(df/2, x/2)` (chi2 is `Gamma(shape=df/2, scale=2)`). Used by the ensemble
-/// Fisher combiner, whose statistic `-2 sum ln p` is chi-squared on `2k` df.
-pub(crate) fn chi2_sf(x: f64, df: f64) -> f64 {
-    if !x.is_finite() || !df.is_finite() || df <= 0.0 {
-        return f64::NAN;
-    }
-    if x <= 0.0 {
-        return 1.0;
-    }
-    gammaincc(df / 2.0, x / 2.0)
-}
-
 /// Regularized incomplete beta `I_x(a, b)`, the same Lentz continued-fraction
 /// (Numerical Recipes `betai`/`betacf`) scheme as `student_t.rs`. Only the
 /// `cfg(test)` F cdf/sf use it, so it is gated to match.
@@ -303,8 +208,8 @@ fn beta_continued_fraction(a: f64, b: f64, x: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        chi2_sf, digamma, f_cdf, f_logpdf, f_sf, norm_cdf, norm_logcdf, norm_logpdf, norm_logsf,
-        norm_pdf, norm_sf, t_logpdf, tetragamma, trigamma,
+        digamma, f_cdf, f_logpdf, f_sf, norm_cdf, norm_logcdf, norm_logpdf, norm_logsf, norm_pdf,
+        norm_sf, t_logpdf, tetragamma, trigamma,
     };
 
     fn assert_close(actual: f64, expected: f64) {
@@ -485,36 +390,6 @@ mod tests {
         for (x, df, loc, scale, expected) in cases {
             assert_close_tol(t_logpdf(x, df, loc, scale), expected, 1e-12);
         }
-    }
-
-    // scipy.stats.chi2.sf(x, df). Oracle captured verbatim from
-    // `conda run -n Bigbio python` (see scratchpad ensemble_oracle.py). Covers
-    // the mode region, the deep upper tail (df=4 at x=50 -> 3.6e-10; df=20 at
-    // x=100 -> 1.3e-12), and the near-zero lower argument (x=1e-6). This is the
-    // Fisher combiner kernel: its statistic `-2 sum ln p` is chi-squared on 2k
-    // df, so it lives mostly in this small-to-moderate x range.
-    #[test]
-    fn chi2_sf_matches_scipy() {
-        let cases = [
-            (1.0, 2.0, 0.6065306597126334),
-            (5.0, 2.0, 0.0820849986238988),
-            (10.0, 4.0, 0.04042768199451279),
-            (3.5, 6.0, 0.7439696953972181),
-            (0.5, 1.0, 0.47950012218695337),
-            (20.0, 8.0, 0.010336050675925726),
-            (15.3, 10.0, 0.1215011696305226),
-            (2.0, 2.0, 0.36787944117144245),
-            (50.0, 4.0, 3.610865404890647e-10),
-            (100.0, 20.0, 1.2596084591660847e-12),
-            (1e-6, 2.0, 0.999999500000125),
-        ];
-        for (x, df, sf) in cases {
-            assert_close_tol(chi2_sf(x, df), sf, 1e-11);
-        }
-        // Degenerate guards: non-positive x -> survival 1, invalid df -> NaN.
-        assert_close(chi2_sf(0.0, 2.0), 1.0);
-        assert_close(chi2_sf(-1.0, 2.0), 1.0);
-        assert!(chi2_sf(1.0, 0.0).is_nan());
     }
 
     // scipy.stats.f.{logpdf,sf,cdf}. Oracle captured verbatim.

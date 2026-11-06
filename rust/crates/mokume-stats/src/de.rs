@@ -10,10 +10,12 @@
 
 mod correct;
 mod deqms;
+mod duplicate_correlation;
 mod effect_size;
 mod ensemble;
 mod ihw;
 mod limma;
+mod limma_design;
 mod limrots;
 mod port;
 mod proda;
@@ -23,11 +25,13 @@ mod student_t;
 
 use correct::bh_adjust;
 pub use correct::{adaptive_adjust, AdaptiveFdrMethod, AppliedFdrMethod};
-pub use deqms::deqms_two_group;
+pub use deqms::{deqms_design, deqms_two_group, deqms_two_group_weighted, PrecisionRows};
+pub use duplicate_correlation::{duplicate_correlation, BlockCorrelationEstimate};
 pub use effect_size::{estimate_effect_size_gate, EffectSizeGateMethod};
 pub use ensemble::{combine_de_results, EnsembleResult};
 pub use ihw::{ihw_correction, ihw_with_options, IhwOptions, IhwResult};
 use limma::run_limma;
+pub use limma_design::{limma_design, validate_design, DesignContrast, RandomBlock};
 pub use limrots::{
     limrots_two_group, limrots_two_group_with_options, LimRotsOptions, LimRotsOutput,
 };

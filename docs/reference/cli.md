@@ -57,8 +57,15 @@ PSM-level QPX evidence and does not accept MSstats feature tables.
 | `-s/--sdrf` | none | SDRF file for sample metadata |
 | `--min-aa` | 7 | Minimum amino acid length |
 | `--filter-protein-fdr` | none | Keep protein groups whose best QPX `pg_global_qvalue` is `<=` this value (e.g. `0.01`); requires QPX `--parquet` input with a populated `pg_global_qvalue`; not available for `spectral-count` |
+| `--transferred-features` | keep | `drop` removes QPX features without an identification in their own run before normalization and quantification; see the rules below |
 | `--min-unique` | 2 | Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option |
 | `--keep-contaminants` | off | Keep contaminants (a group is a contaminant only if all its accessions are); rows marked `is_decoy=true` are always removed |
+
+For `--transferred-features drop`, `identification_type=transferred` marks a
+transfer. Rows without a type use `id_run_file_name`: null or another run
+marks a transfer. QPX input must have at least one of those columns. Removing
+every feature is an error. `drop` is unavailable for MSstats input and
+`spectral-count`; explicit `keep` is accepted and has no effect there.
 
 ### Quantification
 
@@ -220,6 +227,9 @@ wraps scikit-learn. Install `mokume[analysis]` and call the wheel's Python
 | `--de-contrast` | — | Two condition labels; repeat for multiple contrasts |
 | `--de-contrast-file` | — | TSV file with columns `group1`, `group2` |
 | `--de-method` | `auto` | Method: auto, limrots, limma, deqms, proda, rots, ensemble |
+| `--de-covariate` | none | SDRF column added to the limma/DEqMS design; repeat for several columns |
+| `--de-block` | none | SDRF column whose levels are random blocks (e.g. the subject) in the limma/DEqMS design |
+| `--de-precision-weights` | off | Weight DEqMS by each cell's MaxLFQ/DirectLFQ quantification precision |
 | `--de-ensemble-method` | `limrots`, `deqms`, `proda` | Ensemble member; repeat to override the defaults |
 | `--de-ensemble-min-k` | 2 | Minimum ensemble members that must agree on direction |
 | `--de-log2fc` | 0.5 | Minimum absolute log2 fold change, or `auto` for the data-driven mixture gate |
@@ -242,7 +252,34 @@ deqms) are cell-exact against frozen Python-generated compatibility output;
 RNG/optimizer-driven methods (rots / limrots / proda) match log2 fold change
 cell-exactly and p-values at rank level.
 
-`--de-method ensemble` runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least `--de-ensemble-min-k` members agree on direction and the Fisher-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Fisher-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate. The default members are `limrots`, `deqms`, and `proda`; on a contrast with missing values they run `limma` in place of `limrots`, because LimROTS needs a complete matrix. An explicit `--de-ensemble-method limrots` member still needs a complete matrix.
+`--de-covariate` fits limma or DEqMS on a fixed-effects design
+(`~0 + condition + covariates`): all samples with a condition enter one fit, and
+each contrast compares two condition coefficients, as limma's `lmFit` and
+`contrasts.fit` do. A column whose values all parse as numbers is a numeric
+covariate; any other column is categorical. For a paired design, pass the
+subject column. Values are looked up like the conditions (source name, then data
+file). A constant, missing, or confounded covariate is rejected. With covariates
+`auto` selects `deqms`, and the other methods reject the option. Without
+covariates each contrast keeps the two-group fit on its own samples.
+
+`--de-block` treats the levels of an SDRF column as random blocks of that
+design, as limma's `duplicateCorrelation` and `lmFit(block =, correlation =)`
+do: one intra-block correlation is estimated from all proteins and design
+samples, and every contrast uses the generalized least-squares fit. Use it for
+repeated measures of a subject or for technical replicates nested in biological
+replicates; it combines with `--de-covariate`. Blocks of one sample each, or a
+block column already in the fixed design, give a zero correlation with a
+warning, as in limma. The same method rules as for covariates apply.
+
+`--de-precision-weights` weights each protein value in DEqMS by its
+quantification precision, estimated from the residuals of the protein's ions
+around its MaxLFQ or DirectLFQ profile. It requires `--quant-method maxlfq` or
+`directlfq` and `--de-method deqms` (`auto` resolves to DEqMS only for
+DirectLFQ), and does not combine with `--de-covariate`, `--de-block`, or an
+ensemble. See [Differential Expression
+concepts](../concepts/differential-expression.md#precision-weights).
+
+`--de-method ensemble` runs each member method on the same contrast and combines the per-protein verdicts via top-k consensus: a protein is called UP/DOWN only when at least `--de-ensemble-min-k` members agree on direction and the Cauchy-combined p-value passes the FDR threshold. Eligible non-ROTS members use the requested correction; ROTS and LimROTS retain their native permutation FDR. The Cauchy-combined p-values use BH by default, with BKY or Storey applied when requested and reliable; IHW remains a member-level correction because the combined rows have no IHW covariate. The default members are `limrots`, `deqms`, and `proda`; on a contrast with missing values they run `limma` in place of `limrots`, because LimROTS needs a complete matrix. An explicit `--de-ensemble-method limrots` member still needs a complete matrix.
 
 ### Plots & Reports
 
@@ -264,18 +301,43 @@ mokume interactive-report --protein-matrix proteins.csv \
     --contrast c1 A B de.csv
 ```
 
-Pass `--help` to either command for the full flag set.
+`plot de --ma` adds mean-log2-intensity versus log2FC plots (`ma_<key>.png`).
+`--protein-groups FILE` reads a TSV with `ProteinName` and `group` columns.
+Repeat `--expected-log2fc KEY GROUP VALUE` for contrast-specific composition
+reference lines; both require `--ma`. Unknown contrasts or groups fail.
+Multiple contrasts also produce `upset_significant.png`; `--highlight-protein`
+adds a cross-contrast fold-change plot and no longer requires `--volcano` in
+that case.
+
+```bash
+mokume plot profile -p proteins.csv --peptides peptides.csv \
+    -s experiment.sdrf.tsv --protein P00549 --protein P12345 -o profiles
+```
+
+`plot profile` writes one PNG per protein, with peptide trajectories in gray and
+the protein summary in the main color. `interactive-report --peptides FILE`
+adds the same profile to its selected-protein view. Conditions come from SDRF,
+including for four-column peptide exports.
+
+Pass `--help` to any command for the full flag set.
 
 ### Export
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--export-peptides` | none | Export normalized peptides (not supported with DirectLFQ) |
+| `--export-unnormalized-peptides` | none | Rust only: export the same peptide rows before sample normalization, after run normalization and feature filtering |
+| `--export-unimputed` | none | Rust only: export the protein matrix after IRS and sample/coverage filtering, before imputation; requires `--impute-method` |
 | `--export-ions` | none | Export normalized ions (DirectLFQ only) |
+| `--export-precision` | none | Rust only: export each cell's quantification precision in the protein matrix's layout (MaxLFQ/DirectLFQ only) |
 
-`--export-peptides` also rejects dataset-level sample normalization for
-non-cell-based aggregation methods, because those peptide values would not
-represent the normalized protein matrix.
+MaxLFQ peptide export supports quantile and hierarchical sample normalization.
+It sums the normalized modification/charge species into canonical peptide rows.
+Both peptide exports have identical keys and columns: dataset-level normalization
+uses `ProteinName,PeptideCanonical,SampleID,NormIntensity`; other configurations
+also include `BioReplicate` and `Condition`. DirectLFQ, Ratio and SpectralCount
+reject peptide export. piBAQ still rejects peptide export with dataset-level
+sample normalization.
 
 ### Runtime Resource Controls
 
@@ -365,8 +427,8 @@ them through `features2proteins`, where the full matrix exists.
 | `--filter-charge-state` | none | Charge state override; repeat for multiple states |
 | `--filter-max-missed-cleavages` | none | Max missed cleavages (override) |
 | `--filter-peptide-fdr` | none | Max QPX peptide q-value (override) |
-| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better` |
-| `--filter-exclude-modification` | none | Modification override; repeat for multiple names |
+| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better`, or from the `qpx.struct_lists` footer for struct scores; complete top-level `precursor_qvalue`/`global_qvalue` columns are read directly |
+| `--filter-exclude-modification` | none | Modification name or accession to exclude, compared case-insensitively with the `name` and `accession` of the QPX `modifications` list when present; repeat for multiple values |
 | `--filter-protein-fdr` | none | Max QPX protein-group q-value (override) |
 | `--filter-min-features` | none | Min features per run (override) |
 | `--filter-max-missing-rate` | none | Max missing feature fraction per technical run (override) |

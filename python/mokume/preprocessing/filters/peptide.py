@@ -154,6 +154,13 @@ class ChargeStateFilter(BaseFilter):
         )
 
 
+def _modification_pattern(value: str) -> str:
+    """Accessions match complete bracket tokens in legacy peptidoforms."""
+    if re.fullmatch(r"[^:\s]+:[0-9]+", value):
+        value = f"[{value}]"
+    return re.escape(value)
+
+
 class ModificationFilter(BaseFilter):
     """Filter peptides by modifications."""
 
@@ -198,7 +205,9 @@ class ModificationFilter(BaseFilter):
         if not self.exclude_modifications:
             return df, self._create_result(input_count, input_count)
 
-        patterns = "|".join(re.escape(mod) for mod in self.exclude_modifications)
+        patterns = "|".join(
+            _modification_pattern(mod) for mod in self.exclude_modifications
+        )
 
         mask = ~df[self.sequence_column].fillna("").astype(str).str.contains(
             patterns, case=False, regex=True

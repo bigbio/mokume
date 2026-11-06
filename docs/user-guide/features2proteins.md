@@ -53,6 +53,8 @@ Choose one input mode:
 
 - `--parquet` accepts a quantms.io/QPX feature parquet file. It is also the
   required protein-group mapping paired with `--psm` for `spectral-count`.
+  Intensities that a QPX 1.3 row lists in `imputed_labels` (imputed by the
+  upstream tool, such as Spectronaut) are dropped before quantification.
 - `--msstats` accepts a native MSstats CSV and requires `--sdrf` so runs and
   channels can be mapped to samples.
 - `--psm` accepts a PSM-level QPX parquet for true `spectral-count`; it requires
@@ -179,6 +181,43 @@ off by default. The command fails with a clear error when the QPX input has
 no populated `pg_global_qvalue` column, and it is rejected for MSstats input
 and `spectral-count`. The log reports the protein groups before/after the
 filter for every run and for the whole experiment.
+
+## Transferred Features (Match Between Runs)
+
+With match between runs, a DDA workflow quantifies a precursor in runs where
+it was not identified by transferring the identification from another run.
+QPX 1.3 records this per row in `identification_type`: only `transferred`
+counts as a transfer, while `direct` and `secondary` (a co-fragmented
+identification from the run's own MS/MS) do not. Rows without a type fall back
+to `id_run_file_name`, which is null (or names another run) for transferred
+features. Pass `--transferred-features drop` to quantify only features
+identified in their own run:
+
+```bash
+mokume quantify features2proteins \
+    -p features.parquet \
+    -o proteins.csv \
+    -s experiment.sdrf.tsv \
+    --quant-method maxlfq \
+    --transferred-features drop
+```
+
+The default is `keep`. Dropped features are removed before normalization and
+quantification, and the log reports how many were dropped. The command fails
+when the QPX input has neither an `identification_type` nor an
+`id_run_file_name` column, when a row without a type lists several runs,
+or when `drop` removes every feature. Check those columns if every feature
+is classified as transferred. `drop` is rejected for MSstats input and
+`spectral-count`; an explicit `keep` is accepted and has no effect.
+quantms DIA-NN and isobaric exports set `id_run_file_name` to the feature's
+own run, so `drop` keeps every feature there.
+
+Keep the default unless you need identification-only quantities. On 39
+label-free DDA spike-in datasets (18 studies, 2–54% transferred features),
+`drop` removed a median 18% of the MaxLFQ proteins and lowered the Score A of
+the leading `directlfq` and `maxlfq` configurations by about 0.02, also on
+the proteins that `drop` still quantifies; `sum`, `top3` and `pibaq` were
+about unchanged.
 
 ## Normalization Options
 
@@ -402,6 +441,9 @@ enables differential expression without a separate switch.
 | `--de-contrast` | — | Two condition labels; repeat the option for multiple contrasts |
 | `--de-contrast-file` | — | TSV file with columns `group1`, `group2` |
 | `--de-method` | `auto` | Method: auto, limrots, limma, deqms, proda, rots, ensemble |
+| `--de-covariate` | — | SDRF column added to the limma/DEqMS design; repeat for several columns |
+| `--de-block` | — | SDRF column whose levels are random blocks (e.g. the subject) in the limma/DEqMS design |
+| `--de-precision-weights` | off | Weight DEqMS by each cell's MaxLFQ/DirectLFQ quantification precision |
 | `--de-ensemble-method` | `limrots`, `deqms`, `proda` | Ensemble member; repeat to override the defaults |
 | `--de-ensemble-min-k` | 2 | Minimum ensemble members that must agree on direction (ensemble only) |
 | `--de-log2fc` | 0.5 | Minimum absolute log2 fold change, or `auto` for the data-driven mixture gate |
@@ -432,6 +474,42 @@ enables differential expression without a separate switch.
     See [Differential Expression
     concepts](../concepts/differential-expression.md) for a
     detailed comparison of methods.
+
+### Covariates and paired designs
+
+`--de-covariate` adds SDRF columns to a limma or DEqMS design
+(`~0 + condition + covariates`). All samples with a condition are fitted
+together, and each contrast compares two condition coefficients. Numeric
+columns stay numeric; other columns are categorical. A paired design passes the
+subject column:
+
+```bash
+mokume quantify features2proteins \
+    -p features.parquet -o proteins.csv -s experiment.sdrf.tsv \
+    --de-contrast "treated" "control" \
+    --de-method limma \
+    --de-covariate "characteristics[individual]" \
+    --de-covariate "comment[batch]" \
+    --de-output de_results.csv
+```
+
+A constant, missing, or confounded covariate is rejected. With covariates
+`--de-method auto` selects `deqms`; ROTS, LimROTS, proDA, and ensemble reject
+the option.
+
+`--de-block` models a column's levels as random blocks instead of fixed effects
+(limma's `duplicateCorrelation`), for example the subject of a repeated-measures
+design or the biological replicate of technical replicates. The consensus
+intra-block correlation is written to the log, and the same method rules apply:
+
+```bash
+mokume quantify features2proteins \
+    -p features.parquet -o proteins.csv -s experiment.sdrf.tsv \
+    --de-contrast "treated" "control" \
+    --de-method limma \
+    --de-block "characteristics[individual]" \
+    --de-output de_results.csv
+```
 
 ```bash
 # Top-k consensus across multiple methods
@@ -541,11 +619,53 @@ mokume quantify features2proteins \
     --export-ions ions.csv
 ```
 
-DirectLFQ and Ratio peptide export is not supported because those calculations
-operate on method-specific normalized structures. Conversely, `--export-ions` is DirectLFQ-only. For
-non-cell-based aggregation methods, peptide export also rejects dataset-level
-sample normalization because the exported peptide values would not represent
-the normalized protein matrix.
+MaxLFQ supports peptide export with its default hierarchical normalization and
+with quantile normalization. The export sums the normalized modification/charge
+species actually used by MaxLFQ into protein × canonical peptide × sample rows.
+Python's MaxLFQ export retains the individual species instead.
+
+The Rust CLI also provides two diagnostic exports:
+
+```bash
+# Matched peptide tables before and after sample normalization
+mokume quantify features2proteins \
+    -p features.parquet -s experiment.sdrf.tsv -o proteins.csv \
+    --export-peptides peptides.csv \
+    --export-unnormalized-peptides peptides.before-sample-normalization.csv
+
+# Protein matrix immediately before imputation
+mokume quantify features2proteins \
+    -p features.parquet -s experiment.sdrf.tsv -o proteins.csv \
+    --impute-method minprob --export-unimputed proteins.before-imputation.csv
+
+# Quantification precision of every MaxLFQ cell
+mokume quantify features2proteins \
+    -p features.parquet -s experiment.sdrf.tsv -o proteins.csv \
+    --quant-method maxlfq --export-precision proteins.precision.csv
+```
+
+`--export-unnormalized-peptides` retains feature filtering and run normalization,
+including channel IRS scaling when enabled, but precedes both ingest-time sample
+factors (such as global/condition median) and dataset-level sample normalization.
+It is collected during the same parquet read. Its rows and columns match
+`--export-peptides` exactly. Dataset-level exports use the four columns
+`ProteinName,PeptideCanonical,SampleID,NormIntensity`; other configurations also
+include `BioReplicate` and `Condition`.
+
+`--export-unimputed` requires `--impute-method`. It uses the final matrix's CSV
+format after protein-level IRS, sample correlation filtering and coverage
+filtering, but before imputation and batch correction. Neither diagnostic export
+changes quantification, differential expression, or any existing output.
+
+`--export-precision` writes the precisions behind `--de-precision-weights` in
+the final protein matrix's format, with the same proteins and samples. Cells
+that MaxLFQ or DirectLFQ did not quantify, including imputed ones, are empty.
+Pass the table to `mokume.differential_expression(..., precision=...)` to weight
+DEqMS on a matrix outside the command. It does not change any other output.
+
+DirectLFQ, Ratio and SpectralCount reject both peptide exports. `--export-ions`
+is DirectLFQ-only. piBAQ peptide export with dataset-level sample normalization
+remains unsupported.
 
 ## Full Example
 

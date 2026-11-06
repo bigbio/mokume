@@ -39,9 +39,15 @@ class DifferentialExpression:
         self,
         method: str = "limrots",
         peptide_counts: pd.Series | None = None,
+        precision: pd.DataFrame | None = None,
         **options,
     ):
-        """Initialize differential expression analysis settings."""
+        """Initialize differential expression analysis settings.
+
+        ``precision`` holds each cell's quantification precision in the
+        protein matrix layout (protein names in the first column) and switches
+        DEqMS to precision weights.
+        """
         unknown = set(options) - set(_DE_OPTION_DEFAULTS)
         if unknown:
             unknown_args = ", ".join(sorted(unknown))
@@ -62,6 +68,11 @@ class DifferentialExpression:
         self.n_boot = config["n_boot"]
         self.seed = config["seed"]
         self.peptide_counts = peptide_counts
+        if precision is not None and self.method != "deqms":
+            raise ValueError("Precision weights require the deqms DE method")
+        self.precision = (
+            None if precision is None else precision.set_index(precision.columns[0])
+        )
 
     def run(
         self,
@@ -156,6 +167,7 @@ class DifferentialExpression:
             sample_groups[1],
             contrast,
             peptide_counts=self.peptide_counts,
+            precision=self.precision,
         )
         if result.empty:
             return result

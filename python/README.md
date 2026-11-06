@@ -133,7 +133,7 @@ mokume provides modern empirical Bayes and bootstrap-based statistical methods f
 - **proDA** — Probabilistic dropout-aware analysis that models missing values as informative dropout events rather than discarding them.
 - **limma** — Stable empirical Bayes baseline (`lmFit → contrasts.fit → eBayes → topTable`).
 - **ROTS** — Bootstrap-optimised reproducibility-oriented test statistic without empirical Bayes shrinkage.
-- **Ensemble** — Top-k consensus across multiple DE methods with Fisher-combined p-values.
+- **Ensemble** — Top-k consensus across multiple DE methods with Cauchy-combined p-values.
 
 FDR correction: **BH** (Benjamini-Hochberg, default) or **IHW** (Independent Hypothesis Weighting).
 

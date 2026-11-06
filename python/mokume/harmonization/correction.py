@@ -54,7 +54,7 @@ def is_batch_correction_available() -> bool:
 
 def compute_pca(df, n_components=5) -> pd.DataFrame:
     """Compute principal components for a given dataframe."""
-    pca = PCA(n_components=n_components)
+    pca = PCA(n_components=n_components, random_state=0)
     coordinates = pca.fit_transform(df)
     columns = [f"PC{index}" for index in range(1, n_components + 1)]
     return pd.DataFrame(

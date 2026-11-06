@@ -3,7 +3,7 @@
 //! This is a port of mokume's `analysis/ensemble.py`. The deterministic core is
 //! `combine_de_results` (ensemble.py:94): it runs several DE methods on the same
 //! contrast, then fuses their per-protein calls with a top-k consensus rule and
-//! Fisher's combined p-value. Only this combine step lives here; the member
+//! the Cauchy combination of their p-values. Only this combine step lives here; the member
 //! methods (`limrots`/`deqms`/`proda`/...) are run by the caller and passed in.
 //!
 //! DETERMINISM: the combine step is fully deterministic and cell-exact against
@@ -22,15 +22,16 @@
 //!   - `median_fc = median(fc_values)` (numpy median: mean of the two middle
 //!     values for an even count), or 0.0 if no member reported the protein
 //!     (ensemble.py:149);
-//!   - `combined_p`: Fisher's method over the kept p-values when >= 2 remain,
-//!     the single p-value when exactly 1 remains, else NaN (ensemble.py:151-156);
+//!   - `combined_p`: the Cauchy combination of the kept p-values when >= 2
+//!     remain, the single p-value when exactly 1 remains, else NaN;
 //!   - BH-adjust the combined p over the finite entries only (ensemble.py:174-182);
 //!   - consensus significance: UP iff `n_up >= min_k AND adj_p < fdr_threshold
 //!     AND log2FC > log2fc_threshold`; DOWN symmetric (ensemble.py:185-197);
 //!   - sort by adjusted p-value ascending (ensemble.py:199).
 
+use std::f64::consts::PI;
+
 use super::correct::bh_adjust;
-use super::special::chi2_sf;
 use super::{DeResult, Significance};
 
 /// One combined ensemble result row. Mirrors the columns mokume's
@@ -42,7 +43,7 @@ pub struct EnsembleResult {
     pub protein: String,
     /// Median of the members' `log2FC` (numpy median; 0.0 if none reported it).
     pub log2_fold_change: f64,
-    /// Fisher-combined p-value (the single member p when only one is finite/> 0,
+    /// Cauchy-combined p-value (the single member p when only one is finite/> 0,
     /// NaN when none are).
     pub p_value: f64,
     /// BH adjustment of `p_value` over the finite-p subset.
@@ -153,7 +154,7 @@ fn accumulate_protein(protein: &str, members: &[(String, Vec<DeResult>)]) -> Com
         }
         fc_values.push(row.log2_fold_change);
         let pval = row.p_value;
-        if pval.is_finite() && pval > 0.0 {
+        if pval.is_finite() && (0.0..=1.0).contains(&pval) {
             p_values.push(pval);
         }
         match row.significance {
@@ -186,20 +187,29 @@ fn accumulate_protein(protein: &str, members: &[(String, Vec<DeResult>)]) -> Com
     }
 }
 
-/// Combine kept p-values (ensemble.py:151-156): Fisher's method when >= 2
-/// remain, passthrough when exactly 1, NaN when none. Fisher's statistic is
-/// `-2 sum ln p`, chi-squared on `2k` df, so the combined p is `chi2.sf(stat,
-/// 2k)` -- exactly what `scipy.stats.combine_pvalues(..., method="fisher")`
-/// returns as its second element.
+/// Combine kept p-values (`_combine_member_pvalues` in ensemble.py): the
+/// equal-weight Cauchy combination (Liu & Xie 2020) when >= 2 remain,
+/// passthrough when exactly 1, NaN when none. The members test the same
+/// contrast on the same matrix, so their p-values are strongly dependent;
+/// Fisher's method assumes independence and gives p-values that are too small,
+/// while the Cauchy combination stays valid under arbitrary dependence for
+/// small p-values.
 fn combine_p_values(p_values: &[f64]) -> f64 {
     match p_values.len() {
         0 => f64::NAN,
         1 => p_values[0],
         k => {
-            let stat: f64 = -2.0 * p_values.iter().map(|p| p.ln()).sum::<f64>();
-            chi2_sf(stat, 2.0 * k as f64)
+            let statistic = p_values.iter().copied().map(cauchy_term).sum::<f64>() / k as f64;
+            // Upper tail of the standard Cauchy, 1/2 - atan(t) / pi, kept
+            // precise for large t.
+            1.0_f64.atan2(statistic) / PI
         }
     }
+}
+
+/// `cot(p pi)` avoids cancellation in `1/2 - p` for tiny p-values.
+fn cauchy_term(p: f64) -> f64 {
+    1.0 / (p.max(f64::MIN_POSITIVE) * PI).tan()
 }
 
 /// numpy-compatible median over a non-empty slice: for an even count it is the
@@ -255,10 +265,10 @@ fn consensus(
 
 #[cfg(test)]
 mod tests {
-    use super::{combine_de_results, median};
+    use super::{combine_de_results, combine_p_values, median};
     use crate::de::{DeResult, Significance};
 
-    /// One hardcoded oracle row: protein, median log2FC, Fisher combined p, BH
+    /// One hardcoded oracle row: protein, median log2FC, Cauchy-combined p, BH
     /// adjusted p, n_up, n_down, methods_significant, consensus significance.
     type OracleRow = (
         &'static str,
@@ -329,8 +339,8 @@ mod tests {
     // Three fixed member tables (m1/m2/m3) over 8 proteins, constructed to
     // exercise every Python branch:
     //   * P8 missing from m2, P1/P3 missing from m3 (protein-union handling);
-    //   * P6 has a ZERO pvalue in m1 (dropped from Fisher; combined over m2/m3);
-    //   * P7 has a NaN pvalue in m1 (dropped from Fisher);
+    //   * P6 has a zero pvalue in m1 (retained as strong evidence);
+    //   * P7 has a NaN pvalue in m1 (dropped from the combination);
     //   * P5 has 3 fold changes (odd-count median) but only 1 DOWN call, so
     //     consensus stays Unchanged despite adj_p < 0.05 and log2FC < -0.5
     //     (exercises the min_k AND-condition);
@@ -338,7 +348,7 @@ mod tests {
     //   * P7/P3 contribute no significant member (empty methods_significant,
     //     NaN-free combined p but Unchanged).
     //
-    // The oracle (median log2FC, Fisher combined_p, BH adj_pvalue, n_up/n_down,
+    // The oracle (median log2FC, Cauchy combined_p, BH adj_pvalue, n_up/n_down,
     // methods_significant, consensus significance, and the adj_p sort order) is
     // a hardcoded Python `combine_de_results` run captured verbatim from
     // `conda run -n Bigbio python` (scratchpad ensemble_oracle.py). All numeric
@@ -381,23 +391,25 @@ mod tests {
         let combined = combine_de_results(&members, 2, 0.5, 0.05);
 
         // (protein, log2FC, pvalue, adj_pvalue, n_up, n_down, methods_sig, sig),
-        // in the Python adj_pvalue-sorted order.
+        // in adj_pvalue order. P6 is strongest; P1 and P2 tie on adj_pvalue
+        // and keep the protein order of the stable sort, which pandas'
+        // default sort does not guarantee.
         let oracle: [OracleRow; 8] = [
             (
-                "P2",
-                -1.6,
-                8.291848176171641e-07,
-                6.633478540937313e-06,
-                0,
+                "P6",
+                2.8,
+                6.675221575521604e-308,
+                5.340177260417283e-307,
                 3,
+                0,
                 "m1,m2,m3",
-                "DOWN",
+                "UP",
             ),
             (
                 "P8",
                 -2.25,
-                1.711809565095837e-06,
-                6.847238260383348e-06,
+                0.00018181822186026205,
+                0.0007272728874407719,
                 0,
                 2,
                 "m1,m3",
@@ -406,28 +418,28 @@ mod tests {
             (
                 "P1",
                 1.9,
-                4.1150694807888515e-05,
-                0.00010973518615436938,
+                0.0015000037011351722,
+                0.0030000074022702703,
                 2,
                 0,
                 "m1,m2",
                 "UP",
             ),
             (
-                "P6",
-                2.8,
-                6.603036322765084e-05,
-                0.00013206072645530168,
-                3,
+                "P2",
+                -1.6,
+                0.001500001233703629,
+                0.0030000074022702703,
                 0,
+                3,
                 "m1,m2,m3",
-                "UP",
+                "DOWN",
             ),
             (
                 "P4",
                 1.1,
-                0.0019034386382832487,
-                0.0030455018212531978,
+                0.013334308429863552,
+                0.021334893487781684,
                 2,
                 0,
                 "m1,m3",
@@ -436,8 +448,8 @@ mod tests {
             (
                 "P5",
                 -0.9,
-                0.0031917692601552707,
-                0.004255692346873694,
+                0.037246366793606274,
+                0.049661822391475034,
                 0,
                 1,
                 "m2",
@@ -446,8 +458,8 @@ mod tests {
             (
                 "P7",
                 0.3,
-                0.3744316243440109,
-                0.42792185639315533,
+                0.3459316586238781,
+                0.39535046699871784,
                 0,
                 0,
                 "",
@@ -456,8 +468,8 @@ mod tests {
             (
                 "P3",
                 -0.05,
-                0.5218875824868203,
-                0.5218875824868203,
+                0.4487353062132972,
+                0.4487353062132972,
                 0,
                 0,
                 "",
@@ -495,15 +507,15 @@ mod tests {
         }
     }
 
-    // A single finite p-value passes through unchanged (no Fisher), and a
-    // protein with no finite/positive p-value gets NaN combined p and is
+    // A single finite p-value passes through unchanged (no combination), and a
+    // protein with no finite/non-negative p-value gets NaN combined p and is
     // NotTested (ensemble.py:198-203, the len==1 and len==0 branches).
     #[test]
     fn single_and_zero_pvalue_branches() -> Result<(), String> {
-        use Significance::{NotTested, Unchanged, Up};
+        use Significance::{Unchanged, Up};
         let m1 = vec![
             de_row("Q1", 2.0, 0.001, Up), // only member reporting Q1
-            de_row("Q2", 1.0, 0.0, Up),   // zero p dropped -> no finite p
+            de_row("Q2", 1.0, 0.0, Up),   // zero p is valid evidence
         ];
         let members = vec![("m1".to_owned(), m1)];
         let combined = combine_de_results(&members, 2, 0.5, 0.05);
@@ -521,9 +533,37 @@ mod tests {
             .iter()
             .find(|r| r.protein == "Q2")
             .expect("Q2 present");
-        assert!(q2.p_value.is_nan(), "Q2 combined p should be NaN");
-        assert!(q2.adj_p_value.is_nan(), "Q2 adj p should be NaN");
-        assert_eq!(q2.significance, NotTested);
+        assert_eq!(q2.p_value, 0.0);
+        assert_eq!(q2.adj_p_value, 0.0);
+        assert_eq!(q2.significance, Unchanged);
         Ok(())
+    }
+
+    #[test]
+    fn cauchy_preserves_tiny_and_zero_pvalues() {
+        let tiny = combine_p_values(&[1.1e-15, 1.1e-15]);
+        assert!((tiny / 1.1e-15 - 1.0).abs() < 1e-12);
+        assert!(combine_p_values(&[0.0, 0.3]) < 1e-300);
+        let members = vec![
+            (
+                "a".to_owned(),
+                vec![de_row("P", 2.0, 0.0, Significance::Up)],
+            ),
+            (
+                "b".to_owned(),
+                vec![de_row("P", 2.0, 0.3, Significance::Up)],
+            ),
+        ];
+        let result = combine_de_results(&members, 2, 0.5, 0.05);
+        assert!(result[0].p_value < 1e-300);
+        assert_eq!(result[0].significance, Significance::Up);
+    }
+
+    #[test]
+    fn untruncated_cauchy_retains_near_one_cancellation() {
+        for values in [[1e-8, 1e-8, 1.0], [0.01, 0.01, 0.999]] {
+            let combined = combine_p_values(&values);
+            assert!(combined > 0.99 && combined <= 1.0);
+        }
     }
 }

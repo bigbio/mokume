@@ -20,6 +20,7 @@ import pandas as pd
 from scipy.special import digamma, polygamma
 from scipy.stats import t as t_dist
 
+from mokume.analysis._deqms_loess import loess_predict
 from mokume.analysis._helpers import (
     bh_adjust,
     filter_testable,
@@ -34,6 +35,9 @@ from mokume.analysis.limma import (
 from mokume.core.logger import get_logger
 
 logger = get_logger("mokume.analysis.deqms")
+
+# The quadratic count fit needs floor(.75*n) >= 3 valid proteins.
+MIN_VALID_POINTS = 4
 
 
 def _beta_continued_fraction(a: float, b: float, x: float) -> float:
@@ -137,7 +141,9 @@ def _spectra_count_ebayes(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
     """Apply spectra-count-aware Bayes moderation (R DEqMS::spectraCounteBayes).
 
-    Returns (sca_t, sca_pvalue, log_pvalue, sca_var_post, d0).
+    The log variance follows R's Gaussian quadratic LOESS on log2 counts, as
+    the Rust ``spectra_count_ebayes``. Returns (sca_t, sca_pvalue, log_pvalue,
+    sca_var_post, d0).
     """
     sigma2 = fit.sigma**2
     log_var = np.log(sigma2)
@@ -154,7 +160,7 @@ def _spectra_count_ebayes(
     x = np.log2(counts_f)
 
     valid = np.isfinite(log_var) & np.isfinite(x) & np.isfinite(df_valid)
-    if valid.sum() < 10:
+    if valid.sum() < MIN_VALID_POINTS:
         logger.warning(
             "spectraCounteBayes: too few valid points (%d), "
             "falling back to standard eBayes",
@@ -162,50 +168,24 @@ def _spectra_count_ebayes(
         )
         return _standard_ebayes_statistics(fit)
 
-    x_valid = x[valid]
-    x_range = float(np.ptp(x_valid))
-    if x_range < 1e-10:
+    if np.ptp(x[valid]) < 1e-10:
         logger.warning(
             "spectraCounteBayes: all counts identical, falling back to standard eBayes",
         )
         return _standard_ebayes_statistics(fit)
 
-    try:
-        from statsmodels.nonparametric.smoothers_lowess import lowess
-    except ImportError as exc:
-        raise ImportError(
-            "statsmodels is required for the DEqMS method. "
-            "Install it with: pip install mokume-py[analysis]"
-        ) from exc
-
-    try:
-        fitted = lowess(
-            log_var[valid],
-            x_valid,
-            frac=0.75,
-            return_sorted=False,
+    y_pred = loess_predict(log_var, x, valid)
+    if not np.isfinite(y_pred[valid]).all():
+        logger.warning(
+            "spectraCounteBayes: non-finite count trend (tied counts), "
+            "falling back to standard eBayes",
         )
-    except Exception:
-        logger.warning("LOESS failed, falling back to standard eBayes")
         return _standard_ebayes_statistics(fit)
-
-    y_pred = np.full(n_genes, np.nan)
-    y_pred[valid] = fitted
-
-    non_valid = ~valid & np.isfinite(x)
-    if non_valid.any():
-        # statsmodels.lowess does not predict at new points, so linearly
-        # interpolate the fitted curve at the unseen x values.
-        order = np.argsort(x_valid)
-        y_pred[non_valid] = np.interp(x[non_valid], x_valid[order], fitted[order])
-
     eg = log_var - digamma(df_valid / 2) + np.log(df_valid / 2)
     egpred = y_pred - digamma(df_valid / 2) + np.log(df_valid / 2)
 
     myfct = (eg - egpred) ** 2 - polygamma(1, df_valid / 2)
-    mean_myfct = float(np.nanmean(myfct))
-
-    d0 = _grid_search_d0(mean_myfct, n_genes)
+    d0 = _grid_search_d0(float(np.mean(myfct[np.isfinite(myfct)])), n_genes)
 
     s02 = np.exp(egpred + digamma(d0 / 2) - np.log(d0 / 2))
 
@@ -310,6 +290,27 @@ def _build_count_vector(
     return counts
 
 
+def _precision_weights(values: np.ndarray, precision: np.ndarray) -> np.ndarray:
+    """Observation weights from each cell's quantification precision (1/SE^2).
+
+    A cell without a precision (zero or NaN, e.g. an imputed value) takes the
+    5th percentile of the observed precisions. Each weight is then floored as
+    ``1/(1/w + tau2)``, ``tau2`` being the median observed ``1/w``, so the
+    biological variance bounds how much one well-measured cell can count.
+    Mirrors the Rust ``deqms_two_group_weighted``.
+    """
+    measured = np.isfinite(values) & np.isfinite(precision) & (precision > 0)
+    observed = precision[measured]
+    if not observed.size:
+        logger.warning(
+            "DEqMS: no finite positive precision overlaps observed intensities; "
+            "using unit weights. Check protein and sample alignment."
+        )
+    tau2 = float(np.median(1.0 / observed)) if observed.size else 0.0
+    unmeasured = float(np.quantile(observed, 0.05)) if observed.size else 1.0
+    return 1.0 / (1.0 / np.where(measured, precision, unmeasured) + tau2)
+
+
 # ---------------------------------------------------------------------------
 # Public API: run_deqms
 # ---------------------------------------------------------------------------
@@ -322,8 +323,14 @@ def run_deqms(
     contrast: tuple[str, str],
     **options,
 ) -> pd.DataFrame:
-    """Run DEqMS differential expression (pure Python implementation)."""
+    """Run DEqMS differential expression (pure Python implementation).
+
+    ``precision``, a protein-by-sample frame of quantification precisions,
+    weights each cell by :func:`_precision_weights`; the weighted fit reports
+    weighted group means.
+    """
     peptide_counts = options.pop("peptide_counts", None)
+    precision = options.pop("precision", None)
     if options:
         unknown = ", ".join(sorted(options))
         raise TypeError(f"Unexpected DEqMS options: {unknown}")
@@ -337,13 +344,22 @@ def run_deqms(
     sample_order = list(samples_a) + list(samples_b)
     mat = sub_matrix[sample_order].values
     gene_names = list(sub_matrix.index)
+    weights = None
+    if precision is not None:
+        # Fill and floor over every row of the contrast, as the Rust DEqMS.
+        weights = _precision_weights(
+            log2_matrix[sample_order].to_numpy(dtype=float),
+            precision.reindex(index=log2_matrix.index, columns=sample_order).to_numpy(
+                dtype=float
+            ),
+        )[log2_matrix.index.get_indexer(sub_matrix.index)]
 
     design = np.zeros((len(sample_order), 2))
     design[: len(samples_a), 0] = 1.0
     design[len(samples_a) :, 1] = 1.0
     coef_names = [cond_a, cond_b]
 
-    fit = _lm_fit_with_na(mat, design, gene_names, coef_names)
+    fit = _lm_fit_with_na(mat, design, gene_names, coef_names, weights)
     contrasts = np.array([[1.0], [-1.0]])
     fit_c = _contrasts_fit(fit, contrasts)
     fit_eb = _ebayes(fit_c)
@@ -365,6 +381,14 @@ def run_deqms(
 
     summary = per_group_summary(sub_matrix, samples_a, samples_b, cond_a, cond_b)
     merged = raw.merge(summary, on="ProteinName", how="left")
+    if weights is not None:
+        merged[f"mean_{cond_a}"] = fit.coefficients[:, 0]
+        merged[f"mean_{cond_b}"] = fit.coefficients[:, 1]
+    return _ordered_result(merged, cond_a, cond_b)
+
+
+def _ordered_result(merged, cond_a, cond_b):
+    """Add the BH-adjusted p-values and order the DEqMS columns and rows."""
     merged["pvalue"] = merged["sca_pvalue"]
     merged["adj_pvalue"] = bh_adjust(merged["sca_pvalue"].values)
     merged["sca_adj_pvalue"] = merged["adj_pvalue"]

@@ -1357,6 +1357,7 @@ dependencies = [
  "csv",
  "mokume-core",
  "parquet",
+ "serde_json",
  "tempfile",
  "tracing",
 ]
@@ -1410,6 +1411,7 @@ dependencies = [
 name = "mokume-stats"
 version = "0.2.0"
 dependencies = [
+ "faer",
  "libm",
  "microlp",
  "mokume-core",

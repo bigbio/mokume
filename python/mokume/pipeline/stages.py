@@ -90,7 +90,7 @@ _SQLFIRST_LOAD_QUERY_PREFIX = """
                         """
 
 _SQLFIRST_LOAD_QUERY_AFTER_MEMBERS = """,
-                        x -> CASE
+                        lambda x: CASE
                             WHEN length(string_split(x, '|')) = 3
                                 THEN string_split(x, '|')[2]
                             ELSE x
@@ -187,7 +187,7 @@ _RUN_SCALE_QUERY_PREFIX = """
                         """
 
 _RUN_SCALE_QUERY_AFTER_MEMBERS = """,
-                        x -> CASE
+                        lambda x: CASE
                             WHEN length(string_split(x, '|')) = 3
                                 THEN string_split(x, '|')[2]
                             ELSE x
@@ -1145,10 +1145,15 @@ class NormalizationStage:
 
 
 class QuantificationStage:
-    """Routes to the appropriate quantification method."""
+    """Routes to the appropriate quantification method.
+
+    With DE precision weights, a MaxLFQ run leaves its cell precisions in
+    ``cell_precision`` (protein matrix layout).
+    """
 
     def __init__(self, config: PipelineConfig):
         self.config = config
+        self.cell_precision = None
 
     def quantify(self, peptide_df: pd.DataFrame) -> pd.DataFrame:
         """Apply protein quantification method."""
@@ -1183,6 +1188,7 @@ class QuantificationStage:
                 intensity_column=NORM_INTENSITY,
                 sample_column=SAMPLE_ID,
             )
+            self._keep_cell_precision(result)
             return self.to_wide_format(result, quant_method)
         if quant_method.startswith("top"):
             match = re.match(r"top(\d+)", quant_method)
@@ -1204,12 +1210,20 @@ class QuantificationStage:
             return self._quantify_median(peptide_df)
         raise ValueError(f"Unknown quantification method: {quant_method}")
 
+    def _keep_cell_precision(self, result: pd.DataFrame) -> None:
+        """Keep MaxLFQ's cell precisions, if requested, as a protein matrix."""
+        if "Precision" in result:
+            self.cell_precision = result.pivot(
+                index=PROTEIN_NAME, columns=SAMPLE_ID, values="Precision"
+            ).reset_index()
+
     def _quantification_options(self, method: str) -> dict:
         """Method-specific solver settings, independent of worker allocation."""
         if method == "maxlfq":
             return {
                 "min_ratio_count": self.config.quantification.maxlfq_min_ratio_count,
                 "stabilize": self.config.quantification.stabilize,
+                "cell_precision": self.config.de.precision_weights,
             }
         return {}
 
@@ -1829,11 +1843,15 @@ class PostprocessingStage:
         sample_to_condition: dict,
         contrasts: list[tuple[str, str]],
         de_method: str,
-        peptide_counts: Optional[pd.Series],
+        de_inputs: tuple[Optional[pd.Series], Optional[pd.DataFrame]],
     ) -> dict:
-        """Run a non-ensemble DE method for all configured contrasts."""
+        """Run a non-ensemble DE method for all configured contrasts.
+
+        ``de_inputs`` holds the peptide counts and the cell precisions.
+        """
         from mokume.analysis.differential_expression import DifferentialExpression
 
+        peptide_counts, precision = de_inputs
         de = DifferentialExpression(
             method=de_method,
             log2fc_threshold=self.config.de.log2fc_threshold,
@@ -1841,6 +1859,7 @@ class PostprocessingStage:
             fdr_method=self.config.de.fdr_method,
             skip_log2=(self.config.quantification.method.lower() == "ratio"),
             peptide_counts=peptide_counts,
+            precision=precision,
         )
 
         all_results = {}
@@ -1853,12 +1872,14 @@ class PostprocessingStage:
         return all_results
 
     def run_differential_expression(
-        self, protein_df: pd.DataFrame, dataset=None
+        self, protein_df: pd.DataFrame, dataset=None, precision=None
     ) -> Optional[dict]:
         """Run differential expression analysis.
 
         The optional ``dataset`` parameter is accepted for compatibility with
         the pipeline runner (``pipeline.runner``) and is otherwise unused.
+        ``precision`` holds the quantification's cell precisions for
+        precision-weighted DEqMS.
         """
         from mokume.normalization.irs import detect_condition_from_sdrf
 
@@ -1881,6 +1902,8 @@ class PostprocessingStage:
                 f"FDR method '{self.config.de.fdr_method}' does not apply to "
                 f"{de_method}, which retains its permutation FDR"
             )
+        if self.config.de.precision_weights:
+            self._validate_precision_weights(de_method)
         peptide_counts = self._load_de_peptide_counts(de_method)
 
         if de_method == "ensemble":
@@ -1896,8 +1919,19 @@ class PostprocessingStage:
             sample_to_condition,
             contrasts,
             de_method,
-            peptide_counts,
+            (peptide_counts, precision),
         )
+
+    def _validate_precision_weights(self, de_method: str) -> None:
+        """Precision weights need MaxLFQ/DirectLFQ values tested by DEqMS."""
+        if self.config.quantification.method.lower() not in ("maxlfq", "directlfq"):
+            raise ValueError(
+                "DE precision weights require maxlfq or directlfq quantification"
+            )
+        if de_method != "deqms":
+            raise ValueError(
+                f"DE precision weights require the deqms DE method, not {de_method}"
+            )
 
     def _plot_sample_conditions(self, protein_df: pd.DataFrame) -> Optional[dict]:
         """Return sample-to-condition mapping for plotting when SDRF is available."""
@@ -1936,6 +1970,7 @@ class PostprocessingStage:
                 highlight_genes=self.config.output.highlight_genes,
                 title=f"Volcano Plot: {contrast_name}",
                 output_file=output_file,
+                conditions=tuple(de_entry["conditions"]),
             )
             logger.info("Volcano plot saved to %s", output_file)
 
@@ -1971,7 +2006,8 @@ class PostprocessingStage:
 
             cond_a, cond_b = de_entry["conditions"]
             sig_proteins = (
-                sig.sort_values(by="log2FC", key=lambda x: x.abs(), ascending=False)[
+                sig.assign(abs_log2FC=sig["log2FC"].abs())
+                .sort_values(["adj_pvalue", "abs_log2FC"], ascending=[True, False])[
                     "ProteinName"
                 ]
                 .head(50)
@@ -2081,6 +2117,9 @@ class PostprocessingStage:
 
         sample_to_condition = detect_condition_from_sdrf(self.config.input.sdrf)
 
+        contrast_conditions = {
+            f"{a}-{b}": (a, b) for a, b in self._parse_de_contrasts(sample_to_condition)
+        }
         for contrast_name, de_entry in de_results.items():
             de_df = de_entry["df"] if isinstance(de_entry, dict) else de_entry
             if self.config.output.report_output:
@@ -2096,12 +2135,17 @@ class PostprocessingStage:
             generate_de_report(
                 de_results=de_df,
                 protein_df=protein_df,
-                sample_to_condition=sample_to_condition,
+                sample_to_condition={
+                    sample: condition
+                    for sample, condition in sample_to_condition.items()
+                    if condition in contrast_conditions[contrast_name]
+                },
                 output_html=output_html,
                 title=f"DE Report: {contrast_name}",
                 highlight_genes=self.config.output.highlight_genes,
                 log2fc_threshold=self.config.de.log2fc_threshold,
                 fdr_threshold=self.config.de.fdr_threshold,
+                conditions=contrast_conditions[contrast_name],
             )
             logger.info("Interactive report saved to %s", output_html)
 

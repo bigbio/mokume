@@ -186,8 +186,9 @@ mokume plot de -p proteins.csv -s experiment.sdrf.tsv -o plots --ma \
     --contrast B-A B A de_B-A.csv
 ```
 
-The mapping may omit proteins; they appear as `Unassigned`. Each `ProteinName`
-must occur only once. Duplicate protein entries are rejected.
+The mapping may omit proteins; they are drawn as gray `Unassigned` points
+behind the groups and do not count as a group. Each `ProteinName` must occur
+only once. Duplicate protein entries are rejected.
 
 MA plots with more than three composition groups use one panel per group,
 sorted by group name in three columns with shared axes. Each panel emphasizes

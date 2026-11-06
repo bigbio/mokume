@@ -447,7 +447,7 @@ def test_ma_retains_unassigned_proteins_and_neutral_draw_order(tmp_path):
     path.write_text("ProteinName\tgroup\nP1\tspike\n", encoding="utf-8")
     labels, names = _group_labels(de, read_protein_groups(path))
     assert labels.tolist() == ["spike", "Unassigned"]
-    assert set(names) == {"spike", "Unassigned"}
+    assert names == ["spike"]
     assert _group_labels(de, None)[1] == ["Unchanged", "UP"]
     matrix = pd.DataFrame(
         {"ProteinName": ["P1", "P2"], "Gene": ["a", "b"], "s1": [4, 8], "s2": [8, 16]}

@@ -14,6 +14,8 @@ from mokume.plotting.style import (
     WHITE,
 )
 
+UNASSIGNED = "Unassigned"
+
 
 def read_protein_groups(path):
     """Read the explicit protein-to-group mapping used for spike-in MA plots."""
@@ -64,12 +66,13 @@ def plot_ma(de, protein_df, sample_to_condition, output_file, options):
         ylabel="log2 fold change (M)",
         title=options["title"] + (f" ({names[0]})" if len(names) == 1 else ""),
     )
-    if len(names) > 1:
+    shown = len(ax.get_legend_handles_labels()[1])
+    if shown > 1:
         legend = ax.legend(
             labelcolor=TEXT_COLOR,
             loc="upper center",
             bbox_to_anchor=(0.5, -0.22),
-            ncol=min(len(names), 3),
+            ncol=min(shown, 3),
             frameon=False,
             markerscale=2.5,
         )
@@ -83,7 +86,7 @@ def plot_ma(de, protein_df, sample_to_condition, output_file, options):
 
 
 def _group_labels(de, groups):
-    """Put neutral significance points first and retain unmapped proteins."""
+    """Put neutral significance points first; unmapped proteins get no group name."""
     if groups is None:
         labels = de["significance"]
         names = [
@@ -93,10 +96,10 @@ def _group_labels(de, groups):
         ]
     else:
         labels = pd.Series(
-            groups.reindex(de["ProteinName"]).fillna("Unassigned").to_numpy(),
+            groups.reindex(de["ProteinName"]).fillna(UNASSIGNED).to_numpy(),
             index=de.index,
         )
-        names = category_order(labels)
+        names = category_order(labels[labels != UNASSIGNED])
     return labels, names
 
 
@@ -108,6 +111,16 @@ def _plot_groups(ax, de, abundance, labels, names, options):
         if groups is None
         else dict(zip(names, category_colors(len(names))))
     )
+    # Unmapped proteins stay a gray background, like the other groups in facets.
+    unassigned = labels == UNASSIGNED
+    if unassigned.any():
+        _group_points(
+            ax,
+            abundance[unassigned],
+            de.loc[unassigned, "log2FC"],
+            MISSING_COLOR,
+            UNASSIGNED,
+        )
     for name in names:
         color = colors[name]
         subset = labels == name
@@ -135,7 +148,7 @@ def _group_points(ax, abundance, fold_changes, color, name=None):
 
 def _plot_facets(de, abundance, labels, output_file, options):
     """Emphasize one composition group per panel against the other proteins."""
-    names = category_order(labels)
+    names = category_order(labels[labels != UNASSIGNED])
     rows = (len(names) + 2) // 3
     fig, axes = plt.subplots(
         rows, 3, figsize=(7.2, rows * 2.4), sharex=True, sharey=True, squeeze=False

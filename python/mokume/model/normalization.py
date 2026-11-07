@@ -393,6 +393,28 @@ class PeptideNormalizationMethod(Enum):
         return self.normalize_sample(dataset_df, sample, med_map)
 
 
+# Global-median follows each sample's detection depth and match-between-runs
+# transfers, so these aggregations align shared peptide species instead (as the
+# Rust CLI does).
+HIERARCHICAL_DEFAULT_METHODS = frozenset({"maxlfq", "sum", "median"})
+
+
+def default_normalization_methods(quant_method: str) -> tuple[str, str]:
+    """Default run and sample normalization names of a quantification method.
+
+    DirectLFQ and ratio normalize internally and peptide_count uses no
+    intensities, so both default to ``none``. MaxLFQ, ``top<N>``, sum and
+    median default to hierarchical sample normalization, the other intensity
+    methods to global-median, all after median run normalization.
+    """
+    method = quant_method.lower()
+    if method in {"directlfq", "ratio", "peptide_count"}:
+        return "none", "none"
+    if method in HIERARCHICAL_DEFAULT_METHODS or method.startswith("top"):
+        return "median", "hierarchical"
+    return "median", "globalmedian"
+
+
 def parse_normalization_methods(
     run_method: str,
     sample_method: str,

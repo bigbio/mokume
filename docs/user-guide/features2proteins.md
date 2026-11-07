@@ -289,8 +289,8 @@ It is unavailable for DirectLFQ, Ratio, peptide-count, and spectral-count.
     hierarchical, Mokume selects the built-in MaxLFQ path so the requested
     normalization is actually applied.
 
-- `global-median` is the default and a good general-purpose starting point.
-- `hierarchical` is useful when you want DirectLFQ-style normalization with a non-DirectLFQ quantification method.
+- `hierarchical` is the default for MaxLFQ, `top<N>`, `sum` and `median`. It aligns the peptides that samples share, so detection depth and match-between-runs transfers do not move it.
+- `global-median` remains the default for piBAQ, `abd` and `intensity`, and whenever `--normalization-proteins` is given. Its sample median moves with the number of weak features each run detects or receives by transfer.
 
 ## IRS Normalization (Multi-Plex TMT)
 

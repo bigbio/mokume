@@ -196,7 +196,8 @@ fn normalization_help_separates_and_aligns_metadata() {
     let features_help = render_subcommand_help_path(&["quantify", "features2proteins"]);
     for expected in [
         "[default: median; directlfq, ratio, peptide-count, spectral-count: none]",
-        "[default: global-median; maxlfq without --normalization-proteins: hierarchical;",
+        "[default: global-median; maxlfq, top<N>, sum and median without",
+        "--normalization-proteins: hierarchical;",
         "directlfq, ratio, peptide-count, spectral-count: none]",
         "Unavailable for directlfq, ratio, peptide-count, spectral-count",
     ] {

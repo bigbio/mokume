@@ -106,9 +106,10 @@ DirectLFQ and Ratio manage normalization internally. `peptide-count` and
 `spectral-count` count evidence identities and do not use intensity
 normalization. All four therefore default both normalization layers to `none`;
 passing a non-`none` value is rejected. Other methods default to `median` /
-`global-median`, except that MaxLFQ's sample normalization defaults to
-`hierarchical` (`global-median` when `--normalization-proteins` is given): the
-median of a sample's detected features moves with detection depth and spike-in
+`global-median`, except that the sample normalization of MaxLFQ, `top<N>`,
+`sum` and `median` defaults to `hierarchical` (`global-median` when
+`--normalization-proteins` is given): the median of a sample's detected features
+moves with detection depth, match-between-runs transfers and spike-in
 composition, while hierarchical alignment compares the peptides that samples share.
 
 ### IRS (Multi-Plex TMT)

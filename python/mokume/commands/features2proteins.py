@@ -178,8 +178,10 @@ QUANT_METHOD = QuantMethodParamType()
 @click.option(
     "--sample-normalization",
     "sample_normalization",
-    help="Sample normalization method. "
-    "Use 'hierarchical' for DirectLFQ-style clustering-based normalization.",
+    help="Sample normalization method [default: hierarchical for maxlfq, top<N>, "
+    "sum and median; globalmedian for the other intensity methods; none for "
+    "directlfq, ratio and peptide_count]. 'hierarchical' is DirectLFQ-style "
+    "clustering-based normalization.",
     type=click.Choice(SAMPLE_NORM_CHOICES, case_sensitive=False),
     default=None,
 )

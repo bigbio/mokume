@@ -18,10 +18,12 @@ Regenerate the goldens only after an intentional shared-contract change that is
 meant to update both implementations, not after an isolated pure-Python change::
 
     cd python && python -c "\
-from mokume.pipeline.config import PipelineConfig, InputConfig, QuantificationConfig; \
+from mokume.pipeline.config import PipelineConfig, InputConfig, NormalizationConfig, \
+QuantificationConfig; \
 from mokume.pipeline.features_to_proteins import QuantificationPipeline; \
 QuantificationPipeline(PipelineConfig(\
 input=InputConfig(parquet='../rust/tests/example/feature_wide.parquet'), \
+normalization=NormalizationConfig(sample_method='globalmedian'), \
 quantification=QuantificationConfig(method='sum'))).run().to_csv(\
 '../rust/tests/example/feature_wide_sum_python.csv', index=False)"
 
@@ -97,10 +99,18 @@ def _canonical(df: pd.DataFrame) -> pd.DataFrame:
 
 @pytest.mark.parametrize("method", ["sum", "median"])
 def test_rust_matches_python_golden(method, tmp_path):
-    """Rust output matches the frozen compatibility golden within f32 tolerance."""
+    """Rust output matches the frozen compatibility golden within f32 tolerance.
+
+    The goldens use global-median sample normalization, the pure-Python
+    default when they were made; sum and median now default to hierarchical.
+    """
     golden_path = GOLDEN_DIR / f"feature_wide_{method}_python.csv"
     rust_df = _canonical(
-        _rust_features2proteins(method, tmp_path / f"rust_{method}.csv")
+        _rust_features2proteins(
+            method,
+            tmp_path / f"rust_{method}.csv",
+            sample_normalization="global-median",
+        )
     )
     py_df = _canonical(pd.read_csv(golden_path))
 

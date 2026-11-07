@@ -6,10 +6,11 @@ quantification pipeline, replacing the flat PipelineConfig.
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 from mokume.analysis.ensemble_config import validate_de_ensemble
+from mokume.model.normalization import default_normalization_methods
 
 _MEMORY_LIMIT_RE = re.compile(r"^\s*\d+(?:\.\d+)?\s*[KMGT]?B?\s*$", re.IGNORECASE)
 _MEMORY_UNIT_BYTES: dict[str, int] = {
@@ -190,19 +191,25 @@ class NormalizationConfig:
 
     Attributes
     ----------
-    run_method : str
+    run_method : str, optional
         Run/technical replicate normalization method.
-    sample_method : str
+    sample_method : str, optional
         Sample-to-sample normalization method. Supported values:
         ``none``, ``globalmedian``, ``conditionmedian``, ``hierarchical``,
         ``quantile``, ``mediancenter``, ``meancenter``, ``loess``,
         ``rlr`` (NormalyzerDE Robust Linear Regression).
+        :class:`PipelineConfig` fills either method left ``None`` with the
+        quantification method's default, as the ``features2proteins``
+        command does: hierarchical sample normalization for MaxLFQ,
+        ``top<N>``, sum and median, ``none`` for DirectLFQ, ratio and
+        peptide_count, and median run plus global-median sample
+        normalization otherwise.
     proteins_file : str, optional
         File path containing protein IDs to subset normalization to.
     """
 
-    run_method: str = "median"
-    sample_method: str = "globalMedian"
+    run_method: Optional[str] = None
+    sample_method: Optional[str] = None
     proteins_file: Optional[str] = None
 
 
@@ -401,3 +408,16 @@ class PipelineConfig:
     de: DEConfig = field(default_factory=DEConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+
+    def __post_init__(self) -> None:
+        run_method, sample_method = default_normalization_methods(
+            self.quantification.method
+        )
+        normalization = self.normalization
+        if normalization.run_method is not None:
+            run_method = normalization.run_method
+        if normalization.sample_method is not None:
+            sample_method = normalization.sample_method
+        self.normalization = replace(
+            normalization, run_method=run_method, sample_method=sample_method
+        )

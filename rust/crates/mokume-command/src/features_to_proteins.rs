@@ -117,7 +117,8 @@ intensity, peptide-count, spectral-count, top<N> (e.g. top3)]"
         "tmm",
     ], ignore_case = true,
     hide_possible_values = true,
-    help = "[default: global-median; maxlfq without --normalization-proteins: hierarchical;\n\
+    help = "[default: global-median; maxlfq, top<N>, sum and median without\n\
+--normalization-proteins: hierarchical;\n\
 directlfq, ratio, peptide-count, spectral-count: none]\n\
 [possible values: none, global-median, condition-median, hierarchical, quantile, median-center, \
 mean-center, rlr, loess, tmm]"

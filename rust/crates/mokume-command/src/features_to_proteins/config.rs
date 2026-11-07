@@ -112,10 +112,11 @@ fn resolve_quantification(
 }
 
 /// Default run and sample normalization for `method`. Global-median takes the
-/// median of each sample's detected features, which moves with detection depth
-/// and spike-in composition, so MaxLFQ defaults to the hierarchical (DirectLFQ)
-/// alignment of shared peptide species unless normalization proteins ask for a
-/// median over those proteins.
+/// median of each sample's detected features, which moves with detection depth,
+/// match-between-runs transfers and spike-in composition, so MaxLFQ, top-N, sum
+/// and median default to the hierarchical (DirectLFQ) alignment of shared
+/// peptide species unless normalization proteins ask for a median over those
+/// proteins. The other intensity methods keep global-median.
 fn default_normalization(
     args: &Features2ProteinsArgs,
     method: QuantMethod,
@@ -125,7 +126,11 @@ fn default_normalization(
         return ("none".to_owned(), "none".to_owned());
     }
     let defaults = NormalizationConfig::default();
-    if method == QuantMethod::MaxLfq && args.normalization_proteins.is_none() {
+    let hierarchical = matches!(
+        method,
+        QuantMethod::MaxLfq | QuantMethod::TopN | QuantMethod::Sum | QuantMethod::Median
+    );
+    if hierarchical && args.normalization_proteins.is_none() {
         (defaults.run_method, "hierarchical".to_owned())
     } else {
         (defaults.run_method, defaults.sample_method)

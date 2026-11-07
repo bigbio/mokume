@@ -42,7 +42,7 @@ fn stabilization_is_an_opt_in_maxlfq_feature_option() -> mokume_core::Result<()>
 }
 
 #[test]
-fn maxlfq_defaults_to_hierarchical_sample_normalization() -> mokume_core::Result<()> {
+fn maxlfq_top_n_sum_and_median_default_to_hierarchical() -> mokume_core::Result<()> {
     let argv = [
         "mokume",
         "quantify",
@@ -60,12 +60,15 @@ fn maxlfq_defaults_to_hierarchical_sample_normalization() -> mokume_core::Result
             .normalization
             .sample_method)
     };
-    assert_eq!(sample_method(&["maxlfq"])?, "hierarchical");
-    assert_eq!(
-        sample_method(&["maxlfq", "--normalization-proteins", "np.txt"])?,
-        "globalmedian"
-    );
-    assert_eq!(sample_method(&["sum"])?, "globalmedian");
+    for method in ["maxlfq", "top3", "sum", "median"] {
+        assert_eq!(sample_method(&[method])?, "hierarchical", "{method}");
+        assert_eq!(
+            sample_method(&[method, "--normalization-proteins", "np.txt"])?,
+            "globalmedian",
+            "{method}"
+        );
+    }
+    assert_eq!(sample_method(&["intensity"])?, "globalmedian");
     Ok(())
 }
 

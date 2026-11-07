@@ -10,7 +10,7 @@ dependencies:
   # --- Python ---
   - python >=3.10
   - pip
-  - pyopenms >=3.4,<4  # base wheel runtime for piBAQ FASTA digestion
+  - pyopenms >=3.2,<4  # base wheel runtime for piBAQ FASTA digestion
 
   # --- Rust toolchain (builds the extension) ---
   # rust-toolchain.toml pins 1.96.0; conda-forge's rust may differ. To match CI

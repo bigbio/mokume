@@ -90,6 +90,10 @@ the optional wheel workflows. After installing the matching extra, run
 `mokume interactive-report` directly.
 
 Mokume and the optional Plugin/MCP workflow require Python 3.10 or newer.
+If `pip install mokume` installs 0.1.0, the earlier pure-Python release,
+either Python is older than 3.10 or pyOpenMS 3.2 or newer has no wheel for the
+platform (for example macOS before 13 on Intel or before 14 on Apple silicon),
+and pip fell back to 0.1.0 without an error.
 
 For the separate pure-Python implementation, install `mokume-py` from a
 checkout with `pip install ./python` (it is not on PyPI yet); its base install

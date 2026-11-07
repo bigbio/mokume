@@ -1,6 +1,6 @@
 # Core dependencies (aligned with pyproject.toml)
 scikit-learn
-pyopenms>=3.4,<4
+pyopenms>=3.2,<4
 numpy<2.3.0
 click
 pandas

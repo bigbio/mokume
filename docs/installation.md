@@ -136,6 +136,10 @@ pip install ./rust
 
 - Python >= 3.10 for the Rust-backed ``mokume`` distribution, ``mokume-py``,
   and the optional Plugin/MCP workflow
+- If `pip install mokume` installs 0.1.0, the earlier pure-Python release,
+  either Python is older than 3.10 or pyOpenMS 3.2 or newer has no wheel for
+  the platform (for example macOS before 13 on Intel or before 14 on Apple
+  silicon), and pip fell back to 0.1.0 without an error
 - Both distributions declare pyOpenMS as a base dependency. In the default
   Rust-backed wheel, piBAQ reads every protease registered by the installed
   runtime, digests the FASTA in Python, and passes the complete theoretical-

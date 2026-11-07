@@ -24,9 +24,9 @@ def test_inconsistent_triangle_uses_all_pairwise_ratios():
 def test_ratio_threshold_is_per_pair_and_isolated_signal_is_not_filled():
     matrix = np.array([[1, 2, np.nan], [2, 4, np.nan], [np.nan, 1, 7]])
     result = _maxlfq_solve_protein(matrix)
-    np.testing.assert_allclose(result, [17 / 3, 34 / 3, 0])
+    np.testing.assert_allclose(result, [17 / 3, 34 / 3, np.nan])
     # The unsupported third sample still contributes to Cox's total scaling.
-    assert result.sum() == pytest.approx(np.nansum(matrix))
+    assert np.nansum(result) == pytest.approx(np.nansum(matrix))
 
 
 def test_disconnected_components_report_unidentifiable_offsets(caplog):
@@ -47,7 +47,7 @@ def test_disconnected_components_report_unidentifiable_offsets(caplog):
 )
 def test_no_supported_pair_stays_unquantified(matrix):
     result = _maxlfq_solve_protein(np.asarray(matrix))
-    assert np.all(result == 0)
+    assert np.all(np.isnan(result))
 
 
 @pytest.mark.parametrize("count", [0, -1, 1.5, True])
@@ -174,12 +174,16 @@ def test_stabilization_boundaries_interpolation_and_total_scaling(species, expec
     np.testing.assert_allclose(
         _maxlfq_solve_protein(matrix[:, ::-1], stabilize=True), enabled[::-1]
     )
-    assert np.all(_maxlfq_solve_protein(matrix, min_ratio_count=3, stabilize=True) == 0)
+    assert np.all(
+        np.isnan(_maxlfq_solve_protein(matrix, min_ratio_count=3, stabilize=True))
+    )
 
 
 def test_stabilization_cannot_bridge_disconnected_samples():
     matrix = np.eye(3)
-    assert np.all(_maxlfq_solve_protein(matrix, min_ratio_count=1, stabilize=True) == 0)
+    assert np.all(
+        np.isnan(_maxlfq_solve_protein(matrix, min_ratio_count=1, stabilize=True))
+    )
 
 
 @pytest.mark.parametrize("bad", ["false", 1, None])

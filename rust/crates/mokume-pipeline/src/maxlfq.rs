@@ -54,6 +54,7 @@ fn quantify(
                 peptide: *peptides.entry(row.peptide.as_str()).or_insert(next),
                 sample: sample_index[row.sample.as_str()],
                 intensity: row.intensity,
+                weight: row.weight,
             }
         }).collect::<Vec<_>>();
         let result = solve_max_lfq_with_stabilization(&measurements, &samples, min_ratio_count, stabilize)?;

@@ -5,7 +5,8 @@ use mokume_core::{FilterConfig, PibaqConfig, QuantMethod, TmtInterferenceFloor};
 
 use crate::parsers::{
     parse_correlation, parse_finite_f64, parse_fraction, parse_memory, parse_nonnegative_f64,
-    parse_positive_usize, parse_quant_method, parse_tmt_floor, QuantMethodArg,
+    parse_positive_usize, parse_quant_method, parse_tmt_floor, parse_transferred_weight,
+    QuantMethodArg,
 };
 use crate::PibaqDigestRequest;
 
@@ -91,6 +92,14 @@ intensity, peptide-count, spectral-count, top<N> (e.g. top3)]"
         help = "QPX features without an identification in their run (match between runs): keep or drop [default: keep]"
     )]
     transferred_features: Option<String>,
+
+    #[arg(
+        long = "transferred-weight",
+        value_name = "WEIGHT",
+        value_parser = parse_transferred_weight,
+        help = "MaxLFQ and top<N> only: weight in (0, 1] of QPX features without an identification in their run; MaxLFQ takes weighted pair medians and top<N> takes identified peptides first [default: off]"
+    )]
+    transferred_weight: Option<f64>,
 
     #[arg(long = "keep-contaminants", help = "Decoys are always removed")]
     keep_contaminants: bool,

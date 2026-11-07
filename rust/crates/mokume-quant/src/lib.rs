@@ -20,6 +20,9 @@ pub struct PeptideMeasurement {
     pub peptide: PeptideId,
     pub sample: SampleId,
     pub intensity: f64,
+    /// Relative reliability of the value, for example lower for a value
+    /// transferred by match-between-runs; 1 for an unweighted measurement.
+    pub weight: f64,
 }
 
 pub fn supported_methods() -> &'static [QuantMethod] {
@@ -81,21 +84,25 @@ mod tests {
                 peptide: PeptideId::new(0),
                 sample: SampleId::new(0),
                 intensity: 100.0,
+                weight: 1.0,
             },
             PeptideMeasurement {
                 peptide: PeptideId::new(0),
                 sample: SampleId::new(1),
                 intensity: 200.0,
+                weight: 1.0,
             },
             PeptideMeasurement {
                 peptide: PeptideId::new(1),
                 sample: SampleId::new(0),
                 intensity: 400.0,
+                weight: 1.0,
             },
             PeptideMeasurement {
                 peptide: PeptideId::new(1),
                 sample: SampleId::new(1),
                 intensity: 800.0,
+                weight: 1.0,
             },
         ];
 

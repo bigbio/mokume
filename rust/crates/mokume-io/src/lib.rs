@@ -11,8 +11,8 @@ pub use feature_mapping::{
 };
 pub use msstats::MsstatsReader;
 pub use peptide_parquet::{
-    read_peptide_parquet, read_peptide_parquet_with_species, write_peptide_parquet,
-    PeptideParquetRow, RawPeptideRow, RawPeptideTable,
+    read_peptide_parquet, read_peptide_parquet_with_species, read_peptide_parquet_with_weights,
+    write_peptide_parquet, PeptideParquetRow, RawPeptideRow, RawPeptideTable,
 };
 pub use psm::{flatten_psm_batch, QpxPsmParquetReader, QpxPsmRecord};
 pub use qpx::{

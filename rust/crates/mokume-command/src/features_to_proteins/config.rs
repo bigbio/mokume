@@ -190,20 +190,27 @@ fn validate_protein_fdr_request(
     Ok(())
 }
 
-/// `--transferred-features` reads `id_run_file_name` from QPX feature input;
-/// MSstats input has no such column and spectral-count does not read features.
+/// `--transferred-features` and `--transferred-weight` read `id_run_file_name`
+/// from QPX feature input; MSstats input has no such column and spectral-count
+/// does not read features. Only MaxLFQ pair medians and top-N selection weigh
+/// features, and a weight needs the transferred features that `drop` removes.
 fn validate_transferred_features_request(
     args: &Features2ProteinsArgs,
     method: QuantMethod,
 ) -> mokume_core::Result<()> {
-    if args
+    let drop = args
         .transferred_features
         .as_deref()
-        .is_some_and(|value| value.eq_ignore_ascii_case("drop"))
-        && (args.msstats.is_some() || method == QuantMethod::SpectralCount)
-    {
+        .is_some_and(|value| value.eq_ignore_ascii_case("drop"));
+    if drop && (args.msstats.is_some() || method == QuantMethod::SpectralCount) {
         return Err(invalid_input(
             "--transferred-features requires QPX --parquet feature input and a feature-based quantification method",
+        ));
+    }
+    let weighs = matches!(method, QuantMethod::MaxLfq | QuantMethod::TopN);
+    if args.transferred_weight.is_some() && (drop || args.msstats.is_some() || !weighs) {
+        return Err(invalid_input(
+            "--transferred-weight requires QPX --parquet feature input, --quant-method maxlfq or top<N>, and transferred features kept",
         ));
     }
     Ok(())
@@ -472,6 +479,7 @@ fn input_config(args: &Features2ProteinsArgs) -> InputConfig {
         } else {
             TransferredFeatures::Keep
         },
+        transferred_weight: args.transferred_weight,
     }
 }
 

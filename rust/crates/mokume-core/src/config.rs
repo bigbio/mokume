@@ -156,7 +156,7 @@ impl AggregationLevel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct InputConfig {
     pub parquet: Option<PathBuf>,
     pub msstats: Option<PathBuf>,
@@ -168,6 +168,10 @@ pub struct InputConfig {
     /// (match-between-runs transfers).
     #[serde(default)]
     pub transferred_features: TransferredFeatures,
+    /// Weight in (0, 1] of kept transferred features in MaxLFQ pair medians
+    /// and top-N selection; `None` weighs them like identified features.
+    #[serde(default)]
+    pub transferred_weight: Option<f64>,
 }
 
 /// Whether QPX feature input keeps transferred features. A feature is

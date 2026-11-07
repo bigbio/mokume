@@ -13,6 +13,7 @@ fn observations(rows: &[&[f64]]) -> Vec<PeptideMeasurement> {
                     peptide: PeptideId::new(peptide as u32),
                     sample: SampleId::new(sample as u32),
                     intensity,
+                    weight: 1.0,
                 })
         })
         .collect()
@@ -216,5 +217,76 @@ fn stabilization_never_creates_unsupported_edges() -> Result<()> {
     let relaxed = solve_max_lfq_with_stabilization(&data, &samples, 1, true)?;
     assert_eq!(relaxed.intensities[2].1, 0.0);
     assert_eq!(relaxed.components, vec![vec![samples[0], samples[1]]]);
+    Ok(())
+}
+
+fn solve_weighted(rows: &[&[f64]], weights: &[&[f64]]) -> Result<MaxLfqResult> {
+    let measurements = observations(rows)
+        .into_iter()
+        .zip(weights.iter().flat_map(|row| row.iter().copied()))
+        .map(|(measurement, weight)| PeptideMeasurement {
+            weight,
+            ..measurement
+        })
+        .collect::<Vec<_>>();
+    let samples = (0..rows[0].len())
+        .map(|i| SampleId::new(i as u32))
+        .collect::<Vec<_>>();
+    solve_max_lfq(&measurements, &samples, 1)
+}
+
+fn second_over_first(result: &MaxLfqResult) -> f64 {
+    result.intensities[1].1 / result.intensities[0].1
+}
+
+#[test]
+fn weighted_pair_median_weighs_each_ratio_by_both_measurements() -> Result<()> {
+    // Log2 ratios 0, 1, 2 and 3. The last species is transferred in sample 1
+    // (weight 0.5), so the cumulative weight first passes half the total
+    // (1.75) at ratio 1 rather than the unweighted midpoint 1.5.
+    let rows: [&[f64]; 4] = [&[1.0, 1.0], &[1.0, 2.0], &[1.0, 4.0], &[1.0, 8.0]];
+    close(second_over_first(&solve(&rows, 1)?), 2_f64.powf(1.5));
+    let weights: [&[f64]; 4] = [&[1.0, 1.0], &[1.0, 1.0], &[1.0, 1.0], &[1.0, 0.5]];
+    close(second_over_first(&solve_weighted(&rows, &weights)?), 2.0);
+    Ok(())
+}
+
+#[test]
+fn weighted_median_takes_the_midpoint_at_exactly_half_the_weight() -> Result<()> {
+    // Weights 0.5, 0.5 and 1 reach half the total exactly at log2 ratio 1, so
+    // the pair ratio is the midpoint of ratios 1 and 2.
+    let rows: [&[f64]; 3] = [&[1.0, 1.0], &[1.0, 2.0], &[1.0, 4.0]];
+    let weights: [&[f64]; 3] = [&[1.0, 0.5], &[1.0, 0.5], &[1.0, 1.0]];
+    close(
+        second_over_first(&solve_weighted(&rows, &weights)?),
+        2_f64.powf(1.5),
+    );
+    close(second_over_first(&solve(&rows, 1)?), 2.0);
+    Ok(())
+}
+
+#[test]
+fn equal_weights_reproduce_the_unweighted_solution_exactly() -> Result<()> {
+    let rows: [&[f64]; 3] = [&[1.0, 2.0, 0.0], &[0.0, 1.0, 2.0], &[1.0, 0.0, 8.0]];
+    let weights: [&[f64]; 3] = [&[0.3; 3], &[0.3; 3], &[0.3; 3]];
+    assert_eq!(
+        solve_weighted(&rows, &weights)?.intensities,
+        solve(&rows, 1)?.intensities
+    );
+    Ok(())
+}
+
+#[test]
+fn duplicate_observations_keep_their_largest_weight() -> Result<()> {
+    // Species 3 is reported twice in sample 1, transferred and identified; the
+    // summed value (8) counts as identified, so no ratio is down-weighted.
+    let rows: [&[f64]; 4] = [&[1.0, 1.0], &[1.0, 2.0], &[1.0, 4.0], &[1.0, 4.0]];
+    let mut measurements = observations(&rows);
+    let duplicate = measurements[7];
+    measurements[7].weight = 0.5;
+    measurements.push(duplicate);
+    let samples = [SampleId::new(0), SampleId::new(1)];
+    let result = solve_max_lfq(&measurements, &samples, 1)?;
+    close(second_over_first(&result), 2_f64.powf(1.5));
     Ok(())
 }

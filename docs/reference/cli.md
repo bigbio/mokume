@@ -59,14 +59,17 @@ PSM-level QPX evidence and does not accept MSstats feature tables.
 | `--min-aa` | 7 | Minimum amino acid length |
 | `--filter-protein-fdr` | none | Keep protein groups whose best QPX `pg_global_qvalue` is `<=` this value (e.g. `0.01`); requires QPX `--parquet` input with a populated `pg_global_qvalue`; not available for `spectral-count` |
 | `--transferred-features` | keep | `drop` removes QPX features without an identification in their own run before normalization and quantification; see the rules below |
+| `--transferred-weight` | off | Weight in (0, 1] of QPX features without an identification in their own run: MaxLFQ takes weighted pair medians and `top<N>` takes identified peptides first (MaxLFQ and `top<N>` only) |
 | `--min-unique` | 2 | Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option |
 | `--keep-contaminants` | off | Keep contaminants (a group is a contaminant only if all its accessions are); rows marked `is_decoy=true` are always removed |
 
-For `--transferred-features drop`, `identification_type=transferred` marks a
-transfer. Rows without a type use `id_run_file_name`: null or another run
-marks a transfer. QPX input must have at least one of those columns. Removing
-every feature is an error. `drop` is unavailable for MSstats input and
-`spectral-count`; explicit `keep` is accepted and has no effect there.
+For `--transferred-features drop` and `--transferred-weight`,
+`identification_type=transferred` marks a transfer. Rows without a type use
+`id_run_file_name`: null or another run marks a transfer. QPX input must have
+at least one of those columns. Removing every feature is an error. `drop` is
+unavailable for MSstats input and `spectral-count`; explicit `keep` is accepted
+and has no effect there. `--transferred-weight` keeps the transferred features,
+so it cannot be combined with `drop`, and it is unavailable for MSstats input.
 
 ### Quantification
 
@@ -467,6 +470,7 @@ mokume quantify peptides2protein [OPTIONS]
 | `--quant-method` | `pibaq` | Method: pibaq, `top<N>` (top3, top5, top10, ...), maxlfq, sum, directlfq |
 | `--maxlfq-min-ratio-count` | `2` | Minimum shared peptide species per sample pair (MaxLFQ only) |
 | `--stabilize` | off | Enable overlap-dependent large-ratio stabilization (MaxLFQ only; may worsen some ratios) |
+| `--weight-column` | none | Column of per-row weights in (0, 1]: MaxLFQ takes weighted pair medians and `top<N>` takes the highest-weight rows first (MaxLFQ and `top<N>` only) |
 | `--enzyme` | `Trypsin` | Enzyme for in-silico digestion |
 | `--normalize` | off | Normalize quantification values |
 | `--min-aa` | 7 | Min amino acid length |

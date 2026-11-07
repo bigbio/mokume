@@ -231,6 +231,30 @@ the leading `directlfq` and `maxlfq` configurations by about 0.02, also on
 the proteins that `drop` still quantifies; `sum`, `top3` and `pibaq` were
 about unchanged.
 
+To keep transferred features but trust them less, pass `--transferred-weight`
+with a weight in (0, 1] instead (MaxLFQ and `top<N>` only):
+
+```bash
+mokume quantify features2proteins \
+    -p features.parquet \
+    -o proteins.csv \
+    -s experiment.sdrf.tsv \
+    --quant-method maxlfq \
+    --transferred-weight 0.5
+```
+
+Identified features weigh 1. MaxLFQ weights the log ratio of each species that
+a sample pair shares by the product of its two measurements' weights, and takes
+the weighted median as the pair ratio (the midpoint when half the total weight
+falls exactly between two ratios). Equal weights reproduce the unweighted
+result exactly; the summed-intensity ratio that `--stabilize` blends in stays
+unweighted. `top<N>` takes a protein's identified peptides before its
+transferred ones, the most intense first within each group; a peptide counts as
+identified when any of its charge states or modified forms is. The option reads
+the same columns as `drop`, cannot be combined with it, and is rejected for
+MSstats input and for methods that do not weigh features, such as DirectLFQ
+and `sum`.
+
 ## Normalization Options
 
 ### Run-Level Normalization

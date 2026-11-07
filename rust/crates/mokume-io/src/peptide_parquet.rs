@@ -71,6 +71,8 @@ pub struct RawPeptideRow {
     pub peptide: Option<String>,
     pub condition: Option<String>,
     pub intensity: Option<f64>,
+    /// Value of the requested weight column; `None` without one or when null.
+    pub weight: Option<f64>,
 }
 
 /// A peptide-matrix parquet parsed into raw rows plus the column-presence flags
@@ -93,16 +95,31 @@ pub struct RawPeptideTable {
 /// is read from `Float32` / `Float64` / `Int32` / `Int64` (or a numeric string,
 /// matching Python's `astype(float)`); null cells become `None`.
 pub fn read_peptide_parquet(path: &Path) -> Result<RawPeptideTable> {
-    read_peptide_parquet_impl(path, false)
+    read_peptide_parquet_impl(path, false, None)
 }
 
 /// Preserve modification and charge when both species columns are available.
 /// Canonical-only matrices retain their supplied peptide identifiers.
 pub fn read_peptide_parquet_with_species(path: &Path) -> Result<RawPeptideTable> {
-    read_peptide_parquet_impl(path, true)
+    read_peptide_parquet_impl(path, true, None)
 }
 
-fn read_peptide_parquet_impl(path: &Path, preserve_species: bool) -> Result<RawPeptideTable> {
+/// [`read_peptide_parquet`], or [`read_peptide_parquet_with_species`] when
+/// `preserve_species`, that also reads the numeric `weight_column` (which must
+/// exist) into [`RawPeptideRow::weight`].
+pub fn read_peptide_parquet_with_weights(
+    path: &Path,
+    preserve_species: bool,
+    weight_column: Option<&str>,
+) -> Result<RawPeptideTable> {
+    read_peptide_parquet_impl(path, preserve_species, weight_column)
+}
+
+fn read_peptide_parquet_impl(
+    path: &Path,
+    preserve_species: bool,
+    weight_column: Option<&str>,
+) -> Result<RawPeptideTable> {
     let file = File::open(path).map_err(|source| MokumeError::Io {
         path: path.to_path_buf(),
         source,
@@ -115,6 +132,9 @@ fn read_peptide_parquet_impl(path: &Path, preserve_species: bool) -> Result<RawP
     let sample_index = require_column(&schema, &[SAMPLE_ID])?;
     let intensity_index = require_column(&schema, &[NORM_INTENSITY])?;
     let condition_index = find_column(&schema, &[CONDITION]);
+    let weight = weight_column
+        .map(|column| require_column(&schema, &[column]).map(|index| (index, column)))
+        .transpose()?;
     let peptide_index = find_column(&schema, &[PEPTIDE_CANONICAL, PEPTIDE_SEQUENCE]);
     let species_indices = preserve_species
         .then(|| {
@@ -147,6 +167,10 @@ fn read_peptide_parquet_impl(path: &Path, preserve_species: bool) -> Result<RawP
                     None => None,
                 },
                 intensity: f64_value(intensity, row, NORM_INTENSITY)?,
+                weight: match weight {
+                    Some((index, column)) => f64_value(batch.column(index).as_ref(), row, column)?,
+                    None => None,
+                },
             });
         }
     }
@@ -629,6 +653,7 @@ mod tests {
                     peptide: Some("APEPTIDECK".to_owned()),
                     condition: Some("A".to_owned()),
                     intensity: Some(200.0),
+                    weight: None,
                 },
                 RawPeptideRow {
                     protein: "P2".to_owned(),
@@ -636,6 +661,7 @@ mod tests {
                     peptide: Some("ALYAAEK".to_owned()),
                     condition: Some("B".to_owned()),
                     intensity: Some(50.0),
+                    weight: None,
                 },
             ]
         );
@@ -671,6 +697,7 @@ mod tests {
                 peptide: Some("PEPTIDEAK".to_owned()),
                 condition: Some("A".to_owned()),
                 intensity: Some(300.0),
+                weight: None,
             }]
         );
         Ok(())
@@ -717,6 +744,42 @@ mod tests {
             read_peptide_parquet(&path)?.rows[1].peptide.as_deref(),
             Some("PEPTIDEK")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn read_peptide_parquet_with_weights_reads_the_named_column() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("weights.parquet");
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("ProteinName", DataType::Utf8, false),
+            Field::new("SampleID", DataType::Utf8, false),
+            Field::new("NormIntensity", DataType::Float64, false),
+            Field::new("Weight", DataType::Float64, true),
+        ]));
+        let batch = RecordBatch::try_new(
+            Arc::clone(&schema),
+            vec![
+                Arc::new(StringArray::from(vec!["P", "P"])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["S1", "S2"])),
+                Arc::new(Float64Array::from(vec![1.0, 2.0])),
+                Arc::new(Float64Array::from(vec![Some(0.5), None])),
+            ],
+        )?;
+        let mut writer = ArrowWriter::try_new(File::create(&path)?, schema, None)?;
+        writer.write(&batch)?;
+        writer.close()?;
+        let table = read_peptide_parquet_with_weights(&path, false, Some("Weight"))?;
+        let weights = table.rows.iter().map(|row| row.weight).collect::<Vec<_>>();
+        assert_eq!(weights, [Some(0.5), None]);
+        assert!(read_peptide_parquet(&path)?
+            .rows
+            .iter()
+            .all(|row| row.weight.is_none()));
+        let Err(error) = read_peptide_parquet_with_weights(&path, false, Some("Quality")) else {
+            panic!("a missing weight column was accepted");
+        };
+        assert!(error.to_string().contains("`Quality`"), "{error}");
         Ok(())
     }
 

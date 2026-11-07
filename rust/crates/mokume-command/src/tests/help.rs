@@ -12,6 +12,7 @@ const REQUIRED_FEATURES_TO_PROTEINS_OPTIONS: &[&str] = &[
     "--min-unique",
     "--filter-protein-fdr",
     "--transferred-features",
+    "--transferred-weight",
     "--keep-contaminants",
     "--run-normalization",
     "--sample-normalization",

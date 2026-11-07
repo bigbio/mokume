@@ -156,6 +156,11 @@ mokume quantify peptides2protein --quant-method top10 -p peptides.csv -o out.tsv
 N is spelled in the method name, so any N works the same way and there is no
 companion option to keep in sync.
 
+`--weight-column` names a column of per-row weights in (0, 1]. Each protein and
+sample then takes its N rows by weight, highest first, and by intensity within
+a weight; for example, a lower weight for rows that match-between-runs
+transferred makes top3 take identified peptides first.
+
 ```python
 import mokume
 
@@ -165,7 +170,9 @@ mokume.peptides2protein(quant_method="top5", peptides="peptides.csv", output="ou
 
 ### MaxLFQ
 
-Delayed normalization with pairwise peptide ratios. `maxlfq` rolls the peptide matrix up with the native Rust DirectLFQ estimator (delegating to it with `min_nonan = 2`).
+Maximal peptide ratio extraction (Cox et al., 2014): the log ratio of each sample pair is the median log ratio of the peptide species both samples share (at least `--maxlfq-min-ratio-count`, default 2), and the protein profile is the least-squares fit to all pair ratios. Pass normalized intensities; this command does not normalize. Samples without a supported pair ratio are missing from the output.
+
+With `--weight-column`, the log ratio of each shared species is weighted by the product of its two rows' weights and the pair ratio is the weighted median (the midpoint when half the total weight falls exactly between two ratios). Equal weights reproduce the unweighted result exactly; the summed-intensity ratio that `--stabilize` blends in stays unweighted.
 
 ```bash
 mokume quantify peptides2protein --quant-method maxlfq \
@@ -233,6 +240,7 @@ mokume.peptides2protein(quant_method="sum", peptides="peptides.csv",
 | `--organism` | `human` with `--ruler` | Organism for histone data (ruler only) |
 | `--cpc` | 200 with `--ruler` | Positive cellular protein concentration in g/L (ruler only) |
 | `-t/--threads` | automatic | Positive worker count for MaxLFQ and DirectLFQ |
+| `--weight-column` | none | Column of per-row weights in (0, 1] for MaxLFQ pair medians and `top<N>` selection |
 | `--directlfq-min-nonan` | 1 | Min non-NaN values (DirectLFQ) |
 | `--families` | none | Optional YAML file with explicit family overrides (piBAQ only) |
 | `--min-shared` | 2 | Minimum shared peptides for auto-family discovery (piBAQ only) |
@@ -241,6 +249,6 @@ mokume.peptides2protein(quant_method="sum", peptides="peptides.csv",
 
 Method-specific options are rejected for other methods instead of being
 accepted and ignored. For example, `--threads` applies only to LFQ methods,
-`--directlfq-min-nonan` only to DirectLFQ, and FASTA/digestion/family/QC options only to
-piBAQ. `--ploidy`, `--organism`, and `--cpc` require `--ruler`, and invalid or
+`--directlfq-min-nonan` only to DirectLFQ, `--weight-column` only to MaxLFQ and
+`top<N>`, and FASTA/digestion/family/QC options only to piBAQ. `--ploidy`, `--organism`, and `--cpc` require `--ruler`, and invalid or
 non-positive values are rejected.

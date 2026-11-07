@@ -239,6 +239,8 @@ struct IngestRecord {
     context: Option<u32>,
     intensity: f64,
     charge: i32,
+    /// Quantified by match-between-runs without an identification in its run.
+    transferred: bool,
 }
 
 impl IngestRecord {
@@ -257,6 +259,7 @@ impl IngestRecord {
             ion_name,
             sample_name,
             charge: self.charge,
+            transferred: self.transferred,
         }
     }
 }
@@ -439,6 +442,7 @@ impl FeatureToProteinState {
             context,
             intensity,
             charge: feature.charge,
+            transferred: feature.transferred,
         };
         let contextual = self.aggregation.preserves_contextual_canonical_rows();
         let measurement = IntermediateMeasurement {
@@ -713,8 +717,7 @@ impl FeatureToProteinState {
         let empty_mapping = HashMap::new();
         // TMM scales contextual peptidoforms in place, so `finalize` must still
         // collapse them; the other dataset normalizers write canonical cells.
-        let collapse_mapping = if dataset_normalization.is_some()
-            && dataset_normalization != Some(SampleNormalizationMethod::Tmm)
+        let collapse_mapping = if dataset_normalization.is_some_and(writes_canonical_cells)
             && self.aggregation.applies_dataset_normalization()
         {
             &empty_mapping
@@ -1428,6 +1431,9 @@ enum FeatureAggregation {
     TopN {
         topn: usize,
         cells: HashMap<CellKey, HashMap<PeptideId, f64>>,
+        /// Weights keyed like `cells` when transferred features are
+        /// down-weighted: selection then takes identified peptides first.
+        weights: Option<FeatureWeights>,
     },
     Lfq {
         method: QuantMethod,
@@ -1453,9 +1459,95 @@ enum FeatureAggregation {
 #[derive(Debug, Default)]
 struct MaxLfqFeatureAggregation {
     ion_cells: HashMap<CellKey, HashMap<PeptideId, f64>>,
+    /// Present when transferred features are down-weighted.
+    weights: Option<Box<TraceWeights>>,
     ion_to_canonical: HashMap<PeptideId, PeptideId>,
     ion_to_species: HashMap<PeptideId, PeptideId>,
     peptide_traces: HashMap<PeptideCellKey, f64>,
+}
+
+/// Weights keyed like `ion_cells`, and those of `peptide_traces` once the
+/// ions are collapsed into traces.
+#[derive(Debug)]
+struct TraceWeights {
+    ions: FeatureWeights,
+    traces: HashMap<PeptideCellKey, f64>,
+}
+
+impl TraceWeights {
+    /// Move the ion weights onto traces through `mapping`, as
+    /// [`MaxLfqFeatureAggregation::collapse_ions`] moves the ion cells.
+    fn collapse_ions(&mut self, mapping: &HashMap<PeptideId, PeptideId>) {
+        for (cell, peptides) in std::mem::take(&mut self.ions.cells) {
+            for (peptide, weight) in collapse_weights(peptides, mapping) {
+                let key = PeptideCellKey {
+                    protein: cell.protein,
+                    sample: cell.sample,
+                    peptide,
+                };
+                self.traces.insert(key, weight);
+            }
+        }
+    }
+}
+
+/// Feature weights of a quantification that down-weights transferred
+/// features (`--transferred-weight`); identified features weigh 1. A peptide
+/// observed more than once in a cell keeps its largest weight.
+#[derive(Debug)]
+struct FeatureWeights {
+    transferred: f64,
+    cells: HashMap<CellKey, HashMap<PeptideId, f64>>,
+}
+
+impl FeatureWeights {
+    fn new(transferred: f64) -> Self {
+        Self {
+            transferred,
+            cells: HashMap::new(),
+        }
+    }
+
+    fn push(&mut self, cell: CellKey, peptide: PeptideId, transferred: bool) {
+        let weight = if transferred { self.transferred } else { 1.0 };
+        let current = self
+            .cells
+            .entry(cell)
+            .or_default()
+            .entry(peptide)
+            .or_insert(weight);
+        *current = current.max(weight);
+    }
+
+    /// Rekey every cell like peptide cells collapsed through `mapping`.
+    fn collapse(&mut self, mapping: &HashMap<PeptideId, PeptideId>) {
+        for peptides in self.cells.values_mut() {
+            *peptides = collapse_weights(std::mem::take(peptides), mapping);
+        }
+    }
+
+    /// Remove one cell's weights, collapsed through `mapping`.
+    fn take_cell(
+        &mut self,
+        cell: &CellKey,
+        mapping: &HashMap<PeptideId, PeptideId>,
+    ) -> HashMap<PeptideId, f64> {
+        collapse_weights(self.cells.remove(cell).unwrap_or_default(), mapping)
+    }
+}
+
+/// [`collapse_to_canonical`] for weights: merged peptides keep the largest.
+fn collapse_weights(
+    peptides: HashMap<PeptideId, f64>,
+    mapping: &HashMap<PeptideId, PeptideId>,
+) -> HashMap<PeptideId, f64> {
+    let mut collapsed = HashMap::with_capacity(peptides.len());
+    for (peptide, weight) in peptides {
+        let key = mapping.get(&peptide).copied().unwrap_or(peptide);
+        let current = collapsed.entry(key).or_insert(weight);
+        *current = current.max(weight);
+    }
+    collapsed
 }
 
 #[derive(Debug)]
@@ -1599,6 +1691,8 @@ struct AggregationMeasurement<'a> {
     ion_name: &'a str,
     sample_name: &'a str,
     charge: i32,
+    /// Quantified by match-between-runs without an identification in its run.
+    transferred: bool,
 }
 
 impl FeatureAggregation {
@@ -1627,15 +1721,7 @@ impl FeatureAggregation {
             QuantMethod::Ratio => Ok(Self::Ratio(RatioAggregation::from_config(
                 config, sdrf, raw_sdrf,
             )?)),
-            QuantMethod::TopN => {
-                if config.topn_peptides == 0 {
-                    return Err(invalid_input("topn must be greater than 0"));
-                }
-                Ok(Self::TopN {
-                    topn: config.topn_peptides,
-                    cells: HashMap::new(),
-                })
-            }
+            QuantMethod::TopN => Self::top_n(config),
             QuantMethod::MaxLfq | QuantMethod::DirectLfq => Ok(Self::Lfq {
                 method: config.quantification,
                 route_to_directlfq: config.quantification == QuantMethod::DirectLfq,
@@ -1644,12 +1730,28 @@ impl FeatureAggregation {
                 directlfq_min_nonan: config.directlfq.min_nonan,
                 directlfq_num_samples_quadratic: config.directlfq.num_samples_quadratic,
                 directlfq_normalize_samples: config.directlfq.normalize_samples,
-                traces: MaxLfqFeatureAggregation::default(),
+                traces: MaxLfqFeatureAggregation::weighted(
+                    config
+                        .input
+                        .transferred_weight
+                        .filter(|_| config.quantification == QuantMethod::MaxLfq),
+                ),
                 cell_precision: config.differential_expression.precision_weights
                     || config.output.export_precision.is_some(),
                 cached_directlfq: None,
             }),
         }
+    }
+
+    fn top_n(config: &FeatureToProteinsConfig) -> Result<Self> {
+        if config.topn_peptides == 0 {
+            return Err(invalid_input("topn must be greater than 0"));
+        }
+        Ok(Self::TopN {
+            topn: config.topn_peptides,
+            cells: HashMap::new(),
+            weights: config.input.transferred_weight.map(FeatureWeights::new),
+        })
     }
 
     fn push(&mut self, measurement: AggregationMeasurement<'_>) -> Result<()> {
@@ -1670,8 +1772,11 @@ impl FeatureAggregation {
             Self::Ratio(ratio) => {
                 ratio.push(measurement);
             }
-            Self::TopN { cells, .. } => {
+            Self::TopN { cells, weights, .. } => {
                 push_peptide_max(cells, cell, measurement.peptide, measurement.intensity);
+                if let Some(weights) = weights {
+                    weights.push(cell, measurement.peptide, measurement.transferred);
+                }
             }
             Self::Lfq { traces, .. } => {
                 traces.push(measurement);
@@ -1742,6 +1847,24 @@ impl FeatureAggregation {
                 _ => {}
             },
             Self::Ratio(_) | Self::Lfq { .. } => {}
+        }
+        self.collapse_top_n_weights(method, peptide_to_canonical);
+    }
+
+    /// Top-N weights follow its cells onto canonical peptides.
+    fn collapse_top_n_weights(
+        &mut self,
+        method: SampleNormalizationMethod,
+        peptide_to_canonical: &HashMap<PeptideId, PeptideId>,
+    ) {
+        if let Self::TopN {
+            weights: Some(weights),
+            ..
+        } = self
+        {
+            if writes_canonical_cells(method) {
+                weights.collapse(peptide_to_canonical);
+            }
         }
     }
 
@@ -1817,9 +1940,12 @@ impl FeatureAggregation {
             Self::Median(_) => Self::Median(HashMap::new()),
             Self::Abd(_) => Self::Abd(HashMap::new()),
             Self::PeptideCount(_) => Self::PeptideCount(HashMap::new()),
-            Self::TopN { topn, .. } => Self::TopN {
+            Self::TopN { topn, weights, .. } => Self::TopN {
                 topn: *topn,
                 cells: HashMap::new(),
+                weights: weights
+                    .as_ref()
+                    .map(|weights| FeatureWeights::new(weights.transferred)),
             },
             Self::Lfq {
                 method,
@@ -1829,6 +1955,7 @@ impl FeatureAggregation {
                 directlfq_min_nonan,
                 directlfq_num_samples_quadratic,
                 directlfq_normalize_samples,
+                traces,
                 cell_precision,
                 ..
             } => Self::Lfq {
@@ -1839,7 +1966,12 @@ impl FeatureAggregation {
                 directlfq_min_nonan: *directlfq_min_nonan,
                 directlfq_num_samples_quadratic: *directlfq_num_samples_quadratic,
                 directlfq_normalize_samples: *directlfq_normalize_samples,
-                traces: MaxLfqFeatureAggregation::default(),
+                traces: MaxLfqFeatureAggregation::weighted(
+                    traces
+                        .weights
+                        .as_ref()
+                        .map(|weights| weights.ions.transferred),
+                ),
                 cell_precision: *cell_precision,
                 cached_directlfq: None,
             },
@@ -1946,7 +2078,11 @@ impl FeatureAggregation {
             ),
             Self::Pibaq(pibaq) => ProteinValues::Cells(pibaq.finalize(proteins)?),
             Self::Ratio(ratio) => ProteinValues::Cells(ratio.finalize()),
-            Self::TopN { topn, cells } => ProteinValues::Cells(
+            Self::TopN {
+                topn,
+                cells,
+                mut weights,
+            } => ProteinValues::Cells(
                 cells
                     .into_iter()
                     .filter_map(|(key, peptides)| {
@@ -1954,9 +2090,10 @@ impl FeatureAggregation {
                             return None;
                         }
                         let canonical = collapse_to_canonical(peptides, peptide_to_canonical);
-                        let mut intensities = canonical.into_values().collect::<Vec<_>>();
-                        intensities.sort_by(|left, right| right.total_cmp(left));
-                        let selected = intensities.into_iter().take(topn).collect::<Vec<_>>();
+                        let weights = weights
+                            .as_mut()
+                            .map(|weights| weights.take_cell(&key, peptide_to_canonical));
+                        let selected = top_n_intensities(canonical, weights.as_ref(), topn);
                         if selected.is_empty() {
                             return None;
                         }
@@ -2016,6 +2153,19 @@ impl FeatureAggregation {
 }
 
 impl MaxLfqFeatureAggregation {
+    /// Empty traces that weigh transferred features by `transferred_weight`.
+    fn weighted(transferred_weight: Option<f64>) -> Self {
+        Self {
+            weights: transferred_weight.map(|weight| {
+                Box::new(TraceWeights {
+                    ions: FeatureWeights::new(weight),
+                    traces: HashMap::new(),
+                })
+            }),
+            ..Self::default()
+        }
+    }
+
     /// Read the normalized species traces without changing the solver input.
     fn normalized_canonical_values(&self) -> CanonicalExportValues {
         let species_to_canonical = self
@@ -2044,7 +2194,7 @@ impl MaxLfqFeatureAggregation {
         stabilize: bool,
         cell_precision: bool,
     ) -> Result<(ProteinValues, HashMap<CellKey, f64>)> {
-        let traces = self.into_species_traces();
+        let (traces, weights) = self.into_weighted_species_traces();
         let mut sample_ids = allowed_cells
             .iter()
             .map(|cell| cell.sample)
@@ -2065,6 +2215,7 @@ impl MaxLfqFeatureAggregation {
                         peptide: key.peptide,
                         sample: key.sample,
                         intensity,
+                        weight: weights.get(&key).copied().unwrap_or(1.0),
                     });
             }
         }
@@ -2090,15 +2241,21 @@ impl MaxLfqFeatureAggregation {
         self.ion_to_canonical
             .entry(measurement.peptide)
             .or_insert(measurement.canonical);
+        let cell = CellKey {
+            protein: measurement.protein,
+            sample: measurement.sample,
+        };
         push_peptide_max(
             &mut self.ion_cells,
-            CellKey {
-                protein: measurement.protein,
-                sample: measurement.sample,
-            },
+            cell,
             measurement.peptide,
             measurement.intensity,
         );
+        if let Some(weights) = &mut self.weights {
+            weights
+                .ions
+                .push(cell, measurement.peptide, measurement.transferred);
+        }
     }
 
     fn collapse_ions(&mut self, preserve_species: bool) {
@@ -2140,6 +2297,9 @@ impl MaxLfqFeatureAggregation {
                 }
             }
         }
+        if let Some(weights) = &mut self.weights {
+            weights.collapse_ions(mapping);
+        }
     }
 
     fn apply_quantile_normalization(&mut self, allowed_cells: &HashSet<CellKey>) {
@@ -2161,9 +2321,13 @@ impl MaxLfqFeatureAggregation {
         self.peptide_traces
     }
 
-    fn into_species_traces(mut self) -> HashMap<PeptideCellKey, f64> {
+    /// Species traces and their weights (empty without `--transferred-weight`).
+    fn into_weighted_species_traces(
+        mut self,
+    ) -> (HashMap<PeptideCellKey, f64>, HashMap<PeptideCellKey, f64>) {
         self.collapse_ions(true);
-        self.peptide_traces
+        let weights = self.weights.map(|weights| weights.traces);
+        (self.peptide_traces, weights.unwrap_or_default())
     }
 
     fn into_directlfq_sums(self) -> Vec<(DirectLfqCellKey, f64)> {
@@ -2775,6 +2939,43 @@ fn sum_peptide_values(peptides: &HashMap<PeptideId, f64>) -> f64 {
     let mut values = peptides.iter().collect::<Vec<_>>();
     values.sort_by_key(|(peptide, _)| **peptide);
     values.into_iter().map(|(_, value)| *value).sum()
+}
+
+/// Dataset normalizers other than TMM replace contextual ions with canonical
+/// peptide cells; TMM scales the ions in place.
+fn writes_canonical_cells(method: SampleNormalizationMethod) -> bool {
+    method != SampleNormalizationMethod::Tmm
+}
+
+/// The `topn` most intense of a cell's canonical peptide values. With
+/// weights, higher-weight (identified) peptides are taken before lower-weight
+/// (transferred) ones, the most intense first within a weight.
+fn top_n_intensities(
+    canonical: HashMap<PeptideId, f64>,
+    weights: Option<&HashMap<PeptideId, f64>>,
+    topn: usize,
+) -> Vec<f64> {
+    let mut ranked = canonical
+        .into_iter()
+        .map(|(peptide, intensity)| {
+            let weight = weights
+                .and_then(|weights| weights.get(&peptide))
+                .copied()
+                .unwrap_or(1.0);
+            (weight, intensity)
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        right
+            .0
+            .total_cmp(&left.0)
+            .then_with(|| right.1.total_cmp(&left.1))
+    });
+    ranked
+        .into_iter()
+        .take(topn)
+        .map(|(_, intensity)| intensity)
+        .collect()
 }
 
 /// Collapse per-(peptidoform, charge) values into one value per canonical
@@ -5362,6 +5563,9 @@ pub struct LfqPeptideObservation {
     pub sample: String,
     /// Intensity for this (protein, peptide, sample) measurement.
     pub intensity: f64,
+    /// Relative reliability of the measurement in MaxLFQ pair medians
+    /// (1 when unweighted); DirectLFQ ignores it.
+    pub weight: f64,
 }
 
 /// One row of the DirectLFQ / MaxLFQ long-format result.
@@ -6898,10 +7102,11 @@ where
 }
 
 /// [`stream_qpx_features`] for quantification input: `TransferredFeatures::Drop`
-/// skips features without an identification in their run.
+/// skips features without an identification in their run, and a transferred
+/// weight keeps them marked as transferred.
 fn stream_quant_qpx_features<F>(
     parquet: &Path,
-    transferred: TransferredFeatures,
+    input: &InputConfig,
     memory: &MemoryPlan,
     score: Option<&NamedScoreFilterConfig>,
     mut consume: F,
@@ -6909,7 +7114,8 @@ fn stream_quant_qpx_features<F>(
 where
     F: FnMut(QpxFeatureRecord) -> Result<()>,
 {
-    if transferred == TransferredFeatures::Keep {
+    let drop = input.transferred_features == TransferredFeatures::Drop;
+    if !drop && input.transferred_weight.is_none() {
         return stream_qpx_features(parquet, memory, score, consume);
     }
     let mut reader = QpxParquetReader::open(
@@ -6920,6 +7126,14 @@ where
         false,
     )?;
     let groups = ProteinGroupOrders::from_path(parquet)?;
+    if !drop {
+        return stream_qpx_reader(&mut reader, memory, score, &mut |mut feature| {
+            if !groups.is_identity() {
+                feature.protein_accessions = groups.resolve(&feature.protein_accessions);
+            }
+            consume(feature)
+        });
+    }
     let mut dropped = 0usize;
     let mut kept = 0usize;
     stream_qpx_reader(
@@ -7226,9 +7440,7 @@ where
     F: FnMut(QpxFeatureRecord) -> Result<()>,
 {
     match (&input.parquet, &input.msstats) {
-        (Some(parquet), None) => {
-            stream_quant_qpx_features(parquet, input.transferred_features, memory, score, consume)
-        }
+        (Some(parquet), None) => stream_quant_qpx_features(parquet, input, memory, score, consume),
         (None, Some(msstats)) => {
             let sdrf = sdrf.ok_or_else(|| invalid_input("MSstats input requires --sdrf option"))?;
             for (index, feature) in MsstatsReader::open(msstats, sdrf)?.enumerate() {
@@ -11840,6 +12052,7 @@ mod tests {
                 peptide: peptide.to_owned(),
                 sample: sample.to_owned(),
                 intensity,
+                weight: 1.0,
             }
         };
         // P1 and P2 each carry two peptides across two samples.
@@ -11871,6 +12084,7 @@ mod tests {
             peptide: peptide.to_owned(),
             sample: sample.to_owned(),
             intensity,
+            weight: 1.0,
         };
         // Minimal real PXD002099 support pattern that exposed DirectLFQ's
         // encounter-order sensitivity: reversing these rows used to shift all
@@ -12868,6 +13082,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 run: None,
                 fasta: None,
                 transferred_features: TransferredFeatures::Keep,
+                transferred_weight: None,
             },
             output: OutputConfig {
                 protein_matrix: PathBuf::from("protein.csv"),

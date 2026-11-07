@@ -301,6 +301,7 @@ fn default_peptides_config(parquet: PathBuf, output: PathBuf) -> FeatureToPeptid
             run: None,
             fasta: None,
             transferred_features: TransferredFeatures::Keep,
+            transferred_weight: None,
         },
         output,
         filtering: FilterConfig {
@@ -2201,6 +2202,86 @@ fn dropping_all_transferred_features_is_an_explicit_error() -> Result<(), Box<dy
     Ok(())
 }
 
+// A transferred weight keeps match-between-runs features but lets top-N take
+// identified peptides before more intense transferred ones, also after a
+// dataset normalization rekeys the cells from charge states to peptides.
+#[test]
+fn features2proteins_top_n_takes_identified_peptides_first() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    let parquet = root.join("features.parquet");
+    let sdrf = root.join("samples.tsv");
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new_with_charge("PEPTIDEAK", "run1.raw", 100.0, 2, &["P1"]),
+            QpxRow::new_with_charge("PEPTIDEAK", "run1.raw", 100.0, 3, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run1.raw", 100.0, &["P1"]),
+            QpxRow::new_with_charge("PEPTIDEAK", "run2.raw", 100.0, 2, &["P1"]),
+            QpxRow::new_with_charge("PEPTIDEAK", "run2.raw", 100.0, 3, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run2.raw", 900.0, &["P1"]),
+        ],
+    )?;
+    let identified = [Some("run1.raw"), Some("run1.raw"), Some("run1.raw")];
+    let run2 = [Some("run2.raw"), Some("run2.raw"), None];
+    add_id_run_column(&parquet, &[identified, run2].concat())?;
+    write_synthetic_sdrf(&sdrf)?;
+    let output = root.join("proteins.csv");
+    let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.quantification = QuantMethod::TopN;
+    config.topn_peptides = 1;
+    for (weight, expected) in [(None, 900.0), (Some(0.5), 200.0)] {
+        config.input.transferred_weight = weight;
+        run_features_to_proteins(&config)?;
+        assert_numeric_cell_close(&read_csv(&output)?, "P1", "sample-2", expected);
+    }
+
+    config.normalization.sample_method = "hierarchical".to_owned();
+    let mut selected = Vec::new();
+    for weight in [None, Some(0.5)] {
+        config.input.transferred_weight = weight;
+        run_features_to_proteins(&config)?;
+        selected.push(numeric_cell(&read_csv(&output)?, "P1", "sample-2")?);
+    }
+    let ratio = selected[1] / selected[0];
+    assert!((ratio - 200.0 / 900.0).abs() < 1e-12, "{selected:?}");
+    Ok(())
+}
+
+// The pair's log2 ratios are 0 and 2, the second transferred: their median
+// is 1, and with weight 0.5 the identified ratio carries the weighted median.
+#[test]
+fn features2proteins_maxlfq_weighs_transferred_ratios() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    let parquet = root.join("features.parquet");
+    let sdrf = root.join("samples.tsv");
+    write_qpx_rows(
+        &parquet,
+        &[
+            QpxRow::new("PEPTIDEAK", "run1.raw", 100.0, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run1.raw", 100.0, &["P1"]),
+            QpxRow::new("PEPTIDEAK", "run2.raw", 100.0, &["P1"]),
+            QpxRow::new("APEPTIDECK", "run2.raw", 400.0, &["P1"]),
+        ],
+    )?;
+    add_id_run_column(
+        &parquet,
+        &[Some("run1.raw"), Some("run1.raw"), Some("run2.raw"), None],
+    )?;
+    write_synthetic_sdrf(&sdrf)?;
+    let output = root.join("proteins.csv");
+    let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.quantification = QuantMethod::MaxLfq;
+    for (weight, expected) in [(None, 2.0), (Some(0.5), 1.0)] {
+        config.input.transferred_weight = weight;
+        run_features_to_proteins(&config)?;
+        let table = read_csv(&output)?;
+        let ratio =
+            numeric_cell(&table, "P1", "sample-2")? / numeric_cell(&table, "P1", "sample-1")?;
+        assert!((ratio - expected).abs() < 1e-12, "{weight:?}: {ratio}");
+    }
+    Ok(())
+}
+
 #[test]
 fn features2proteins_filter_protein_fdr_applies_to_maxlfq() -> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
@@ -3857,6 +3938,7 @@ fn run_synthetic_quantification_with(
             run: None,
             fasta,
             transferred_features: TransferredFeatures::Keep,
+            transferred_weight: None,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
@@ -3985,6 +4067,7 @@ fn run_ratio_quantification() -> Result<CsvTable, Box<dyn Error>> {
             run: None,
             fasta: None,
             transferred_features: TransferredFeatures::Keep,
+            transferred_weight: None,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
@@ -4103,6 +4186,7 @@ fn run_family_pibaq_quantification_with(pibaq: PibaqConfig) -> Result<CsvTable, 
             run: None,
             fasta: Some(fasta),
             transferred_features: TransferredFeatures::Keep,
+            transferred_weight: None,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
@@ -4855,6 +4939,7 @@ fn run_coverage_quantification() -> Result<CsvTable, Box<dyn Error>> {
             run: None,
             fasta: None,
             transferred_features: TransferredFeatures::Keep,
+            transferred_weight: None,
         },
         output: OutputConfig {
             protein_matrix: output.clone(),
@@ -5984,6 +6069,23 @@ fn parquet_norm_intensity(
         .find(|(p, pep, s, _)| p == protein && pep == peptide && s == sample)
         .map(|(_, _, _, value)| *value)
         .ok_or_else(|| format!("parquet row ({protein}, {peptide}, {sample}) is missing").into())
+}
+
+fn numeric_cell(table: &CsvTable, protein: &str, sample: &str) -> Result<f64, Box<dyn Error>> {
+    let column = table
+        .headers
+        .iter()
+        .position(|header| header == sample)
+        .ok_or_else(|| format!("sample column is missing: {sample}"))?;
+    let row = table
+        .rows
+        .iter()
+        .find(|row| row.first().is_some_and(|value| value == protein))
+        .ok_or_else(|| format!("protein row is missing: {protein}"))?;
+    Ok(row
+        .get(column)
+        .ok_or_else(|| format!("cell {protein}/{sample} is missing"))?
+        .parse::<f64>()?)
 }
 
 fn assert_numeric_cell_close(table: &CsvTable, protein: &str, sample: &str, expected: f64) {

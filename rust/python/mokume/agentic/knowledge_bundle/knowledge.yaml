@@ -11,7 +11,7 @@ sources:
     kind: cross_dataset_ground_truth_benchmark
     title: Mokume spike-in Grid benchmark (mokumebench, 86 datasets, 32 studies)
     locator: sources/spike-in-mokumebench
-    captured_at: '2026-10-25'
+    captured_at: '2026-11-06'
     trust: locally_reproduced_ground_truth
     status: benchmark_candidates_not_published
     artifacts:
@@ -20,7 +20,7 @@ sources:
     kind: cross_study_consistency_benchmark
     title: Mokume CPTAC TMT Grid benchmark (mokumebench, CDAP PSM reports, 24 PDC studies)
     locator: https://pdc.cancer.gov/pdc/
-    captured_at: '2026-10-25'
+    captured_at: '2026-11-06'
     trust: locally_reproduced_consistency
     status: benchmark_candidates_not_published
     artifacts: {}
@@ -31,7 +31,7 @@ evidence:
     status: candidate_for_review
     confidence: moderate
     priority: 12
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_CompRef
@@ -78,6 +78,16 @@ evidence:
       mean_lodo_regret: 0.007668
       max_lodo_regret: 0.01581
       mean_lodo_rank_spearman: 0.87
+      default_comparator: maxlfq|hierarchical|none|none|none|deqms
+      default_gate_candidates: 310
+      mean_gain_over_default: 0.0064
+      studies_improved_over_default: 10
+      default_gate_t: 1.689
+      default_gate_p: 0.4668
+      default_gate_p_any: 0.4375
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are the 12 isobaric CPTAC CompRef studies (basal-like and luminal breast cancer
@@ -92,13 +102,15 @@ evidence:
       - Quantification is frozen when the workflow starts from a protein matrix.
       - The clinical cohort (cptac-clinical-preset) also selected maxlfq with median normalization, but
         no imputation and DEqMS.
+      - Not proven better than maxlfq|hierarchical|none|none|none|deqms after selection from 310 candidates
+        (studentized gain 1.69, step-down sign-flip p 0.467 at alpha 0.05), so it is not used as a prior.
   - id: cptac-compref-directlfq-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: low
     priority: 13
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_CompRef
@@ -145,6 +157,16 @@ evidence:
       mean_lodo_regret: 0.002742
       max_lodo_regret: 0.010287
       mean_lodo_rank_spearman: 0.766
+      default_comparator: directlfq|none|none|none|none|deqms
+      default_gate_candidates: 61
+      mean_gain_over_default: 0.011
+      studies_improved_over_default: 12
+      default_gate_t: 2.371
+      default_gate_p: 0.0525
+      default_gate_p_any: 0.0005
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 8
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are the 12 isobaric CPTAC CompRef studies (basal-like and luminal breast cancer
@@ -158,6 +180,8 @@ evidence:
         with them included.
       - Applies only to protein matrices quantified with directlfq; near-best and held-out rates compare
         only directlfq configurations.
+      - Not proven better than directlfq|none|none|none|none|deqms after selection from 61 candidates
+        (studentized gain 2.37, step-down sign-flip p 0.052 at alpha 0.05), so it is not used as a prior.
   - id: cptac-compref-maxlfq-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
@@ -211,6 +235,16 @@ evidence:
       mean_lodo_regret: 0.005285
       max_lodo_regret: 0.01581
       mean_lodo_rank_spearman: 0.87
+      default_comparator: maxlfq|none|none|none|none|deqms
+      default_gate_candidates: 61
+      mean_gain_over_default: 0.0925
+      studies_improved_over_default: 12
+      default_gate_t: 4.368
+      default_gate_p: 0.001
+      default_gate_p_any: 0.001
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 35
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are the 12 isobaric CPTAC CompRef studies (basal-like and luminal breast cancer
@@ -277,6 +311,16 @@ evidence:
       mean_lodo_regret: 0.008621
       max_lodo_regret: 0.027702
       mean_lodo_rank_spearman: 0.879
+      default_comparator: pibaq|none|none|none|none|deqms
+      default_gate_candidates: 61
+      mean_gain_over_default: 0.1065
+      studies_improved_over_default: 12
+      default_gate_t: 5.14
+      default_gate_p: 0.0015
+      default_gate_p_any: 0.0015
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 38
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are the 12 isobaric CPTAC CompRef studies (basal-like and luminal breast cancer
@@ -343,6 +387,16 @@ evidence:
       mean_lodo_regret: 0.007239
       max_lodo_regret: 0.029506
       mean_lodo_rank_spearman: 0.882
+      default_comparator: sum|none|none|none|none|deqms
+      default_gate_candidates: 61
+      mean_gain_over_default: 0.1005
+      studies_improved_over_default: 12
+      default_gate_t: 4.324
+      default_gate_p: 0.0005
+      default_gate_p_any: 0.0005
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 36
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are the 12 isobaric CPTAC CompRef studies (basal-like and luminal breast cancer
@@ -409,6 +463,16 @@ evidence:
       mean_lodo_regret: 0.006522
       max_lodo_regret: 0.032671
       mean_lodo_rank_spearman: 0.891
+      default_comparator: top3|none|none|none|none|deqms
+      default_gate_candidates: 61
+      mean_gain_over_default: 0.0913
+      studies_improved_over_default: 12
+      default_gate_t: 4.157
+      default_gate_p: 0.0005
+      default_gate_p_any: 0.0005
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 33
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are the 12 isobaric CPTAC CompRef studies (basal-like and luminal breast cancer
@@ -428,7 +492,7 @@ evidence:
     status: candidate_for_review
     confidence: moderate
     priority: 12
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_clinical
@@ -475,6 +539,16 @@ evidence:
       mean_lodo_regret: 0.014452
       max_lodo_regret: 0.042898
       mean_lodo_rank_spearman: 0.737
+      default_comparator: maxlfq|hierarchical|none|none|none|deqms
+      default_gate_candidates: 186
+      mean_gain_over_default: 0.0063
+      studies_improved_over_default: 5
+      default_gate_t: 0.681
+      default_gate_p: 0.771
+      default_gate_p_any: 0.771
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are 12 CPTAC clinical TMT cohorts compared tumor versus normal, quantified by Mokume
@@ -495,13 +569,15 @@ evidence:
         12 held-out studies (largest shortfall 0.043).
       - The CompRef cohort (cptac-compref-preset) also selected maxlfq with median normalization, but
         impseqrob imputation and LimROTS.
+      - Not proven better than maxlfq|hierarchical|none|none|none|deqms after selection from 186 candidates
+        (studentized gain 0.68, step-down sign-flip p 0.771 at alpha 0.05), so it is not used as a prior.
   - id: cptac-clinical-directlfq-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 13
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_clinical
@@ -548,6 +624,16 @@ evidence:
       mean_lodo_regret: 0.030065
       max_lodo_regret: 0.141423
       mean_lodo_rank_spearman: 0.607
+      default_comparator: directlfq|none|none|none|none|deqms
+      default_gate_candidates: 61
+      mean_gain_over_default: 0.0045
+      studies_improved_over_default: 2
+      default_gate_t: 0.419
+      default_gate_p: 0.907
+      default_gate_p_any: 0.907
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are 12 CPTAC clinical TMT cohorts compared tumor versus normal, quantified by Mokume
@@ -565,13 +651,15 @@ evidence:
         with them included, uses hierarchical normalization and IRS across plexes.
       - Applies only to protein matrices quantified with directlfq; near-best and held-out rates compare
         only directlfq configurations.
+      - Not proven better than directlfq|none|none|none|none|deqms after selection from 61 candidates
+        (studentized gain 0.42, step-down sign-flip p 0.907 at alpha 0.05), so it is not used as a prior.
   - id: cptac-clinical-maxlfq-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 13
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_clinical
@@ -618,6 +706,16 @@ evidence:
       mean_lodo_regret: 0.011925
       max_lodo_regret: 0.042898
       mean_lodo_rank_spearman: 0.702
+      default_comparator: maxlfq|none|none|none|none|deqms
+      default_gate_candidates: 31
+      mean_gain_over_default: -0.0008
+      studies_improved_over_default: 6
+      default_gate_t: -0.043
+      default_gate_p: 0.7571
+      default_gate_p_any: 0.7571
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are 12 CPTAC clinical TMT cohorts compared tumor versus normal, quantified by Mokume
@@ -635,13 +733,15 @@ evidence:
         with them included, uses hierarchical normalization and IRS across plexes.
       - Applies only to protein matrices quantified with maxlfq; near-best and held-out rates compare
         only maxlfq configurations.
+      - Not proven better than maxlfq|none|none|none|none|deqms after selection from 31 candidates (studentized
+        gain -0.04, step-down sign-flip p 0.757 at alpha 0.05), so it is not used as a prior.
   - id: cptac-clinical-pibaq-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 13
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_clinical
@@ -688,6 +788,16 @@ evidence:
       mean_lodo_regret: 0.014238
       max_lodo_regret: 0.048757
       mean_lodo_rank_spearman: 0.509
+      default_comparator: pibaq|none|none|none|none|deqms
+      default_gate_candidates: 31
+      mean_gain_over_default: -0.0162
+      studies_improved_over_default: 4
+      default_gate_t: -0.857
+      default_gate_p: 0.9189
+      default_gate_p_any: 0.9189
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are 12 CPTAC clinical TMT cohorts compared tumor versus normal, quantified by Mokume
@@ -705,13 +815,15 @@ evidence:
         with them included, uses hierarchical normalization and IRS across plexes.
       - Applies only to protein matrices quantified with pibaq; near-best and held-out rates compare only
         pibaq configurations.
+      - Not proven better than pibaq|none|none|none|none|deqms after selection from 31 candidates (studentized
+        gain -0.86, step-down sign-flip p 0.919 at alpha 0.05), so it is not used as a prior.
   - id: cptac-clinical-sum-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 13
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_clinical
@@ -758,6 +870,16 @@ evidence:
       mean_lodo_regret: 0.019753
       max_lodo_regret: 0.064855
       mean_lodo_rank_spearman: 0.717
+      default_comparator: sum|none|none|none|none|deqms
+      default_gate_candidates: 31
+      mean_gain_over_default: -0.0148
+      studies_improved_over_default: 4
+      default_gate_t: -0.763
+      default_gate_p: 0.8936
+      default_gate_p_any: 0.8936
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are 12 CPTAC clinical TMT cohorts compared tumor versus normal, quantified by Mokume
@@ -775,13 +897,15 @@ evidence:
         with them included, uses hierarchical normalization and IRS across plexes.
       - Applies only to protein matrices quantified with sum; near-best and held-out rates compare only
         sum configurations.
+      - Not proven better than sum|none|none|none|none|deqms after selection from 31 candidates (studentized
+        gain -0.76, step-down sign-flip p 0.894 at alpha 0.05), so it is not used as a prior.
   - id: cptac-clinical-top3-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 13
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: CDAP_TMT_clinical
@@ -828,6 +952,16 @@ evidence:
       mean_lodo_regret: 0.019018
       max_lodo_regret: 0.07419
       mean_lodo_rank_spearman: 0.677
+      default_comparator: top3|none|none|none|none|deqms
+      default_gate_candidates: 31
+      mean_gain_over_default: -0.0134
+      studies_improved_over_default: 4
+      default_gate_t: -0.696
+      default_gate_p: 0.884
+      default_gate_p_any: 0.884
+      default_gate_min_p: 0.000244
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are 12 CPTAC clinical TMT cohorts compared tumor versus normal, quantified by Mokume
@@ -845,13 +979,15 @@ evidence:
         with them included, uses hierarchical normalization and IRS across plexes.
       - Applies only to protein matrices quantified with top3; near-best and held-out rates compare only
         top3 configurations.
+      - Not proven better than top3|none|none|none|none|deqms after selection from 31 candidates (studentized
+        gain -0.70, step-down sign-flip p 0.884 at alpha 0.05), so it is not used as a prior.
   - id: grid-lfq-preset
     source_id: spike-in-mokumebench
     kind: setting_preset
     status: candidate_for_review
     confidence: moderate
     priority: 10
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: LFQ
       setting: quantms_LFQ_DDA
@@ -900,6 +1036,16 @@ evidence:
       mean_lodo_regret: 0.041987
       max_lodo_regret: 0.187337
       mean_lodo_rank_spearman: 0.535
+      default_comparator: maxlfq|hierarchical|none|none|deqms
+      default_gate_candidates: 390
+      mean_gain_over_default: 0.0342
+      studies_improved_over_default: 14
+      default_gate_t: 2.932
+      default_gate_p: 0.0982
+      default_gate_p_any: 0.0947
+      default_gate_min_p: 4.0e-06
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
@@ -910,6 +1056,8 @@ evidence:
         maxlfq or DirectLFQ without sample normalization (mokume --directlfq-no-sample-normalization)
         scored far higher.
       - Imputation choice matters for UPS spike-ins with few changing proteins (PXD001819, PXD002099).
+      - Not proven better than maxlfq|hierarchical|none|none|deqms after selection from 390 candidates
+        (studentized gain 2.93, step-down sign-flip p 0.098 at alpha 0.05), so it is not used as a prior.
   - id: grid-lfq-directlfq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
@@ -965,6 +1113,16 @@ evidence:
       mean_lodo_regret: 0.024849
       max_lodo_regret: 0.110021
       mean_lodo_rank_spearman: 0.344
+      default_comparator: directlfq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.033
+      studies_improved_over_default: 13
+      default_gate_t: 3.06
+      default_gate_p: 0.0406
+      default_gate_p_any: 0.0282
+      default_gate_min_p: 4.0e-06
+      default_gate_proven_candidates: 2
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
@@ -1029,6 +1187,16 @@ evidence:
       mean_lodo_regret: 0.055716
       max_lodo_regret: 0.30717
       mean_lodo_rank_spearman: 0.334
+      default_comparator: maxlfq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0302
+      studies_improved_over_default: 16
+      default_gate_t: 4.145
+      default_gate_p: 0.002
+      default_gate_p_any: 0.002
+      default_gate_min_p: 4.0e-06
+      default_gate_proven_candidates: 2
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
@@ -1041,7 +1209,7 @@ evidence:
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: LFQ
       setting: quantms_LFQ_DDA
@@ -1090,6 +1258,16 @@ evidence:
       mean_lodo_regret: 0.0583
       max_lodo_regret: 0.195896
       mean_lodo_rank_spearman: 0.488
+      default_comparator: pibaq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0164
+      studies_improved_over_default: 13
+      default_gate_t: 2.899
+      default_gate_p: 0.0589
+      default_gate_p_any: 0.0234
+      default_gate_min_p: 4.0e-06
+      default_gate_proven_candidates: 1
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
@@ -1097,6 +1275,8 @@ evidence:
         only pibaq configurations.
       - piBAQ matrices scored well below DirectLFQ and MaxLFQ matrices.
       - Median normalization and no normalization scored almost the same.
+      - Not proven better than pibaq|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 2.90, step-down sign-flip p 0.059 at alpha 0.05), so it is not used as a prior.
   - id: grid-lfq-sum-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
@@ -1152,6 +1332,16 @@ evidence:
       mean_lodo_regret: 0.045941
       max_lodo_regret: 0.230887
       mean_lodo_rank_spearman: 0.404
+      default_comparator: sum|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0301
+      studies_improved_over_default: 14
+      default_gate_t: 3.301
+      default_gate_p: 0.0264
+      default_gate_p_any: 0.0067
+      default_gate_min_p: 4.0e-06
+      default_gate_proven_candidates: 3
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
@@ -1165,7 +1355,7 @@ evidence:
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: LFQ
       setting: quantms_LFQ_DDA
@@ -1214,6 +1404,16 @@ evidence:
       mean_lodo_regret: 0.051872
       max_lodo_regret: 0.226423
       mean_lodo_rank_spearman: 0.369
+      default_comparator: top3|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0334
+      studies_improved_over_default: 15
+      default_gate_t: 1.9
+      default_gate_p: 0.3969
+      default_gate_p_any: 0.0113
+      default_gate_min_p: 4.0e-06
+      default_gate_proven_candidates: 2
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
@@ -1221,13 +1421,15 @@ evidence:
         only top3 configurations.
       - Top3 matrices scored lowest of the five quantification methods.
       - Median normalization improved the scores.
+      - Not proven better than top3|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 1.90, step-down sign-flip p 0.397 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-preset
     source_id: spike-in-mokumebench
     kind: setting_preset
     status: candidate_for_review
     confidence: moderate
     priority: 10
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1278,6 +1480,16 @@ evidence:
       mean_lodo_regret: 0.035269
       max_lodo_regret: 0.104318
       mean_lodo_rank_spearman: 0.538
+      default_comparator: maxlfq|hierarchical|none|none|deqms
+      default_gate_candidates: 390
+      mean_gain_over_default: 0.026
+      studies_improved_over_default: 10
+      default_gate_t: 2.306
+      default_gate_p: 0.2438
+      default_gate_p_any: 0.2371
+      default_gate_min_p: 6.1e-05
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1285,13 +1497,15 @@ evidence:
       - maxlfq and directlfq with mindet and DEqMS are tied within the bootstrap interval; OpDEA's DIA-NN
         workflow (maxlfq, no normalization, mindet, limma) did as well on held-out studies.
       - DirectLFQ's internal normalization hurt designs where many proteins change (PXD036786, PXD046444).
+      - Not proven better than maxlfq|hierarchical|none|none|deqms after selection from 390 candidates
+        (studentized gain 2.31, step-down sign-flip p 0.244 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-directlfq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1342,6 +1556,16 @@ evidence:
       mean_lodo_regret: 0.008983
       max_lodo_regret: 0.026253
       mean_lodo_rank_spearman: 0.422
+      default_comparator: directlfq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0297
+      studies_improved_over_default: 13
+      default_gate_t: 2.714
+      default_gate_p: 0.0547
+      default_gate_p_any: 0.0508
+      default_gate_min_p: 6.1e-05
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1349,13 +1573,15 @@ evidence:
         compare only directlfq configurations.
       - minprob imputation scored almost as well as mindet.
       - DirectLFQ's internal normalization hurt designs where many proteins change (PXD036786, PXD046444).
+      - Not proven better than directlfq|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 2.71, step-down sign-flip p 0.055 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-maxlfq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1406,19 +1632,31 @@ evidence:
       mean_lodo_regret: 0.01194
       max_lodo_regret: 0.052564
       mean_lodo_rank_spearman: 0.402
+      default_comparator: maxlfq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0284
+      studies_improved_over_default: 13
+      default_gate_t: 2.625
+      default_gate_p: 0.0668
+      default_gate_p_any: 0.0511
+      default_gate_min_p: 6.1e-05
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
       - Applies only to protein matrices quantified with maxlfq; near-best, top and held-out rates compare
         only maxlfq configurations.
       - minprob imputation scored almost as well as mindet; limma trailed DEqMS.
+      - Not proven better than maxlfq|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 2.63, step-down sign-flip p 0.067 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-pibaq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1469,6 +1707,16 @@ evidence:
       mean_lodo_regret: 0.025855
       max_lodo_regret: 0.091261
       mean_lodo_rank_spearman: 0.193
+      default_comparator: pibaq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0131
+      studies_improved_over_default: 9
+      default_gate_t: 1.828
+      default_gate_p: 0.3174
+      default_gate_p_any: 0.3017
+      default_gate_min_p: 6.1e-05
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1476,13 +1724,15 @@ evidence:
         only pibaq configurations.
       - mindet imputation scored almost as well as minprob.
       - piBAQ matrices scored well below DirectLFQ and MaxLFQ matrices.
+      - Not proven better than pibaq|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 1.83, step-down sign-flip p 0.317 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-sum-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1533,6 +1783,16 @@ evidence:
       mean_lodo_regret: 0.022136
       max_lodo_regret: 0.091294
       mean_lodo_rank_spearman: 0.245
+      default_comparator: sum|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0275
+      studies_improved_over_default: 12
+      default_gate_t: 2.478
+      default_gate_p: 0.1161
+      default_gate_p_any: 0.1161
+      default_gate_min_p: 6.1e-05
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1540,13 +1800,15 @@ evidence:
         only sum configurations.
       - The best normalization, imputation and DE method matched those of DirectLFQ and MaxLFQ.
       - Sum matrices scored well below DirectLFQ and MaxLFQ matrices.
+      - Not proven better than sum|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 2.48, step-down sign-flip p 0.116 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-top3-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1597,6 +1859,16 @@ evidence:
       mean_lodo_regret: 0.021485
       max_lodo_regret: 0.087719
       mean_lodo_rank_spearman: 0.274
+      default_comparator: top3|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0263
+      studies_improved_over_default: 12
+      default_gate_t: 2.506
+      default_gate_p: 0.1041
+      default_gate_p_any: 0.1041
+      default_gate_min_p: 6.1e-05
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1604,13 +1876,15 @@ evidence:
         only top3 configurations.
       - The best normalization, imputation and DE method matched those of DirectLFQ and MaxLFQ.
       - Top3 matrices scored lowest of the five quantification methods.
+      - Not proven better than top3|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 2.51, step-down sign-flip p 0.104 at alpha 0.05), so it is not used as a prior.
   - id: grid-tmt-preset
     source_id: spike-in-mokumebench
     kind: setting_preset
     status: candidate_for_review
     confidence: low
     priority: 10
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: quantms_TMT_DDA
@@ -1653,6 +1927,16 @@ evidence:
       mean_lodo_regret: 0.078797
       max_lodo_regret: 0.152407
       mean_lodo_rank_spearman: 0.32
+      default_comparator: maxlfq|hierarchical|none|none|deqms
+      default_gate_candidates: 390
+      mean_gain_over_default: -0.001
+      studies_improved_over_default: 2
+      default_gate_t: -0.631
+      default_gate_p: 0.9375
+      default_gate_p_any: 0.9375
+      default_gate_min_p: 0.03125
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark TMT data were searched and quantified with quantms and converted to QPX.
@@ -1665,13 +1949,15 @@ evidence:
       - On the CPTAC TMT studies (cptac-mokumebench) this configuration ranked 50th of 310 service configurations
         in the CompRef cohort and 102nd of 186 in the clinical cohort, and was near-best in 1 of the 24
         studies.
+      - Not proven better than maxlfq|hierarchical|none|none|deqms after selection from 390 candidates
+        (studentized gain -0.63, step-down sign-flip p 0.938 at alpha 0.05), so it is not used as a prior.
   - id: grid-tmt-directlfq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: quantms_TMT_DDA
@@ -1714,6 +2000,16 @@ evidence:
       mean_lodo_regret: 0.012888
       max_lodo_regret: 0.038254
       mean_lodo_rank_spearman: 0.697
+      default_comparator: directlfq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0022
+      studies_improved_over_default: 1
+      default_gate_t: 0.971
+      default_gate_p: 1.0
+      default_gate_p_any: 1.0
+      default_gate_min_p: 0.03125
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark TMT data were searched and quantified with quantms and converted to QPX.
@@ -1722,13 +2018,15 @@ evidence:
         and qrilc scored lower; median normalization lowered the scores.
       - Applies only to protein matrices quantified with directlfq; near-best, top and held-out rates
         compare only directlfq configurations.
+      - Not proven better than directlfq|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 0.97, step-down sign-flip p 1.000 at alpha 0.05), so it is not used as a prior.
   - id: grid-tmt-maxlfq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: quantms_TMT_DDA
@@ -1771,6 +2069,16 @@ evidence:
       mean_lodo_regret: 0.054082
       max_lodo_regret: 0.128532
       mean_lodo_rank_spearman: 0.161
+      default_comparator: maxlfq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.002
+      studies_improved_over_default: 4
+      default_gate_t: 1.15
+      default_gate_p: 0.8125
+      default_gate_p_any: 0.8125
+      default_gate_min_p: 0.03125
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark TMT data were searched and quantified with quantms and converted to QPX.
@@ -1780,13 +2088,15 @@ evidence:
       - Applies only to protein matrices quantified with maxlfq; near-best, top and held-out rates compare
         only maxlfq configurations.
       - MaxLFQ matrices scored below DirectLFQ matrices.
+      - Not proven better than maxlfq|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 1.15, step-down sign-flip p 0.812 at alpha 0.05), so it is not used as a prior.
   - id: grid-tmt-pibaq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: quantms_TMT_DDA
@@ -1829,6 +2139,16 @@ evidence:
       mean_lodo_regret: 0.02968
       max_lodo_regret: 0.067052
       mean_lodo_rank_spearman: 0.343
+      default_comparator: pibaq|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.011
+      studies_improved_over_default: 4
+      default_gate_t: 0.836
+      default_gate_p: 0.7812
+      default_gate_p_any: 0.75
+      default_gate_min_p: 0.03125
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark TMT data were searched and quantified with quantms and converted to QPX.
@@ -1839,13 +2159,15 @@ evidence:
         only pibaq configurations.
       - piBAQ matrices scored below DirectLFQ matrices.
       - limma scored clearly better than DEqMS for piBAQ matrices.
+      - Not proven better than pibaq|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 0.84, step-down sign-flip p 0.781 at alpha 0.05), so it is not used as a prior.
   - id: grid-tmt-sum-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: quantms_TMT_DDA
@@ -1888,6 +2210,16 @@ evidence:
       mean_lodo_regret: 0.054981
       max_lodo_regret: 0.126134
       mean_lodo_rank_spearman: 0.184
+      default_comparator: sum|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.002
+      studies_improved_over_default: 3
+      default_gate_t: 0.956
+      default_gate_p: 0.8125
+      default_gate_p_any: 0.8125
+      default_gate_min_p: 0.03125
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark TMT data were searched and quantified with quantms and converted to QPX.
@@ -1897,13 +2229,15 @@ evidence:
       - Applies only to protein matrices quantified with sum; near-best, top and held-out rates compare
         only sum configurations.
       - Sum matrices scored below DirectLFQ matrices.
+      - Not proven better than sum|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 0.96, step-down sign-flip p 0.812 at alpha 0.05), so it is not used as a prior.
   - id: grid-tmt-top3-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: true
+    eligible_as_prior: false
     applicability:
       data_type: TMT
       setting: quantms_TMT_DDA
@@ -1946,6 +2280,16 @@ evidence:
       mean_lodo_regret: 0.045622
       max_lodo_regret: 0.079559
       mean_lodo_rank_spearman: 0.22
+      default_comparator: top3|none|none|none|deqms
+      default_gate_candidates: 77
+      mean_gain_over_default: 0.0027
+      studies_improved_over_default: 3
+      default_gate_t: 1.339
+      default_gate_p: 0.9375
+      default_gate_p_any: 0.9375
+      default_gate_min_p: 0.03125
+      default_gate_proven_candidates: 0
+      proven_better_than_default: false
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark TMT data were searched and quantified with quantms and converted to QPX.
@@ -1956,6 +2300,8 @@ evidence:
         only top3 configurations.
       - Top3 matrices scored lowest of the five quantification methods.
       - limma and DEqMS scored almost the same for top3 matrices.
+      - Not proven better than top3|none|none|none|deqms after selection from 77 candidates (studentized
+        gain 1.34, step-down sign-flip p 0.938 at alpha 0.05), so it is not used as a prior.
   - id: opdea-diann-dia
     source_id: opdea-2024
     kind: published_setting_reference

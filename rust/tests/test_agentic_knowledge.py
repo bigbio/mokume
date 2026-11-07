@@ -69,22 +69,24 @@ def test_bundled_knowledge_exposes_dataset_summaries_without_promoting_them() ->
 
 
 @pytest.mark.parametrize(
-    ("quantification", "grid_preset"),
+    ("quantification", "grid_presets"),
     [
-        (None, "grid-lfq-preset"),
-        ("maxlfq", "grid-lfq-maxlfq-preset"),
-        ("top3", "grid-lfq-top3-preset"),
+        # The general preset did not beat Mokume's default after its selection.
+        (None, []),
+        ("maxlfq", ["grid-lfq-maxlfq-preset"]),
+        # The top3 preset did not beat top3 with default downstream settings.
+        ("top3", []),
     ],
 )
 def test_declared_quantification_selects_its_grid_preset(
-    quantification: str | None, grid_preset: str
+    quantification: str | None, grid_presets: list[str]
 ) -> None:
     """A frozen quantification gets the Grid preset measured on its matrices."""
     graph = load_knowledge_graph(BUNDLED_KNOWLEDGE)
     profile = SimpleNamespace(data_type="LFQ", quantification=quantification)
 
     assert [record.id for record in graph.matching(profile)] == [
-        grid_preset,
+        *grid_presets,
         "opdea-fragpipe-dda",
         "opdea-maxquant-dda",
     ]

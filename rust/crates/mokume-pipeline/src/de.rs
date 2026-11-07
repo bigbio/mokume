@@ -2168,6 +2168,14 @@ mod tests {
     /// The fixture SDRF plus a batch and an individual column. `run_level`
     /// keys the samples by data file only, as run-level matrices are.
     fn batch_sdrf(run_level: bool) -> TestResult<(SdrfTable, SdrfRawTable)> {
+        batch_sdrf_with_rows(run_level, "")
+    }
+
+    /// `batch_sdrf` with `extra_rows` appended to its TSV.
+    fn batch_sdrf_with_rows(
+        run_level: bool,
+        extra_rows: &str,
+    ) -> TestResult<(SdrfTable, SdrfRawTable)> {
         let mut tsv = String::from(
             "source name\tcomment[data file]\tcharacteristics[batch]\tcharacteristics[individual]\tfactor value[phenotype]\n",
         );
@@ -2191,6 +2199,7 @@ mod tests {
                 "{source}\t{name}.raw\t{batch}\t{individual}\t{condition}\n"
             ));
         }
+        tsv.push_str(extra_rows);
         Ok((
             SdrfTable::from_reader(tsv.as_bytes())?,
             SdrfRawTable::from_reader(tsv.as_bytes())?,
@@ -2270,6 +2279,57 @@ mod tests {
         assert!(
             run_differential_expression(&matrix, Some(&sdrf), Some(&raw), &rots, false).is_err()
         );
+        Ok(())
+    }
+
+    // Empty TMT channels carry the SDRF's reserved "not applicable" or "not
+    // available" factor value, which is no condition: the covariate and block
+    // fits must stay the six-sample R oracles. Two channels per value give each
+    // would-be level residual degrees of freedom, so entering the model would
+    // change every p-value.
+    #[test]
+    fn de_design_skips_sdrf_placeholder_conditions() -> TestResult<()> {
+        let (_tempdir, dir) = temp_dir("placeholder")?;
+        let output = dir.join("de_results.csv");
+        let mut matrix = fixture_matrix()?;
+        let ProteinValues::Cells(values) = &mut matrix.values else {
+            return Err("the fixture matrix stores cells".into());
+        };
+        let mut rows = String::new();
+        for (name, condition, batch, individual, level) in [
+            ("E1", "not applicable", "b1", "p1", 40.0),
+            ("E2", "not applicable", "b2", "p2", 90.0),
+            ("E3", "Not Available", "b1", "p3", 25.0),
+            ("E4", "Not Available", "b2", "p1", 160.0),
+        ] {
+            let sample = matrix
+                .samples
+                .get_or_insert(name)
+                .expect("sample id overflow");
+            for (row, protein) in PROTEINS.iter().enumerate() {
+                let protein = matrix
+                    .proteins
+                    .get_or_insert(protein)
+                    .expect("protein id overflow");
+                values.insert(CellKey { protein, sample }, level * (row as f64 + 1.0));
+            }
+            rows.push_str(&format!(
+                "{name}\t{name}.raw\t{batch}\t{individual}\t{condition}\n"
+            ));
+        }
+        let (sdrf, raw) = batch_sdrf_with_rows(false, &rows)?;
+        let covariate = DifferentialExpressionConfig {
+            covariates: vec!["batch".to_owned()],
+            ..de_config(&output, "limma")
+        };
+        let block = DifferentialExpressionConfig {
+            block: Some("individual".to_owned()),
+            ..de_config(&output, "limma")
+        };
+        for (config, expected) in [(covariate, EXPECTED_BATCH), (block, EXPECTED_BLOCK)] {
+            run_differential_expression(&matrix, Some(&sdrf), Some(&raw), &config, false)?;
+            assert_design_table(&output, expected)?;
+        }
         Ok(())
     }
 

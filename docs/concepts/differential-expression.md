@@ -237,6 +237,10 @@ rounding. A protein whose residual variance lies entirely between blocks is
 the exception: R gives it either NA or the clamped correlation depending on
 rounding, so the consensus can then differ from R.
 
+In both designs, a sample whose factor value is `not applicable` or
+`not available`, as on an empty TMT channel, has no condition and stays out of
+the fit.
+
 ## ROTS
 
 **ROTS** (Suomi et al., 2017) optimizes a test statistic for maximal reproducibility across bootstrap resamples. Unlike LimROTS (which also incorporates limma empirical Bayes), ROTS uses only the bootstrap-optimized statistic without shrinkage priors.

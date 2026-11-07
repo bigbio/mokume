@@ -497,6 +497,10 @@ A constant, missing, or confounded covariate is rejected. With covariates
 `--de-method auto` selects `deqms`; ROTS, LimROTS, proDA, and ensemble reject
 the option.
 
+A sample whose factor value is `not applicable` or `not available`, as on an
+empty TMT channel, has no condition and stays out of the fit, also with
+`--de-block`.
+
 `--de-block` models a column's levels as random blocks instead of fixed effects
 (limma's `duplicateCorrelation`), for example the subject of a repeated-measures
 design or the biological replicate of technical replicates. The consensus

@@ -262,6 +262,10 @@ file). A constant, missing, or confounded covariate is rejected. With covariates
 `auto` selects `deqms`, and the other methods reject the option. Without
 covariates each contrast keeps the two-group fit on its own samples.
 
+A sample whose factor value is `not applicable` or `not available`, as on an
+empty TMT channel, has no condition and stays out of the fit, also with
+`--de-block`.
+
 `--de-block` treats the levels of an SDRF column as random blocks of that
 design, as limma's `duplicateCorrelation` and `lmFit(block =, correlation =)`
 do: one intra-block correlation is estimated from all proteins and design

@@ -5793,6 +5793,9 @@ fn run_features_to_proteins_inner(
         .as_ref()
         .map(SdrfTable::from_path)
         .transpose()?;
+    if let Some(sdrf) = &sdrf {
+        sdrf.warn_shared_source_names();
+    }
     let raw_sdrf = config
         .input
         .sdrf
@@ -6442,6 +6445,9 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         .as_ref()
         .map(SdrfTable::from_path)
         .transpose()?;
+    if let Some(sdrf) = &sdrf {
+        sdrf.warn_shared_source_names();
+    }
     // The median pre-pass mirrors Python's `SQLFilterBuilder`, which removes
     // contaminants on the **raw** `pg_accessions` before computing the median.
     // Route the filter pipeline's custom patterns through (default list -> the

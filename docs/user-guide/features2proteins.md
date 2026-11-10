@@ -75,6 +75,29 @@ writes `Run` as a design index. Isobaric data also requires `Channel`.
 `--quant-method ratio` requires PSM-level QPX evidence and therefore cannot
 use an MSstats feature table.
 
+### Runs and samples
+
+With `--sdrf`, the SDRF `source name` column defines the samples. All runs
+(`comment[data file]`) that carry the same source name are combined into one
+sample, which is how technical replicates and fractions are meant to be
+combined: their features are pooled before sample-level normalization and
+protein quantification, so the output has one column for that sample. For
+Median, Abd, TopN and peptide count, the highest intensity of each peptidoform
+and charge across the sample's runs is kept and these values are summed into
+the canonical peptide before the protein value is computed.
+
+Sample-level normalization (such as the global median) and the cross-sample
+methods (MaxLFQ, DirectLFQ) use every sample, so merging runs into one sample
+also changes the values of the other samples. A duplicated source name in the
+SDRF therefore shifts the whole matrix, not only the affected sample.
+
+mokume logs a warning listing each source name that maps to more than one data
+file. If those runs also have the same `comment[technical replicate]` and
+`comment[fraction identifier]` (identical or missing values), the warning says
+that this usually indicates a duplicated source name rather than technical
+replicates. Give every distinct sample its own source name. The warning does
+not change the output.
+
 ## Quantification Methods
 
 | Method | CLI Flag | FASTA Required | Description |

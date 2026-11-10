@@ -20,6 +20,7 @@ from mokume.core.constants import load_sdrf
 from mokume.core.logger import get_logger
 from mokume.io._qpx import measured_intensity_clause, resolve_score_source
 from mokume.io.msstats import create_msstats_feature_table
+from mokume.preprocessing.sdrf import warn_shared_source_names
 
 logger = get_logger("mokume.io.feature")
 
@@ -761,6 +762,8 @@ class Feature:
             Path to the SDRF file containing sample metadata.
         """
         sdrf_df = load_sdrf(sdrf_path)
+        # Runs that share a source name become one sample below; say so.
+        warn_shared_source_names(sdrf_df)
 
         # Find the condition column (try factor value first, then characteristics)
         condition_col = None

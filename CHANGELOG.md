@@ -24,9 +24,22 @@ default distribution. The pure-Python implementation continues as `mokume-py`.
   so DirectLFQ, ratio and `peptide_count` no longer need an explicit `none`.
 - mokume-py's MaxLFQ marks samples without a supported pair ratio as missing
   (NaN) instead of zero. Protein tables already left these samples out.
+- `--filter-score` reads the typed `peptide_qvalue`, `precursor_qvalue` and
+  `global_qvalue` columns whenever the file has them, also when some rows are
+  null; a null value fails the filter. QPX files without these columns still use
+  `additional_scores`. mokume-py keeps rows with a null `is_decoy` as targets,
+  like the Rust kernel.
+- Protein groups are identified by their member set, so the same accessions in
+  another stored order form one group, named by the smallest observed order.
+  mokume-py's low-frequency peptide filter, DEqMS peptide counts, ratio
+  quantification and TissueMap use the group instead of `anchor_protein`;
+  TissueMap keeps `anchor_protein` as an annotation column.
 
 ### Added
 
 - `features2proteins --transferred-weight` and `peptides2protein
   --weight-column` weigh measurements in MaxLFQ pair medians and in `top<N>`
   selection (Rust kernel only).
+- `features2proteins --run` and `features2peptides --run` take the samples
+  from a QPX run view (`run.samples`, matched by exact run and label) instead
+  of an SDRF; each sample is its own condition.

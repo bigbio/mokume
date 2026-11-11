@@ -45,12 +45,20 @@ def protein_group_names(groups):
 
 def create_group_view(connection, source, target):
     """Canonicalize only distinct member lists, retaining all other raw columns."""
-    relation = connection.table(source)
-    types = dict(zip(relation.columns, map(str, relation.types)))
+    # execute() rather than the relation API: DuckDB 2.0 refuses relation calls
+    # while an earlier execute() result on the connection is unfinished.
+    types = {
+        row[0]: row[1] for row in connection.execute(f"DESCRIBE {source}").fetchall()
+    }
     expression = "pg_accessions"
     if "STRUCT" in types["pg_accessions"].upper():
-        expression = "list_transform(pg_accessions, x -> x.accession)"
-    groups = [row[0] for row in relation.project(expression).distinct().fetchall()]
+        expression = "list_transform(pg_accessions, lambda x: x.accession)"
+    groups = [
+        row[0]
+        for row in connection.execute(
+            f"SELECT DISTINCT {expression} FROM {source}"
+        ).fetchall()
+    ]
     mapping = pa.table(
         {
             "stored": pa.array(groups, type=pa.list_(pa.string())),
@@ -58,11 +66,11 @@ def create_group_view(connection, source, target):
         }
     )
     connection.register("qpx_group_orders", mapping)
-    relation.join(
-        connection.table("qpx_group_orders"), f"stored = {expression}", how="left"
-    ).project(
-        "* EXCLUDE (pg_accessions, stored, members), members AS pg_accessions"
-    ).create_view(target)
+    connection.execute(
+        f"CREATE OR REPLACE VIEW {target} AS "
+        "SELECT * EXCLUDE (pg_accessions, stored, members), members AS pg_accessions "
+        f"FROM {source} LEFT JOIN qpx_group_orders ON stored = {expression}"
+    )
 
 
 def protein_peptide_counts(path):

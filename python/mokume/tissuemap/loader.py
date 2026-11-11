@@ -50,7 +50,7 @@ _FLAT_VIEW_QUERY = """
     FROM (
         SELECT
             array_to_string(list_transform(pg_accessions,
-                x -> CASE WHEN len(string_split(x, '|')) = 3
+                lambda x: CASE WHEN len(string_split(x, '|')) = 3
                     THEN string_split(x, '|')[2] ELSE x END), ';') AS protein,
             run_file_name,
             {imputed_projection}

@@ -1063,7 +1063,7 @@ class Feature:
             [
                 "SELECT sequence, array_to_string(list_transform(",
                 members,
-                ", x -> CASE WHEN len(string_split(x, '|')) = 3 ",
+                ", lambda x: CASE WHEN len(string_split(x, '|')) = 3 ",
                 "THEN string_split(x, '|')[2] ELSE x END), ';') AS protein, ",
                 "COUNT(DISTINCT sample_accession) AS count FROM parquet_db WHERE ",
                 where_clause,

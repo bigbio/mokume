@@ -297,18 +297,17 @@ impl SdrfTable {
             .collect()
     }
 
-    /// Warning messages for [`Self::shared_source_names`]: one for names whose
-    /// runs share technical replicate and fraction (a likely duplicated name),
-    /// one for the remaining names (replicates or fractions). Empty when every
-    /// source name has a single data file.
-    pub fn shared_source_name_warnings(&self) -> Vec<String> {
+    /// Messages for [`Self::shared_source_names`], split by class: the first
+    /// for names whose runs share technical replicate and fraction (a likely
+    /// duplicated name), the second for the remaining names (replicates or
+    /// fractions, the normal design). `None` when a class is empty.
+    pub fn shared_source_name_messages(&self) -> (Option<String>, Option<String>) {
         let (duplicated, replicated): (Vec<_>, Vec<_>) = self
             .shared_source_names()
             .into_iter()
             .partition(|shared| shared.same_replicate_and_fraction);
-        let mut warnings = Vec::new();
-        if !duplicated.is_empty() {
-            warnings.push(format!(
+        let duplicate_message = (!duplicated.is_empty()).then(|| {
+            format!(
                 "SDRF source names reused across data files with the same technical \
                  replicate and fraction identifier: {}. These runs are combined into one \
                  sample, which also changes the normalization of all other samples. \
@@ -316,24 +315,37 @@ impl SdrfTable {
                  source name rather than technical replicates; check the SDRF \
                  `source name` column.",
                 describe_shared_source_names(&duplicated)
-            ));
-        }
-        if !replicated.is_empty() {
-            warnings.push(format!(
+            )
+        });
+        let replicate_message = (!replicated.is_empty()).then(|| {
+            format!(
                 "SDRF source names mapped to more than one data file: {}. Runs that \
                  share a source name are combined into one sample (technical replicates \
                  or fractions), which also affects the normalization of all other samples.",
                 describe_shared_source_names(&replicated)
-            ));
-        }
-        warnings
+            )
+        });
+        (duplicate_message, replicate_message)
     }
 
-    /// Log [`Self::shared_source_name_warnings`] at warn level. The mapping
+    /// Both messages of [`Self::shared_source_name_messages`], duplicates
+    /// first. Empty when every source name has a single data file.
+    pub fn shared_source_name_warnings(&self) -> Vec<String> {
+        let (duplicate, replicate) = self.shared_source_name_messages();
+        duplicate.into_iter().chain(replicate).collect()
+    }
+
+    /// Log the messages of [`Self::shared_source_name_messages`]: a likely
+    /// duplicated source name at warn level, runs that share a source name as
+    /// replicates or fractions (the normal design) at info level. The mapping
     /// itself is unchanged.
     pub fn warn_shared_source_names(&self) {
-        for message in self.shared_source_name_warnings() {
+        let (duplicate, replicate) = self.shared_source_name_messages();
+        if let Some(message) = duplicate {
             tracing::warn!("{message}");
+        }
+        if let Some(message) = replicate {
+            tracing::info!("{message}");
         }
     }
 }
@@ -1041,5 +1053,37 @@ mod tests {
         assert!(warnings[0].contains("; ... 2 more."));
         assert!(!warnings[0].contains("`sample-10`"));
         Ok(())
+    }
+
+    #[test]
+    fn shared_source_name_messages_split_duplicates_from_replicates() {
+        let record = |sample: &str, file: &str, technical_replicate: Option<u32>| SdrfRecord {
+            sample_accession: sample.to_owned(),
+            run_accession: None,
+            data_file: file.to_owned(),
+            file_uri: None,
+            label: None,
+            fraction: None,
+            biological_replicate: None,
+            technical_replicate,
+            condition: None,
+            pooled_sample: None,
+        };
+        let table = SdrfTable::from_records(vec![
+            record("rep", "run-a.raw", Some(1)),
+            record("rep", "run-b.raw", Some(2)),
+            record("dup", "run-c.raw", Some(1)),
+            record("dup", "run-d.raw", Some(1)),
+        ])
+        .unwrap();
+        let (duplicate, replicate) = table.shared_source_name_messages();
+        let duplicate = duplicate.expect("duplicate message");
+        let replicate = replicate.expect("replicate message");
+        assert!(duplicate.contains("`dup` (run-c.raw, run-d.raw)") && !duplicate.contains("`rep`"));
+        assert!(replicate.contains("`rep` (run-a.raw, run-b.raw)") && !replicate.contains("`dup`"));
+        assert_eq!(
+            table.shared_source_name_warnings(),
+            vec![duplicate, replicate]
+        );
     }
 }

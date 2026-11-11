@@ -73,11 +73,12 @@ peptidoforms into the canonical peptide; `--aggregation-level run` keeps the
 runs apart instead. Sample-level normalization uses every sample, so merging
 runs into one sample also changes the values of the other samples.
 
-mokume logs a warning listing each source name that maps to more than one data
-file, and says when those runs also share `comment[technical replicate]` and
-`comment[fraction identifier]` (identical or missing values), which usually
-indicates a duplicated source name rather than technical replicates. The
-warning does not change the output.
+mokume logs each source name that maps to more than one data file: at INFO
+level for runs that differ in `comment[technical replicate]` or
+`comment[fraction identifier]` (the normal replicate or fraction design), and as
+a WARNING when those runs also share technical replicate and fraction identifier
+(identical or missing values), which usually indicates a duplicated source name
+rather than technical replicates. Neither message changes the output.
 
 ## Normalization Methods
 

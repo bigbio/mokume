@@ -14,6 +14,7 @@ from pathlib import Path
 from mokume.core.constants import load_sdrf
 from mokume.io.feature import Feature
 from mokume.preprocessing.sdrf import (
+    shared_source_name_messages,
     shared_source_name_warnings,
     shared_source_names,
     warn_shared_source_names,
@@ -104,3 +105,25 @@ def test_enrich_with_sdrf_warns_on_shared_source_name(tmp_path, caplog):
         feature.enrich_with_sdrf(str(shared))
     assert "`PXD020192-Sample-13` (S13_Brain_1.raw, S14_Brain_2.raw)" in caplog.text
     assert "duplicated source name" in caplog.text
+
+
+def test_replicate_design_is_info_and_duplicate_is_warning(tmp_path, caplog):
+    """Runs that differ in technical replicate are the normal design (INFO); runs that
+    share replicate and fraction usually mean a duplicated source name (WARNING)."""
+    path = tmp_path / "mixed.sdrf.tsv"
+    path.write_text(
+        "source name\tcomment[data file]\tcomment[label]\tcomment[technical replicate]\n"
+        "rep\trun-a.raw\tlabel free sample\t1\n"
+        "rep\trun-b.raw\tlabel free sample\t2\n"
+        "dup\trun-c.raw\tlabel free sample\t1\n"
+        "dup\trun-d.raw\tlabel free sample\t1\n"
+    )
+    sdrf = load_sdrf(str(path))
+    duplicate, replicate = shared_source_name_messages(sdrf)
+    assert "`dup` (run-c.raw, run-d.raw)" in duplicate and "`rep`" not in duplicate
+    assert "`rep` (run-a.raw, run-b.raw)" in replicate and "`dup`" not in replicate
+    assert shared_source_name_warnings(sdrf) == [duplicate, replicate]
+    with caplog.at_level("INFO", logger=LOGGER):
+        warn_shared_source_names(sdrf)
+    levels = {r.levelname: r.getMessage() for r in caplog.records}
+    assert levels["WARNING"] == duplicate and levels["INFO"] == replicate

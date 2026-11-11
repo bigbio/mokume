@@ -151,14 +151,16 @@ def _describe_shared_source_names(shared: list[dict]) -> str:
     return "; ".join(parts)
 
 
-def shared_source_name_warnings(sdrf_df: pd.DataFrame) -> list[str]:
+def shared_source_name_messages(
+    sdrf_df: pd.DataFrame,
+) -> tuple[Optional[str], Optional[str]]:
     """
-    Build the warnings for source names mapped to more than one data file.
+    Build the messages for source names mapped to more than one data file.
 
-    Mirrors ``SdrfTable::shared_source_name_warnings`` in the Rust kernel: one
-    message for names whose runs share technical replicate and fraction (a
-    likely duplicated name), one for the remaining names (replicates or
-    fractions).
+    Mirrors ``SdrfTable::shared_source_name_messages`` in the Rust kernel: the
+    first message is for names whose runs share technical replicate and
+    fraction (a likely duplicated name), the second for the remaining names
+    (replicates or fractions, the normal design).
 
     Parameters
     ----------
@@ -167,16 +169,16 @@ def shared_source_name_warnings(sdrf_df: pd.DataFrame) -> list[str]:
 
     Returns
     -------
-    list[str]
-        Warning messages; empty when every source name has a single data file.
+    tuple[str | None, str | None]
+        (duplicate message, replicate message); ``None`` when a class is empty.
     """
     shared = shared_source_names(sdrf_df)
     duplicated = [entry for entry in shared if entry["same_replicate_and_fraction"]]
     replicated = [entry for entry in shared if not entry["same_replicate_and_fraction"]]
-    warnings = []
+    duplicate_message = replicate_message = None
     if duplicated:
         names = _describe_shared_source_names(duplicated)
-        warnings.append(
+        duplicate_message = (
             "SDRF source names reused across data files with the same technical "
             f"replicate and fraction identifier: {names}. "
             "These runs are combined into one sample, which also changes the "
@@ -185,16 +187,30 @@ def shared_source_name_warnings(sdrf_df: pd.DataFrame) -> list[str]:
             "replicates; check the SDRF `source name` column."
         )
     if replicated:
-        warnings.append(
+        replicate_message = (
             "SDRF source names mapped to more than one data file: "
             f"{_describe_shared_source_names(replicated)}. Runs that share a source "
             "name are combined into one sample (technical replicates or fractions), "
             "which also affects the normalization of all other samples."
         )
-    return warnings
+    return duplicate_message, replicate_message
+
+
+def shared_source_name_warnings(sdrf_df: pd.DataFrame) -> list[str]:
+    """Both messages of :func:`shared_source_name_messages`, duplicates first; empty when none."""
+    return [m for m in shared_source_name_messages(sdrf_df) if m is not None]
 
 
 def warn_shared_source_names(sdrf_df: pd.DataFrame) -> None:
-    """Log :func:`shared_source_name_warnings` as warnings; the mapping is unchanged."""
-    for message in shared_source_name_warnings(sdrf_df):
-        logger.warning(message)
+    """
+    Log the messages of :func:`shared_source_name_messages`.
+
+    A likely duplicated source name is logged as a warning; runs that share a
+    source name as replicates or fractions (the normal design) at info level.
+    The mapping is unchanged.
+    """
+    duplicate, replicate = shared_source_name_messages(sdrf_df)
+    if duplicate is not None:
+        logger.warning(duplicate)
+    if replicate is not None:
+        logger.info(replicate)

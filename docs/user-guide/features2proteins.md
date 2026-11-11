@@ -91,12 +91,13 @@ methods (MaxLFQ, DirectLFQ) use every sample, so merging runs into one sample
 also changes the values of the other samples. A duplicated source name in the
 SDRF therefore shifts the whole matrix, not only the affected sample.
 
-mokume logs a warning listing each source name that maps to more than one data
-file. If those runs also have the same `comment[technical replicate]` and
-`comment[fraction identifier]` (identical or missing values), the warning says
-that this usually indicates a duplicated source name rather than technical
-replicates. Give every distinct sample its own source name. The warning does
-not change the output.
+mokume logs each source name that maps to more than one data file. Runs that
+differ in `comment[technical replicate]` or `comment[fraction identifier]` are
+the normal replicate or fraction design and are logged at INFO level. If the runs
+also have the same technical replicate and fraction identifier (identical or
+missing values), mokume logs a WARNING, because this usually indicates a
+duplicated source name rather than technical replicates. Give every distinct
+sample its own source name. Neither message changes the output.
 
 ## Quantification Methods
 

@@ -11353,6 +11353,9 @@ mod tests {
             row_start: true,
         };
         let filtering = FilterConfig::default();
+        let mut null_decoy = feature(&["P1"], None);
+        null_decoy.is_decoy = None;
+        assert!(passes_feature_filter(&null_decoy, filtering, false));
 
         assert!(passes_feature_filter(
             &feature(&["P1"], None),

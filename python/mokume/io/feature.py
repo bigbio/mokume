@@ -174,7 +174,7 @@ class SQLFilterBuilder:
         means a one-protein group.
     has_is_decoy : bool
         Whether the parquet has an ``is_decoy`` column. When True, DECOY
-        filtering uses ``is_decoy = false`` instead of text pattern matching.
+        filtering treats null ``is_decoy`` values as targets.
         Automatically set by :class:`Feature` after format detection.
     named_score_name : str, optional
         Exact QPX ``additional_scores.score_name`` to filter.
@@ -303,7 +303,7 @@ class SQLFilterBuilder:
         decoys = [p for p in self.contaminant_patterns if p.upper() == "DECOY"]
         contams = [p for p in self.contaminant_patterns if p.upper() != "DECOY"]
         if decoys and self.has_is_decoy:
-            conditions.append("is_decoy = false")
+            conditions.append("NOT coalesce(is_decoy, false)")
         if decoys:
             conditions.append(
                 f"NOT coalesce(list_bool_or({any_member(decoys)}), false)"
@@ -524,7 +524,7 @@ class Feature:
         present = (
             "additional_scores IS NOT NULL"
             if expression.startswith("additional_scores.")
-            else "TRUE"
+            else f"{expression} IS NOT NULL"
         )
         values = (
             self.parquet_db.table("parquet_db_raw")

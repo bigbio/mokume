@@ -11,14 +11,15 @@ def measured_intensity_clause(columns, entry="unnest"):
 
 
 def _complete_qvalue(connection, path, name):
-    """Use a top-level q value only when every row group proves it non-null."""
-    if path is None or name not in {"precursor_qvalue", "global_qvalue"}:
+    """Prefer typed q-value columns, including columns containing nulls."""
+    if path is None or name not in {
+        "peptide_qvalue",
+        "precursor_qvalue",
+        "global_qvalue",
+    }:
         return False
-    counts = connection.execute(
-        "SELECT stats_null_count FROM parquet_metadata(?) WHERE path_in_schema = ?",
-        [path, name],
-    ).fetchall()
-    return bool(counts) and all(count == 0 for (count,) in counts)
+    columns = connection.execute("DESCRIBE parquet_db_raw").fetchall()
+    return any(column[0] == name for column in columns)
 
 
 def resolve_score_source(connection, path, name):

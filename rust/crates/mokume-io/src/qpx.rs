@@ -206,16 +206,15 @@ fn feature_projection(
 }
 
 fn complete_qvalue(metadata: &ParquetMetaData, name: &str) -> bool {
-    matches!(name, "precursor_qvalue" | "global_qvalue")
-        && metadata.row_groups().iter().all(|group| {
-            group
-                .columns()
-                .iter()
-                .find(|column| column.column_path().parts() == [name])
-                .and_then(|column| column.statistics())
-                .and_then(|stats| stats.null_count_opt())
-                == Some(0)
-        })
+    matches!(
+        name,
+        "peptide_qvalue" | "precursor_qvalue" | "global_qvalue"
+    ) && metadata
+        .file_metadata()
+        .schema_descr()
+        .columns()
+        .iter()
+        .any(|column| column.path().parts() == [name])
 }
 
 fn struct_score_layout(raw: Option<&str>, name: &str) -> Result<(String, bool)> {
@@ -589,7 +588,10 @@ fn requested_score_column<'a>(
     let Some(name) = score_name else {
         return Ok(None);
     };
-    if matches!(name, "precursor_qvalue" | "global_qvalue") {
+    if matches!(
+        name,
+        "peptide_qvalue" | "precursor_qvalue" | "global_qvalue"
+    ) {
         if let Some(column) = optional_column_by_names(batch, &[name]) {
             return Ok(Some(ScoreColumn::Scalar(column, false, None)));
         }
@@ -622,7 +624,9 @@ fn selected_score_value(
     match scores {
         ScoreColumn::List(array) => named_score_value(array, row, name),
         ScoreColumn::Scalar(array, higher_better, parent) => {
-            if parent.is_some_and(|parent| parent.is_null(row)) {
+            if parent.is_some_and(|parent| parent.is_null(row))
+                || (parent.is_none() && array.is_null(row))
+            {
                 return Ok(None);
             }
             Ok(Some(QpxScoreValue {
@@ -1385,31 +1389,34 @@ mod tests {
         Ok(())
     }
 
-    fn top_qvalue_batch(value: Option<f64>) -> Result<RecordBatch, Box<dyn std::error::Error>> {
-        Ok(with_column(
-            score_batch(Some(0.9))?,
-            "global_qvalue",
-            Arc::new(Float64Array::from(vec![value])),
-        )?)
-    }
-
     #[test]
-    fn top_qvalue_requires_every_row_group_nonnull() -> Result<(), Box<dyn std::error::Error>> {
+    fn top_qvalue_accepts_nulls_and_does_not_read_score_lists(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("top.parquet");
-        for partial in [false, true] {
-            let first = top_qvalue_batch(Some(0.01))?;
-            let second = top_qvalue_batch(if partial { None } else { Some(0.2) })?;
-            write_scores(&path, &[first, second], true)?;
-            let mut reader = QpxParquetReader::open(&path, 8, Some("global_qvalue"), false, false)?;
+        for name in ["peptide_qvalue", "precursor_qvalue", "global_qvalue"] {
+            let batches = [Some(0.01), None]
+                .into_iter()
+                .map(|value| {
+                    with_column(
+                        score_batch(Some(0.9))?,
+                        name,
+                        Arc::new(Float64Array::from(vec![value])),
+                    )
+                    .map_err(Into::into)
+                })
+                .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+            write_scores(&path, &batches, false)?;
+            let mut reader = QpxParquetReader::open(&path, 8, Some(name), false, false)?;
             let batch = reader.next_raw_batch().ok_or("missing batch")??;
-            assert_eq!(batch.column_by_name("global_qvalue").is_some(), !partial);
-            assert_eq!(batch.column_by_name("additional_scores").is_some(), partial);
-            let records = super::flatten_qpx_batch_with_score(&batch, "global_qvalue")?;
+            assert!(batch.column_by_name(name).is_some());
+            assert!(batch.column_by_name("additional_scores").is_none());
+            let records = super::flatten_qpx_batch_with_score(&batch, name)?;
             assert_eq!(
                 records[0].selected_score.ok_or("missing score")?.value,
-                if partial { 0.02 } else { 0.01 }
+                0.01
             );
+            assert!(records[1].selected_score.is_none());
         }
         Ok(())
     }

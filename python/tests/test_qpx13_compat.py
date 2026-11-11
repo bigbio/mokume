@@ -16,7 +16,6 @@ from mokume.tissuemap.loader import _execute_aggregation as execute_aggregation
 from .test_qpx_format_compat import (
     _make_scored_qpx_parquet as make_scored_qpx_parquet,
     _make_new_qpx_parquet as make_new_qpx_parquet,
-    _ADDITIONAL_SCORES_TYPE as ADDITIONAL_SCORES_TYPE,
 )
 
 
@@ -130,43 +129,64 @@ def test_null_struct_is_missing_score(tmp_path):
         feature.parquet_db.close()
 
 
-@pytest.mark.parametrize("top,fast", [([0.01, 0.2], True), ([0.01, None], False)])
-def test_top_qvalue_requires_all_row_groups_nonnull(tmp_path, top, fast):
-    """Top qvalue requires all row groups nonnull."""
+@pytest.mark.parametrize(
+    "name", ["peptide_qvalue", "precursor_qvalue", "global_qvalue"]
+)
+@pytest.mark.parametrize("top", [[0.01, 0.2], [0.01, None]])
+def test_typed_qvalue_accepts_nulls_without_additional_scores(tmp_path, name, top):
+    """Typed q values take precedence even when only some rows have values."""
     path = tmp_path / "qvalue.parquet"
     make_scored_qpx_parquet(str(path))
-    table = pq.read_table(path).append_column(
-        "global_qvalue", pa.array(top, type=pa.float64())
-    )
-    # The fast path must not need the score list at all. A partial column must.
-    if fast:
-        table = table.drop(["additional_scores"])
-    else:
-        values = [
-            [
-                {
-                    "score_name": "global_qvalue",
-                    "score_value": value,
-                    "higher_better": False,
-                }
-            ]
-            for value in [0.01, 0.2]
-        ]
-        table = table.set_column(
-            table.schema.get_field_index("additional_scores"),
-            "additional_scores",
-            pa.array(values, type=ADDITIONAL_SCORES_TYPE),
-        )
+    table = pq.read_table(path).drop(["additional_scores"])
+    table = table.append_column(name, pa.array(top, type=pa.float64()))
     pq.write_table(table, path, row_group_size=1)
     builder = qpx_feature.SQLFilterBuilder(
-        named_score_name="global_qvalue", named_score_threshold=0.05
+        named_score_name=name, named_score_threshold=0.05
     )
     feature = qpx_feature.Feature(str(path), builder)
     try:
-        assert (builder.named_score_source is not None) == fast
+        assert builder.named_score_source == (f'"{name}"', False)
         assert feature.get_report_from_database(feature.samples)[
             "sequence"
         ].tolist() == ["PEPTIDEA"]
+    finally:
+        feature.parquet_db.close()
+
+
+def test_all_null_typed_qvalue_is_missing_score(tmp_path):
+    """An empty typed column must not fall back to additional scores."""
+    path = tmp_path / "empty.parquet"
+    make_scored_qpx_parquet(str(path))
+    table = pq.read_table(path).append_column(
+        "peptide_qvalue", pa.array([None, None], type=pa.float64())
+    )
+    pq.write_table(table, path)
+    builder = qpx_feature.SQLFilterBuilder(
+        named_score_name="peptide_qvalue", named_score_threshold=0.05
+    )
+    with pytest.raises(ValueError, match="additional_scores entry `peptide_qvalue`"):
+        qpx_feature.Feature(str(path), builder)
+
+
+def test_null_decoy_is_target(tmp_path):
+    """A null decoy flag retains a target protein group."""
+    path = tmp_path / "decoy.parquet"
+    make_scored_qpx_parquet(str(path))
+    table = pq.read_table(path)
+    table = table.set_column(
+        table.schema.get_field_index("is_decoy"),
+        "is_decoy",
+        pa.array([None, True], type=pa.bool_()),
+    )
+    pq.write_table(table, path)
+    builder = qpx_feature.SQLFilterBuilder()
+    feature = qpx_feature.Feature(str(path), builder)
+    try:
+        clause, params = builder.build_where_clause()
+        rows = feature.parquet_db.execute(
+            f"SELECT sequence FROM parquet_db WHERE {clause}", params
+        ).fetchall()
+        assert rows == [("PEPTIDEA",)]
     finally:
         feature.parquet_db.close()
 
@@ -240,3 +260,33 @@ def test_legacy_accession_exclusion_uses_complete_token():
     frame = pd.DataFrame({PEPTIDE_SEQUENCE: ["M[UNIMOD:3]K", "M[UNIMOD:35]K"]})
     filtered, _ = ModificationFilter(["UNIMOD:3"]).apply(frame)
     assert filtered[PEPTIDE_SEQUENCE].tolist() == ["M[UNIMOD:35]K"]
+
+
+@pytest.mark.parametrize(
+    "name", ["peptide_qvalue", "precursor_qvalue", "global_qvalue"]
+)
+def test_legacy_qvalue_score_entry_without_typed_column(tmp_path, name):
+    """QPX files without a typed q value retain named-list score lookup."""
+    path = tmp_path / "legacy.parquet"
+    make_scored_qpx_parquet(str(path))
+    table = pq.read_table(path)
+    scores = [
+        [{"score_name": name, "score_value": value, "higher_better": False}]
+        for value in [0.01, 0.2]
+    ]
+    table = table.set_column(
+        table.schema.get_field_index("additional_scores"),
+        "additional_scores",
+        pa.array(scores),
+    )
+    pq.write_table(table, path)
+    builder = qpx_feature.SQLFilterBuilder(
+        named_score_name=name, named_score_threshold=0.05
+    )
+    feature = qpx_feature.Feature(str(path), builder)
+    try:
+        assert feature.get_report_from_database(feature.samples)[
+            "sequence"
+        ].tolist() == ["PEPTIDEA"]
+    finally:
+        feature.parquet_db.close()

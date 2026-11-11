@@ -74,8 +74,7 @@ def test_bundled_knowledge_exposes_dataset_summaries_without_promoting_them() ->
         # The general preset did not beat Mokume's default after its selection.
         (None, []),
         ("maxlfq", ["grid-lfq-maxlfq-preset"]),
-        # The top3 preset did not beat top3 with default downstream settings.
-        ("top3", []),
+        ("top3", ["grid-lfq-top3-preset"]),
     ],
 )
 def test_declared_quantification_selects_its_grid_preset(

@@ -11,11 +11,11 @@ sources:
     kind: cross_dataset_ground_truth_benchmark
     title: Mokume spike-in Grid benchmark (mokumebench, 86 datasets, 32 studies)
     locator: sources/spike-in-mokumebench
-    captured_at: '2026-11-06'
+    captured_at: '2026-11-08'
     trust: locally_reproduced_ground_truth
     status: benchmark_candidates_not_published
     artifacts:
-      datasets.yaml: 7a3869a95995d457c7c7d480c54784f80e9ccf996fca8f4c471deff13d0068f8
+      datasets.yaml: e4cdfeed7b4ca5d49a48ceb23a70577b1acec1b7c79902604ff496ff236a2c7d
   - id: cptac-mokumebench
     kind: cross_study_consistency_benchmark
     title: Mokume CPTAC TMT Grid benchmark (mokumebench, CDAP PSM reports, 24 PDC studies)
@@ -96,6 +96,8 @@ evidence:
       - There is no per-gene truth; a configuration is scored by how well its calls and log2FC agree with
         the same configuration on the other studies, after gates of at most 1% false-positive calls on
         null contrasts and a mean absolute median log2FC of at most 0.2 on the real contrast.
+      - Because each study is scored against the other studies, the studies are not independent, so the
+        default gate's p-values, which treat them as independent, are optimistic.
       - Configurations with batch correction, a protein filter or feature-level hierarchical normalization
         are left out because the service cannot run them; overall_best_config is the best configuration
         with them included.
@@ -110,7 +112,7 @@ evidence:
     status: candidate_for_review
     confidence: low
     priority: 13
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: TMT
       setting: CDAP_TMT_CompRef
@@ -126,7 +128,7 @@ evidence:
       quantification: directlfq
       normalization: median
       imputation: impseqrob
-      de_method: limrots
+      de_method: rots
       fdr_method: bh
       log2fc_threshold: 0.584963
       ensemble: none
@@ -138,35 +140,35 @@ evidence:
       gated_service_candidates: 62
       fp_gate: 0.01
       shift_gate: 0.2
-      mean_fp_rate: 6.0e-06
-      mean_f1: 0.758
+      mean_fp_rate: 2.0e-06
+      mean_f1: 0.7578
       mean_spearman: 0.8643
-      mean_study_deficit: 0.0017
+      mean_study_deficit: 0.0019
       median_study_deficit: 0.0016
-      iqr_study_deficit: 0.002
+      iqr_study_deficit: 0.0018
       near_best: 0.01
       near_best_rate: 1.0
       tied_at_best: 1
-      position_in_general_ranking: 17
+      position_in_general_ranking: 18
       general_ranking_size: 310
       overall_best_config: maxlfq|median|impseq|combat|half|limma
       lodo_unit: study
       lodo_folds: 12
-      lodo_folds_selecting_preset: 8
+      lodo_folds_selecting_preset: 0
       lodo_near_best_rate: 0.9167
       mean_lodo_regret: 0.002742
       max_lodo_regret: 0.010287
       mean_lodo_rank_spearman: 0.766
       default_comparator: directlfq|none|none|none|none|deqms
       default_gate_candidates: 61
-      mean_gain_over_default: 0.011
+      mean_gain_over_default: 0.0108
       studies_improved_over_default: 12
-      default_gate_t: 2.371
-      default_gate_p: 0.0525
+      default_gate_t: 2.447
+      default_gate_p: 0.0415
       default_gate_p_any: 0.0005
       default_gate_min_p: 0.000244
       default_gate_proven_candidates: 8
-      proven_better_than_default: false
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark data are the 12 isobaric CPTAC CompRef studies (basal-like and luminal breast cancer
@@ -175,13 +177,16 @@ evidence:
       - There is no per-gene truth; a configuration is scored by how well its calls and log2FC agree with
         the same configuration on the other studies, after gates of at most 1% false-positive calls on
         null contrasts and a mean absolute median log2FC of at most 0.2 on the real contrast.
+      - Because each study is scored against the other studies, the studies are not independent, so the
+        default gate's p-values, which treat them as independent, are optimistic.
       - Configurations with batch correction, a protein filter or feature-level hierarchical normalization
         are left out because the service cannot run them; overall_best_config is the best configuration
         with them included.
       - Applies only to protein matrices quantified with directlfq; near-best and held-out rates compare
         only directlfq configurations.
-      - Not proven better than directlfq|none|none|none|none|deqms after selection from 61 candidates
-        (studentized gain 2.37, step-down sign-flip p 0.052 at alpha 0.05), so it is not used as a prior.
+      - The best-ranked of the 8 candidates proven better than directlfq|none|none|none|none|deqms; the
+        best-ranked candidate, directlfq|median|impseqrob|none|none|limrots, is not proven, and the leave-one-study-out
+        metrics evaluate choosing the best-ranked candidate without the gate.
   - id: cptac-compref-maxlfq-preset
     source_id: cptac-mokumebench
     kind: quantification_preset
@@ -253,6 +258,8 @@ evidence:
       - There is no per-gene truth; a configuration is scored by how well its calls and log2FC agree with
         the same configuration on the other studies, after gates of at most 1% false-positive calls on
         null contrasts and a mean absolute median log2FC of at most 0.2 on the real contrast.
+      - Because each study is scored against the other studies, the studies are not independent, so the
+        default gate's p-values, which treat them as independent, are optimistic.
       - Configurations with batch correction, a protein filter or feature-level hierarchical normalization
         are left out because the service cannot run them; overall_best_config is the best configuration
         with them included.
@@ -329,6 +336,8 @@ evidence:
       - There is no per-gene truth; a configuration is scored by how well its calls and log2FC agree with
         the same configuration on the other studies, after gates of at most 1% false-positive calls on
         null contrasts and a mean absolute median log2FC of at most 0.2 on the real contrast.
+      - Because each study is scored against the other studies, the studies are not independent, so the
+        default gate's p-values, which treat them as independent, are optimistic.
       - Configurations with batch correction, a protein filter or feature-level hierarchical normalization
         are left out because the service cannot run them; overall_best_config is the best configuration
         with them included.
@@ -405,6 +414,8 @@ evidence:
       - There is no per-gene truth; a configuration is scored by how well its calls and log2FC agree with
         the same configuration on the other studies, after gates of at most 1% false-positive calls on
         null contrasts and a mean absolute median log2FC of at most 0.2 on the real contrast.
+      - Because each study is scored against the other studies, the studies are not independent, so the
+        default gate's p-values, which treat them as independent, are optimistic.
       - Configurations with batch correction, a protein filter or feature-level hierarchical normalization
         are left out because the service cannot run them; overall_best_config is the best configuration
         with them included.
@@ -481,6 +492,8 @@ evidence:
       - There is no per-gene truth; a configuration is scored by how well its calls and log2FC agree with
         the same configuration on the other studies, after gates of at most 1% false-positive calls on
         null contrasts and a mean absolute median log2FC of at most 0.2 on the real contrast.
+      - Because each study is scored against the other studies, the studies are not independent, so the
+        default gate's p-values, which treat them as independent, are optimistic.
       - Configurations with batch correction, a protein filter or feature-level hierarchical normalization
         are left out because the service cannot run them; overall_best_config is the best configuration
         with them included.
@@ -1209,7 +1222,7 @@ evidence:
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: LFQ
       setting: quantms_LFQ_DDA
@@ -1230,7 +1243,7 @@ evidence:
     pipeline:
       quantification: pibaq
       normalization: none
-      imputation: minprob
+      imputation: seqknn
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
@@ -1241,33 +1254,33 @@ evidence:
       datasets: 39
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 78
-      mean_study_deficit: 0.1198
-      median_study_deficit: 0.1086
-      iqr_study_deficit: 0.0975
+      mean_study_deficit: 0.121
+      median_study_deficit: 0.1003
+      iqr_study_deficit: 0.1089
       near_best: 0.01
-      near_best_rate: 0.2222
+      near_best_rate: 0.4444
       top_fraction: 0.05
-      top_rate: 0.1111
-      mean_score_a: 0.7789
+      top_rate: 0.2778
+      mean_score_a: 0.7781
       mean_coverage: 0.9922
       overall_best_config: directlfq|none|mindet|half|deqms
       lodo_unit: study
       lodo_folds: 18
-      lodo_folds_selecting_preset: 12
+      lodo_folds_selecting_preset: 3
       lodo_near_best_rate: 0.0556
       mean_lodo_regret: 0.0583
       max_lodo_regret: 0.195896
       mean_lodo_rank_spearman: 0.488
       default_comparator: pibaq|none|none|none|deqms
       default_gate_candidates: 77
-      mean_gain_over_default: 0.0164
-      studies_improved_over_default: 13
-      default_gate_t: 2.899
-      default_gate_p: 0.0589
+      mean_gain_over_default: 0.0152
+      studies_improved_over_default: 15
+      default_gate_t: 3.304
+      default_gate_p: 0.0234
       default_gate_p_any: 0.0234
       default_gate_min_p: 4.0e-06
       default_gate_proven_candidates: 1
-      proven_better_than_default: false
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
@@ -1275,8 +1288,9 @@ evidence:
         only pibaq configurations.
       - piBAQ matrices scored well below DirectLFQ and MaxLFQ matrices.
       - Median normalization and no normalization scored almost the same.
-      - Not proven better than pibaq|none|none|none|deqms after selection from 77 candidates (studentized
-        gain 2.90, step-down sign-flip p 0.059 at alpha 0.05), so it is not used as a prior.
+      - The best-ranked of the 1 candidates proven better than pibaq|none|none|none|deqms; the best-ranked
+        candidate, pibaq|none|minprob|none|deqms, is not proven, and the leave-one-study-out metrics evaluate
+        choosing the best-ranked candidate without the gate.
   - id: grid-lfq-sum-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
@@ -1355,7 +1369,7 @@ evidence:
     status: candidate_for_review
     confidence: low
     priority: 11
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: LFQ
       setting: quantms_LFQ_DDA
@@ -1375,8 +1389,8 @@ evidence:
       missing_rate: [0.124348, 0.561861]
     pipeline:
       quantification: top3
-      normalization: median
-      imputation: minprob
+      normalization: none
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
@@ -1387,49 +1401,51 @@ evidence:
       datasets: 39
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 78
-      mean_study_deficit: 0.1362
-      median_study_deficit: 0.1209
-      iqr_study_deficit: 0.0475
+      mean_study_deficit: 0.1399
+      median_study_deficit: 0.1152
+      iqr_study_deficit: 0.0797
       near_best: 0.01
-      near_best_rate: 0.2222
+      near_best_rate: 0.2778
       top_fraction: 0.05
-      top_rate: 0.1111
-      mean_score_a: 0.7541
+      top_rate: 0.2222
+      mean_score_a: 0.7585
       mean_coverage: 0.751
       overall_best_config: directlfq|none|mindet|half|deqms
       lodo_unit: study
       lodo_folds: 18
-      lodo_folds_selecting_preset: 15
+      lodo_folds_selecting_preset: 3
       lodo_near_best_rate: 0.2222
       mean_lodo_regret: 0.051872
       max_lodo_regret: 0.226423
       mean_lodo_rank_spearman: 0.369
       default_comparator: top3|none|none|none|deqms
       default_gate_candidates: 77
-      mean_gain_over_default: 0.0334
-      studies_improved_over_default: 15
-      default_gate_t: 1.9
-      default_gate_p: 0.3969
+      mean_gain_over_default: 0.0298
+      studies_improved_over_default: 14
+      default_gate_t: 3.299
+      default_gate_p: 0.0312
       default_gate_p_any: 0.0113
       default_gate_min_p: 4.0e-06
       default_gate_proven_candidates: 2
-      proven_better_than_default: false
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DDA data were searched and quantified with quantms and converted to QPX.
       - Applies only to protein matrices quantified with top3; near-best, top and held-out rates compare
         only top3 configurations.
       - Top3 matrices scored lowest of the five quantification methods.
-      - Median normalization improved the scores.
-      - Not proven better than top3|none|none|none|deqms after selection from 77 candidates (studentized
-        gain 1.90, step-down sign-flip p 0.397 at alpha 0.05), so it is not used as a prior.
+      - Median normalization raised the mean scores, but no top3 configuration with it was proven better
+        than the default.
+      - The best-ranked of the 2 candidates proven better than top3|none|none|none|deqms; the best-ranked
+        candidate, top3|median|minprob|none|deqms, is not proven, and the leave-one-study-out metrics
+        evaluate choosing the best-ranked candidate without the gate.
   - id: grid-dia-preset
     source_id: spike-in-mokumebench
     kind: setting_preset
     status: candidate_for_review
     confidence: moderate
     priority: 10
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1446,9 +1462,9 @@ evidence:
         PXD056598_DIA__G_ulti_ex_DIA_PYE1, PXD056598_DIA__H_ulti_ecl_DIA_PYE1, PXD056598_DIA__H_ulti_ex_DIA_PYE1,
         PXD056598_DIA__I_nLC_ex_DIA_PYE1, PXD056832__HYEPept_Batch1, PXD056832__HYEPept_Batch2, PXD056832__HYEPept_Batch3,
         PXD062685, PXD066672, PXD070049, PXD071205_TE__TE_15min_50ng, PXD071205_TE__TE_5min_50ng]
-      n_proteins: [2266, 15652]
+      n_proteins: [2072, 14329]
       n_samples: [6, 16]
-      missing_rate: [0.031154, 0.261076]
+      missing_rate: [0.031049, 0.281615]
     pipeline:
       quantification: directlfq
       normalization: none
@@ -1463,33 +1479,33 @@ evidence:
       datasets: 38
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 390
-      mean_study_deficit: 0.0363
-      median_study_deficit: 0.0254
-      iqr_study_deficit: 0.0145
+      mean_study_deficit: 0.0341
+      median_study_deficit: 0.0207
+      iqr_study_deficit: 0.0232
       near_best: 0.01
       near_best_rate: 0.5
       top_fraction: 0.05
       top_rate: 0.5
-      mean_score_a: 0.8953
-      mean_coverage: 0.745
+      mean_score_a: 0.9212
+      mean_coverage: 0.7847
       overall_best_config: maxlfq|hierarchical|mindet|none|deqms
       lodo_unit: study
       lodo_folds: 14
-      lodo_folds_selecting_preset: 6
-      lodo_near_best_rate: 0.0714
-      mean_lodo_regret: 0.035269
-      max_lodo_regret: 0.104318
-      mean_lodo_rank_spearman: 0.538
+      lodo_folds_selecting_preset: 13
+      lodo_near_best_rate: 0.4286
+      mean_lodo_regret: 0.027369
+      max_lodo_regret: 0.110511
+      mean_lodo_rank_spearman: 0.443
       default_comparator: maxlfq|hierarchical|none|none|deqms
       default_gate_candidates: 390
-      mean_gain_over_default: 0.026
-      studies_improved_over_default: 10
-      default_gate_t: 2.306
-      default_gate_p: 0.2438
-      default_gate_p_any: 0.2371
+      mean_gain_over_default: 0.046
+      studies_improved_over_default: 14
+      default_gate_t: 3.457
+      default_gate_p: 0.0443
+      default_gate_p_any: 0.0181
       default_gate_min_p: 6.1e-05
-      default_gate_proven_candidates: 0
-      proven_better_than_default: false
+      default_gate_proven_candidates: 3
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1497,15 +1513,13 @@ evidence:
       - maxlfq and directlfq with mindet and DEqMS are tied within the bootstrap interval; OpDEA's DIA-NN
         workflow (maxlfq, no normalization, mindet, limma) did as well on held-out studies.
       - DirectLFQ's internal normalization hurt designs where many proteins change (PXD036786, PXD046444).
-      - Not proven better than maxlfq|hierarchical|none|none|deqms after selection from 390 candidates
-        (studentized gain 2.31, step-down sign-flip p 0.244 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-directlfq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1522,9 +1536,9 @@ evidence:
         PXD056598_DIA__G_ulti_ex_DIA_PYE1, PXD056598_DIA__H_ulti_ecl_DIA_PYE1, PXD056598_DIA__H_ulti_ex_DIA_PYE1,
         PXD056598_DIA__I_nLC_ex_DIA_PYE1, PXD056832__HYEPept_Batch1, PXD056832__HYEPept_Batch2, PXD056832__HYEPept_Batch3,
         PXD062685, PXD066672, PXD070049, PXD071205_TE__TE_15min_50ng, PXD071205_TE__TE_5min_50ng]
-      n_proteins: [2266, 15652]
+      n_proteins: [2072, 14329]
       n_samples: [6, 16]
-      missing_rate: [0.031154, 0.261076]
+      missing_rate: [0.031049, 0.281615]
     pipeline:
       quantification: directlfq
       normalization: none
@@ -1539,33 +1553,33 @@ evidence:
       datasets: 38
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 78
-      mean_study_deficit: 0.0363
-      median_study_deficit: 0.0254
-      iqr_study_deficit: 0.0145
+      mean_study_deficit: 0.0341
+      median_study_deficit: 0.0207
+      iqr_study_deficit: 0.0232
       near_best: 0.01
-      near_best_rate: 0.7143
+      near_best_rate: 0.6429
       top_fraction: 0.05
-      top_rate: 0.2857
-      mean_score_a: 0.8953
-      mean_coverage: 0.745
+      top_rate: 0.3571
+      mean_score_a: 0.9212
+      mean_coverage: 0.7847
       overall_best_config: maxlfq|hierarchical|mindet|none|deqms
       lodo_unit: study
       lodo_folds: 14
-      lodo_folds_selecting_preset: 13
+      lodo_folds_selecting_preset: 14
       lodo_near_best_rate: 0.6429
-      mean_lodo_regret: 0.008983
-      max_lodo_regret: 0.026253
-      mean_lodo_rank_spearman: 0.422
+      mean_lodo_regret: 0.008018
+      max_lodo_regret: 0.020831
+      mean_lodo_rank_spearman: 0.436
       default_comparator: directlfq|none|none|none|deqms
       default_gate_candidates: 77
-      mean_gain_over_default: 0.0297
+      mean_gain_over_default: 0.0482
       studies_improved_over_default: 13
-      default_gate_t: 2.714
-      default_gate_p: 0.0547
-      default_gate_p_any: 0.0508
+      default_gate_t: 3.65
+      default_gate_p: 0.0074
+      default_gate_p_any: 0.0015
       default_gate_min_p: 6.1e-05
-      default_gate_proven_candidates: 0
-      proven_better_than_default: false
+      default_gate_proven_candidates: 5
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1573,15 +1587,13 @@ evidence:
         compare only directlfq configurations.
       - minprob imputation scored almost as well as mindet.
       - DirectLFQ's internal normalization hurt designs where many proteins change (PXD036786, PXD046444).
-      - Not proven better than directlfq|none|none|none|deqms after selection from 77 candidates (studentized
-        gain 2.71, step-down sign-flip p 0.055 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-maxlfq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1598,9 +1610,9 @@ evidence:
         PXD056598_DIA__G_ulti_ex_DIA_PYE1, PXD056598_DIA__H_ulti_ecl_DIA_PYE1, PXD056598_DIA__H_ulti_ex_DIA_PYE1,
         PXD056598_DIA__I_nLC_ex_DIA_PYE1, PXD056832__HYEPept_Batch1, PXD056832__HYEPept_Batch2, PXD056832__HYEPept_Batch3,
         PXD062685, PXD066672, PXD070049, PXD071205_TE__TE_15min_50ng, PXD071205_TE__TE_5min_50ng]
-      n_proteins: [2263, 15536]
+      n_proteins: [2071, 14268]
       n_samples: [6, 16]
-      missing_rate: [0.03068, 0.246267]
+      missing_rate: [0.030893, 0.275691]
     pipeline:
       quantification: maxlfq
       normalization: none
@@ -1615,48 +1627,46 @@ evidence:
       datasets: 38
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 78
-      mean_study_deficit: 0.0367
-      median_study_deficit: 0.0339
-      iqr_study_deficit: 0.0234
+      mean_study_deficit: 0.0366
+      median_study_deficit: 0.0316
+      iqr_study_deficit: 0.0226
       near_best: 0.01
-      near_best_rate: 0.6429
+      near_best_rate: 0.7143
       top_fraction: 0.05
       top_rate: 0.2857
-      mean_score_a: 0.8909
-      mean_coverage: 0.739
+      mean_score_a: 0.9159
+      mean_coverage: 0.7784
       overall_best_config: maxlfq|hierarchical|mindet|none|deqms
       lodo_unit: study
       lodo_folds: 14
       lodo_folds_selecting_preset: 13
-      lodo_near_best_rate: 0.5714
-      mean_lodo_regret: 0.01194
-      max_lodo_regret: 0.052564
-      mean_lodo_rank_spearman: 0.402
+      lodo_near_best_rate: 0.6429
+      mean_lodo_regret: 0.01187
+      max_lodo_regret: 0.042005
+      mean_lodo_rank_spearman: 0.433
       default_comparator: maxlfq|none|none|none|deqms
       default_gate_candidates: 77
-      mean_gain_over_default: 0.0284
+      mean_gain_over_default: 0.0447
       studies_improved_over_default: 13
-      default_gate_t: 2.625
-      default_gate_p: 0.0668
-      default_gate_p_any: 0.0511
+      default_gate_t: 3.308
+      default_gate_p: 0.0167
+      default_gate_p_any: 0.0007
       default_gate_min_p: 6.1e-05
-      default_gate_proven_candidates: 0
-      proven_better_than_default: false
+      default_gate_proven_candidates: 6
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
       - Applies only to protein matrices quantified with maxlfq; near-best, top and held-out rates compare
         only maxlfq configurations.
       - minprob imputation scored almost as well as mindet; limma trailed DEqMS.
-      - Not proven better than maxlfq|none|none|none|deqms after selection from 77 candidates (studentized
-        gain 2.63, step-down sign-flip p 0.067 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-pibaq-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1673,13 +1683,13 @@ evidence:
         PXD056598_DIA__G_ulti_ex_DIA_PYE1, PXD056598_DIA__H_ulti_ecl_DIA_PYE1, PXD056598_DIA__H_ulti_ex_DIA_PYE1,
         PXD056598_DIA__I_nLC_ex_DIA_PYE1, PXD056832__HYEPept_Batch1, PXD056832__HYEPept_Batch2, PXD056832__HYEPept_Batch3,
         PXD062685, PXD066672, PXD070049, PXD071205_TE__TE_15min_50ng, PXD071205_TE__TE_5min_50ng]
-      n_proteins: [2727, 20494]
+      n_proteins: [2380, 16901]
       n_samples: [6, 16]
-      missing_rate: [0.077293, 0.353444]
+      missing_rate: [0.057526, 0.346678]
     pipeline:
       quantification: pibaq
       normalization: none
-      imputation: minprob
+      imputation: seqknn
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
@@ -1690,33 +1700,33 @@ evidence:
       datasets: 38
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 78
-      mean_study_deficit: 0.0858
-      median_study_deficit: 0.0783
-      iqr_study_deficit: 0.0516
+      mean_study_deficit: 0.0728
+      median_study_deficit: 0.071
+      iqr_study_deficit: 0.0525
       near_best: 0.01
-      near_best_rate: 0.2857
+      near_best_rate: 0.1429
       top_fraction: 0.05
-      top_rate: 0.0714
-      mean_score_a: 0.8471
-      mean_coverage: 0.997
+      top_rate: 0.0
+      mean_score_a: 0.882
+      mean_coverage: 0.9976
       overall_best_config: maxlfq|hierarchical|mindet|none|deqms
       lodo_unit: study
       lodo_folds: 14
-      lodo_folds_selecting_preset: 14
-      lodo_near_best_rate: 0.2857
-      mean_lodo_regret: 0.025855
-      max_lodo_regret: 0.091261
-      mean_lodo_rank_spearman: 0.193
+      lodo_folds_selecting_preset: 0
+      lodo_near_best_rate: 0.1429
+      mean_lodo_regret: 0.027877
+      max_lodo_regret: 0.098216
+      mean_lodo_rank_spearman: 0.235
       default_comparator: pibaq|none|none|none|deqms
       default_gate_candidates: 77
-      mean_gain_over_default: 0.0131
-      studies_improved_over_default: 9
-      default_gate_t: 1.828
-      default_gate_p: 0.3174
-      default_gate_p_any: 0.3017
+      mean_gain_over_default: 0.0208
+      studies_improved_over_default: 14
+      default_gate_t: 3.58
+      default_gate_p: 0.0068
+      default_gate_p_any: 0.0031
       default_gate_min_p: 6.1e-05
-      default_gate_proven_candidates: 0
-      proven_better_than_default: false
+      default_gate_proven_candidates: 4
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1724,15 +1734,16 @@ evidence:
         only pibaq configurations.
       - mindet imputation scored almost as well as minprob.
       - piBAQ matrices scored well below DirectLFQ and MaxLFQ matrices.
-      - Not proven better than pibaq|none|none|none|deqms after selection from 77 candidates (studentized
-        gain 1.83, step-down sign-flip p 0.317 at alpha 0.05), so it is not used as a prior.
+      - The best-ranked of the 4 candidates proven better than pibaq|none|none|none|deqms; the best-ranked
+        candidate, pibaq|none|minprob|none|deqms, is not proven, and the leave-one-study-out metrics evaluate
+        choosing the best-ranked candidate without the gate.
   - id: grid-dia-sum-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1749,9 +1760,9 @@ evidence:
         PXD056598_DIA__G_ulti_ex_DIA_PYE1, PXD056598_DIA__H_ulti_ecl_DIA_PYE1, PXD056598_DIA__H_ulti_ex_DIA_PYE1,
         PXD056598_DIA__I_nLC_ex_DIA_PYE1, PXD056832__HYEPept_Batch1, PXD056832__HYEPept_Batch2, PXD056832__HYEPept_Batch3,
         PXD062685, PXD066672, PXD070049, PXD071205_TE__TE_15min_50ng, PXD071205_TE__TE_5min_50ng]
-      n_proteins: [2305, 16160]
+      n_proteins: [2111, 14622]
       n_samples: [6, 16]
-      missing_rate: [0.050962, 0.324217]
+      missing_rate: [0.046159, 0.324798]
     pipeline:
       quantification: sum
       normalization: none
@@ -1766,33 +1777,33 @@ evidence:
       datasets: 38
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 78
-      mean_study_deficit: 0.0849
-      median_study_deficit: 0.0839
-      iqr_study_deficit: 0.0449
+      mean_study_deficit: 0.0618
+      median_study_deficit: 0.0599
+      iqr_study_deficit: 0.0352
       near_best: 0.01
-      near_best_rate: 0.3571
+      near_best_rate: 0.2857
       top_fraction: 0.05
-      top_rate: 0.1429
-      mean_score_a: 0.8453
-      mean_coverage: 0.773
+      top_rate: 0.2857
+      mean_score_a: 0.8894
+      mean_coverage: 0.8148
       overall_best_config: maxlfq|hierarchical|mindet|none|deqms
       lodo_unit: study
       lodo_folds: 14
       lodo_folds_selecting_preset: 14
-      lodo_near_best_rate: 0.3571
-      mean_lodo_regret: 0.022136
-      max_lodo_regret: 0.091294
-      mean_lodo_rank_spearman: 0.245
+      lodo_near_best_rate: 0.2857
+      mean_lodo_regret: 0.014993
+      max_lodo_regret: 0.03578
+      mean_lodo_rank_spearman: 0.406
       default_comparator: sum|none|none|none|deqms
       default_gate_candidates: 77
-      mean_gain_over_default: 0.0275
-      studies_improved_over_default: 12
-      default_gate_t: 2.478
-      default_gate_p: 0.1161
-      default_gate_p_any: 0.1161
+      mean_gain_over_default: 0.0455
+      studies_improved_over_default: 13
+      default_gate_t: 3.3
+      default_gate_p: 0.0107
+      default_gate_p_any: 0.0007
       default_gate_min_p: 6.1e-05
-      default_gate_proven_candidates: 0
-      proven_better_than_default: false
+      default_gate_proven_candidates: 6
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1800,15 +1811,13 @@ evidence:
         only sum configurations.
       - The best normalization, imputation and DE method matched those of DirectLFQ and MaxLFQ.
       - Sum matrices scored well below DirectLFQ and MaxLFQ matrices.
-      - Not proven better than sum|none|none|none|deqms after selection from 77 candidates (studentized
-        gain 2.48, step-down sign-flip p 0.116 at alpha 0.05), so it is not used as a prior.
   - id: grid-dia-top3-preset
     source_id: spike-in-mokumebench
     kind: quantification_preset
     status: candidate_for_review
     confidence: moderate
     priority: 11
-    eligible_as_prior: false
+    eligible_as_prior: true
     applicability:
       data_type: DIA
       setting: quantmsdiann_LFQ_DIA
@@ -1825,13 +1834,13 @@ evidence:
         PXD056598_DIA__G_ulti_ex_DIA_PYE1, PXD056598_DIA__H_ulti_ecl_DIA_PYE1, PXD056598_DIA__H_ulti_ex_DIA_PYE1,
         PXD056598_DIA__I_nLC_ex_DIA_PYE1, PXD056832__HYEPept_Batch1, PXD056832__HYEPept_Batch2, PXD056832__HYEPept_Batch3,
         PXD062685, PXD066672, PXD070049, PXD071205_TE__TE_15min_50ng, PXD071205_TE__TE_5min_50ng]
-      n_proteins: [2305, 16160]
+      n_proteins: [2111, 14622]
       n_samples: [6, 16]
-      missing_rate: [0.050962, 0.324217]
+      missing_rate: [0.046159, 0.324798]
     pipeline:
       quantification: top3
       normalization: none
-      imputation: mindet
+      imputation: seqknn
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
@@ -1842,33 +1851,33 @@ evidence:
       datasets: 38
       candidates_per_dataset: 1410
       service_candidates_per_dataset: 78
-      mean_study_deficit: 0.1094
-      median_study_deficit: 0.1071
-      iqr_study_deficit: 0.0476
+      mean_study_deficit: 0.0979
+      median_study_deficit: 0.1021
+      iqr_study_deficit: 0.06
       near_best: 0.01
-      near_best_rate: 0.2857
+      near_best_rate: 0.0714
       top_fraction: 0.05
-      top_rate: 0.1429
-      mean_score_a: 0.8209
-      mean_coverage: 0.773
+      top_rate: 0.0
+      mean_score_a: 0.8518
+      mean_coverage: 0.8148
       overall_best_config: maxlfq|hierarchical|mindet|none|deqms
       lodo_unit: study
       lodo_folds: 14
-      lodo_folds_selecting_preset: 14
+      lodo_folds_selecting_preset: 0
       lodo_near_best_rate: 0.2857
-      mean_lodo_regret: 0.021485
-      max_lodo_regret: 0.087719
-      mean_lodo_rank_spearman: 0.274
+      mean_lodo_regret: 0.032527
+      max_lodo_regret: 0.255063
+      mean_lodo_rank_spearman: 0.405
       default_comparator: top3|none|none|none|deqms
       default_gate_candidates: 77
-      mean_gain_over_default: 0.0263
-      studies_improved_over_default: 12
-      default_gate_t: 2.506
-      default_gate_p: 0.1041
-      default_gate_p_any: 0.1041
+      mean_gain_over_default: 0.0258
+      studies_improved_over_default: 13
+      default_gate_t: 4.045
+      default_gate_p: 0.0038
+      default_gate_p_any: 0.0038
       default_gate_min_p: 6.1e-05
-      default_gate_proven_candidates: 0
-      proven_better_than_default: false
+      default_gate_proven_candidates: 2
+      proven_better_than_default: true
     limitations:
       - Candidate preset has not been published as a Mokume default.
       - Benchmark DIA data were quantified with DIA-NN through quantmsdiann and converted to QPX.
@@ -1876,8 +1885,9 @@ evidence:
         only top3 configurations.
       - The best normalization, imputation and DE method matched those of DirectLFQ and MaxLFQ.
       - Top3 matrices scored lowest of the five quantification methods.
-      - Not proven better than top3|none|none|none|deqms after selection from 77 candidates (studentized
-        gain 2.51, step-down sign-flip p 0.104 at alpha 0.05), so it is not used as a prior.
+      - The best-ranked of the 2 candidates proven better than top3|none|none|none|deqms; the best-ranked
+        candidate, top3|none|mindet|none|deqms, is not proven, and the leave-one-study-out metrics evaluate
+        choosing the best-ranked candidate without the gate.
   - id: grid-tmt-preset
     source_id: spike-in-mokumebench
     kind: setting_preset

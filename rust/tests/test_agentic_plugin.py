@@ -508,8 +508,8 @@ def test_bundled_knowledge_rejects_nonfinite_profile_ranges(tmp_path: Path) -> N
     shutil.copytree(KNOWLEDGE_BUNDLE, copied)
     knowledge = copied / "knowledge.yaml"
     contents = knowledge.read_text(encoding="utf-8").replace(
-        "missing_rate: [0.03068, 0.246267]",
-        "missing_rate: [.nan, 0.246267]",
+        "missing_rate: [0.030893, 0.275691]",
+        "missing_rate: [.nan, 0.275691]",
         1,
     )
     knowledge.write_text(contents, encoding="utf-8")

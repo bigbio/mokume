@@ -6,6 +6,8 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from mokume.mokume_cli import cli
+from mokume.commands.features2proteins import features2proteins
+from mokume.commands.features2peptides import features2parquet
 
 
 def _patch_peptide_normalization(monkeypatch):
@@ -237,3 +239,31 @@ def test_named_score_cli_rejects_ambiguous_value(tmp_path: Path):
 
     assert result.exit_code != 0
     assert "expected NAME=THRESHOLD" in result.output
+
+
+def test_run_and_sdrf_conflict_before_reading(tmp_path):
+    """Both commands reach pipeline validation before reading input."""
+
+    feature_path = tmp_path / "feature.parquet"
+    feature_path.touch()
+    sdrf = tmp_path / "samples.tsv"
+    sdrf.touch()
+    run_path = tmp_path / "run.parquet"
+    run_path.touch()
+    for command in [features2proteins, features2parquet]:
+        result = CliRunner().invoke(
+            command,
+            [
+                "-p",
+                str(feature_path),
+                "-o",
+                str(tmp_path / "out.csv"),
+                "--sdrf",
+                str(sdrf),
+                "--run",
+                str(run_path),
+            ],
+        )
+        assert result.exit_code != 0
+        assert isinstance(result.exception, ValueError)
+        assert str(result.exception) == "--run conflicts with --sdrf"

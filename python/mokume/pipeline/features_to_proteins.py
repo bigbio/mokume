@@ -671,6 +671,7 @@ def features_to_proteins(
     msstats: Optional[str] = None,
     maxlfq_min_ratio_count: int = 2,
     stabilize: bool = False,
+    run: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Quantify proteins from QPX feature parquet or legacy SDRF+MSstats data.
@@ -794,6 +795,7 @@ def features_to_proteins(
         input=InputConfig(
             parquet=parquet,
             sdrf=sdrf,
+            run=run,
             fasta_file=fasta_file,
             msstats=msstats,
         ),

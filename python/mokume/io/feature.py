@@ -20,6 +20,7 @@ from mokume.core.constants import load_sdrf
 from mokume.core.logger import get_logger
 from mokume.io._protein_groups import create_group_view
 from mokume.io._qpx import measured_intensity_clause, resolve_score_source
+from mokume.io.run import load_run
 from mokume.io.msstats import create_msstats_feature_table
 
 logger = get_logger("mokume.io.feature")
@@ -674,7 +675,7 @@ class Feature:
             "sample_accession, condition and mixture would be NULL."
         )
 
-    def _create_unnest_view(self) -> None:
+    def _create_unnest_view(self, view_name="parquet_db") -> None:
         """Create the long-format DuckDB view by unnesting intensities."""
         if self._is_new_qpx:
             # LFQ: the intensity's owning run is its label (keep run_file_name only
@@ -723,7 +724,7 @@ class Feature:
         self.parquet_db.execute(
             "".join(
                 [
-                    "CREATE VIEW parquet_db AS SELECT",
+                    f"CREATE VIEW {view_name} AS SELECT",
                     " sequence, peptidoform, ",
                     pg_expr,
                     ",",
@@ -754,6 +755,41 @@ class Feature:
                 ]
             )
         )
+
+    def enrich_with_run(self, run_path: str) -> pd.DataFrame:
+        """Map measured entries by exact run and label, without SDRF aliases."""
+        run_table = load_run(run_path)
+        mapping = run_table.rename(
+            columns={
+                "comment[data file]": "qpx_run",
+                "comment[label]": "qpx_label",
+                "source name": "mapped_sample",
+                "factor value[condition]": "mapped_condition",
+                "characteristics[biological replicate]": "mapped_bio",
+                "comment[fraction identifier]": "mapped_fraction",
+            }
+        )
+        self.parquet_db.register("run_mapping", mapping)
+        self._create_unnest_view("parquet_db_unmapped")
+        unmatched = self.parquet_db.sql(
+            "SELECT DISTINCT p.run_file_name, p.channel FROM parquet_db_unmapped p "
+            "LEFT JOIN run_mapping m ON p.run_file_name = m.qpx_run AND p.channel = m.qpx_label "
+            "WHERE p.intensity > 0 AND m.mapped_sample IS NULL"
+        ).fetchall()
+        if unmatched:
+            raise ValueError(
+                f"QPX run and label have no exact run view match: {unmatched[:5]}"
+            )
+        self.parquet_db.execute(
+            "CREATE OR REPLACE VIEW parquet_db AS SELECT p.* REPLACE ("
+            "m.mapped_sample AS sample_accession, m.mapped_condition AS condition, "
+            "m.mapped_bio AS biological_replicate, m.mapped_fraction AS fraction, "
+            "p.run_file_name AS run) "
+            "FROM parquet_db_unmapped p LEFT JOIN run_mapping m "
+            "ON p.run_file_name = m.qpx_run AND p.channel = m.qpx_label"
+        )
+        self.samples = list(dict.fromkeys(mapping["mapped_sample"]))
+        return run_table
 
     def enrich_with_sdrf(self, sdrf_path: str) -> None:
         """Enrich parquet data with SDRF metadata (condition, biological_replicate, etc.).

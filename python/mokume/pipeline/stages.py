@@ -407,6 +407,11 @@ class LoadingStage:
             technical_repetitions, label, _sample_names, choice = analyse_sdrf(
                 self.config.input.sdrf
             )
+        elif self.config.input.run:
+            run_table = feature.enrich_with_run(self.config.input.run)
+            technical_repetitions, label, _sample_names, choice = analyse_sdrf(
+                run_table
+            )
         else:
             (
                 technical_repetitions,
@@ -770,6 +775,8 @@ class LoadingStage:
         try:
             if self.config.input.sdrf:
                 feature.enrich_with_sdrf(self.config.input.sdrf)
+            elif self.config.input.run:
+                feature.enrich_with_run(self.config.input.run)
 
             query, filter_params = _build_sqlfirst_load_query(
                 filter_builder,

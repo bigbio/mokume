@@ -101,6 +101,7 @@ def peptide_normalization(
     aggregation_level: str = AGGREGATION_LEVEL_SAMPLE,
     filter_config: Optional["PreprocessingFilterConfig"] = None,
     keep_shared_peptides: bool = False,
+    run: str = None,
 ) -> None:
     """
     Perform peptide normalization on a proteomics dataset.
@@ -186,11 +187,17 @@ def peptide_normalization(
             require_unique=not keep_shared_peptides,
         )
 
+    if sdrf and run:
+        raise ValueError("--run conflicts with --sdrf")
     feature = Feature(parquet, filter_builder=filter_builder)
 
     if sdrf:
         feature.enrich_with_sdrf(sdrf)
         technical_repetitions, label, sample_names, choice = analyse_sdrf(sdrf)
+    elif run:
+        technical_repetitions, label, sample_names, choice = analyse_sdrf(
+            feature.enrich_with_run(run)
+        )
     else:
         technical_repetitions, label, sample_names, choice = (
             feature.experimental_inference

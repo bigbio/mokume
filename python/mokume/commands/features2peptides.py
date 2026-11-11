@@ -364,11 +364,17 @@ def _resolved_filter_thresholds(
     type=click.FloatRange(0.0, 1.0),
     help="Override: maximum missing feature fraction per run",
 )
+@click.option(
+    "--run",
+    type=click.Path(exists=True),
+    help="QPX run.parquet sample mapping; conflicts with --sdrf",
+)
 @click.pass_context
 def features2parquet(
     ctx,
     parquet: str,
     sdrf: str,
+    run: str,
     min_aa: int,
     min_unique: int,
     keep_shared_peptides: bool,
@@ -425,6 +431,7 @@ def features2parquet(
     peptide_normalization(
         parquet=parquet,
         sdrf=sdrf,
+        run=run,
         min_aa=min_aa,
         min_unique=min_unique,
         keep_shared_peptides=keep_shared_peptides,

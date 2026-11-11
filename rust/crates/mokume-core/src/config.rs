@@ -162,6 +162,7 @@ pub struct InputConfig {
     pub msstats: Option<PathBuf>,
     pub psm: Option<PathBuf>,
     pub sdrf: Option<PathBuf>,
+    pub run: Option<PathBuf>,
     pub fasta: Option<PathBuf>,
     /// QPX features quantified in a run without an identification in that run
     /// (match-between-runs transfers).

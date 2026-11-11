@@ -42,11 +42,14 @@ class InputConfig:
 
     parquet: Optional[str] = None
     sdrf: Optional[str] = None
+    run: Optional[str] = None
     fasta_file: Optional[str] = None
     qpx_dir: Optional[str] = None
     msstats: Optional[str] = None
 
     def __post_init__(self) -> None:
+        if self.sdrf is not None and self.run is not None:
+            raise ValueError("--run conflicts with --sdrf")
         if (self.parquet is None) == (self.msstats is None):
             raise ValueError("Provide exactly one input: parquet or msstats")
         if self.msstats is not None and self.sdrf is None:

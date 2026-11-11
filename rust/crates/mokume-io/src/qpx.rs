@@ -766,7 +766,7 @@ fn optional_column_by_names<'a>(
     })
 }
 
-fn required_string_value(array: &dyn Array, row: usize, column: &str) -> Result<String> {
+pub(crate) fn required_string_value(array: &dyn Array, row: usize, column: &str) -> Result<String> {
     optional_string_value(array, row, column)?.ok_or_else(|| {
         invalid_input(format!(
             "required QPX string column `{column}` is null at row {row}"
@@ -774,7 +774,11 @@ fn required_string_value(array: &dyn Array, row: usize, column: &str) -> Result<
     })
 }
 
-fn optional_string_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<String>> {
+pub(crate) fn optional_string_value(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<String>> {
     if array.is_null(row) {
         return Ok(None);
     }
@@ -796,7 +800,11 @@ fn required_i32_value(array: &dyn Array, row: usize, column: &str) -> Result<i32
     })
 }
 
-fn optional_i32_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<i32>> {
+pub(crate) fn optional_i32_value(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<i32>> {
     if array.is_null(row) {
         return Ok(None);
     }
@@ -935,7 +943,11 @@ fn intensity_entries(array: &dyn Array, row: usize) -> Result<Vec<QpxIntensityEn
     Ok(entries)
 }
 
-fn list_row_values(array: &dyn Array, row: usize, column: &str) -> Result<Option<ArrayRef>> {
+pub(crate) fn list_row_values(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<ArrayRef>> {
     if array.is_null(row) {
         return Ok(None);
     }

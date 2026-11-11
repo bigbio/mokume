@@ -456,6 +456,7 @@ fn input_config(args: &Features2ProteinsArgs) -> InputConfig {
         msstats: args.msstats.clone(),
         psm: args.psm.clone(),
         sdrf: args.sdrf.clone(),
+        run: args.run.clone(),
         fasta: args.fasta.clone(),
         transferred_features: if args
             .transferred_features

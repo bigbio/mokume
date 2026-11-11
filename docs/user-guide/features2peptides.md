@@ -48,6 +48,18 @@ The `features2peptides` command normalizes feature-level mass spectrometry data 
     ])
     ```
 
+## QPX run metadata without SDRF
+
+Use `--run experiment.run.parquet` instead of `--sdrf` to map each
+`(run_file_name, label)` exactly onto `run.samples`. This supports TMT/iTRAQ
+channels and LFQ fractions of the same sample. The run view supplies sample
+accessions, fractions and replicate metadata. Each sample forms its own
+condition (`condition = sample_accession`), including across fractions.
+Python infers technical replicate identifiers from run names, as with SDRF.
+Unmatched measured entries are rejected.
+`--run` and `--sdrf` are mutually exclusive. Omitting both preserves the
+existing metadata inference.
+
 ## Processing Steps
 
 The command performs these steps in order:

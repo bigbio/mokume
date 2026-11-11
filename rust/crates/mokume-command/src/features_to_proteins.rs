@@ -52,6 +52,9 @@ pub(crate) struct Features2ProteinsArgs {
     #[arg(short = 's', long = "sdrf", value_name = "FILE")]
     sdrf: Option<PathBuf>,
 
+    #[arg(long = "run", value_name = "FILE", conflicts_with = "sdrf")]
+    run: Option<PathBuf>,
+
     #[arg(
         long = "quant-method",
         default_value = "maxlfq",

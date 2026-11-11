@@ -1,4 +1,4 @@
-use clap::CommandFactory;
+use clap::{CommandFactory, Parser};
 
 use crate::Cli;
 
@@ -378,4 +378,38 @@ fn render_subcommand_help_path(path: &[&str]) -> String {
 fn help_has_option(help: &str, option: &str) -> bool {
     help.split_whitespace()
         .any(|token| token.trim_end_matches(',') == option)
+}
+
+#[test]
+fn run_and_sdrf_sample_maps_are_mutually_exclusive() {
+    for command in ["features2proteins", "features2peptides"] {
+        assert!(Cli::try_parse_from([
+            "mokume",
+            "quantify",
+            command,
+            "--parquet",
+            "features.parquet",
+            "--output",
+            "output.csv",
+            "--run",
+            "run.parquet",
+            "--sdrf",
+            "samples.tsv",
+        ])
+        .is_err());
+    }
+}
+
+#[test]
+fn generated_filter_config_is_exclusive() {
+    let parsed = Cli::try_parse_from([
+        "mokume",
+        "quantify",
+        "features2peptides",
+        "--generate-filter-config",
+        "filters.yaml",
+        "--filter-min-intensity",
+        "10",
+    ]);
+    assert!(parsed.is_err());
 }

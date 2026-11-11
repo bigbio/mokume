@@ -5787,12 +5787,7 @@ fn run_features_to_proteins_inner(
     validate_features_to_proteins(config)?;
     validate_implemented_subset(config)?;
     let memory = initialize_memory_plan(&config.runtime)?;
-    let sdrf = config
-        .input
-        .sdrf
-        .as_ref()
-        .map(SdrfTable::from_path)
-        .transpose()?;
+    let sdrf = input_sample_table(&config.input)?;
     let raw_sdrf = config
         .input
         .sdrf
@@ -6436,12 +6431,7 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
             pipeline.protein.remove_contaminants || pipeline.protein.remove_decoys;
         proteins_config.filtering.min_unique_peptides = pipeline.protein.min_unique_peptides;
     }
-    let sdrf = proteins_config
-        .input
-        .sdrf
-        .as_ref()
-        .map(SdrfTable::from_path)
-        .transpose()?;
+    let sdrf = input_sample_table(&proteins_config.input)?;
     // The median pre-pass mirrors Python's `SQLFilterBuilder`, which removes
     // contaminants on the **raw** `pg_accessions` before computing the median.
     // Route the filter pipeline's custom patterns through (default list -> the
@@ -7332,12 +7322,21 @@ fn validate_features_to_proteins(config: &FeatureToProteinsConfig) -> Result<()>
         &input.msstats,
         &input.psm,
         &input.sdrf,
+        &input.run,
         &input.fasta,
         &config.normalization.normalization_proteins,
     ]
     .into_iter()
     .flatten()
     .try_for_each(|path| require_existing_input(path))
+}
+
+fn input_sample_table(input: &InputConfig) -> Result<Option<SdrfTable>> {
+    match (&input.sdrf, &input.run) {
+        (Some(path), _) => SdrfTable::from_path(path).map(Some),
+        (_, Some(path)) => SdrfTable::from_run_path(path).map(Some),
+        _ => Ok(None),
+    }
 }
 
 fn require_existing_input(path: &Path) -> Result<()> {
@@ -12866,6 +12865,7 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 msstats: None,
                 psm: None,
                 sdrf: None,
+                run: None,
                 fasta: None,
                 transferred_features: TransferredFeatures::Keep,
             },

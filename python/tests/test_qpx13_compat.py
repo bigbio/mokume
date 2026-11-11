@@ -10,6 +10,8 @@ import pytest
 from mokume.core.constants import PEPTIDE_SEQUENCE
 from mokume.io import feature as qpx_feature
 from mokume.io._protein_groups import protein_group_names, protein_peptide_counts
+from mokume.pipeline.config import InputConfig
+from mokume.pipeline.features_to_proteins import features_to_proteins
 from mokume.preprocessing.filters.peptide import ModificationFilter
 from mokume.quantification.ratio import _load_qpx_psm_rows as load_psm_rows
 from mokume.tissuemap.loader import _execute_aggregation as execute_aggregation
@@ -319,6 +321,77 @@ def test_tissuemap_keeps_groups_with_shared_anchor(tmp_path):
     assert result["total"].to_dict() == {"P1;P2": 10.0, "P1;P3": 20.0}
 
 
+def _run_feature_fixture(tmp_path, tmt):
+    """Write matched feature and run views for two channel/fraction cases."""
+    path = tmp_path / "feature.parquet"
+    make_scored_qpx_parquet(str(path))
+    table = pq.read_table(path)
+    runs = ["run_a", "run_a"] if tmt else ["run_a", "run_b"]
+    labels = ["TMT126", "TMT127"] if tmt else ["LFQ", "LFQ"]
+    table = table.set_column(
+        table.schema.get_field_index("run_file_name"), "run_file_name", pa.array(runs)
+    )
+    table = table.set_column(
+        table.schema.get_field_index("intensities"),
+        "intensities",
+        pa.array(
+            [
+                [{"label": label, "intensity": value}]
+                for label, value in zip(labels, [10.0, 20.0])
+            ]
+        ),
+    )
+    pq.write_table(table, path)
+    samples = [
+        {
+            "sample_accession": f"S{i}" if tmt else "S",
+            "label": label,
+            "biological_replicate": 2,
+            "technical_replicate": 3,
+        }
+        for i, label in enumerate(labels)
+    ]
+    records = (
+        [{"run_file_name": "run_a", "fraction": "1", "samples": samples}]
+        if tmt
+        else [
+            {"run_file_name": run, "fraction": str(i + 1), "samples": [sample]}
+            for i, (run, sample) in enumerate(zip(runs, samples))
+        ]
+    )
+    run_path = tmp_path / "run.parquet"
+    pq.write_table(pa.Table.from_pylist(records), run_path)
+    return path, run_path, runs
+
+
+@pytest.mark.parametrize("tmt", [False, True])
+def test_run_mapping_preserves_samples_and_replicates(tmp_path, tmt):
+    """Run metadata resolves multiplexed channels and fractionated LFQ."""
+    path, run_path, _ = _run_feature_fixture(tmp_path, tmt)
+    feature = qpx_feature.Feature(str(path))
+    try:
+        run_table = feature.enrich_with_run(str(run_path))
+        result = feature.get_report_from_database(feature.samples).sort_values(
+            "intensity"
+        )
+        assert result["sample_accession"].tolist() == (
+            ["S0", "S1"] if tmt else ["S", "S"]
+        )
+        assert result["biological_replicate"].tolist() == [2, 2]
+        assert run_table["comment[technical replicate]"].tolist() == [3, 3]
+        assert "technical_replicate" not in result
+        assert result["fraction"].tolist() == (["1", "1"] if tmt else ["1", "2"])
+        assert result["condition"].tolist() == result["sample_accession"].tolist()
+    finally:
+        feature.parquet_db.close()
+
+
+def test_run_conflicts_with_sdrf():
+    """The two alternative sample maps cannot be combined."""
+    with pytest.raises(ValueError, match="--run conflicts with --sdrf"):
+        InputConfig(parquet="features.parquet", sdrf="samples.tsv", run="run.parquet")
+
+
 @pytest.mark.parametrize(
     "name", ["peptide_qvalue", "precursor_qvalue", "global_qvalue"]
 )
@@ -347,3 +420,21 @@ def test_legacy_qvalue_score_entry_without_typed_column(tmp_path, name):
         ].tolist() == ["PEPTIDEA"]
     finally:
         feature.parquet_db.close()
+
+
+@pytest.mark.parametrize("tmt", [False, True])
+def test_run_mapping_reaches_protein_matrix(tmp_path, tmt):
+    """Quantification uses mapped sample columns for both run-view layouts."""
+    path, run_path, _ = _run_feature_fixture(tmp_path, tmt)
+    result = features_to_proteins(
+        str(path),
+        str(tmp_path / "proteins.csv"),
+        run=str(run_path),
+        quant_method="sum",
+        min_unique_peptides=1,
+        run_normalization="none",
+        sample_normalization="none",
+    )
+    assert set(result.columns) == (
+        {"ProteinName", "S0", "S1"} if tmt else {"ProteinName", "S"}
+    )

@@ -54,7 +54,8 @@ PSM-level QPX evidence and does not accept MSstats feature tables.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-s/--sdrf` | none | SDRF file for sample metadata |
+| `-s/--sdrf` | none | SDRF file for sample metadata; conflicts with `--run` |
+| `--run` | none | QPX run.parquet sample mapping; conflicts with `--sdrf` |
 | `--min-aa` | 7 | Minimum amino acid length |
 | `--filter-protein-fdr` | none | Keep protein groups whose best QPX `pg_global_qvalue` is `<=` this value (e.g. `0.01`); requires QPX `--parquet` input with a populated `pg_global_qvalue`; not available for `spectral-count` |
 | `--transferred-features` | keep | `drop` removes QPX features without an identification in their own run before normalization and quantification; see the rules below |
@@ -380,7 +381,8 @@ mokume quantify features2peptides [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-p/--parquet` | required | Input parquet file |
-| `-s/--sdrf` | none | SDRF file for metadata |
+| `-s/--sdrf` | none | SDRF file for metadata; conflicts with `--run` |
+| `--run` | none | QPX run.parquet sample mapping; conflicts with `--sdrf` |
 | `-o/--output` | required | Output peptide intensity file |
 | `--min-aa` | 7 | Minimum amino acid length |
 | `--min-unique` | 2 | Minimum unique peptides per protein |

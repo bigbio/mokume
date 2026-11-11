@@ -2338,6 +2338,12 @@ evidence:
     limitations:
       - Published setting may not transfer to a different upstream engine.
       - The source extraction does not identify an equivalent Mokume quantification method.
+      - Not proven better than maxlfq|hierarchical|none|none|deqms in this benchmark's LFQ-DIA
+        setting (14 studies; maxlfq represents the upstream protein matrix; mean deficit gain
+        0.029416, studentized gain 1.67, exact one-sided sign-flip p 0.058838 at alpha 0.05; one
+        fixed hypothesis, no multiplicity correction). Grid calls use adjusted p <= 0.05 and
+        |log2FC| >= log2(1.5), not OpDEA's log2FC 0.5. This published reference remains eligible as
+        a prior.
   - id: opdea-spectronaut-dia
     source_id: opdea-2024
     kind: published_setting_reference
@@ -2364,6 +2370,12 @@ evidence:
     limitations:
       - Published setting may not transfer to a different upstream engine.
       - The source extraction does not identify an equivalent Mokume quantification method.
+      - Not proven better than maxlfq|hierarchical|none|none|deqms in this benchmark's LFQ-DIA
+        setting (14 studies; maxlfq represents the upstream protein matrix; mean deficit gain
+        0.026097, studentized gain 1.21, exact one-sided sign-flip p 0.130066 at alpha 0.05; one
+        fixed hypothesis, no multiplicity correction). Grid calls use adjusted p <= 0.05 and
+        |log2FC| >= log2(1.5), not OpDEA's log2FC 0.5. This published reference remains eligible as
+        a prior.
   - id: opdea-fragpipe-dda
     source_id: opdea-2024
     kind: published_setting_reference
@@ -2390,6 +2402,9 @@ evidence:
     limitations:
       - Published setting may not transfer to a different upstream engine.
       - The source extraction does not identify an equivalent Mokume quantification method.
+      - Not tested against maxlfq|hierarchical|none|none|deqms in this benchmark's LFQ-DDA setting
+        (18 studies) because missforest is not in the Grid. This published reference remains
+        eligible as a prior.
   - id: opdea-maxquant-dda
     source_id: opdea-2024
     kind: published_setting_reference
@@ -2416,6 +2431,12 @@ evidence:
     limitations:
       - Published setting may not transfer to a different upstream engine.
       - The source extraction does not identify an equivalent Mokume quantification method.
+      - Not proven better than maxlfq|hierarchical|none|none|deqms in this benchmark's LFQ-DDA
+        setting (18 studies; maxlfq represents the upstream protein matrix; mean deficit gain
+        -0.002531, studentized gain -0.13, exact one-sided sign-flip p 0.552635 at alpha 0.05; one
+        fixed hypothesis, no multiplicity correction). Grid calls use adjusted p <= 0.05 and
+        |log2FC| >= log2(1.5), not OpDEA's log2FC 0.5. This published reference remains eligible as
+        a prior.
   - id: opdea-fragpipe-tmt
     source_id: opdea-2024
     kind: published_setting_reference
@@ -2442,6 +2463,11 @@ evidence:
     limitations:
       - Published setting may not transfer to a different upstream engine.
       - The source extraction does not identify an equivalent Mokume quantification method.
+      - Not proven better than maxlfq|hierarchical|none|none|deqms in this benchmark's TMT-DDA
+        setting (5 studies; sum represents the upstream protein matrix; mean deficit gain -0.032605,
+        studentized gain -0.88, exact one-sided sign-flip p 0.812500 at alpha 0.05; one fixed
+        hypothesis, no multiplicity correction). Grid calls use adjusted p <= 0.05 and |log2FC|
+        >= log2(1.5), not OpDEA's log2FC 0.5. This published reference remains eligible as a prior.
   - id: opdea-maxquant-tmt
     source_id: opdea-2024
     kind: published_setting_reference
@@ -2469,3 +2495,8 @@ evidence:
       - The published rank-one workflow used an unsupported method; this is rank two.
       - Published setting may not transfer to a different upstream engine.
       - The source extraction does not identify an equivalent Mokume quantification method.
+      - Not proven better than maxlfq|hierarchical|none|none|deqms in this benchmark's TMT-DDA
+        setting (5 studies; sum represents the upstream protein matrix; mean deficit gain -0.034531,
+        studentized gain -1.37, exact one-sided sign-flip p 0.906250 at alpha 0.05; one fixed
+        hypothesis, no multiplicity correction). Grid calls use adjusted p <= 0.05 and |log2FC|
+        >= log2(1.5), not OpDEA's log2FC 0.5. This published reference remains eligible as a prior.

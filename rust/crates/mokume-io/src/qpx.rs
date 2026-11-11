@@ -871,7 +871,7 @@ fn optional_f64_value(array: &dyn Array, row: usize, column: &str) -> Result<Opt
     }
 }
 
-fn list_string_values(
+pub(crate) fn list_string_values(
     array: &dyn Array,
     row: usize,
     column: &str,

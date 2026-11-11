@@ -103,6 +103,7 @@ def build_ts_anndata(
     var_df = ts_df[
         ["mu", "sigma", "pi", "enrichment_category", "max_tissue", "max_ts"]
     ].copy()
+    var_df["anchor_protein"] = ts_df["anchor_protein"]
     var_df.index = ts_df.index
     var_df.index.name = "protein"
 

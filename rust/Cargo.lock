@@ -1357,6 +1357,7 @@ dependencies = [
  "csv",
  "mokume-core",
  "parquet",
+ "rayon",
  "serde_json",
  "tempfile",
  "tracing",

@@ -10,6 +10,7 @@ from typing import Optional
 
 import pandas as pd
 
+from mokume.io._protein_groups import protein_group_names
 from mokume.model.labeling import QuantificationCategory, IsobaricLabel
 from mokume.core.constants import (
     BIOREPLICATE,
@@ -164,7 +165,7 @@ def reformat_quantms_feature_table_quant_labels(
         The reformatted DataFrame with updated column names and channel information.
     """
     data_df = data_df.rename(columns=parquet_map)
-    data_df[PROTEIN_NAME] = data_df[PROTEIN_NAME].str.join(";")
+    data_df[PROTEIN_NAME] = protein_group_names(data_df[PROTEIN_NAME])
     if label == QuantificationCategory.LFQ:
         data_df.drop(CHANNEL, inplace=True, axis=1)
     else:

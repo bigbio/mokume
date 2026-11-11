@@ -16,8 +16,8 @@ use mokume_core::{
 };
 use mokume_imputation::imputed_values;
 use mokume_io::{
-    write_peptide_parquet, MsstatsReader, PeptideParquetRow, QpxFeatureRecord, QpxParquetReader,
-    QpxScoreValue, SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable,
+    write_peptide_parquet, MsstatsReader, PeptideParquetRow, ProteinGroupOrders, QpxFeatureRecord,
+    QpxParquetReader, QpxScoreValue, SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable,
 };
 use mokume_normalization::{
     condition_median_sample_factors, coverage_filtered_proteins, global_median_sample_factors,
@@ -6897,7 +6897,14 @@ where
         false,
         with_modifications,
     )?;
-    stream_qpx_reader(&mut reader, memory, score, &mut consume)
+    let groups = ProteinGroupOrders::from_path(parquet)?;
+    if groups.is_identity() {
+        return stream_qpx_reader(&mut reader, memory, score, &mut consume);
+    }
+    stream_qpx_reader(&mut reader, memory, score, &mut |mut feature| {
+        feature.protein_accessions = groups.resolve(&feature.protein_accessions);
+        consume(feature)
+    })
 }
 
 /// [`stream_qpx_features`] for quantification input: `TransferredFeatures::Drop`
@@ -6922,13 +6929,17 @@ where
         true,
         false,
     )?;
+    let groups = ProteinGroupOrders::from_path(parquet)?;
     let mut dropped = 0usize;
     let mut kept = 0usize;
     stream_qpx_reader(
         &mut reader,
         memory,
         score,
-        &mut |feature: QpxFeatureRecord| {
+        &mut |mut feature: QpxFeatureRecord| {
+            if !groups.is_identity() {
+                feature.protein_accessions = groups.resolve(&feature.protein_accessions);
+            }
             if feature.transferred {
                 dropped += 1;
                 return Ok(());

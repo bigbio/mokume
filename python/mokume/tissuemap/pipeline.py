@@ -49,6 +49,14 @@ _RECOVERABLE_ERRORS = (
 )
 
 
+def _protein_metadata(matrix):
+    """Keep annotation anchors separate from analysis group identities."""
+    return pd.DataFrame(
+        {"anchor_protein": matrix.index.map(matrix.attrs["anchor_protein"])},
+        index=matrix.index,
+    )
+
+
 def _clean_uns_for_h5ad(adata: ad.AnnData) -> None:
     """Remove non-serializable keys from adata.uns before writing h5ad."""
     for key in _UNS_KEYS_TO_REMOVE:
@@ -223,7 +231,7 @@ class TissueMapPipeline:
         adata = ad.AnnData(
             X=corrected.astype(np.float32),
             obs=meta.loc[sample_ids].copy(),
-            var=pd.DataFrame(index=mat_filt.index),
+            var=_protein_metadata(mat_filt),
         )
         adata.var.index.name = "protein"
         adata.layers["log2_corrected"] = corrected.astype(np.float32)
@@ -236,6 +244,7 @@ class TissueMapPipeline:
             self.config.tissue_specificity,
         )
         unique_tissues = sorted(adata.obs["tissue"].unique())
+        ts_df["anchor_protein"] = adata.var["anchor_protein"]
         ts_adata = build_ts_anndata(ts_df, unique_tissues)
 
         for col in ["enrichment_category", "max_tissue", "max_ts", "mu", "sigma"]:

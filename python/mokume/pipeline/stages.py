@@ -19,6 +19,7 @@ import pyarrow as pa
 from pathlib import Path
 from typing import Optional
 
+from mokume.io._protein_groups import protein_peptide_counts
 from mokume.io.feature import Feature, SQLFilterBuilder, unique_peptide_rows
 from mokume.preprocessing.sdrf import analyse_sdrf
 from mokume.preprocessing.aggregation import (
@@ -1769,11 +1770,7 @@ class PostprocessingStage:
             return None
 
         try:
-            pep_df = pd.read_parquet(
-                self.config.input.parquet,
-                columns=["anchor_protein", "sequence"],
-            )
-            return pep_df.groupby("anchor_protein")["sequence"].nunique()
+            return protein_peptide_counts(self.config.input.parquet)
         except (FileNotFoundError, KeyError, ValueError) as exc:
             logger.warning("Could not load peptide counts for DEqMS: %s", exc)
             return None

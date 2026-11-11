@@ -18,6 +18,7 @@ import duckdb
 from mokume.model.labeling import QuantificationCategory, IsobaricLabel
 from mokume.core.constants import load_sdrf
 from mokume.core.logger import get_logger
+from mokume.io._protein_groups import create_group_view
 from mokume.io._qpx import measured_intensity_clause, resolve_score_source
 from mokume.io.msstats import create_msstats_feature_table
 
@@ -439,6 +440,8 @@ class Feature:
             if filter_builder.exclude_modifications:
                 wanted.add("modifications")
         self._compat_columns = [n for n in self._compat_columns if n in wanted]
+        create_group_view(self.parquet_db, "parquet_db_raw", "parquet_db_grouped")
+        self._pg_accessions_is_struct = False
         self._create_unnest_view()
 
         self._samples: Optional[list[str]] = None
@@ -745,7 +748,7 @@ class Feature:
                     sa_default,
                     ", '_', 1) as mixture",
                     extra_cols,
-                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_raw)",
+                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_grouped)",
                     " WHERE unnest.intensity IS NOT NULL AND unnest.intensity > 0",
                     f" AND {self._measured_clause}",
                 ]
@@ -918,7 +921,7 @@ class Feature:
                     " as run",
                     extra_cols,
                     opt_cols_raw,
-                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_raw)",
+                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_grouped)",
                     " WHERE unnest.intensity IS NOT NULL AND unnest.intensity > 0",
                     f" AND {self._measured_clause}",
                 ]
@@ -1015,41 +1018,24 @@ class Feature:
         else:
             where_clause, where_params = "1=1", []
 
-        # Use anchor_protein directly when available (new QPX), otherwise parse pg_accessions
-        if self._has_anchor_protein:
-            sql = "".join(
-                [
-                    'SELECT "sequence", anchor_protein as protein,',
-                    ' COUNT(DISTINCT sample_accession) as "count"',
-                    " FROM parquet_db WHERE ",
-                    where_clause,
-                    ' GROUP BY "sequence", anchor_protein',
-                ]
-            )
-            f_table = self.parquet_db.execute(sql, where_params).df()
-            f_table.dropna(subset=["protein"], inplace=True)
-        else:
-            sql = "".join(
-                [
-                    'SELECT "sequence", "pg_accessions",',
-                    ' COUNT(DISTINCT sample_accession) as "count"',
-                    " FROM parquet_db WHERE ",
-                    where_clause,
-                    ' GROUP BY "sequence", "pg_accessions"',
-                ]
-            )
-            f_table = self.parquet_db.execute(sql, where_params).df()
-            f_table.dropna(subset=["pg_accessions"], inplace=True)
-            try:
-                f_table["protein"] = f_table["pg_accessions"].apply(
-                    lambda x: x[0].split("|")[1]
-                )
-            except IndexError:
-                f_table["protein"] = f_table["pg_accessions"].apply(lambda x: x[0])
-            except Exception as e:
-                raise ValueError(
-                    "Some errors occurred when parsing pg_accessions column in feature parquet!"
-                ) from e
+        members, member_params = (
+            self.filter_builder.build_protein_members()
+            if self.filter_builder is not None
+            else ("pg_accessions", [])
+        )
+        sql = "".join(
+            [
+                "SELECT sequence, array_to_string(list_transform(",
+                members,
+                ", x -> CASE WHEN len(string_split(x, '|')) = 3 ",
+                "THEN string_split(x, '|')[2] ELSE x END), ';') AS protein, ",
+                "COUNT(DISTINCT sample_accession) AS count FROM parquet_db WHERE ",
+                where_clause,
+                " GROUP BY sequence, protein",
+            ]
+        )
+        f_table = self.parquet_db.execute(sql, [*member_params, *where_params]).df()
+        f_table.dropna(subset=["protein"], inplace=True)
 
         f_table.set_index(["sequence", "protein"], inplace=True)
         f_table.drop(

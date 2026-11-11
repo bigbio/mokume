@@ -256,3 +256,39 @@ fn write_export_features(path: &Path) -> Result<(), Box<dyn Error>> {
     }
     write_qpx_rows(path, &rows)
 }
+
+#[test]
+fn protein_groups_merge_observed_orders_without_sorting_single_order_groups(
+) -> Result<(), Box<dyn Error>> {
+    let (_guard, root) = temp_root()?;
+    let parquet = root.join("groups.parquet");
+    let sdrf = root.join("samples.tsv");
+    write_synthetic_sdrf(&sdrf)?;
+    let rows = vec![
+        QpxRow::new("PEPTIDEAK", "run1.raw", 10.0, &["P2", "P1", "P2"]),
+        QpxRow::new("PEPTIDECK", "run1.raw", 20.0, &["P1", "P2"]),
+        QpxRow::new("PEPTIDEAK", "run1.raw", 30.0, &["P4", "P3"]),
+    ];
+    write_qpx_rows(&parquet, &rows)?;
+    let output = root.join("proteins.csv");
+    let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.filtering.min_unique_peptides = 1;
+    run_features_to_proteins(&config)?;
+    let table = read_csv(&output)?;
+    assert_eq!(
+        table
+            .rows
+            .iter()
+            .map(|row| row[0].as_str())
+            .collect::<Vec<_>>(),
+        vec!["P1;P2", "P4;P3"]
+    );
+    let expected = std::fs::read(&output)?;
+    write_qpx_rows(
+        config.input.parquet.as_ref().ok_or("missing input")?,
+        &rows.into_iter().rev().collect::<Vec<_>>(),
+    )?;
+    run_features_to_proteins(&config)?;
+    assert_eq!(expected, std::fs::read(output)?);
+    Ok(())
+}

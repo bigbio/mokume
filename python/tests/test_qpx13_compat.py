@@ -9,6 +9,7 @@ import pytest
 
 from mokume.core.constants import PEPTIDE_SEQUENCE
 from mokume.io import feature as qpx_feature
+from mokume.io._protein_groups import protein_group_names, protein_peptide_counts
 from mokume.preprocessing.filters.peptide import ModificationFilter
 from mokume.quantification.ratio import _load_qpx_psm_rows as load_psm_rows
 from mokume.tissuemap.loader import _execute_aggregation as execute_aggregation
@@ -260,6 +261,62 @@ def test_legacy_accession_exclusion_uses_complete_token():
     frame = pd.DataFrame({PEPTIDE_SEQUENCE: ["M[UNIMOD:3]K", "M[UNIMOD:35]K"]})
     filtered, _ = ModificationFilter(["UNIMOD:3"]).apply(frame)
     assert filtered[PEPTIDE_SEQUENCE].tolist() == ["M[UNIMOD:35]K"]
+
+
+def test_group_identity_merges_orders_but_preserves_single_order():
+    """Only an observed alternative order can change a group's name."""
+    groups = pd.Series([["P2", "P1", "P2"], ["P1", "P2"], ["P4", "P3"]])
+    assert protein_group_names(groups).tolist() == ["P1;P2", "P1;P2", "P4;P3"]
+    assert protein_group_names(groups[::-1]).sort_index().tolist() == [
+        "P1;P2",
+        "P1;P2",
+        "P4;P3",
+    ]
+
+
+def _shared_anchor_groups(path):
+    make_scored_qpx_parquet(str(path))
+    table = pq.read_table(path)
+    table = table.set_column(
+        table.schema.get_field_index("pg_accessions"),
+        "pg_accessions",
+        pa.array([["P1", "P2"], ["P1", "P3"]]),
+    )
+    pq.write_table(table, path)
+
+
+def test_low_frequency_counts_distinct_groups_with_shared_anchor(tmp_path):
+    """An annotation anchor must not pool two groups' sample coverage."""
+    path = tmp_path / "groups.parquet"
+    _shared_anchor_groups(path)
+    feature = qpx_feature.Feature(str(path))
+    try:
+        assert set(feature.get_low_frequency_peptides(percentage=0.75)) == {
+            ("P1;P2", "PEPTIDEA"),
+            ("P1;P3", "PEPTIDEB"),
+        }
+    finally:
+        feature.parquet_db.close()
+
+
+def test_deqms_counts_distinct_groups_with_shared_anchor(tmp_path):
+    """DEqMS counts use matrix group identities rather than anchors."""
+    path = tmp_path / "groups.parquet"
+    _shared_anchor_groups(path)
+    assert protein_peptide_counts(path).to_dict() == {"P1;P2": 1, "P1;P3": 1}
+
+
+def test_tissuemap_keeps_groups_with_shared_anchor(tmp_path):
+    """TissueMap aggregates by the complete group identity."""
+    path = tmp_path / "groups.parquet"
+    _shared_anchor_groups(path)
+    result = execute_aggregation(
+        path,
+        pd.DataFrame({"unused": [1]}),
+        1,
+        "SELECT protein, sum(intensity) AS total FROM flat_input GROUP BY protein",
+    ).set_index("protein")
+    assert result["total"].to_dict() == {"P1;P2": 10.0, "P1;P3": 20.0}
 
 
 @pytest.mark.parametrize(

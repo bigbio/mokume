@@ -64,6 +64,22 @@ The command performs these steps in order:
 10. Assemble peptidoforms to peptides
 11. Optional log2 transformation
 
+### Runs and samples
+
+With `--sdrf`, all runs (`comment[data file]`) that carry the same SDRF
+`source name` form one sample. In step 7 the highest intensity of each
+peptidoform and charge across those runs is kept, and step 10 sums the
+peptidoforms into the canonical peptide; `--aggregation-level run` keeps the
+runs apart instead. Sample-level normalization uses every sample, so merging
+runs into one sample also changes the values of the other samples.
+
+mokume logs each source name that maps to more than one data file: at INFO
+level for runs that differ in `comment[technical replicate]` or
+`comment[fraction identifier]` (the normal replicate or fraction design), and as
+a WARNING when those runs also share technical replicate and fraction identifier
+(identical or missing values), which usually indicates a duplicated source name
+rather than technical replicates. Neither message changes the output.
+
 ## Normalization Methods
 
 ### Feature-Level (`--run-normalization`)

@@ -21,6 +21,7 @@ pub use qpx::{
 };
 pub use sdrf::{
     normalize_file_key, normalize_label_key, SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable,
+    SharedSourceName,
 };
 
 pub const DEFAULT_QPX_BATCH_SIZE: usize = 65_536;

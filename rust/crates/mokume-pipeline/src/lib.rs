@@ -7545,7 +7545,11 @@ fn validate_features_to_proteins(config: &FeatureToProteinsConfig) -> Result<()>
 
 fn input_sample_table(input: &InputConfig) -> Result<Option<SdrfTable>> {
     match (&input.sdrf, &input.run) {
-        (Some(path), _) => SdrfTable::from_path(path).map(Some),
+        (Some(path), _) => {
+            let sdrf = SdrfTable::from_path(path)?;
+            sdrf.warn_shared_source_names();
+            Ok(Some(sdrf))
+        }
         (_, Some(path)) => SdrfTable::from_run_path(path).map(Some),
         _ => Ok(None),
     }

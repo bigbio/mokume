@@ -7189,7 +7189,7 @@ where
     })?;
     if filter.seen == 0 {
         return Err(invalid_input(format!(
-            "--filter-score requires QPX `additional_scores` entry `{}`",
+            "--filter-score found no non-null values for QPX score `{}`",
             score.name
         )));
     }

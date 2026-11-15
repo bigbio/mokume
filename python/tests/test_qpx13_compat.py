@@ -167,7 +167,9 @@ def test_all_null_typed_qvalue_is_missing_score(tmp_path):
     builder = qpx_feature.SQLFilterBuilder(
         named_score_name="peptide_qvalue", named_score_threshold=0.05
     )
-    with pytest.raises(ValueError, match="additional_scores entry `peptide_qvalue`"):
+    with pytest.raises(
+        ValueError, match="no non-null values for QPX score `peptide_qvalue`"
+    ):
         qpx_feature.Feature(str(path), builder)
 
 

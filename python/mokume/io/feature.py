@@ -541,7 +541,7 @@ class Feature:
         ).fetchall()[0]
         if not count:
             raise ValueError(
-                f"--filter-score requires QPX additional_scores entry `{name}`"
+                f"--filter-score found no non-null values for QPX score `{name}`"
             )
         if invalid:
             raise ValueError(f"QPX score `{name}` contains null or non-finite values")

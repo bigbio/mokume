@@ -12,6 +12,8 @@ default distribution. The pure-Python implementation continues as `mokume-py`.
 - Spectral counts retain rank-one PSMs when rank is supplied and count each
   `(run_file_name, scan, sequence)` once. Different peptides in a chimeric
   spectrum count separately; conflicting protein or sample assignments fail.
+- `--filter-score` logs how many feature rows are discarded for lacking the
+  requested score, including transferred rows when their origin is available.
 - `--quant-method maxlfq` and `MaxLFQQuantification` run the MaxLFQ solver
   (Cox et al., 2014, Eq. 3): a least-squares fit to the median log ratios of the
   peptide species that each sample pair shares. In 0.1.0 they ran DirectLFQ when

@@ -7177,9 +7177,12 @@ where
         score,
         seen: 0,
         higher_better: None,
+        missing: 0,
+        missing_transferred: 0,
     };
     read_qpx_features(reader, memory, Some(score.name.as_str()), &mut |feature| {
         let Some(value) = feature.selected_score else {
+            filter.record_missing(&feature);
             return Ok(());
         };
         if filter.passes(value)? {
@@ -7187,6 +7190,7 @@ where
         }
         Ok(())
     })?;
+    filter.log_missing();
     if filter.seen == 0 {
         return Err(invalid_input(format!(
             "--filter-score found no non-null values for QPX score `{}`",
@@ -7202,9 +7206,27 @@ struct ScoreFilter<'a> {
     score: &'a NamedScoreFilterConfig,
     seen: usize,
     higher_better: Option<bool>,
+    missing: usize,
+    missing_transferred: usize,
 }
 
 impl ScoreFilter<'_> {
+    fn record_missing(&mut self, feature: &QpxFeatureRecord) {
+        self.missing += usize::from(feature.row_start);
+        self.missing_transferred += usize::from(feature.row_start && feature.transferred);
+    }
+
+    fn log_missing(&self) {
+        if self.missing > 0 {
+            info!(
+                score = %self.score.name,
+                dropped_rows = self.missing,
+                transferred_rows = self.missing_transferred,
+                "dropped QPX feature rows because the filter score is null"
+            );
+        }
+    }
+
     fn passes(&mut self, value: QpxScoreValue) -> Result<bool> {
         self.seen += 1;
         if *self.higher_better.get_or_insert(value.higher_better) != value.higher_better {

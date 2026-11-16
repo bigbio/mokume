@@ -198,6 +198,7 @@ fn feature_projection(
                 || root == "imputed_labels"
                 || (with_id_runs
                     && (ID_RUN_COLUMNS.contains(&root) || root == "identification_type"))
+                || (!score.is_empty() && root == "identification_type")
                 || (with_modifications && root == "modifications")
                 || score.contains(index)
         })

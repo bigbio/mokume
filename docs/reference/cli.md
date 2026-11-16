@@ -444,7 +444,7 @@ them through `features2proteins`, where the full matrix exists.
 | `--filter-charge-state` | none | Charge state override; repeat for multiple states |
 | `--filter-max-missed-cleavages` | none | Max missed cleavages (override) |
 | `--filter-peptide-fdr` | none | Max QPX peptide q-value (override) |
-| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better`, or from the `qpx.struct_lists` footer for struct scores; complete top-level `precursor_qvalue`/`global_qvalue` columns are read directly |
+| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better`, or from the `qpx.struct_lists` footer for struct scores; typed `peptide_qvalue`/`precursor_qvalue`/`global_qvalue` columns take precedence, including partial nulls |
 | `--filter-exclude-modification` | none | Modification name or accession to exclude, compared case-insensitively with the `name` and `accession` of the QPX `modifications` list when present; repeat for multiple values |
 | `--filter-protein-fdr` | none | Max QPX protein-group q-value (override) |
 | `--filter-min-features` | none | Min features per run (override) |
@@ -457,6 +457,10 @@ disabled by default and requires populated `peptide_qvalue` or
 Named-score filtering is applied before normalization and aggregation, matches
 `additional_scores.score_name` exactly, and fails if the requested score is
 missing or has inconsistent `higher_better` values.
+Rows without the requested score still fail the filter. An INFO message
+reports their count and the transferred count; Python reports only the total
+when the file has no `identification_type` column. `match_qvalue` is not used
+as a substitute for the requested score.
 Active unsupported filter-config values are rejected instead of being logged and
 ignored.
 

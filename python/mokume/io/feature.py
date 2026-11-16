@@ -488,6 +488,7 @@ class Feature:
         self.filter_builder.named_score_source = resolve_score_source(
             self.parquet_db, self._parquet_path, name
         )
+        self._log_missing_named_scores(name)
         if self.filter_builder.named_score_source is not None:
             expression, _ = self.filter_builder.named_score_source
             self._validate_scalar_score(name, expression)
@@ -546,6 +547,40 @@ class Feature:
         if invalid:
             raise ValueError(f"QPX score `{name}` contains null or non-finite values")
 
+    def _log_missing_named_scores(self, name: str) -> None:
+        """Report raw feature rows discarded for having no requested score."""
+        source = self.filter_builder.named_score_source
+        params = []
+        if source is not None:
+            expression, _ = source
+            missing = (
+                "additional_scores IS NULL"
+                if expression.startswith("additional_scores.")
+                else f"{expression} IS NULL"
+            )
+        elif self._has_additional_scores:
+            missing = (
+                "NOT EXISTS (SELECT 1 FROM UNNEST(additional_scores) AS item(score) "
+                "WHERE score.score_name = ?)"
+            )
+            params.append(name)
+        else:
+            return
+        transfer = (
+            ", count(*) FILTER (WHERE identification_type = 'transferred')"
+            if self._has_identification_type
+            else ""
+        )
+        query = "".join(
+            ["SELECT count(*)", transfer, " FROM parquet_db_raw WHERE ", missing]
+        )
+        counts = self.parquet_db.execute(query, params).fetchone()
+        if counts[0]:
+            message = "Dropped %d QPX feature rows because score '%s' is null"
+            if self._has_identification_type:
+                message += " (%d transferred rows)"
+            logger.info(message, counts[0], name, *counts[1:])
+
     def _compat_projection(self, prefix: str = "") -> str:
         """Carry optional QPX metadata through the canonical long views."""
         return "".join(f", {prefix}{name}" for name in self._compat_columns)
@@ -600,6 +635,7 @@ class Feature:
         self._has_is_decoy = "is_decoy" in cols
         self._has_anchor_protein = "anchor_protein" in cols
         self._has_additional_scores = "additional_scores" in cols
+        self._has_identification_type = "identification_type" in cols
         self._peptide_qvalue_col = _first_present(
             cols, ("peptide_qvalue", "peptide_q_value")
         )

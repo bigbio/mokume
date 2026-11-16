@@ -7417,7 +7417,8 @@ fn build_tmt_processor(
         Some(table) => derive_sample_plexes(table, raw_sdrf, config.irs.plex_column.as_deref())?.0,
         None => HashMap::new(),
     };
-    let mut processor = tmt::TmtRowProcessor::new(&config.tmt, sample_plex)?;
+    let mut processor =
+        tmt::TmtRowProcessor::new(&config.tmt, sample_plex, config.input.parquet.as_deref())?;
     if processor.needs_prepass() {
         stream_feature_rows(&config.input, sdrf, memory, |row| {
             processor.observe(row, sdrf);

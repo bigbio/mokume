@@ -1,6 +1,7 @@
 pub mod feature_mapping;
 pub mod msstats;
 pub mod peptide_parquet;
+mod provenance;
 pub mod psm;
 pub mod qpx;
 pub mod sdrf;
@@ -14,6 +15,7 @@ pub use peptide_parquet::{
     read_peptide_parquet, read_peptide_parquet_with_species, read_peptide_parquet_with_weights,
     write_peptide_parquet, PeptideParquetRow, RawPeptideRow, RawPeptideTable,
 };
+pub use provenance::reject_isotope_corrected;
 pub use psm::{flatten_psm_batch, QpxPsmParquetReader, QpxPsmRecord};
 pub use qpx::{
     flatten_qpx_batch, flatten_qpx_batch_with_score, QpxFeatureRecord, QpxIntensityEntry,

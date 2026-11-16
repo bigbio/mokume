@@ -7,6 +7,8 @@ default distribution. The pure-Python implementation continues as `mokume-py`.
 
 ### Changed
 
+- `--tmt-impurity` rejects inputs whose matching QPX provenance declares
+  `isotope_corrected=true`, preventing a second isotope-impurity correction.
 - `--quant-method maxlfq` and `MaxLFQQuantification` run the MaxLFQ solver
   (Cox et al., 2014, Eq. 3): a least-squares fit to the median log ratios of the
   peptide species that each sample pair shares. In 0.1.0 they ran DirectLFQ when

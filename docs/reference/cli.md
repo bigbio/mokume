@@ -137,7 +137,7 @@ normalization and quantification. Label-free rows are untouched.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--tmt-row-merge` | `max` | Repeated rows of one peptidoform/charge in one plex (several PSMs, fractions): `max` takes the maximum per channel independently; `best-row` keeps the single row with the highest reporter sum, so all channels come from one spectrum |
-| `--tmt-impurity` | none | Isotope-impurity table for reporter correction (non-negative least squares per row) |
+| `--tmt-impurity` | none | Isotope-impurity table for reporter correction; rejected when companion QPX provenance declares `isotope_corrected=true` |
 | `--tmt-interference-floor` | none | Subtract an additive co-isolation floor: a fraction (e.g. `0.05`) or `auto` (estimated per plex) |
 | `--tmt-floor-quantile` | 0.01 | Ratio quantile used by `--tmt-interference-floor auto` |
 
@@ -156,6 +156,13 @@ channel  -2   -1    +1    +2
 Fields may be separated by tabs, spaces, commas or semicolons. Lines that do
 not start with a channel name (such as the header) are skipped; every channel
 line needs exactly four numbers, otherwise the table is rejected.
+
+Before applying `--tmt-impurity`, Mokume checks the sibling
+`<prefix>.provenance.parquet` for `<prefix>.feature.parquet`. If any tool step
+has a `parameters` entry `isotope_corrected=true`, the command fails and names
+the provenance file and tool: another correction would subtract impurities
+twice. A value of `false`, an absent key, or a missing provenance file leaves
+correction enabled.
 
 Channel names may carry a `TMT` prefix; `N`/`C` channels leak into the next
 channel of the same type (126 counts as `C`). With

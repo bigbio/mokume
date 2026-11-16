@@ -332,7 +332,7 @@ mean-center, rlr, loess, tmm]"
     #[arg(
         long = "tmt-impurity",
         value_name = "FILE",
-        help = "Reporter isotope-impurity table (channel, -2, -1, +1, +2 in percent) for per-row correction"
+        help = "Reporter isotope-impurity table (channel, -2, -1, +1, +2 in percent); rejected when companion QPX provenance declares isotope_corrected=true"
     )]
     tmt_impurity: Option<PathBuf>,
 

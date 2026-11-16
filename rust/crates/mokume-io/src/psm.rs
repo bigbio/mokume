@@ -3,7 +3,7 @@ use std::path::Path;
 
 use arrow::array::{
     Array, ArrayRef, BooleanArray, Int32Array, Int64Array, LargeListArray, LargeStringArray,
-    ListArray, StringArray, UInt32Array, UInt64Array,
+    ListArray, StringArray, StructArray, UInt32Array, UInt64Array,
 };
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
@@ -22,6 +22,7 @@ const PSM_COLUMNS: &[&str] = &[
     "feature_id",
     "is_decoy",
     "decoy",
+    "additional_scores",
 ];
 
 /// The PSM evidence required for true spectral counting.
@@ -103,9 +104,16 @@ pub fn flatten_psm_batch(batch: &RecordBatch) -> Result<Vec<QpxPsmRecord>> {
     let scan = required_column(batch, &["scan"])?;
     let feature_id = optional_column(batch, &["feature_id"]);
     let is_decoy = optional_column(batch, &["is_decoy", "decoy"]);
+    let scores = optional_column(batch, &["additional_scores"]);
 
     (0..batch.num_rows())
+        .filter_map(|row| match rank_one(scores, row) {
+            Ok(true) => Some(Ok(row)),
+            Ok(false) => None,
+            Err(error) => Some(Err(error)),
+        })
         .map(|row| {
+            let row = row?;
             Ok(QpxPsmRecord {
                 psm_id: required_i64(psm_id, row, "psm_id")?,
                 sequence: required_string(sequence, row, "sequence")?,
@@ -123,6 +131,40 @@ pub fn flatten_psm_batch(batch: &RecordBatch) -> Result<Vec<QpxPsmRecord>> {
             })
         })
         .collect()
+}
+
+fn rank_one(scores: Option<&dyn Array>, row: usize) -> Result<bool> {
+    let Some(scores) = scores.filter(|array| !array.is_null(row)) else {
+        return Ok(true);
+    };
+    if let Some(fields) = scores.as_any().downcast_ref::<StructArray>() {
+        return fields.column_by_name("rank").map_or(Ok(true), |rank| {
+            crate::qpx::optional_f64_value(rank.as_ref(), row, "rank")
+                .map(|value| value == Some(1.0))
+        });
+    }
+    let Some(values) = list_values(scores, row, "additional_scores")? else {
+        return Ok(true);
+    };
+    let fields = downcast::<StructArray>(values.as_ref(), "additional_scores")?;
+    let names = required_score_field(fields, "score_name")?;
+    for index in 0..fields.len() {
+        if crate::qpx::optional_string_value(names, index, "score_name")?.as_deref() == Some("rank")
+        {
+            let values = required_score_field(fields, "score_value")?;
+            if crate::qpx::optional_f64_value(values, index, "rank")? != Some(1.0) {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn required_score_field<'a>(fields: &'a StructArray, name: &str) -> Result<&'a dyn Array> {
+    fields
+        .column_by_name(name)
+        .map(|column| column.as_ref())
+        .ok_or_else(|| invalid_input(format!("missing QPX PSM additional_scores.{name}")))
 }
 
 fn required_column<'a>(batch: &'a RecordBatch, names: &[&str]) -> Result<&'a dyn Array> {
@@ -279,8 +321,10 @@ mod tests {
     use std::sync::Arc;
 
     use arrow::array::{
-        ArrayRef, BooleanArray, Int32Builder, Int64Array, ListBuilder, StringArray,
+        ArrayRef, BooleanArray, Float64Builder, Int32Builder, Int64Array, ListBuilder, StringArray,
+        StringBuilder, StructBuilder,
     };
+    use arrow::datatypes::{DataType, Field};
     use arrow::record_batch::RecordBatch;
     use parquet::arrow::ArrowWriter;
 
@@ -329,6 +373,65 @@ mod tests {
         assert_eq!(records[1].feature_id, None);
         assert!(!records[0].is_decoy);
         assert!(records[1].is_decoy);
+        Ok(())
+    }
+
+    fn rank_scores(ranks: [Option<f64>; 2]) -> Result<ArrayRef, Box<dyn std::error::Error>> {
+        let fields = vec![
+            Field::new("score_name", DataType::Utf8, false),
+            Field::new("score_value", DataType::Float64, false),
+        ];
+        let mut scores = ListBuilder::new(StructBuilder::from_fields(fields, 2));
+        for rank in ranks {
+            if let Some(rank) = rank {
+                scores
+                    .values()
+                    .field_builder::<StringBuilder>(0)
+                    .ok_or("score_name builder")?
+                    .append_value("rank");
+                scores
+                    .values()
+                    .field_builder::<Float64Builder>(1)
+                    .ok_or("score_value builder")?
+                    .append_value(rank);
+                scores.values().append(true);
+            }
+            scores.append(true);
+        }
+        Ok(Arc::new(scores.finish()))
+    }
+
+    #[test]
+    fn reads_rank_and_keeps_rank_one_or_absent() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("ranked.psm.parquet");
+        for (ranks, expected) in [
+            ([Some(1.0), Some(2.0)], vec![1001]),
+            ([None, Some(1.0)], vec![1001, 1002]),
+        ] {
+            let batch = psm_batch()?;
+            let mut columns = batch
+                .schema()
+                .fields()
+                .iter()
+                .zip(batch.columns())
+                .map(|(field, values)| (field.name().to_owned(), values.clone()))
+                .collect::<Vec<_>>();
+            columns.push(("additional_scores".to_owned(), rank_scores(ranks)?));
+            let batch = RecordBatch::try_from_iter(columns)?;
+            let mut writer = ArrowWriter::try_new(File::create(&path)?, batch.schema(), None)?;
+            writer.write(&batch)?;
+            writer.close()?;
+            let records = QpxPsmParquetReader::open(&path, 1)?.collect::<Result<Vec<_>, _>>()?;
+            assert_eq!(
+                records
+                    .into_iter()
+                    .flatten()
+                    .map(|record| record.psm_id)
+                    .collect::<Vec<_>>(),
+                expected
+            );
+        }
         Ok(())
     }
 

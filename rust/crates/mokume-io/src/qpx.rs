@@ -859,7 +859,11 @@ fn optional_bool_value(array: &dyn Array, row: usize, column: &str) -> Result<Op
     }
 }
 
-fn optional_f64_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<f64>> {
+pub(crate) fn optional_f64_value(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<f64>> {
     if array.is_null(row) {
         return Ok(None);
     }

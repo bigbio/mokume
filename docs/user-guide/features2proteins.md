@@ -125,7 +125,7 @@ sample its own source name. Neither message changes the output.
 | TMT Abundance | `--quant-method abd` | No | Median of log2 peptide intensities (TMT) |
 | TMT Reporter Intensity | `--quant-method intensity` | No | Sum of raw reporter intensities (TMT) |
 | Peptide Count | `--quant-method peptide-count` | No | Distinct canonical peptides from feature QPX |
-| Spectral Count | `--quant-method spectral-count --psm PSM --parquet FEATURE` | No | Unique QPX `psm_id` values from feature-linked PSMs; requires SDRF |
+| Spectral Count | `--quant-method spectral-count --psm PSM --parquet FEATURE` | No | Independent `(run, scan, sequence)` keys from feature-linked rank-one PSMs; requires SDRF |
 
 In practice:
 
@@ -141,9 +141,11 @@ In practice:
   `FamilyId` / `EvidenceLevel` metadata columns.
 - Use `ratio` for TMT PS-style reference-based analysis.
 - Use `peptide-count` for distinct peptide identifications from feature QPX;
-  use `spectral-count` for unique feature-linked PSMs from matching PSM and
-  feature QPX files. Both are integer evidence counts, so run/sample intensity
-  normalization and IRS are rejected.
+  use `spectral-count` for independent spectrum/sequence keys from matching
+  PSM and feature QPX files. Supplied ranks must be 1; PSMs without a rank are
+  retained. Duplicate keys count once, while different peptides in a chimeric
+  spectrum count separately. Both methods are integer evidence counts, so
+  run/sample intensity normalization and IRS are rejected.
 - Use `top<N>` for the classic Top3-style summary; `top3` is the method from
   Silva et al. 2006, and any other N works the same way (`top5`, `top10`, ...).
 

@@ -420,12 +420,20 @@ mokume quantify features2proteins -p features.parquet -o proteins.csv \
 `spectral-count` instead requires matching PSM-level and feature-level QPX
 parquets plus SDRF. A PSM's `feature_id` resolves its protein group from the
 feature table's `pg_accessions` (falling back to `anchor_protein`). Mokume
-removes decoys, maps runs to samples through the SDRF, and counts each unique
-QPX `psm_id` once. Protein ambiguity within one linked feature remains one
-sorted protein-group key, while distinct PSMs sharing a scan remain separate.
-Duplicate `psm_id` values are rejected. PSM rows without a matching feature
-link are not counted. As with `peptide-count`, intensity normalization and IRS
-are rejected.
+removes decoys and maps runs to samples through the SDRF. If a PSM has an
+`additional_scores` entry named `rank`, only rank 1 is kept. Each distinct
+`(run_file_name, scan, sequence)` then counts once, using the complete scan
+integer array. Repeated PSMs of the same peptide in one spectrum are collapsed;
+different peptides in a chimeric spectrum each count once. A spectrum/sequence
+key with conflicting protein-group or sample assignments is rejected.
+Protein ambiguity within one linked feature remains one sorted protein-group
+key. PSM rows without a matching feature link are not counted. As with
+`peptide-count`, intensity normalization and IRS are rejected.
+
+The pure-Python `SpectralCountQuantification` API applies the same rank and
+spectrum-key rules. Its input must include `scan` arrays and a run column
+(`run_file_name`, `Run`, or the explicit `run_column`); feature-level peptide
+tables without spectrum identities cannot supply spectral counts.
 
 ```bash
 mokume quantify features2proteins --psm identifications.psm.parquet \

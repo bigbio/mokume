@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "crates/mokume-command",
     "crates/mokume-core",
@@ -17,12 +17,20 @@ default-members = ["crates/mokume-py"]
 [workspace.package]
 version = "0.2.0"
 edition = "2021"
+rust-version = "1.100"
 license = "MIT"
 repository = "https://github.com/bigbio/mokume"
 authors = ["BigBio maintainers"]
-description = "Rust-native proteomics quantification toolkit for quantms/QPX data"
 
 [workspace.dependencies]
+mokume-command = { version = "0.2.0", path = "crates/mokume-command" }
+mokume-core = { version = "0.2.0", path = "crates/mokume-core" }
+mokume-imputation = { version = "0.2.0", path = "crates/mokume-imputation" }
+mokume-io = { version = "0.2.0", path = "crates/mokume-io" }
+mokume-normalization = { version = "0.2.0", path = "crates/mokume-normalization" }
+mokume-pipeline = { version = "0.2.0", path = "crates/mokume-pipeline" }
+mokume-quant = { version = "0.2.0", path = "crates/mokume-quant" }
+mokume-stats = { version = "0.2.0", path = "crates/mokume-stats" }
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

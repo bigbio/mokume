@@ -2,6 +2,7 @@
 name = "mokume-imputation"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -11,5 +12,5 @@ description = "Missing-value imputation algorithms for mokume"
 workspace = true
 
 [dependencies]
-mokume-core = { path = "../mokume-core" }
+mokume-core = { workspace = true }
 libm = "0.2"

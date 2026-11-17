@@ -2,6 +2,7 @@
 name = "mokume-stats"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -11,7 +12,7 @@ description = "Statistical post-processing for mokume"
 workspace = true
 
 [dependencies]
-mokume-core = { path = "../mokume-core" }
+mokume-core = { workspace = true }
 faer = { version = "0.24", default-features = false, features = ["std"] }
 libm = "0.2.16"
 microlp = "0.7.0"

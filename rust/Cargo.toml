@@ -16,7 +16,7 @@ default-members = ["crates/mokume-py"]
 
 [workspace.package]
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 rust-version = "1.100"
 license = "MIT"
 repository = "https://github.com/bigbio/mokume"

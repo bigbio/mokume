@@ -197,10 +197,10 @@ fn required_output(args: &Features2PeptidesArgs) -> mokume_core::Result<PathBuf>
 }
 
 fn validate_optional_input(path: Option<&PathBuf>) -> mokume_core::Result<()> {
-    if let Some(path) = path {
-        if !path.exists() {
-            return Err(MokumeError::MissingInput { path: path.clone() });
-        }
+    if let Some(path) = path
+        && !path.exists()
+    {
+        return Err(MokumeError::MissingInput { path: path.clone() });
     }
     Ok(())
 }

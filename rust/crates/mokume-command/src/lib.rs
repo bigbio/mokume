@@ -311,13 +311,13 @@ fn init_logging_once(level: LogLevel, log_file: Option<PathBuf>) -> mokume_core:
     let filter = EnvFilter::new(level.as_filter());
 
     if let Some(path) = log_file {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                create_dir_all(parent).map_err(|source| MokumeError::Io {
-                    path: parent.to_path_buf(),
-                    source,
-                })?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            create_dir_all(parent).map_err(|source| MokumeError::Io {
+                path: parent.to_path_buf(),
+                source,
+            })?;
         }
         let file = File::create(&path).map_err(|source| MokumeError::Io {
             path: path.clone(),

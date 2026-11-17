@@ -299,19 +299,17 @@ fn robust_sequential_core(
     for (loop_index, &row_index) in incomplete_rows.iter().enumerate() {
         if loop_index == 0 {
             icovx = invert_matrix(&covx, p);
-        } else if accepted_prev {
-            if let Some(current) = icovx.as_ref() {
-                let denom = (n_update as f64 - 1.0).max(1.0).sqrt();
-                let prev_row = &x_row_values(x, incomplete_rows[loop_index - 1]);
-                let f = prev_row
-                    .iter()
-                    .zip(mxo.iter())
-                    .map(|(value, mean)| (value - mean) / denom)
-                    .collect::<Vec<f64>>();
-                let scale = (n_update as f64 - 1.0) / (n_update as f64 - 2.0).max(1.0);
-                let scaled = scale_matrix(current, scale);
-                icovx = Some(update_invcov(&scaled, &f));
-            }
+        } else if accepted_prev && let Some(current) = icovx.as_ref() {
+            let denom = (n_update as f64 - 1.0).max(1.0).sqrt();
+            let prev_row = &x_row_values(x, incomplete_rows[loop_index - 1]);
+            let f = prev_row
+                .iter()
+                .zip(mxo.iter())
+                .map(|(value, mean)| (value - mean) / denom)
+                .collect::<Vec<f64>>();
+            let scale = (n_update as f64 - 1.0) / (n_update as f64 - 2.0).max(1.0);
+            let scaled = scale_matrix(current, scale);
+            icovx = Some(update_invcov(&scaled, &f));
         }
 
         let inverse = icovx.as_ref().ok_or_else(|| MokumeError::InvalidInput {

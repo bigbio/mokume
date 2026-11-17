@@ -922,13 +922,13 @@ fn write_generic_output(
 }
 
 fn create_writer(output: &Path) -> Result<BufWriter<File>> {
-    if let Some(parent) = output.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent).map_err(|source| MokumeError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
-        }
+    if let Some(parent) = output.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent).map_err(|source| MokumeError::Io {
+            path: parent.to_path_buf(),
+            source,
+        })?;
     }
     let file = File::create(output).map_err(|source| MokumeError::Io {
         path: output.to_path_buf(),

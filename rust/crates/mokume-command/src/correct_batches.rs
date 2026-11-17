@@ -455,10 +455,10 @@ fn matched_files(folder: &Path, pattern: &str) -> Result<Vec<PathBuf>> {
         if !path.is_file() {
             continue;
         }
-        if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
-            if glob_match(pattern, name) {
-                matches.push(path);
-            }
+        if let Some(name) = path.file_name().and_then(|name| name.to_str())
+            && glob_match(pattern, name)
+        {
+            matches.push(path);
         }
     }
     matches.sort();

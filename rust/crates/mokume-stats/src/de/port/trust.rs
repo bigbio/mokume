@@ -217,10 +217,10 @@ impl Trust {
                 return self.finish(s);
             }
             s.old_phi = phi;
-            if phi < 0.0 {
-                if let Some(step) = self.hard_case(s) {
-                    return step;
-                }
+            if phi < 0.0
+                && let Some(step) = self.hard_case(s)
+            {
+                return step;
             }
             if s.iteration >= s.limit {
                 return self.finish(s);

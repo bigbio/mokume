@@ -793,15 +793,15 @@ fn validate_de_thresholds(config: &DifferentialExpressionConfig) -> Result<()> {
 }
 
 fn validate_effect_size_gate(config: &DifferentialExpressionConfig) -> Result<()> {
-    if let Some(gate) = config.effect_size_gate.as_deref() {
-        if !matches!(
+    if let Some(gate) = config.effect_size_gate.as_deref()
+        && !matches!(
             gate.trim().to_ascii_lowercase().as_str(),
             "mixture" | "null_quantile"
-        ) {
-            return Err(invalid_input(format!(
-                "unknown effect-size gate method `{gate}`"
-            )));
-        }
+        )
+    {
+        return Err(invalid_input(format!(
+            "unknown effect-size gate method `{gate}`"
+        )));
     }
     Ok(())
 }

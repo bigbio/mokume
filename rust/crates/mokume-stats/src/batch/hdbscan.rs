@@ -491,15 +491,13 @@ fn select_and_label(
         .iter()
         .map(|edge| (edge.child, edge.size))
         .collect();
-    if allow_single_cluster {
-        if let Some(&root) = node_list.last() {
-            let root_size: usize = cluster_tree
-                .iter()
-                .filter(|edge| edge.parent == root)
-                .map(|edge| edge.size)
-                .sum();
-            cluster_sizes.insert(root, root_size);
-        }
+    if allow_single_cluster && let Some(&root) = node_list.last() {
+        let root_size: usize = cluster_tree
+            .iter()
+            .filter(|edge| edge.parent == root)
+            .map(|edge| edge.size)
+            .sum();
+        cluster_sizes.insert(root, root_size);
     }
     let _ = &cluster_sizes; // max_cluster_size is unused (find_clusters passes none).
 
@@ -528,7 +526,7 @@ fn select_and_label(
     if cluster_selection_epsilon != 0.0 && !cluster_tree.is_empty() {
         let eom_clusters: Vec<usize> = is_cluster
             .iter()
-            .filter(|(_, &keep)| keep)
+            .filter(|&(_, &keep)| keep)
             .map(|(&node, _)| node)
             .collect();
         let cluster_tree_root = cluster_tree
@@ -559,7 +557,7 @@ fn select_and_label(
 
     let clusters: HashSet<usize> = is_cluster
         .iter()
-        .filter(|(_, &keep)| keep)
+        .filter(|&(_, &keep)| keep)
         .map(|(&node, _)| node)
         .collect();
     let mut sorted_clusters: Vec<usize> = clusters.iter().copied().collect();

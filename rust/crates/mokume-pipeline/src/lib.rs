@@ -399,10 +399,10 @@ impl FeatureToProteinState {
         // `quantile` and the comparison. The export-time `min_unique` gate then
         // re-counts canonicals on the survivors, reproducing the post-quantile
         // MinPeptideFilter.
-        if let Some(&(lower, upper)) = self.quantile_bounds.get(&sample_name) {
-            if !(feature.intensity >= lower && feature.intensity <= upper) {
-                return Ok(());
-            }
+        if let Some(&(lower, upper)) = self.quantile_bounds.get(&sample_name)
+            && !(feature.intensity >= lower && feature.intensity <= upper)
+        {
+            return Ok(());
         }
         let sample = register_id(&mut self.samples, &sample_name, "sample")?;
         let peptide_key = self.aggregation.peptide_key(feature);
@@ -549,10 +549,10 @@ impl FeatureToProteinState {
             return false;
         }
         // ChargeStateFilter.
-        if let Some(allowed) = &config.peptide.allowed_charge_states {
-            if !filters::charge_is_allowed(feature.charge, allowed) {
-                return false;
-            }
+        if let Some(allowed) = &config.peptide.allowed_charge_states
+            && !filters::charge_is_allowed(feature.charge, allowed)
+        {
+            return false;
         }
         // ModificationFilter, matched against the modified sequence.
         if filters::peptide_has_excluded_modification(
@@ -563,18 +563,17 @@ impl FeatureToProteinState {
             return false;
         }
         // MissedCleavageFilter (trypsin), on the canonical sequence.
-        if let Some(max) = config.peptide.max_missed_cleavages {
-            if filters::trypsin_missed_cleavages(&feature.sequence) > max {
-                return false;
-            }
+        if let Some(max) = config.peptide.max_missed_cleavages
+            && filters::trypsin_missed_cleavages(&feature.sequence) > max
+        {
+            return false;
         }
-        if let Some(threshold) = config.peptide.fdr_threshold {
-            if !feature
+        if let Some(threshold) = config.peptide.fdr_threshold
+            && !feature
                 .peptide_qvalue
                 .is_some_and(|qvalue| qvalue.is_finite() && qvalue <= threshold)
-            {
-                return false;
-            }
+        {
+            return false;
         }
         // SequencePatternFilter (peptide.py:415-418): drop canonical sequences
         // matching any user regex. Patterns are pre-compiled in
@@ -699,15 +698,15 @@ impl FeatureToProteinState {
         let peptide_counts = self.cell_peptide_counts();
         // The per-cell unique-peptide sets only feed the two lookups above.
         self.index.unique_peptides = HashMap::new();
-        if let Some(method) = dataset_normalization {
-            if self.aggregation.applies_dataset_normalization() {
-                self.aggregation.apply_dataset_normalization(
-                    method,
-                    &allowed_cells,
-                    &self.index.peptide_to_canonical,
-                    &self.samples,
-                );
-            }
+        if let Some(method) = dataset_normalization
+            && self.aggregation.applies_dataset_normalization()
+        {
+            self.aggregation.apply_dataset_normalization(
+                method,
+                &allowed_cells,
+                &self.index.peptide_to_canonical,
+                &self.samples,
+            );
         }
         let options = PeptideExportOptions::default();
         self.write_intermediate_exports(config, &allowed_cells, options, dataset_normalization)?;
@@ -1640,10 +1639,10 @@ struct IntensityFactors {
 /// case yields an empty matrix in Python because SDRF enrichment remaps the
 /// sample key, a quirk the existing golden tests already document).
 fn tech_replicate_of(run_file_name: &str) -> i64 {
-    if let Some((_, last)) = run_file_name.rsplit_once('_') {
-        if let Ok(value) = last.parse::<i64>() {
-            return value;
-        }
+    if let Some((_, last)) = run_file_name.rsplit_once('_')
+        && let Ok(value) = last.parse::<i64>()
+    {
+        return value;
     }
     run_file_name.parse::<i64>().unwrap_or(1)
 }
@@ -1858,10 +1857,9 @@ impl FeatureAggregation {
             weights: Some(weights),
             ..
         } = self
+            && writes_canonical_cells(method)
         {
-            if writes_canonical_cells(method) {
-                weights.collapse(peptide_to_canonical);
-            }
+            weights.collapse(peptide_to_canonical);
         }
     }
 
@@ -3313,10 +3311,11 @@ fn apply_rlr_to_peptide_cells(
                     protein: cell.protein,
                     peptide: *peptide,
                 };
-                if let Some(reference_value) = reference.get(&key).copied() {
-                    if reference_value.is_finite() && value.is_finite() {
-                        pairs.push((key, reference_value, *value));
-                    }
+                if let Some(reference_value) = reference.get(&key).copied()
+                    && reference_value.is_finite()
+                    && value.is_finite()
+                {
+                    pairs.push((key, reference_value, *value));
                 }
             }
         }
@@ -4411,14 +4410,14 @@ fn resolve_reference_batch(
     if let Some(index) = original_labels.iter().position(|label| label == requested) {
         return Ok(encoded_labels[index]);
     }
-    if let Ok(encoded) = requested.parse::<usize>() {
-        if encoded_labels.contains(&encoded) {
-            tracing::warn!(
-                encoded_batch = encoded,
-                "numeric --batch-ref is deprecated; use the original batch label"
-            );
-            return Ok(encoded);
-        }
+    if let Ok(encoded) = requested.parse::<usize>()
+        && encoded_labels.contains(&encoded)
+    {
+        tracing::warn!(
+            encoded_batch = encoded,
+            "numeric --batch-ref is deprecated; use the original batch label"
+        );
+        return Ok(encoded);
     }
     let mut labels = original_labels.to_vec();
     labels.sort();
@@ -4555,10 +4554,10 @@ fn covariate_values_for_samples(
                 return Ok((*value).to_owned());
             }
             for sdrf_sample in &sdrf_samples {
-                if sdrf_sample.contains(name) || name.contains(*sdrf_sample) {
-                    if let Some(value) = sample_to_value.get(*sdrf_sample) {
-                        return Ok((*value).to_owned());
-                    }
+                if (sdrf_sample.contains(name) || name.contains(*sdrf_sample))
+                    && let Some(value) = sample_to_value.get(*sdrf_sample)
+                {
+                    return Ok((*value).to_owned());
                 }
             }
             Err(invalid_input(format!(
@@ -5518,20 +5517,22 @@ impl ProteinMatrix {
                         protein,
                         sample: *sample,
                     });
-                    if let Some(value) = value {
-                        if value.is_finite() && *value > 0.0 {
-                            row_values[*index] = format_float(*value);
-                        }
+                    if let Some(value) = value
+                        && value.is_finite()
+                        && *value > 0.0
+                    {
+                        row_values[*index] = format_float(*value);
                     }
                 }
             }
             ProteinValues::Rows(rows) => {
                 if let Some(values) = rows.get(&protein) {
                     for (sample, value) in values {
-                        if let Some(index) = sample_index.get(sample) {
-                            if value.is_finite() && *value > 0.0 {
-                                row_values[*index] = format_float(*value);
-                            }
+                        if let Some(index) = sample_index.get(sample)
+                            && value.is_finite()
+                            && *value > 0.0
+                        {
+                            row_values[*index] = format_float(*value);
                         }
                     }
                 }
@@ -5667,14 +5668,14 @@ pub fn run_lfq_from_peptides(
             continue;
         };
         for (sample, intensity) in per_sample {
-            if intensity > 0.0 {
-                if let Some(sample_name) = samples.resolve(sample) {
-                    result.push(LfqProteinIntensity {
-                        protein: protein_name.to_owned(),
-                        sample: sample_name.to_owned(),
-                        intensity,
-                    });
-                }
+            if intensity > 0.0
+                && let Some(sample_name) = samples.resolve(sample)
+            {
+                result.push(LfqProteinIntensity {
+                    protein: protein_name.to_owned(),
+                    sample: sample_name.to_owned(),
+                    intensity,
+                });
             }
         }
     }
@@ -6564,10 +6565,10 @@ fn validate_features_to_peptides_config(config: &FeatureToPeptidesConfig) -> Res
             "features2peptides does not support --msstats input",
         ));
     }
-    if let Some(sdrf) = &config.input.sdrf {
-        if !sdrf.exists() {
-            return Err(MokumeError::MissingInput { path: sdrf.clone() });
-        }
+    if let Some(sdrf) = &config.input.sdrf
+        && !sdrf.exists()
+    {
+        return Err(MokumeError::MissingInput { path: sdrf.clone() });
     }
     if let Some(pipeline) = active_filter_pipeline(config) {
         validate_filter_pipeline_subset(pipeline)?;
@@ -8077,11 +8078,11 @@ fn collect_intensity_group_filters(
             // decision when a group's true CV lands within ~1e-7 (relative) of the
             // threshold; a 30k-group fuzz against pandas showed zero such flips at a
             // typical threshold, so this is a measure-zero boundary, not a bias.
-            if let Some(cv) = filters::coefficient_of_variation(&intensities) {
-                if f64::from(cv as f32) > threshold {
-                    cv_dropped.insert((sample, protein, canonical));
-                    continue;
-                }
+            if let Some(cv) = filters::coefficient_of_variation(&intensities)
+                && f64::from(cv as f32) > threshold
+            {
+                cv_dropped.insert((sample, protein, canonical));
+                continue;
             }
         }
         if quantile_active {
@@ -8235,10 +8236,10 @@ fn irs_global_scale_from_runs(
     let mut irs_values: Vec<(String, f64)> = Vec::new();
     for (run, mut intensities) in per_run {
         // `irs_df = irs_df[irs_df["irs_value"] > 0]` drops non-positive centers.
-        if let Some(irs_value) = aggregate(&mut intensities) {
-            if irs_value > 0.0 {
-                irs_values.push((run, irs_value));
-            }
+        if let Some(irs_value) = aggregate(&mut intensities)
+            && irs_value > 0.0
+        {
+            irs_values.push((run, irs_value));
         }
     }
     if irs_values.is_empty() {
@@ -8269,10 +8270,10 @@ fn irs_values_per_run(
     };
     let mut out = Vec::with_capacity(per_run.len());
     for (run, mixture, mut intensities) in per_run {
-        if let Some(irs_value) = aggregate(&mut intensities) {
-            if irs_value > 0.0 {
-                out.push((run, mixture, irs_value));
-            }
+        if let Some(irs_value) = aggregate(&mut intensities)
+            && irs_value > 0.0
+        {
+            out.push((run, mixture, irs_value));
         }
     }
     out
@@ -9695,10 +9696,10 @@ fn count_unique_anchors(
         let Some(accessions) = peptide_accessions.get(peptide) else {
             continue;
         };
-        if accessions.len() == 1 {
-            if let Some(accession) = accessions.iter().next() {
-                *counts.entry(accession.clone()).or_insert(0) += 1;
-            }
+        if accessions.len() == 1
+            && let Some(accession) = accessions.iter().next()
+        {
+            *counts.entry(accession.clone()).or_insert(0) += 1;
         }
     }
     counts
@@ -10864,12 +10865,12 @@ fn plexes_from_column(raw: &SdrfRawTable, column: &str) -> Result<HashMap<String
         if sample.is_empty() || plex.is_empty() {
             continue;
         }
-        if let Some(previous) = plexes.insert(sample.to_owned(), plex.to_owned()) {
-            if previous != plex {
-                return Err(invalid_input(format!(
-                    "sample `{sample}` has more than one value in plex column `{column}`"
-                )));
-            }
+        if let Some(previous) = plexes.insert(sample.to_owned(), plex.to_owned())
+            && previous != plex
+        {
+            return Err(invalid_input(format!(
+                "sample `{sample}` has more than one value in plex column `{column}`"
+            )));
         }
     }
     if plexes.is_empty() {

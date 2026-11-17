@@ -44,10 +44,10 @@ impl PlexSample {
         self.rng ^= self.rng >> 7;
         self.rng ^= self.rng << 17;
         let slot = self.rng % self.seen;
-        if let Ok(slot) = usize::try_from(slot) {
-            if slot < RESERVOIR_ROWS {
-                self.rows[slot] = row;
-            }
+        if let Ok(slot) = usize::try_from(slot)
+            && slot < RESERVOIR_ROWS
+        {
+            self.rows[slot] = row;
         }
     }
 }

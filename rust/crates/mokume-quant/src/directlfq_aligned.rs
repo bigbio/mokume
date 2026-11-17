@@ -574,10 +574,10 @@ fn protein_quantities(
             .map(|row| row[column])
             .filter(|value| value.is_finite())
             .collect::<Vec<_>>();
-        if finite.len() >= min_nonan {
-            if let Some(value) = median_in_place(&mut finite) {
-                *slot = value;
-            }
+        if finite.len() >= min_nonan
+            && let Some(value) = median_in_place(&mut finite)
+        {
+            *slot = value;
         }
     }
 

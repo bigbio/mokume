@@ -498,10 +498,10 @@ fn row_transferred(
     labels_are_runs: bool,
     run_keys: &mut RunKeys,
 ) -> Result<bool> {
-    if let Some(column) = columns.identification_type {
-        if let Some(value) = optional_string_value(column, row, "identification_type")? {
-            return Ok(value == "transferred");
-        }
+    if let Some(column) = columns.identification_type
+        && let Some(value) = optional_string_value(column, row, "identification_type")?
+    {
+        return Ok(value == "transferred");
     }
     let Some(column) = columns.id_run_file_name else {
         return Ok(false);
@@ -592,10 +592,9 @@ fn requested_score_column<'a>(
     if matches!(
         name,
         "peptide_qvalue" | "precursor_qvalue" | "global_qvalue"
-    ) {
-        if let Some(column) = optional_column_by_names(batch, &[name]) {
-            return Ok(Some(ScoreColumn::Scalar(column, false, None)));
-        }
+    ) && let Some(column) = optional_column_by_names(batch, &[name])
+    {
+        return Ok(Some(ScoreColumn::Scalar(column, false, None)));
     }
     let column = column_by_names(batch, SCORE_COLUMNS)?;
     if let Some(values) = column.as_any().downcast_ref::<StructArray>() {

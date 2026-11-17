@@ -119,13 +119,13 @@ fn insert_feature_group(
         contaminant: super::matches_sql_contaminant(&record.protein_accessions, &[]),
         is_decoy: record.is_decoy,
     };
-    if let Some(existing) = groups.insert(record.feature_id, group.clone()) {
-        if existing != group {
-            return Err(super::invalid_input(format!(
-                "QPX feature_id {} has conflicting protein-group mappings",
-                record.feature_id
-            )));
-        }
+    if let Some(existing) = groups.insert(record.feature_id, group.clone())
+        && existing != group
+    {
+        return Err(super::invalid_input(format!(
+            "QPX feature_id {} has conflicting protein-group mappings",
+            record.feature_id
+        )));
     }
     Ok(())
 }

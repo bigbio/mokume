@@ -92,7 +92,7 @@ pub fn iterative_outlier_removal(
         let outlier_local_indices: Vec<usize> = labels
             .iter()
             .enumerate()
-            .filter(|(_, &label)| label == -1)
+            .filter(|&(_, &label)| label == -1)
             .map(|(idx, _)| idx)
             .collect();
 

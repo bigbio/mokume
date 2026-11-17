@@ -8,8 +8,8 @@ use arrow::array::{
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use parquet::arrow::ProjectionMask;
+use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 
 const PSM_COLUMNS: &[&str] = &[
     "psm_id",
@@ -328,7 +328,7 @@ mod tests {
     use arrow::record_batch::RecordBatch;
     use parquet::arrow::ArrowWriter;
 
-    use super::{flatten_psm_batch, QpxPsmParquetReader};
+    use super::{QpxPsmParquetReader, flatten_psm_batch};
 
     fn psm_batch() -> Result<RecordBatch, Box<dyn std::error::Error>> {
         let mut scans = ListBuilder::new(Int32Builder::new());

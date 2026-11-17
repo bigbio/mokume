@@ -362,7 +362,7 @@ fn invert(matrix: &[Vec<f64>]) -> Vec<Vec<f64>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{adaptive_adjust, bh_adjust, permutation_fdr, AdaptiveFdrMethod, AppliedFdrMethod};
+    use super::{AdaptiveFdrMethod, AppliedFdrMethod, adaptive_adjust, bh_adjust, permutation_fdr};
 
     fn assert_close(actual: f64, expected: f64) {
         let tol = 1e-9 * expected.abs().max(1.0);

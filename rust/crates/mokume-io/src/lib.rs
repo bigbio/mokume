@@ -8,22 +8,22 @@ pub mod sdrf;
 
 pub use arrow::record_batch::RecordBatch;
 pub use feature_mapping::{
-    flatten_feature_protein_groups, QpxFeatureProteinGroup, QpxFeatureProteinGroupReader,
+    QpxFeatureProteinGroup, QpxFeatureProteinGroupReader, flatten_feature_protein_groups,
 };
 pub use msstats::MsstatsReader;
 pub use peptide_parquet::{
-    read_peptide_parquet, read_peptide_parquet_with_species, read_peptide_parquet_with_weights,
-    write_peptide_parquet, PeptideParquetRow, RawPeptideRow, RawPeptideTable,
+    PeptideParquetRow, RawPeptideRow, RawPeptideTable, read_peptide_parquet,
+    read_peptide_parquet_with_species, read_peptide_parquet_with_weights, write_peptide_parquet,
 };
 pub use provenance::reject_isotope_corrected;
-pub use psm::{flatten_psm_batch, QpxPsmParquetReader, QpxPsmRecord};
+pub use psm::{QpxPsmParquetReader, QpxPsmRecord, flatten_psm_batch};
 pub use qpx::{
-    flatten_qpx_batch, flatten_qpx_batch_with_score, QpxFeatureRecord, QpxIntensityEntry,
-    QpxParquetReader, QpxScoreValue,
+    QpxFeatureRecord, QpxIntensityEntry, QpxParquetReader, QpxScoreValue, flatten_qpx_batch,
+    flatten_qpx_batch_with_score,
 };
 pub use sdrf::{
-    normalize_file_key, normalize_label_key, SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable,
-    SharedSourceName,
+    SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable, SharedSourceName, normalize_file_key,
+    normalize_label_key,
 };
 
 pub const DEFAULT_QPX_BATCH_SIZE: usize = 65_536;

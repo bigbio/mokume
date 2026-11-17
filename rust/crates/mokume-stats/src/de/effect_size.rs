@@ -384,7 +384,7 @@ fn quantile(values: &[f64], probability: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{estimate_effect_size_gate, EffectSizeGateMethod, Mt19937};
+    use super::{EffectSizeGateMethod, Mt19937, estimate_effect_size_gate};
 
     fn deterministic_mixture() -> Vec<f64> {
         let mut values = (0..90)

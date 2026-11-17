@@ -52,9 +52,9 @@ use mokume_core::quant::parse_topn_from_method_name;
 use mokume_core::{DirectLfqConfig, MaxLfqConfig, MokumeError, PibaqConfig, Result};
 use mokume_io::read_peptide_parquet_with_weights;
 use mokume_pipeline::{
-    run_lfq_from_peptides_with_threads, run_maxlfq_from_peptides_with_threads,
-    run_pibaq_from_peptides, LfqPeptideObservation, PeptideObservation, PibaqDigest,
-    PibaqFromPeptidesParams, PibaqProteinRow,
+    LfqPeptideObservation, PeptideObservation, PibaqDigest, PibaqFromPeptidesParams,
+    PibaqProteinRow, run_lfq_from_peptides_with_threads, run_maxlfq_from_peptides_with_threads,
+    run_pibaq_from_peptides,
 };
 
 use crate::Peptides2ProteinArgs;
@@ -443,7 +443,7 @@ fn run_generic(args: &Peptides2ProteinArgs, method: &str, output: &Path) -> Resu
             None => {
                 return Err(MokumeError::InvalidInput {
                     message: format!("unknown peptides2protein method '{name}'"),
-                })
+                });
             }
         },
     };
@@ -1878,13 +1878,13 @@ P3,THIDPECK,S1,A,900.0\n";
         write_file(
             &peptides,
             concat!(
-            "ProteinName,PeptideCanonical,PeptideSequence,PrecursorCharge,SampleID,NormIntensity\n",
-            "P,PEPTIDEAK,PEPTIDEAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,3,S1,1\n",
-            "P,ANOTHERAK,ANOTHERAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,2,S2,1\n",
-            "P,PEPTIDEAK,PEPTIDEAK,3,S2,9\nP,ANOTHERAK,ANOTHERAK,2,S2,3\n",
-            "P,INVALID,INVALID,NaN,S1,1000\nP,INVALID,INVALID,NaN,S2,1000\n",
-            "P,INVALID,INVALID,0,S1,1000\nP,INVALID,INVALID,0,S2,1000\n",
-        ),
+                "ProteinName,PeptideCanonical,PeptideSequence,PrecursorCharge,SampleID,NormIntensity\n",
+                "P,PEPTIDEAK,PEPTIDEAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,3,S1,1\n",
+                "P,ANOTHERAK,ANOTHERAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,2,S2,1\n",
+                "P,PEPTIDEAK,PEPTIDEAK,3,S2,9\nP,ANOTHERAK,ANOTHERAK,2,S2,3\n",
+                "P,INVALID,INVALID,NaN,S1,1000\nP,INVALID,INVALID,NaN,S2,1000\n",
+                "P,INVALID,INVALID,0,S1,1000\nP,INVALID,INVALID,0,S2,1000\n",
+            ),
         )?;
         let mut args = base_args(&peptides, &output);
         args.quant_method = "maxlfq".to_owned();

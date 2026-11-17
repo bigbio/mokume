@@ -138,8 +138,8 @@ fn tmm_all_zero_matrix_uses_edger_degenerate_unity_factors() -> Result<(), Box<d
 }
 
 #[test]
-fn quantile_rejects_undefined_missing_ranks_but_accepts_a_complete_single_row(
-) -> Result<(), Box<dyn Error>> {
+fn quantile_rejects_undefined_missing_ranks_but_accepts_a_complete_single_row()
+-> Result<(), Box<dyn Error>> {
     let samples = vec!["a".to_owned(), "b".to_owned()];
     for missing_column in [
         vec![f64::NAN, f64::NAN, f64::NAN],
@@ -153,9 +153,11 @@ fn quantile_rejects_undefined_missing_ranks_but_accepts_a_complete_single_row(
         let Err(error) = normalize_matrix(&input, &samples, "quantile", Some(1)) else {
             panic!("undefined missing-value rank must be rejected");
         };
-        assert!(error
-            .to_string()
-            .contains("rank interpolation is undefined"));
+        assert!(
+            error
+                .to_string()
+                .contains("rank interpolation is undefined")
+        );
     }
     assert_eq!(
         normalize_matrix(&[vec![1.0, 2.0]], &samples, "quantile", Some(1))?,

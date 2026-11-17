@@ -3,15 +3,15 @@ use std::fs::File;
 use std::path::Path;
 
 use arrow::array::{
-    Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array,
-    Int8Array, LargeListArray, LargeStringArray, ListArray, StringArray, StructArray, UInt16Array,
-    UInt32Array, UInt64Array, UInt8Array,
+    Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array,
+    Int64Array, LargeListArray, LargeStringArray, ListArray, StringArray, StructArray, UInt8Array,
+    UInt16Array, UInt32Array, UInt64Array,
 };
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use parquet::arrow::ProjectionMask;
+use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use parquet::file::metadata::ParquetMetaData;
 use parquet::schema::types::SchemaDescriptor;
 
@@ -1019,7 +1019,7 @@ mod tests {
     };
     use arrow::datatypes::{DataType, Field, Fields, Schema};
 
-    use super::{flatten_qpx_batch, QpxParquetReader};
+    use super::{QpxParquetReader, flatten_qpx_batch};
     use crate::sdrf::SdrfTable;
     use arrow::array::{Float32Array, StructArray};
     use arrow::record_batch::RecordBatch;
@@ -1064,8 +1064,8 @@ mod tests {
     }
 
     #[test]
-    fn flattens_new_qpx_struct_accessions_and_label_intensities(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn flattens_new_qpx_struct_accessions_and_label_intensities()
+    -> Result<(), Box<dyn std::error::Error>> {
         let intensities = new_qpx_intensities()?;
         let proteins = new_qpx_proteins()?;
         let schema = Arc::new(Schema::new(vec![
@@ -1245,8 +1245,8 @@ mod tests {
     }
 
     #[test]
-    fn marks_features_without_an_identification_in_their_run(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn marks_features_without_an_identification_in_their_run()
+    -> Result<(), Box<dyn std::error::Error>> {
         // quantms leaves id_run_file_name null for match-between-runs features.
         for (id_run, transferred) in [
             (Some("Run_A_01.mzML"), false),
@@ -1263,8 +1263,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_identification_runs_for_rows_with_several_runs(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn rejects_identification_runs_for_rows_with_several_runs()
+    -> Result<(), Box<dyn std::error::Error>> {
         let batch = id_run_batch(Some("Run_A_01.mzML"), labeled_intensities(&LFQ_RUNS)?)?;
         assert!(flatten_qpx_batch(&batch).is_err());
         // A row labeled with its own run is still one run.
@@ -1364,8 +1364,8 @@ mod tests {
     }
 
     #[test]
-    fn struct_scores_distinguish_null_parent_and_invalid_field(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn struct_scores_distinguish_null_parent_and_invalid_field()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("scores.parquet");
         for value in [None, Some(f32::INFINITY), Some(f32::NAN)] {
@@ -1399,16 +1399,18 @@ mod tests {
                 })
                 .collect();
             let batch = RecordBatch::try_new(schema, columns)?;
-            assert!(super::flatten_qpx_batch_with_score(&batch, "quality")?[0]
-                .selected_score
-                .is_none());
+            assert!(
+                super::flatten_qpx_batch_with_score(&batch, "quality")?[0]
+                    .selected_score
+                    .is_none()
+            );
         }
         Ok(())
     }
 
     #[test]
-    fn top_qvalue_accepts_nulls_and_does_not_read_score_lists(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn top_qvalue_accepts_nulls_and_does_not_read_score_lists()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("top.parquet");
         for name in ["peptide_qvalue", "precursor_qvalue", "global_qvalue"] {
@@ -1439,8 +1441,8 @@ mod tests {
     }
 
     #[test]
-    fn identification_type_overrides_id_run_and_null_falls_back(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn identification_type_overrides_id_run_and_null_falls_back()
+    -> Result<(), Box<dyn std::error::Error>> {
         for (kind, id_run, expected) in [
             (Some("transferred"), Some("Run_A_01.mzML"), true),
             (Some("secondary"), None, false),
@@ -1460,8 +1462,8 @@ mod tests {
     }
 
     #[test]
-    fn imputed_labels_drop_entries_and_modifications_are_optional(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn imputed_labels_drop_entries_and_modifications_are_optional()
+    -> Result<(), Box<dyn std::error::Error>> {
         let batch = id_run_batch(None, new_qpx_intensities()?)?;
         let mut labels = ListBuilder::new(StringBuilder::new());
         labels.values().append_value("TMT126");

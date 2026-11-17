@@ -737,11 +737,7 @@ fn mean(values: impl Iterator<Item = f64>) -> f64 {
         sum += value;
         count += 1;
     }
-    if count == 0 {
-        0.0
-    } else {
-        sum / count as f64
-    }
+    if count == 0 { 0.0 } else { sum / count as f64 }
 }
 
 /// Variance about a precomputed mean; sva priors use `ddof=1`.
@@ -762,7 +758,7 @@ fn variance(values: impl Iterator<Item = f64>, mean: f64, ddof: usize) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{combat, combat_parametric, ComBatParams};
+    use super::{ComBatParams, combat, combat_parametric};
 
     #[derive(serde::Deserialize)]
     struct OfficialCase {

@@ -155,7 +155,7 @@ fn quantile_of(values: &mut [f64], quantile: f64) -> f64 {
 mod tests {
     use mokume_core::TmtInterferenceFloor;
 
-    use super::{plex_model, PlexSample};
+    use super::{PlexSample, plex_model};
 
     #[test]
     fn interference_floor_is_subtracted_relative_to_the_row_mean() {

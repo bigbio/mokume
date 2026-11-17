@@ -1,6 +1,6 @@
 use mokume_core::{IrsConfig, IrsMissingReference, MokumeError, QuantMethod};
 
-use super::{invalid_input, Features2ProteinsArgs};
+use super::{Features2ProteinsArgs, invalid_input};
 
 pub(super) fn resolve_irs(
     args: &Features2ProteinsArgs,

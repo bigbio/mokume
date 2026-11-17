@@ -4,7 +4,7 @@ mod exports;
 
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -25,11 +25,11 @@ use mokume_core::{
     TransferredFeatures,
 };
 use mokume_pipeline::{
-    run_features_to_peptides, run_features_to_proteins, run_features_to_proteins_with_pibaq_digest,
-    PibaqDigest, PibaqDigestProvenance,
+    PibaqDigest, PibaqDigestProvenance, run_features_to_peptides, run_features_to_proteins,
+    run_features_to_proteins_with_pibaq_digest,
 };
-use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ArrowWriter;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 
 #[test]
 fn features2proteins_sum_matches_synthetic_golden_matrix() -> Result<(), Box<dyn Error>> {
@@ -927,8 +927,8 @@ fn features2peptides_tmt_irs_by_mixture_uses_sdrf_source_name_mixture() -> Resul
 //   - P2 (ONEPEPTK), P3, P4 each fall below min_unique=2 after row filtering and are
 //     dropped -- proving the filters apply before the unique gate. Only P1 survives.
 #[test]
-fn features2peptides_filter_pipeline_applies_per_row_before_unique_gate(
-) -> Result<(), Box<dyn Error>> {
+fn features2peptides_filter_pipeline_applies_per_row_before_unique_gate()
+-> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.filter.features.parquet");
@@ -988,8 +988,8 @@ fn features2peptides_filter_pipeline_applies_per_row_before_unique_gate(
 // surviving canonicals keep P1 above min_unique=2. Real-data parity vs Python is
 // verified on PXD003539 through a `--filter-config` exclude pattern.
 #[test]
-fn features2peptides_exclude_sequence_patterns_drops_matching_canonicals(
-) -> Result<(), Box<dyn Error>> {
+fn features2peptides_exclude_sequence_patterns_drops_matching_canonicals()
+-> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.exclude.features.parquet");
@@ -1181,8 +1181,8 @@ fn features2peptides_cv_filter_drops_high_cv_canonical() -> Result<(), Box<dyn E
 // The CV pre-pass keys a group by its raw name, while ingest renames a mixed
 // `CONTAM_<ACC>;<ACC>` group to `<ACC>`; the high-CV canonical must still drop.
 #[test]
-fn features2peptides_cv_filter_drops_high_cv_canonical_in_contaminant_twin_group(
-) -> Result<(), Box<dyn Error>> {
+fn features2peptides_cv_filter_drops_high_cv_canonical_in_contaminant_twin_group()
+-> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.cv-twin.features.parquet");
@@ -1884,8 +1884,8 @@ fn features2peptides_razor_assign_to_top_flips_winner_on_row_order() -> Result<(
 // The synthetic QPX lacks the requested score and any coverage column. Reject
 // both instead of accepting filters that cannot affect output.
 #[test]
-fn features2peptides_rejects_unavailable_search_score_and_coverage_filters(
-) -> Result<(), Box<dyn Error>> {
+fn features2peptides_rejects_unavailable_search_score_and_coverage_filters()
+-> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.unsupported.features.parquet");
@@ -1991,10 +1991,12 @@ fn features2peptides_applies_explicit_qpx_fdr_filters() -> Result<(), Box<dyn Er
     });
     run_features_to_peptides(&peptide)?;
     let peptide_table = read_csv(&peptide_output)?;
-    assert!(peptide_table
-        .rows
-        .iter()
-        .all(|row| row.get(1).is_none_or(|sequence| sequence != "APEPTIDECK")));
+    assert!(
+        peptide_table
+            .rows
+            .iter()
+            .all(|row| row.get(1).is_none_or(|sequence| sequence != "APEPTIDECK"))
+    );
 
     let protein_output = root.join("peptides.protein-fdr.csv");
     let mut protein = default_peptides_config(parquet, protein_output.clone());
@@ -2008,10 +2010,12 @@ fn features2peptides_applies_explicit_qpx_fdr_filters() -> Result<(), Box<dyn Er
     });
     run_features_to_peptides(&protein)?;
     let protein_table = read_csv(&protein_output)?;
-    assert!(protein_table
-        .rows
-        .iter()
-        .all(|row| row.first().is_none_or(|value| value == "P2")));
+    assert!(
+        protein_table
+            .rows
+            .iter()
+            .all(|row| row.first().is_none_or(|value| value == "P2"))
+    );
     assert_eq!(protein_table.rows.len(), 2);
     Ok(())
 }
@@ -2036,9 +2040,11 @@ fn features2peptides_fdr_request_rejects_unpopulated_qvalue() -> Result<(), Box<
         Ok(()) => return Err("unpopulated peptide q-value was accepted".into()),
         Err(error) => error,
     };
-    assert!(error
-        .to_string()
-        .contains("requires a populated QPX `peptide_qvalue` column"));
+    assert!(
+        error
+            .to_string()
+            .contains("requires a populated QPX `peptide_qvalue` column")
+    );
     assert!(!output.exists());
     Ok(())
 }
@@ -2078,8 +2084,8 @@ fn protein_names(table: &CsvTable) -> Vec<String> {
 }
 
 #[test]
-fn features2proteins_filter_protein_fdr_keeps_groups_at_or_below_threshold(
-) -> Result<(), Box<dyn Error>> {
+fn features2proteins_filter_protein_fdr_keeps_groups_at_or_below_threshold()
+-> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("proteins.protein-fdr.features.parquet");
@@ -2297,9 +2303,11 @@ fn features2proteins_filter_protein_fdr_applies_to_maxlfq() -> Result<(), Box<dy
     config.protein_fdr_threshold = Some(0.01);
     run_features_to_proteins(&config)?;
     let names = protein_names(&read_csv(&output)?);
-    assert!(names
-        .iter()
-        .all(|name| ["P1", "P3", "P5"].contains(&name.as_str())));
+    assert!(
+        names
+            .iter()
+            .all(|name| ["P1", "P3", "P5"].contains(&name.as_str()))
+    );
     assert!(names.iter().any(|name| name == "P1"));
     Ok(())
 }
@@ -2326,9 +2334,11 @@ fn features2proteins_filter_protein_fdr_rejects_unpopulated_qvalue() -> Result<(
         Ok(()) => return Err("unpopulated protein q-value was accepted".into()),
         Err(error) => error,
     };
-    assert!(error
-        .to_string()
-        .contains("requires a populated QPX `pg_global_qvalue` column"));
+    assert!(
+        error
+            .to_string()
+            .contains("requires a populated QPX `pg_global_qvalue` column")
+    );
     assert!(!output.exists());
     Ok(())
 }
@@ -2855,8 +2865,8 @@ fn features2peptides_remove_ids_matches_python_oracle() -> Result<(), Box<dyn Er
 // single RAREPEPTK/run1 cell (12 rows kept; baseline keeps 13). min_unique=2 is
 // satisfied per run by PEPTIDEAK + STABLE2PEPTK.
 #[test]
-fn features2peptides_remove_low_frequency_peptides_matches_python_oracle(
-) -> Result<(), Box<dyn Error>> {
+fn features2peptides_remove_low_frequency_peptides_matches_python_oracle()
+-> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     create_dir_all(&root)?;
     let parquet = root.join("peptides.lf.features.parquet");
@@ -3056,8 +3066,8 @@ fn features2proteins_ratio_matches_synthetic_oracle() -> Result<(), Box<dyn Erro
 }
 
 #[test]
-fn features2proteins_ratio_sdrf_pooled_multiplex_matches_python_oracle(
-) -> Result<(), Box<dyn Error>> {
+fn features2proteins_ratio_sdrf_pooled_multiplex_matches_python_oracle()
+-> Result<(), Box<dyn Error>> {
     // SDRF-driven ratio quantification across two plexes (p1, p2). The reference
     // channel in each plex is marked by `characteristics[pooled sample] = pooled`
     // (Python's `detect_pooled_from_sdrf`), and the plex is derived from the
@@ -3136,8 +3146,8 @@ fn features2proteins_pibaq_allocates_family_shared_peptides() -> Result<(), Box<
 }
 
 #[test]
-fn features2proteins_pibaq_default_uses_unique_peptides_and_family_rows(
-) -> Result<(), Box<dyn Error>> {
+fn features2proteins_pibaq_default_uses_unique_peptides_and_family_rows()
+-> Result<(), Box<dyn Error>> {
     // P5A/P5B share two peptides; each member keeps only its own unique peptide.
     let table = run_family_pibaq_quantification_with(PibaqConfig::default())?;
     assert_numeric_cell_close(&table, "P5A", "sample-1", 300.0);
@@ -3147,16 +3157,17 @@ fn features2proteins_pibaq_default_uses_unique_peptides_and_family_rows(
     let synthetic =
         run_synthetic_quantification_with(QuantMethod::Pibaq, 3, PibaqConfig::default())?;
     assert_numeric_cell_close(&synthetic, "P4A;P4B", "sample-1", 15.0);
-    assert!(!synthetic.rows.iter().any(|row| row
-        .first()
-        .is_some_and(|name| name == "P4A" || name == "P4B")));
+    assert!(!synthetic.rows.iter().any(|row| {
+        row.first()
+            .is_some_and(|name| name == "P4A" || name == "P4B")
+    }));
     assert_numeric_cell_close(&synthetic, "P1", "sample-1", 3450.0);
     Ok(())
 }
 
 #[test]
-fn features2proteins_pibaq_stable_ratio_matches_legacy_on_one_anchored_sample(
-) -> Result<(), Box<dyn Error>> {
+fn features2proteins_pibaq_stable_ratio_matches_legacy_on_one_anchored_sample()
+-> Result<(), Box<dyn Error>> {
     let table = run_family_pibaq_quantification_with(PibaqConfig {
         shared_mode: PibaqSharedMode::StableRatio,
         ..PibaqConfig::default()
@@ -3696,8 +3707,8 @@ fn features2proteins_hierarchical_orders_columns_by_sample_name() -> Result<(), 
 /// `LOESSNormalizer(frac=0.75, reference="median").fit_transform` on the log2
 /// matrix, exponentiated back.
 #[test]
-fn features2proteins_loess_real_path_matches_python_oracle_within_tolerance(
-) -> Result<(), Box<dyn Error>> {
+fn features2proteins_loess_real_path_matches_python_oracle_within_tolerance()
+-> Result<(), Box<dyn Error>> {
     const RELATIVE_TOLERANCE: f64 = 2e-3;
     let loess = run_sample_normalization_real_path("loess", QuantMethod::Sum)?;
     let oracle: [(&str, f64, f64); 12] = [
@@ -3825,8 +3836,8 @@ fn features2proteins_mindet_imputation_matches_synthetic_oracle() -> Result<(), 
 }
 
 #[test]
-fn features2proteins_deterministic_imputation_methods_match_synthetic_oracles(
-) -> Result<(), Box<dyn Error>> {
+fn features2proteins_deterministic_imputation_methods_match_synthetic_oracles()
+-> Result<(), Box<dyn Error>> {
     let minprob = run_imputation_quantification("minprob", |config| {
         config.imputation.quantile = 0.0;
     })?;
@@ -6195,8 +6206,8 @@ fn features2proteins_impseq_imputation_matches_synthetic_oracle() -> Result<(), 
 // onto the minimum observation, and every fill lies in [min_observed,
 // geometric_mean_observed].
 #[test]
-fn features2proteins_gms_imputation_matches_stochastic_oracle_property(
-) -> Result<(), Box<dyn Error>> {
+fn features2proteins_gms_imputation_matches_stochastic_oracle_property()
+-> Result<(), Box<dyn Error>> {
     let gms = run_imputation_quantification("gms", |_| {})?;
     assert_numeric_cell_close(&gms, "P31", "sample-2", 20.0);
     assert_numeric_cell_close(&gms, "P32", "sample-1", 10.0);

@@ -9,8 +9,8 @@ use mokume_command::{run_from_args, run_from_args_with_pibaq_digest};
 use mokume_pipeline::{PibaqDigest, PibaqDigestProvenance};
 
 #[test]
-fn log_file_option_writes_file_and_preserves_command_errors(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn log_file_option_writes_file_and_preserves_command_errors()
+-> Result<(), Box<dyn std::error::Error>> {
     let (_tempdir, root) = temp_root()?;
     let log_file = root.join("logs").join("mokume.log");
     let error = match run_from_args([

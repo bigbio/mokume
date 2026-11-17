@@ -133,8 +133,8 @@ fn check_case(case: &Case) {
 }
 
 #[test]
-fn default_nlminb_trajectories_include_bounds_and_indefinite_hessians(
-) -> Result<(), serde_json::Error> {
+fn default_nlminb_trajectories_include_bounds_and_indefinite_hessians()
+-> Result<(), serde_json::Error> {
     let fixture: Fixture =
         serde_json::from_str(include_str!("../../../tests/data/port_official.json"))?;
     for case in &fixture.cases {

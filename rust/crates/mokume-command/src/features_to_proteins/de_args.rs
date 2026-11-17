@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use crate::parsers::{parse_de_log2fc, parse_fraction, parse_positive_usize, DeLog2FcArg};
+use crate::parsers::{DeLog2FcArg, parse_de_log2fc, parse_fraction, parse_positive_usize};
 
 /// The differential-expression options of `features2proteins`, flattened into
 /// its arguments.

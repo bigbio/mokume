@@ -19,16 +19,16 @@ use std::path::Path;
 use std::sync::Arc;
 
 use arrow::array::{
-    Array, ArrayRef, DictionaryArray, Float32Array, Float64Array, Int16Array, Int32Array,
-    Int64Array, Int8Array, LargeStringArray, StringArray, StringDictionaryBuilder,
+    Array, ArrayRef, DictionaryArray, Float32Array, Float64Array, Int8Array, Int16Array,
+    Int32Array, Int64Array, LargeStringArray, StringArray, StringDictionaryBuilder,
 };
 use arrow::datatypes::{
-    ArrowDictionaryKeyType, DataType, Field, Int16Type, Int32Type, Int8Type, Schema,
+    ArrowDictionaryKeyType, DataType, Field, Int8Type, Int16Type, Int32Type, Schema,
 };
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ArrowWriter;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 
 /// Column header for the protein identifier (Python `PROTEIN_NAME`).
 const PROTEIN_NAME: &str = "ProteinName";
@@ -772,10 +772,12 @@ mod tests {
         let table = read_peptide_parquet_with_weights(&path, false, Some("Weight"))?;
         let weights = table.rows.iter().map(|row| row.weight).collect::<Vec<_>>();
         assert_eq!(weights, [Some(0.5), None]);
-        assert!(read_peptide_parquet(&path)?
-            .rows
-            .iter()
-            .all(|row| row.weight.is_none()));
+        assert!(
+            read_peptide_parquet(&path)?
+                .rows
+                .iter()
+                .all(|row| row.weight.is_none())
+        );
         let Err(error) = read_peptide_parquet_with_weights(&path, false, Some("Quality")) else {
             panic!("a missing weight column was accepted");
         };

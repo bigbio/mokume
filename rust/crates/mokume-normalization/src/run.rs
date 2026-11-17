@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use mokume_core::stats::{mean_positive, median, quantile_linear};
 use mokume_core::Result;
+use mokume_core::stats::{mean_positive, median, quantile_linear};
 
 use crate::math::{unsupported, valid_scale};
 

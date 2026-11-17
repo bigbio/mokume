@@ -2,7 +2,7 @@
 use mokume_core::stats::quantile_linear;
 use mokume_core::{MokumeError, ProteinId, Result, SampleId};
 
-use crate::stochastic::{normal_cdf, normal_quantile, Random};
+use crate::stochastic::{Random, normal_cdf, normal_quantile};
 
 pub(crate) fn qrilc_imputed_values<F>(
     proteins: &[ProteinId],

@@ -276,8 +276,8 @@ mod tests {
     use mokume_io::{QpxPsmRecord, SdrfTable};
 
     use super::{
-        add_record, collapse_assignments, insert_assignment, protein_set, FeatureProteinGroup,
-        SpectrumAssignment, SpectrumKey,
+        FeatureProteinGroup, SpectrumAssignment, SpectrumKey, add_record, collapse_assignments,
+        insert_assignment, protein_set,
     };
 
     fn assignment(protein: &str, sample: &str) -> SpectrumAssignment {
@@ -316,8 +316,8 @@ mod tests {
     }
 
     #[test]
-    fn collapses_duplicates_and_rejects_conflicting_assignments(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn collapses_duplicates_and_rejects_conflicting_assignments()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut assignments = HashMap::new();
         for id in [1, 2] {
             insert_assignment(
@@ -341,11 +341,13 @@ mod tests {
                 BTreeSet::from([protein.to_owned()]),
                 sample.to_owned(),
             );
-            assert!(result
-                .err()
-                .ok_or("conflict was accepted")?
-                .to_string()
-                .contains("conflicting"));
+            assert!(
+                result
+                    .err()
+                    .ok_or("conflict was accepted")?
+                    .to_string()
+                    .contains("conflicting")
+            );
         }
         Ok(())
     }

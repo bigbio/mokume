@@ -482,9 +482,11 @@ fn export_precision_requires_maxlfq_or_directlfq() -> mokume_core::Result<()> {
     let Err(error) = parse("top3") else {
         panic!("--export-precision was accepted for top3");
     };
-    assert!(error
-        .to_string()
-        .contains("requires --quant-method maxlfq or directlfq"));
+    assert!(
+        error
+            .to_string()
+            .contains("requires --quant-method maxlfq or directlfq")
+    );
     Ok(())
 }
 

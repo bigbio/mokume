@@ -317,8 +317,8 @@ fn write_export_features(path: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn protein_groups_merge_observed_orders_without_sorting_single_order_groups(
-) -> Result<(), Box<dyn Error>> {
+fn protein_groups_merge_observed_orders_without_sorting_single_order_groups()
+-> Result<(), Box<dyn Error>> {
     let (_guard, root) = temp_root()?;
     let parquet = root.join("groups.parquet");
     let sdrf = root.join("samples.tsv");

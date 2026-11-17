@@ -8,7 +8,7 @@
 //! after 100 individual Jacobi rotations even on much larger matrices. Direct
 //! SVD also avoids squaring the condition number or allocating features^2.
 
-use nalgebra::{linalg::SVD, DMatrix};
+use nalgebra::{DMatrix, linalg::SVD};
 
 /// Bounded SVD iterations; convergence uses machine precision, not this cap.
 const SVD_MAX_ITERATIONS: usize = 100_000;

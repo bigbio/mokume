@@ -139,11 +139,7 @@ impl Trust {
         if gnorm == 0.0 {
             upper += 0.001 + 0.001 * upper;
         }
-        if upper <= 0.0 {
-            0.001
-        } else {
-            upper
-        }
+        if upper <= 0.0 { 0.001 } else { upper }
     }
 
     fn restart(&mut self, s: &mut Search<'_>) -> Option<Step> {

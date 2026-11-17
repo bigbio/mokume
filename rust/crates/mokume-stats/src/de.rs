@@ -24,16 +24,16 @@ mod special;
 mod student_t;
 
 use correct::bh_adjust;
-pub use correct::{adaptive_adjust, AdaptiveFdrMethod, AppliedFdrMethod};
-pub use deqms::{deqms_design, deqms_two_group, deqms_two_group_weighted, PrecisionRows};
-pub use duplicate_correlation::{duplicate_correlation, BlockCorrelationEstimate};
-pub use effect_size::{estimate_effect_size_gate, EffectSizeGateMethod};
-pub use ensemble::{combine_de_results, EnsembleResult};
-pub use ihw::{ihw_correction, ihw_with_options, IhwOptions, IhwResult};
+pub use correct::{AdaptiveFdrMethod, AppliedFdrMethod, adaptive_adjust};
+pub use deqms::{PrecisionRows, deqms_design, deqms_two_group, deqms_two_group_weighted};
+pub use duplicate_correlation::{BlockCorrelationEstimate, duplicate_correlation};
+pub use effect_size::{EffectSizeGateMethod, estimate_effect_size_gate};
+pub use ensemble::{EnsembleResult, combine_de_results};
+pub use ihw::{IhwOptions, IhwResult, ihw_correction, ihw_with_options};
 use limma::run_limma;
-pub use limma_design::{limma_design, validate_design, DesignContrast, RandomBlock};
+pub use limma_design::{DesignContrast, RandomBlock, limma_design, validate_design};
 pub use limrots::{
-    limrots_two_group, limrots_two_group_with_options, LimRotsOptions, LimRotsOutput,
+    LimRotsOptions, LimRotsOutput, limrots_two_group, limrots_two_group_with_options,
 };
 use proda::proda_run;
 pub use rots::rots_two_group;
@@ -243,8 +243,8 @@ fn classify(
 #[cfg(test)]
 mod tests {
     use super::{
-        classify, limma_two_group, proda_two_group, Significance, DEFAULT_FDR_THRESHOLD,
-        DEFAULT_LOG2FC_THRESHOLD,
+        DEFAULT_FDR_THRESHOLD, DEFAULT_LOG2FC_THRESHOLD, Significance, classify, limma_two_group,
+        proda_two_group,
     };
 
     // Independent Bioconductor proDA 1.24.0 fixture. Complete input avoids

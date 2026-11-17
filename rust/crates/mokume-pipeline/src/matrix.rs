@@ -4,8 +4,8 @@ use mokume_core::{ImputationConfig, PeptideId, ProteinId, Result, SampleId, Stri
 use mokume_normalization::SampleNormalizationMethod;
 
 use super::{
-    apply_dataset_norm_to_peptide_cells, imputed_values, invalid_input, threading,
-    validate_imputation_config, CellKey,
+    CellKey, apply_dataset_norm_to_peptide_cells, imputed_values, invalid_input, threading,
+    validate_imputation_config,
 };
 
 /// Normalize a row-major linear-intensity matrix without running quantification.
@@ -221,7 +221,7 @@ fn parse_matrix_normalization(method: &str) -> Result<Option<SampleNormalization
         _ => {
             return Err(invalid_input(format!(
                 "unknown matrix normalization method `{method}`"
-            )))
+            )));
         }
     };
     Ok(parsed)

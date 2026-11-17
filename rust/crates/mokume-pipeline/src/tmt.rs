@@ -9,11 +9,11 @@ use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use mokume_core::{MokumeError, Result, TmtConfig, TmtRowMerge};
-use mokume_io::{reject_isotope_corrected, QpxFeatureRecord, SdrfTable};
+use mokume_io::{QpxFeatureRecord, SdrfTable, reject_isotope_corrected};
 use tracing::{info, warn};
 
-use floor::{plex_model, PlexModel, PlexSample};
-use impurity::{channel_key, ImpurityMatrix};
+use floor::{PlexModel, PlexSample, plex_model};
+use impurity::{ImpurityMatrix, channel_key};
 
 const FLOOR_CLAMP: f64 = 0.01;
 

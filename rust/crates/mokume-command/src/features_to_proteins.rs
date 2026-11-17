@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use clap::Args;
 use mokume_core::{FilterConfig, PibaqConfig, QuantMethod, TmtInterferenceFloor};
 
-use crate::parsers::{
-    parse_correlation, parse_finite_f64, parse_fraction, parse_memory, parse_nonnegative_f64,
-    parse_positive_usize, parse_quant_method, parse_tmt_floor, parse_transferred_weight,
-    QuantMethodArg,
-};
 use crate::PibaqDigestRequest;
+use crate::parsers::{
+    QuantMethodArg, parse_correlation, parse_finite_f64, parse_fraction, parse_memory,
+    parse_nonnegative_f64, parse_positive_usize, parse_quant_method, parse_tmt_floor,
+    parse_transferred_weight,
+};
 
 mod config;
 mod de_args;

@@ -385,20 +385,22 @@ fn help_has_option(help: &str, option: &str) -> bool {
 #[test]
 fn run_and_sdrf_sample_maps_are_mutually_exclusive() {
     for command in ["features2proteins", "features2peptides"] {
-        assert!(Cli::try_parse_from([
-            "mokume",
-            "quantify",
-            command,
-            "--parquet",
-            "features.parquet",
-            "--output",
-            "output.csv",
-            "--run",
-            "run.parquet",
-            "--sdrf",
-            "samples.tsv",
-        ])
-        .is_err());
+        assert!(
+            Cli::try_parse_from([
+                "mokume",
+                "quantify",
+                command,
+                "--parquet",
+                "features.parquet",
+                "--output",
+                "output.csv",
+                "--run",
+                "run.parquet",
+                "--sdrf",
+                "samples.tsv",
+            ])
+            .is_err()
+        );
     }
 }
 

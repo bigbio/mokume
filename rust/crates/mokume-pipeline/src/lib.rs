@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::fs::{create_dir_all, read_to_string, File};
+use std::fs::{File, create_dir_all, read_to_string};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{sync_channel, Receiver};
 use std::sync::Mutex;
+use std::sync::mpsc::{Receiver, sync_channel};
 
 use csv::WriterBuilder;
 use mokume_core::{
@@ -16,20 +16,20 @@ use mokume_core::{
 };
 use mokume_imputation::imputed_values;
 use mokume_io::{
-    write_peptide_parquet, MsstatsReader, PeptideParquetRow, ProteinGroupOrders, QpxFeatureRecord,
-    QpxParquetReader, QpxScoreValue, SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable,
+    MsstatsReader, PeptideParquetRow, ProteinGroupOrders, QpxFeatureRecord, QpxParquetReader,
+    QpxScoreValue, SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable, write_peptide_parquet,
 };
 use mokume_normalization::{
+    RunCellKey, RunNormalizationMethod, RunNormalizationTransform, SampleNormalizationMethod,
     condition_median_sample_factors, coverage_filtered_proteins, global_median_sample_factors,
     irs_scaling_factors, mean_positive, median, median_finite, parse_run_normalization_method,
     parse_sample_normalization_method, quantile_linear, run_normalization_transforms,
-    tmm_norm_factors, RunCellKey, RunNormalizationMethod, RunNormalizationTransform,
-    SampleNormalizationMethod,
+    tmm_norm_factors,
 };
 use mokume_quant::{
-    cell_precisions, direct_lfq_aligned, direct_lfq_aligned_with, profile_residuals,
-    solve_max_lfq_with_stabilization, DirectLfqIon, DirectLfqNormalizedIon, DirectLfqResult,
-    DirectLfqRetain, PeptideMeasurement, ProfileResiduals,
+    DirectLfqIon, DirectLfqNormalizedIon, DirectLfqResult, DirectLfqRetain, PeptideMeasurement,
+    ProfileResiduals, cell_precisions, direct_lfq_aligned, direct_lfq_aligned_with,
+    profile_residuals, solve_max_lfq_with_stabilization,
 };
 use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
@@ -46,7 +46,7 @@ mod tmt;
 
 use memory::MemoryPlan;
 
-pub use de::{differential_expression_matrix, MatrixDeInputs, MatrixDifferentialExpressionResults};
+pub use de::{MatrixDeInputs, MatrixDifferentialExpressionResults, differential_expression_matrix};
 pub use matrix::{impute_matrix, normalize_matrix};
 pub use maxlfq::run_maxlfq_from_peptides_with_threads;
 
@@ -2651,11 +2651,7 @@ impl PibaqAggregation {
                         .resolve(key.protein)
                         .and_then(|member| mw_map.get(member).copied())
                         .unwrap_or(0.0);
-                    if member_mw == 0.0 {
-                        1.0
-                    } else {
-                        member_mw
-                    }
+                    if member_mw == 0.0 { 1.0 } else { member_mw }
                 });
                 let tpa = molecular_weight.map(|mw| cell.norm_intensity / mw);
                 detailed.insert(
@@ -3586,11 +3582,7 @@ fn fit_rlr_sample(reference: &[f64], y: &[f64]) -> (f64, f64) {
             .zip(weights)
             .map(|(value, weight)| weight * value * value)
             .sum::<f64>();
-        if n > 2 {
-            ssr / (n - 2) as f64
-        } else {
-            0.0
-        }
+        if n > 2 { ssr / (n - 2) as f64 } else { 0.0 }
     };
     let huber_objective = |resid: &[f64], scale: f64| -> f64 {
         resid
@@ -7294,23 +7286,25 @@ where
     );
 
     std::thread::scope(|scope| -> Result<()> {
-        scope.spawn(move || loop {
-            let mut window: Vec<mokume_io::RecordBatch> = Vec::with_capacity(window_size);
-            for _ in 0..window_size {
-                match reader.next_raw_batch() {
-                    Some(Ok(batch)) => window.push(batch),
-                    Some(Err(error)) => {
-                        let _ = tx.send(Err(error));
-                        return;
+        scope.spawn(move || {
+            loop {
+                let mut window: Vec<mokume_io::RecordBatch> = Vec::with_capacity(window_size);
+                for _ in 0..window_size {
+                    match reader.next_raw_batch() {
+                        Some(Ok(batch)) => window.push(batch),
+                        Some(Err(error)) => {
+                            let _ = tx.send(Err(error));
+                            return;
+                        }
+                        None => break,
                     }
-                    None => break,
                 }
-            }
-            if window.is_empty() {
-                return;
-            }
-            if tx.send(Ok(window)).is_err() {
-                return;
+                if window.is_empty() {
+                    return;
+                }
+                if tx.send(Ok(window)).is_err() {
+                    return;
+                }
             }
         });
 
@@ -11008,15 +11002,15 @@ mod tests {
     use mokume_normalization::{RunCellKey, RunNormalizationTransform, SampleNormalizationMethod};
 
     use super::{
-        batch_column_values_for_samples, detect_reference_samples, expand_de_contrasts_file,
-        extract_sdrf_covariates, factorize_batch_labels, irs_by_mixture_scale_from_runs,
-        irs_global_scale_from_runs, irs_mixture_first_token, irs_two_stage_scale_from_runs,
-        load_normalization_proteins, match_sdrf_column, passes_feature_filter, resolve_de_method,
-        resolve_irs_autodetect_channel, resolve_irs_reference_samples, resolve_reference_batch,
-        run_features_to_proteins, sample_plex, sum_peptide_values, validate_batch_sizes,
-        validate_combat_design, validate_de_ensemble_options, validate_features_to_proteins,
-        validate_implemented_subset, CellKey, IntensityFactors, IrsStat,
-        NormalizationFactorCollector, ProteinMatrix, ProteinValues,
+        CellKey, IntensityFactors, IrsStat, NormalizationFactorCollector, ProteinMatrix,
+        ProteinValues, batch_column_values_for_samples, detect_reference_samples,
+        expand_de_contrasts_file, extract_sdrf_covariates, factorize_batch_labels,
+        irs_by_mixture_scale_from_runs, irs_global_scale_from_runs, irs_mixture_first_token,
+        irs_two_stage_scale_from_runs, load_normalization_proteins, match_sdrf_column,
+        passes_feature_filter, resolve_de_method, resolve_irs_autodetect_channel,
+        resolve_irs_reference_samples, resolve_reference_batch, run_features_to_proteins,
+        sample_plex, sum_peptide_values, validate_batch_sizes, validate_combat_design,
+        validate_de_ensemble_options, validate_features_to_proteins, validate_implemented_subset,
     };
 
     #[test]
@@ -11491,17 +11485,21 @@ mod tests {
             (ProteinId::new(3), HashMap::from([("p1".to_owned(), 4.0)])),
         ]);
         let medians = super::plex_median_factors(&factors);
-        assert!(medians
-            .get("p1")
-            .is_some_and(|value| (value - 4.0).abs() < 1e-12));
-        assert!(medians
-            .get("p2")
-            .is_some_and(|value| (value - 0.5).abs() < 1e-12));
+        assert!(
+            medians
+                .get("p1")
+                .is_some_and(|value| (value - 4.0).abs() < 1e-12)
+        );
+        assert!(
+            medians
+                .get("p2")
+                .is_some_and(|value| (value - 0.5).abs() < 1e-12)
+        );
     }
 
     #[test]
-    fn accepts_normalization_proteins_file_for_supported_subset(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn accepts_normalization_proteins_file_for_supported_subset()
+    -> Result<(), Box<dyn std::error::Error>> {
         let (_parquet_guard, parquet) = existing_dummy_path("normalization_proteins")?;
         let (_proteins_guard, proteins) = existing_dummy_path("normalization_proteins_list")?;
         fs::write(&proteins, "P1\nP2\n")?;
@@ -11515,8 +11513,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_empty_normalization_proteins_file_before_loading(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn rejects_empty_normalization_proteins_file_before_loading()
+    -> Result<(), Box<dyn std::error::Error>> {
         let (_proteins_guard, proteins) = existing_dummy_path("empty_normalization_proteins_list")?;
         fs::write(&proteins, "\n")?;
 
@@ -11536,8 +11534,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unmatched_normalization_proteins_after_loading(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn rejects_unmatched_normalization_proteins_after_loading()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut collector = NormalizationFactorCollector::new(
             None,
             Some(SampleNormalizationMethod::GlobalMedian),
@@ -11833,8 +11831,8 @@ mod tests {
     }
 
     #[test]
-    fn resolve_irs_autodetect_channel_breaks_ties_lexicographically(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn resolve_irs_autodetect_channel_breaks_ties_lexicographically()
+    -> Result<(), Box<dyn std::error::Error>> {
         // TMT127 and TMT131 each match once; pandas `mode().iloc[0]` returns the
         // smallest of the tied labels -> TMT127.
         let (_sdrf_guard, sdrf) = write_temp_sdrf(
@@ -11850,8 +11848,8 @@ mod tests {
     }
 
     #[test]
-    fn resolve_irs_autodetect_channel_returns_none_on_no_match(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn resolve_irs_autodetect_channel_returns_none_on_no_match()
+    -> Result<(), Box<dyn std::error::Error>> {
         // No source name matches the regex -> None (Python skips IRS).
         let (_sdrf_guard, sdrf) = write_temp_sdrf(
             "nomatch",
@@ -11868,8 +11866,8 @@ mod tests {
     }
 
     #[test]
-    fn reference_detection_uses_real_regex_and_explicit_priority(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn reference_detection_uses_real_regex_and_explicit_priority()
+    -> Result<(), Box<dyn std::error::Error>> {
         let text = concat!(
             "source name\tcomment[data file]\tfactor value[role]\tcharacteristics[pooled sample]\n",
             "S1\ta.raw\tordinary\tnot pooled\n",
@@ -11914,8 +11912,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_missing_normalization_proteins_file_before_loading(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn rejects_missing_normalization_proteins_file_before_loading()
+    -> Result<(), Box<dyn std::error::Error>> {
         let (_parquet_guard, parquet) = existing_dummy_path("missing_normalization_proteins")?;
         let mut config = base_config(parquet);
         let missing_directory = tempfile::Builder::new()
@@ -12150,8 +12148,8 @@ mod tests {
     }
 
     #[test]
-    fn sample_correlation_filter_excludes_only_the_original_matrix_outlier(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn sample_correlation_filter_excludes_only_the_original_matrix_outlier()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut samples = StringIdRegistry::<SampleId>::new();
         let sample_ids = ["A1", "A2", "A3", "B1", "B2"]
             .into_iter()
@@ -12210,8 +12208,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
     }
 
     #[test]
-    fn sample_correlation_uses_negative_values_for_log2_methods(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn sample_correlation_uses_negative_values_for_log2_methods()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut samples = StringIdRegistry::<SampleId>::new();
         let left = samples.get_or_insert("A1").expect("left sample");
         let right = samples.get_or_insert("A2").expect("right sample");
@@ -12421,20 +12419,18 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
         // Explicitly requested covariates reject unmatched samples and constant
         // columns instead of silently changing or dropping the design.
         let names_d = ["S1", "S2", "ZZZ", "S4"];
-        assert!(extract_sdrf_covariates(
-            &raw,
-            &names_d,
-            &["characteristics[organism part]".into()]
-        )
-        .is_err());
+        assert!(
+            extract_sdrf_covariates(&raw, &names_d, &["characteristics[organism part]".into()])
+                .is_err()
+        );
         assert!(extract_sdrf_covariates(&raw, &names, &["const_col".into()]).is_err());
         assert_eq!(extract_sdrf_covariates(&raw, &names, &[])?, None);
         Ok(())
     }
 
     #[test]
-    fn covariates_keep_numeric_values_and_one_hot_nominal_categories(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn covariates_keep_numeric_values_and_one_hot_nominal_categories()
+    -> Result<(), Box<dyn std::error::Error>> {
         let input = concat!(
             "source name\tage\tsite\n",
             "S1\t20\tnorth\n",
@@ -12510,8 +12506,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
     }
 
     #[test]
-    fn batch_column_values_require_complete_source_name_mapping(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn batch_column_values_require_complete_source_name_mapping()
+    -> Result<(), Box<dyn std::error::Error>> {
         let raw = covariate_fixture()?;
         // Oracle: ['b1','b1','b2','b2'].
         assert_eq!(
@@ -12529,8 +12525,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
     }
 
     #[test]
-    fn apply_batch_correction_corrects_complete_rows_and_keeps_incomplete(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn apply_batch_correction_corrects_complete_rows_and_keeps_incomplete()
+    -> Result<(), Box<dyn std::error::Error>> {
         // 4 samples -> 2 batches of 2 via sample_prefix ("A-*" vs "B-*"). P1/P2 are
         // complete (ComBat-corrected); P3 has a missing cell (kept uncorrected).
         let mut samples = StringIdRegistry::<SampleId>::new();
@@ -12670,8 +12666,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
     }
 
     #[test]
-    fn apply_batch_correction_skips_non_positive_rows_and_keeps_undefined_rows(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn apply_batch_correction_skips_non_positive_rows_and_keeps_undefined_rows()
+    -> Result<(), Box<dyn std::error::Error>> {
         let config = BatchCorrectionConfig {
             enabled: true,
             ..BatchCorrectionConfig::default()
@@ -12735,8 +12731,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
     }
 
     #[test]
-    fn apply_batch_correction_column_method_reads_sdrf_and_errors_on_missing(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn apply_batch_correction_column_method_reads_sdrf_and_errors_on_missing()
+    -> Result<(), Box<dyn std::error::Error>> {
         // Sample names that are each their own `sample_prefix` (no '-', no
         // `[a-z]+\d+_`), so prefix detection would see four singleton batches and
         // no-op. The explicit `column` method reads the SDRF `batch_id` column,
@@ -12825,28 +12821,32 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
 
         // An absent column errors like Python's `_detect_explicit_batches(None)`.
         let (mut missing, ..) = build()?;
-        assert!(missing
-            .apply_batch_correction(
-                &column_config("column", Some("nope")),
-                Some(&sdrf_path),
-                false,
-                false
-            )
-            .is_err());
+        assert!(
+            missing
+                .apply_batch_correction(
+                    &column_config("column", Some("nope")),
+                    Some(&sdrf_path),
+                    false,
+                    false
+                )
+                .is_err()
+        );
 
         // `run` has no run-level mapping in the protein-matrix flow -> error.
         let (mut run_matrix, ..) = build()?;
-        assert!(run_matrix
-            .apply_batch_correction(&column_config("run", None), Some(&sdrf_path), false, false)
-            .is_err());
+        assert!(
+            run_matrix
+                .apply_batch_correction(&column_config("run", None), Some(&sdrf_path), false, false)
+                .is_err()
+        );
 
         fs::remove_dir_all(&dir).ok();
         Ok(())
     }
 
     #[test]
-    fn apply_batch_correction_rejects_removed_and_unknown_methods(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn apply_batch_correction_rejects_removed_and_unknown_methods()
+    -> Result<(), Box<dyn std::error::Error>> {
         type BuiltMatrix = (ProteinMatrix, Vec<SampleId>, ProteinId, ProteinId);
         let p1_row = [10.0, 12.0, 30.0, 33.0];
         let p2_row = [5.0, 6.0, 20.0, 19.0];
@@ -12904,16 +12904,18 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
 
         for method in ["fraction", "techreplicate", "totally-unknown"] {
             let (mut matrix, ..) = build()?;
-            assert!(matrix
-                .apply_batch_correction(&method_config(method), None, false, false)
-                .is_err());
+            assert!(
+                matrix
+                    .apply_batch_correction(&method_config(method), None, false, false)
+                    .is_err()
+            );
         }
         Ok(())
     }
 
     #[test]
-    fn write_csv_missing_fill_matches_python_per_method_convention(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn write_csv_missing_fill_matches_python_per_method_convention()
+    -> Result<(), Box<dyn std::error::Error>> {
         // Columns sort by sample name: S1=col 1, S2=col 2, S3=col 3. P1 is observed
         // in S1 and S2; P2 only in S1 (missing in the observed sample S2); S3 carries
         // no observation at all.
@@ -13028,8 +13030,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
     }
 
     #[test]
-    fn validates_ensemble_min_k_against_configured_members(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn validates_ensemble_min_k_against_configured_members()
+    -> Result<(), Box<dyn std::error::Error>> {
         for min_k in [0, 3] {
             let (_parquet_guard, parquet) = existing_dummy_path("invalid_ensemble_min_k")?;
             let mut config = base_config(parquet);
@@ -13052,8 +13054,8 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
     }
 
     #[test]
-    fn invalid_ensemble_precedes_missing_input_without_output(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn invalid_ensemble_precedes_missing_input_without_output()
+    -> Result<(), Box<dyn std::error::Error>> {
         let tempdir = tempfile::tempdir()?;
         let output = tempdir.path().join("de.csv");
         let mut config = base_config(tempdir.path().join("missing.parquet"));
@@ -13328,9 +13330,11 @@ B1\tB1.raw\tB\nB2\tB2.raw\tB\n"
                 cells,
                 "{method:?}"
             );
-            assert!(precision
-                .values()
-                .all(|value| value.is_finite() && *value > 0.0));
+            assert!(
+                precision
+                    .values()
+                    .all(|value| value.is_finite() && *value > 0.0)
+            );
         }
         Ok(())
     }
@@ -13419,9 +13423,9 @@ mod contaminant_and_plex_tests {
     use mokume_io::{SdrfRawTable, SdrfTable};
 
     use super::{
-        derive_sample_plexes, drop_contaminant_accessions, find_contaminant_twins,
+        PlexSource, derive_sample_plexes, drop_contaminant_accessions, find_contaminant_twins,
         matches_protein_contaminant, matches_sql_contaminant, rename_contaminant_twins,
-        strip_contaminant_members, summarize_digest_misses, PlexSource,
+        strip_contaminant_members, summarize_digest_misses,
     };
 
     fn owned(values: &[&str]) -> Vec<String> {

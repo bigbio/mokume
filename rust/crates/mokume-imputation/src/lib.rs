@@ -13,9 +13,10 @@ mod support;
 use mokume_core::{ImputationConfig, MokumeError, ProteinId, Result, SampleId};
 
 use methods::{
-    bpca_imputed_values, constant_imputed_values, gms_imputed_values, impseq_imputed_values,
-    impseqrob_imputed_values, knn_imputed_values, mindet_imputed_values, minprob_imputed_values,
-    qrilc_imputed_values, sample_stat_imputed_values, seqknn_imputed_values, SampleImputationStat,
+    SampleImputationStat, bpca_imputed_values, constant_imputed_values, gms_imputed_values,
+    impseq_imputed_values, impseqrob_imputed_values, knn_imputed_values, mindet_imputed_values,
+    minprob_imputed_values, qrilc_imputed_values, sample_stat_imputed_values,
+    seqknn_imputed_values,
 };
 
 pub fn imputed_values<F>(

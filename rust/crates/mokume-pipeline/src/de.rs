@@ -55,15 +55,15 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use mokume_core::{DifferentialExpressionConfig, MokumeError, Result, SampleId};
-use mokume_io::{normalize_file_key, SdrfRawTable, SdrfTable};
+use mokume_io::{SdrfRawTable, SdrfTable, normalize_file_key};
 use mokume_stats::de::{
-    adaptive_adjust, combine_de_results, deqms_two_group, deqms_two_group_weighted,
-    estimate_effect_size_gate, ihw_correction, limma_two_group, limrots_two_group, proda_two_group,
-    rots_two_group, AdaptiveFdrMethod, AppliedFdrMethod, DeResult, EffectSizeGateMethod,
-    EnsembleResult, PrecisionRows, Significance,
+    AdaptiveFdrMethod, AppliedFdrMethod, DeResult, EffectSizeGateMethod, EnsembleResult,
+    PrecisionRows, Significance, adaptive_adjust, combine_de_results, deqms_two_group,
+    deqms_two_group_weighted, estimate_effect_size_gate, ihw_correction, limma_two_group,
+    limrots_two_group, proda_two_group, rots_two_group,
 };
 
-use crate::{create_parent_dir, invalid_input, ProteinMatrix};
+use crate::{ProteinMatrix, create_parent_dir, invalid_input};
 
 mod design;
 
@@ -912,9 +912,7 @@ fn parse_ensemble_method(name: &str) -> Result<MemberMethod> {
         Err(_) => Err(invalid_input(format!(
             "unknown ensemble member `{name}`; supported members: limma, deqms, rots, limrots, proda"
         ))),
-        Ok(DeMethod::Ensemble) => {
-            Err(invalid_input("nested ensemble members are not supported"))
-        }
+        Ok(DeMethod::Ensemble) => Err(invalid_input("nested ensemble members are not supported")),
         Ok(DeMethod::Member(method)) => Ok(method),
     }
 }
@@ -1309,11 +1307,11 @@ mod tests {
     use mokume_stats::de::{DeResult, EnsembleResult, Significance};
 
     use super::{
-        available_conditions, build_count_vector, classify_significance, condition_by_sample,
-        differential_expression_matrix, finalize_ensemble_results, finalize_member_results,
-        run_differential_expression, sample_condition, shorten_factor_label, split_contrast,
-        validated_ensemble_member_names, write_de_csv, Contrast, MatrixDeInputs, MemberMethod,
-        Prepared,
+        Contrast, MatrixDeInputs, MemberMethod, Prepared, available_conditions, build_count_vector,
+        classify_significance, condition_by_sample, differential_expression_matrix,
+        finalize_ensemble_results, finalize_member_results, run_differential_expression,
+        sample_condition, shorten_factor_label, split_contrast, validated_ensemble_member_names,
+        write_de_csv,
     };
     use crate::{CellKey, ProteinMatrix, ProteinValues};
 
@@ -1613,12 +1611,16 @@ mod tests {
                 .count(),
             187
         );
-        assert!(finalized
-            .iter()
-            .any(|row| row.significance == Significance::Up));
-        assert!(finalized
-            .iter()
-            .all(|row| { row.significance != Significance::Up || row.log2_fold_change < 0.5 }));
+        assert!(
+            finalized
+                .iter()
+                .any(|row| row.significance == Significance::Up)
+        );
+        assert!(
+            finalized
+                .iter()
+                .all(|row| { row.significance != Significance::Up || row.log2_fold_change < 0.5 })
+        );
         Ok(())
     }
 
@@ -1661,9 +1663,11 @@ mod tests {
                 .count(),
             187
         );
-        assert!(finalized
-            .iter()
-            .any(|row| row.significance == Significance::Up));
+        assert!(
+            finalized
+                .iter()
+                .any(|row| row.significance == Significance::Up)
+        );
     }
 
     #[test]
@@ -1841,16 +1845,18 @@ mod tests {
             vec!["P1".to_owned(), " P1 ".to_owned()],
             vec!["P1".to_owned(), " ".to_owned()],
         ] {
-            assert!(differential_expression_matrix(
-                &proteins,
-                &values,
-                2,
-                2,
-                MatrixDeInputs::default(),
-                &config,
-                Some(2),
-            )
-            .is_err());
+            assert!(
+                differential_expression_matrix(
+                    &proteins,
+                    &values,
+                    2,
+                    2,
+                    MatrixDeInputs::default(),
+                    &config,
+                    Some(2),
+                )
+                .is_err()
+            );
         }
     }
 
@@ -1884,16 +1890,18 @@ mod tests {
             ensemble_methods: Some(vec!["limma".to_owned(), "proda".to_owned()]),
             ..DifferentialExpressionConfig::default()
         };
-        assert!(differential_expression_matrix(
-            &proteins,
-            &values,
-            2,
-            2,
-            MatrixDeInputs::default(),
-            &without_deqms,
-            Some(2),
-        )
-        .is_ok());
+        assert!(
+            differential_expression_matrix(
+                &proteins,
+                &values,
+                2,
+                2,
+                MatrixDeInputs::default(),
+                &without_deqms,
+                Some(2),
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -1929,9 +1937,11 @@ mod tests {
         let Err(error) = run(&complete, &default_members) else {
             panic!("LimROTS accepted a three-protein search grid");
         };
-        assert!(error
-            .to_string()
-            .contains("LimROTS has an empty search grid"));
+        assert!(
+            error
+                .to_string()
+                .contains("LimROTS has an empty search grid")
+        );
         assert!(run(&incomplete, &default_members).is_ok());
 
         let explicit = DifferentialExpressionConfig {

@@ -17,18 +17,18 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use mokume_core::{DifferentialExpressionConfig, Result, SampleId};
-use mokume_io::{normalize_file_key, SdrfRawTable};
+use mokume_io::{SdrfRawTable, normalize_file_key};
 use mokume_stats::de::{
-    deqms_design, duplicate_correlation, limma_design, validate_design, DesignContrast, RandomBlock,
+    DesignContrast, RandomBlock, deqms_design, duplicate_correlation, limma_design, validate_design,
 };
 use tracing::{info, warn};
 
 use super::{
-    available_conditions, build_count_vector, de_output_path, finalize_member_results,
-    sample_condition, write_de_csv, Contrast, DeMethod, MemberMethod, Prepared,
+    Contrast, DeMethod, MemberMethod, Prepared, available_conditions, build_count_vector,
+    de_output_path, finalize_member_results, sample_condition, write_de_csv,
 };
 use crate::{
-    encode_covariate, invalid_input, match_sdrf_column, ProteinMatrix, SDRF_SAMPLE_COLUMNS,
+    ProteinMatrix, SDRF_SAMPLE_COLUMNS, encode_covariate, invalid_input, match_sdrf_column,
 };
 
 /// SDRF column holding the run file, used for run-level matrix columns.

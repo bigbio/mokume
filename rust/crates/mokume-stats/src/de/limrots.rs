@@ -19,11 +19,11 @@ mod optimization;
 mod tests;
 
 use super::correct::permutation_fdr;
-use super::rots::{build_n_grid, SplitMix64};
-use super::{classify, DeResult};
-use fit::{fit, Fit};
+use super::rots::{SplitMix64, build_n_grid};
+use super::{DeResult, classify};
+use fit::{Fit, fit};
 use mokume_core::{MokumeError, Result};
-use optimization::{empirical_pvalues, optimize, Optimum};
+use optimization::{Optimum, empirical_pvalues, optimize};
 use rayon::prelude::*;
 
 /// Sampling and search settings for the supported two-group LimROTS model.

@@ -1,6 +1,6 @@
 use mokume_core::{DifferentialExpressionConfig, MokumeError, QuantMethod};
 
-use super::{invalid_input, Features2ProteinsArgs};
+use super::{Features2ProteinsArgs, invalid_input};
 use crate::parsers::DeLog2FcArg;
 
 pub(super) fn resolve_differential_expression(

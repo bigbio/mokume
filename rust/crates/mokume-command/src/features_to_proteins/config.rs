@@ -11,7 +11,7 @@ mod irs;
 mod pibaq;
 
 use super::Features2ProteinsArgs;
-use crate::parsers::{QuantMethodArg, DEFAULT_TOPN_PEPTIDES};
+use crate::parsers::{DEFAULT_TOPN_PEPTIDES, QuantMethodArg};
 use differential_expression::resolve_differential_expression;
 use imputation::resolve_imputation;
 use irs::resolve_irs;

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use mokume_core::quant::parse_topn_from_method_name;
-use mokume_core::{parse_memory_to_bytes, NamedScoreFilterConfig, QuantMethod};
+use mokume_core::{NamedScoreFilterConfig, QuantMethod, parse_memory_to_bytes};
 
 /// The fixed `--quant-method` names, i.e. every method whose name carries no
 /// parameter. The TopN family is spelled `top<N>` and is not listed here.
@@ -261,5 +261,7 @@ fn invalid_topn_message(value: &str) -> String {
 
 /// Error for a name that is neither a fixed method nor a `top<N>`.
 fn unknown_method_message(value: &str) -> String {
-    format!("unknown quantification method `{value}`: expected one of {FIXED_QUANT_METHODS}, or `top<N>` (e.g. `top3`)")
+    format!(
+        "unknown quantification method `{value}`: expected one of {FIXED_QUANT_METHODS}, or `top<N>` (e.g. `top3`)"
+    )
 }

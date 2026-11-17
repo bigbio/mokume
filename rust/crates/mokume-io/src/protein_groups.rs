@@ -3,8 +3,8 @@ use std::fs::File;
 use std::path::Path;
 
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::{ArrowReaderMetadata, ParquetRecordBatchReaderBuilder};
 use parquet::arrow::ProjectionMask;
+use parquet::arrow::arrow_reader::{ArrowReaderMetadata, ParquetRecordBatchReaderBuilder};
 use rayon::prelude::*;
 
 use crate::qpx::list_string_values;
@@ -212,8 +212,8 @@ mod tests {
     }
 
     #[test]
-    fn parallel_row_groups_merge_observed_orders_independently_of_file_order(
-    ) -> Result<(), Box<dyn Error>> {
+    fn parallel_row_groups_merge_observed_orders_independently_of_file_order()
+    -> Result<(), Box<dyn Error>> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("groups.parquet");
         let mut rows = [

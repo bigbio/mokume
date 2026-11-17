@@ -6,8 +6,8 @@ use std::path::Path;
 use arrow::array::{Array, StructArray};
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ProjectionMask;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 
 use crate::qpx::{list_row_values, optional_string_value};
 

@@ -4,7 +4,7 @@ use std::fs::read_to_string;
 #[cfg(not(target_os = "linux"))]
 use memory_stats::memory_stats;
 
-use mokume_core::{parse_memory_to_bytes, MokumeError, Result, RuntimeConfig};
+use mokume_core::{MokumeError, Result, RuntimeConfig, parse_memory_to_bytes};
 use mokume_io::DEFAULT_QPX_BATCH_SIZE;
 
 const MIN_QPX_BATCH_SIZE: usize = 256;
@@ -122,9 +122,9 @@ fn parse_linux_rss_bytes(status: &str) -> Option<u64> {
 mod tests {
     use mokume_core::RuntimeConfig;
 
+    use super::MemoryPlan;
     #[cfg(target_os = "linux")]
     use super::parse_linux_rss_bytes;
-    use super::MemoryPlan;
 
     #[test]
     fn budget_changes_qpx_read_ahead_and_batch_size() {
@@ -169,9 +169,11 @@ mod tests {
             panic!("one-byte process memory budget was not rejected");
         };
 
-        assert!(error
-            .to_string()
-            .contains("--memory budget exceeded during test checkpoint: process resident memory"));
+        assert!(
+            error.to_string().contains(
+                "--memory budget exceeded during test checkpoint: process resident memory"
+            )
+        );
     }
 
     #[test]

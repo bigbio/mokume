@@ -31,11 +31,7 @@ fn invprobit(x: f64, rho: f64, zeta: f64, log: bool, oneminus: bool) -> f64 {
     if zeta < 0.0 {
         // proda.py:41-45 (zeta < 0 branch).
         if oneminus {
-            if log {
-                norm_logcdf(z)
-            } else {
-                norm_cdf(z)
-            }
+            if log { norm_logcdf(z) } else { norm_cdf(z) }
         } else if log {
             norm_logsf(z)
         } else {
@@ -44,11 +40,7 @@ fn invprobit(x: f64, rho: f64, zeta: f64, log: bool, oneminus: bool) -> f64 {
     } else {
         // proda.py:46-51 (zeta >= 0 branch).
         if oneminus {
-            if log {
-                norm_logsf(z)
-            } else {
-                norm_sf(z)
-            }
+            if log { norm_logsf(z) } else { norm_sf(z) }
         } else if log {
             norm_logcdf(z)
         } else {

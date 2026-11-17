@@ -80,11 +80,7 @@ pub(crate) fn normal_quantile(p: f64) -> f64 {
     let mut x = if !(0.02425..=0.97575).contains(&p) {
         let q = (-2.0 * p.min(1.0 - p).ln()).sqrt();
         let tail = polynomial(&NORMAL_C, q) / polynomial(&NORMAL_D, q);
-        if p < 0.5 {
-            tail
-        } else {
-            -tail
-        }
+        if p < 0.5 { tail } else { -tail }
     } else {
         let q = p - 0.5;
         polynomial(&NORMAL_A, q * q) * q / polynomial(&NORMAL_B, q * q)

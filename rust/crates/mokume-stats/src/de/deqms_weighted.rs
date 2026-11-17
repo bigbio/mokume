@@ -84,7 +84,7 @@ fn precision_weights(rows: &[&[f64]], precision: &[&[f64]]) -> Vec<Vec<f64>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{deqms_two_group_weighted, precision_weights, PrecisionRows};
+    use super::{PrecisionRows, deqms_two_group_weighted, precision_weights};
     use crate::de::deqms::deqms_two_group;
     use crate::de::{DEFAULT_FDR_THRESHOLD, DEFAULT_LOG2FC_THRESHOLD};
 

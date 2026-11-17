@@ -1,6 +1,6 @@
 use std::{
     ffi::OsString,
-    fs::{create_dir_all, File},
+    fs::{File, create_dir_all},
     path::PathBuf,
     sync::Mutex,
 };
@@ -8,7 +8,7 @@ use std::{
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use mokume_core::{FeatureToProteinsConfig, MokumeError};
 use mokume_pipeline::{
-    run_features_to_proteins, run_features_to_proteins_with_pibaq_digest, PibaqDigest,
+    PibaqDigest, run_features_to_proteins, run_features_to_proteins_with_pibaq_digest,
 };
 use tracing_subscriber::EnvFilter;
 
@@ -22,7 +22,7 @@ mod parsers;
 mod peptides2protein;
 mod schema;
 
-pub use schema::{command_schema, command_schema_json, CommandSpec, FlagSpec, ValueArity};
+pub use schema::{CommandSpec, FlagSpec, ValueArity, command_schema, command_schema_json};
 
 use features_to_peptides::Features2PeptidesArgs;
 use features_to_proteins::Features2ProteinsArgs;

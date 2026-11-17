@@ -1,6 +1,6 @@
 use mokume_core::{PeptideId, Result, SampleId};
 
-use super::{solve_max_lfq, solve_max_lfq_with_stabilization, MaxLfqResult};
+use super::{MaxLfqResult, solve_max_lfq, solve_max_lfq_with_stabilization};
 use crate::PeptideMeasurement;
 
 fn observations(rows: &[&[f64]]) -> Vec<PeptideMeasurement> {

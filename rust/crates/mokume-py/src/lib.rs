@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 use mokume_core::{DifferentialExpressionConfig, ImputationConfig};
 use mokume_pipeline::MatrixDifferentialExpressionResults;
 use mokume_pipeline::{
-    run_pibaq_from_mapping, PeptideObservation, PibaqDigest, PibaqDigestProvenance,
+    PeptideObservation, PibaqDigest, PibaqDigestProvenance, run_pibaq_from_mapping,
 };
 use mokume_stats::de::{DeResult, EnsembleResult, Significance};
 use pyo3::exceptions::{PyRuntimeError, PyTypeError};
@@ -322,7 +322,7 @@ impl ImputationOptions {
             _ => {
                 return Err(PyTypeError::new_err(format!(
                     "unknown imputation option `{key}`"
-                )))
+                )));
             }
         }
         Ok(())
@@ -497,7 +497,7 @@ impl DifferentialExpressionOptions {
             _ => {
                 return Err(PyTypeError::new_err(format!(
                     "unknown differential-expression option `{key}`"
-                )))
+                )));
             }
         }
         Ok(())

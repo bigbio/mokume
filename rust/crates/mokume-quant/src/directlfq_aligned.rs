@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use mokume_core::{PeptideId, ProteinId, SampleId};
 use rayon::prelude::*;
 
-use crate::precision::{profile_residuals, ProfileResiduals};
+use crate::precision::{ProfileResiduals, profile_residuals};
 
 /// `num_samples_quadratic` for the per-protein ion-normalization stage
 /// (hard-coded to 10 by mokume's streaming caller).
@@ -383,11 +383,7 @@ impl IonMatrix {
                         .copied()
                         .zip(shifted.iter().map(
                             |value| {
-                                if value.is_finite() {
-                                    value.exp2()
-                                } else {
-                                    0.0
-                                }
+                                if value.is_finite() { value.exp2() } else { 0.0 }
                             },
                         ))
                         .collect(),
@@ -431,11 +427,7 @@ struct ProteinAlignment {
 }
 
 fn linear_to_log2(value: f64) -> f64 {
-    if value > 0.0 {
-        value.log2()
-    } else {
-        f64::NAN
-    }
+    if value > 0.0 { value.log2() } else { f64::NAN }
 }
 
 /// Compute per-sample additive log2 shifts for the global normalization stage.
@@ -802,11 +794,7 @@ fn calc_distance(metric: Metric, a: &[f64], b: &[f64]) -> f64 {
         Metric::Median => nanmedian(&diffs),
         Metric::Variance => nanvar(&diffs),
     };
-    if value.is_nan() {
-        f64::INFINITY
-    } else {
-        value
-    }
+    if value.is_nan() { f64::INFINITY } else { value }
 }
 
 fn update_distance_matrix(
@@ -1046,8 +1034,8 @@ fn nanvar(values: &[f64]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        direct_lfq_aligned, direct_lfq_aligned_with, get_normfacts, sample_shifts,
-        sparse_sample_shifts, trim_ions, DirectLfqIon, DirectLfqRetain,
+        DirectLfqIon, DirectLfqRetain, direct_lfq_aligned, direct_lfq_aligned_with, get_normfacts,
+        sample_shifts, sparse_sample_shifts, trim_ions,
     };
     use mokume_core::{PeptideId, ProteinId, SampleId};
 
@@ -1257,10 +1245,12 @@ mod tests {
             DirectLfqRetain::ions(false),
         );
 
-        assert!(result
-            .protein_quantities
-            .iter()
-            .all(|(protein, _)| *protein != ProteinId::new(0)));
+        assert!(
+            result
+                .protein_quantities
+                .iter()
+                .all(|(protein, _)| *protein != ProteinId::new(0))
+        );
         let exported = match result
             .normalized_ions
             .iter()

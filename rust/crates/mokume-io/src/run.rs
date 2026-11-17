@@ -4,13 +4,13 @@ use std::path::Path;
 use arrow::array::{Array, StructArray};
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ProjectionMask;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 
+use crate::SdrfRecord;
 use crate::qpx::{
     list_row_values, optional_i32_value, optional_string_value, required_string_value,
 };
-use crate::SdrfRecord;
 
 pub(crate) fn read_run(path: &Path) -> Result<Vec<SdrfRecord>> {
     let file = File::open(path).map_err(|source| MokumeError::Io {
@@ -198,8 +198,8 @@ mod tests {
     }
 
     #[test]
-    fn run_view_maps_channels_and_fractionated_samples_exactly(
-    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn run_view_maps_channels_and_fractionated_samples_exactly()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("run.parquet");
         for tmt in [false, true] {

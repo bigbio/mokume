@@ -11,7 +11,7 @@ use faer::linalg::cholesky::llt;
 use faer::{Mat, Par};
 use mokume_core::{MokumeError, Result, SampleId};
 
-use crate::{median, sample_order, PeptideMeasurement};
+use crate::{PeptideMeasurement, median, sample_order};
 
 /// The minimum number of shared species supporting a sample-pair ratio.
 pub const DEFAULT_MAXLFQ_MIN_RATIO_COUNT: usize = 2;

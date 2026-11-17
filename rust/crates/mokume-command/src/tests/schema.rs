@@ -3,8 +3,8 @@ use std::path::Path;
 use clap::Parser;
 
 use crate::{
-    command_schema, command_schema_json, validate_args, Cli, CommandSpec, Commands, FlagSpec,
-    QuantifyCommands,
+    Cli, CommandSpec, Commands, FlagSpec, QuantifyCommands, command_schema, command_schema_json,
+    validate_args,
 };
 
 #[test]

@@ -574,7 +574,7 @@ class Feature:
         query = "".join(
             ["SELECT count(*)", transfer, " FROM parquet_db_raw WHERE ", missing]
         )
-        counts = self.parquet_db.execute(query, params).fetchone()
+        counts = self.parquet_db.execute(query, params).fetchall()[0]
         if counts[0]:
             message = "Dropped %d QPX feature rows because score '%s' is null"
             if self._has_identification_type:

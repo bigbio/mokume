@@ -114,9 +114,11 @@ fn lane_sums<const N: usize>(
 ) -> [f64; N] {
     let mut lanes = [[0.0; LANES]; N];
     let chunks = weights
-        .chunks_exact(LANES)
-        .zip(x.chunks_exact(LANES))
-        .zip(y.chunks_exact(LANES));
+        .as_chunks::<LANES>()
+        .0
+        .iter()
+        .zip(x.as_chunks::<LANES>().0)
+        .zip(y.as_chunks::<LANES>().0);
     for ((w, xs), ys) in chunks {
         for lane in 0..LANES {
             for (sums, term) in lanes.iter_mut().zip(terms(w[lane], xs[lane], ys[lane])) {

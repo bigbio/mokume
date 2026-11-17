@@ -699,9 +699,7 @@ fn normalize_ion_profiles(block: &[Vec<f64>]) -> Vec<Vec<f64>> {
             // left that value finite, which let a single-intensity linear ion
             // resurrect a sample Python drops, flipping that protein x sample
             // cell from 0 to a value and rescaling the whole protein profile.
-            for value in &mut result[ion_index] {
-                *value = f64::NAN;
-            }
+            result[ion_index].fill(f64::NAN);
         }
     }
     result

@@ -65,7 +65,9 @@ fn de_contrasts(args: &Features2ProteinsArgs) -> Option<Vec<String>> {
     (!args.de.de_contrast.is_empty()).then(|| {
         args.de
             .de_contrast
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|groups| format!("{} vs {}", groups[0], groups[1]))
             .collect()
     })

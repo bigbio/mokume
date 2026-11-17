@@ -80,7 +80,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux || 'auto' }}
           # Match the repo's pinned toolchain (rust-toolchain.toml).
-          rust-toolchain: "1.96.0"
+          rust-toolchain: "1.100.0"
           args: --release --out dist
           sccache: "true"
           # Runs inside the manylinux container before maturin. AlmaLinux 8 uses

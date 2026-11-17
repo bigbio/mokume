@@ -37,7 +37,7 @@ implementation (`python/mokume/`). New native computation lands in Rust first;
 see [Maintenance scope](maintenance-scope.md) for when a matching pure-Python
 change is expected.
 
-The Rust toolchain is pinned to **1.96.0** via `rust-toolchain.toml` (with the `rustfmt` and `clippy` components), so `rustup` selects it automatically inside the checkout.
+The Rust toolchain is pinned to **1.100.0** via `rust-toolchain.toml` (with the `rustfmt` and `clippy` components), so `rustup` selects it automatically inside the checkout.
 
 ```bash
 git clone https://github.com/bigbio/mokume

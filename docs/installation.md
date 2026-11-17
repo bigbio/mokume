@@ -117,7 +117,7 @@ mokume builds from two project roots, one per distribution:
   ```
 
   The build needs the Rust toolchain that `rust/rust-toolchain.toml` pins
-  (1.96.0; rustup installs it on first use) and CMake, which builds the bundled
+  (1.100.0; rustup installs it on first use) and CMake, which builds the bundled
   HDF5 library.
 
 For a development checkout of the Rust wheel, build the extension in place with

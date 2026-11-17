@@ -433,9 +433,7 @@ fn standardize_with_covariates(
     }
     // Reference batch row is forced all-ones (inmoose `batch_mod[:, ref] = 1`).
     if let Some(r) = reference {
-        for value in &mut design[r] {
-            *value = 1.0;
-        }
+        design[r].fill(1.0);
     }
     for c in 0..covar_columns {
         for (sample, row) in covariates.iter().enumerate() {

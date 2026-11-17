@@ -579,10 +579,7 @@ impl FeatureToProteinState {
         // SequencePatternFilter (peptide.py:415-418): drop canonical sequences
         // matching any user regex. Patterns are pre-compiled in
         // `excluded_sequence_regexes`; empty unless the pipeline sets them.
-        if filters::sequence_matches_excluded(&feature.sequence, &self.excluded_sequence_regexes) {
-            return false;
-        }
-        true
+        !filters::sequence_matches_excluded(&feature.sequence, &self.excluded_sequence_regexes)
     }
 
     fn write_intermediate_exports(

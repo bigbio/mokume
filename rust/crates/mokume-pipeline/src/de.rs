@@ -1313,7 +1313,8 @@ mod tests {
         sample_condition, shorten_factor_label, split_contrast, validated_ensemble_member_names,
         write_de_csv,
     };
-    use crate::{CellKey, ProteinMatrix, ProteinValues};
+    use crate::protein_matrix::ProteinValues;
+    use crate::{CellKey, ProteinMatrix};
 
     // `super`/`crate` pull in the crate's single-parameter `Result` alias, so
     // the test helpers spell out the two-parameter standard `Result`.

@@ -227,8 +227,11 @@ def test_named_score_cli_reaches_filter_config(monkeypatch, tmp_path: Path):
 
 
 @pytest.mark.parametrize("method", ["globalmedian", "conditionmedian"])
-def test_sample_without_passing_rows_is_skipped(tmp_path: Path, method):
-    """A score filter that empties one sample leaves the other samples' output."""
+@pytest.mark.parametrize(("threshold", "samples"), [("0.05", ["run_a"]), ("0.001", [])])
+def test_sample_without_passing_rows_is_skipped(
+    tmp_path: Path, method, threshold, samples
+):
+    """A score filter that empties samples leaves the other samples' output."""
     parquet = tmp_path / "input.parquet"
     make_scored_qpx_parquet(str(parquet))
     table = pq.read_table(parquet)
@@ -249,7 +252,7 @@ def test_sample_without_passing_rows_is_skipped(tmp_path: Path, method):
             "-o",
             str(output),
             "--filter-score",
-            "qvalue=0.05",
+            f"qvalue={threshold}",
             "--filter-min-unique-peptides",
             "1",
             "--sample-normalization",
@@ -258,7 +261,7 @@ def test_sample_without_passing_rows_is_skipped(tmp_path: Path, method):
     )
 
     assert result.exit_code == 0, result.output
-    assert pd.read_csv(output)["SampleID"].tolist() == ["run_a"]
+    assert pd.read_csv(output)["SampleID"].tolist() == samples
 
 
 def test_named_score_cli_rejects_ambiguous_value(tmp_path: Path):

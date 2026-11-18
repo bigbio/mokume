@@ -290,9 +290,6 @@ def peptide_normalization(
         for sample in samples:
             logger.info("%s: Data preprocessing...", str(sample).upper())
             dataset_df = df[df["sample_accession"] == sample].copy()
-            # A score filter can leave a sample without rows, and so without a median.
-            if dataset_df.empty:
-                continue
 
             if not keep_shared_peptides:
                 dataset_df = dataset_df[unique_peptide_rows(dataset_df)]
@@ -395,7 +392,8 @@ def peptide_normalization(
                     elapsed,
                 )
 
-            if not skip_normalization:
+            # Filters can leave a sample without rows, and so without a median.
+            if not skip_normalization and not dataset_df.empty:
                 dataset_df = peptide_normalized(dataset_df, sample, med_map)
 
             if remove_low_frequency_peptides and len(sample_names) > 1:

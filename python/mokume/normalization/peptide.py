@@ -447,8 +447,7 @@ def peptide_normalization(
     if not wrote_rows and empty_output is not None:
         if save_parquet:
             writer_parquet_task.write(empty_output)
-        if write_csv:
-            write_csv_task.write(empty_output)
+        write_csv_task.write(empty_output)
 
     if write_csv:
         write_csv_task.close()

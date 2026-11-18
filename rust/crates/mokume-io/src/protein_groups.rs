@@ -145,8 +145,8 @@ fn distinct_members(accessions: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Members compare by stored accession, not by matrix name: a decoy shares its
-/// target's name, and merging the two would rename the target as the decoy.
+/// Members compare by stored accession, not by matrix name: the matrix names
+/// every `DECOY_sp|...` accession `DECOY_sp`, so names would merge members.
 fn member_set(accessions: &[String]) -> Vec<String> {
     let mut members = accessions
         .iter()

@@ -257,11 +257,15 @@ def test_sample_without_passing_rows_is_skipped(
             "1",
             "--sample-normalization",
             method,
+            "--save_parquet",
         ],
     )
 
     assert result.exit_code == 0, result.output
     assert pd.read_csv(output)["SampleID"].tolist() == samples
+    assert (
+        pd.read_parquet(output.with_suffix(".parquet"))["SampleID"].tolist() == samples
+    )
 
 
 def test_named_score_cli_rejects_ambiguous_value(tmp_path: Path):

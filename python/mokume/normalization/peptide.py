@@ -285,6 +285,10 @@ def peptide_normalization(
                 len(filter_pipeline),
             )
 
+    # An empty frame among others gives the Parquet output null column types,
+    # so a sample without rows is written only when no sample kept any.
+    empty_output = None
+    wrote_rows = False
     for samples, df in feature.iter_samples():
         df.dropna(subset=["pg_accessions"], inplace=True)
         for sample in samples:
@@ -427,6 +431,10 @@ def peptide_normalization(
             if log2:
                 dataset_df[NORM_INTENSITY] = np.log2(dataset_df[NORM_INTENSITY])
 
+            if dataset_df.empty:
+                empty_output = dataset_df
+                continue
+            wrote_rows = True
             logger.info(
                 "%s: Saving the normalized peptide intensities...", str(sample).upper()
             )
@@ -435,6 +443,12 @@ def peptide_normalization(
                 writer_parquet_task.write(dataset_df)
             if write_csv:
                 write_csv_task.write(dataset_df)
+
+    if not wrote_rows and empty_output is not None:
+        if save_parquet:
+            writer_parquet_task.write(empty_output)
+        if write_csv:
+            write_csv_task.write(empty_output)
 
     if write_csv:
         write_csv_task.close()

@@ -128,22 +128,7 @@ fn read_peptide_parquet_impl(
         .map_err(|source| parquet_read_error(path, &source.to_string()))?;
 
     let schema = Arc::clone(builder.schema());
-    let protein_index = require_column(&schema, &[PROTEIN_NAME])?;
-    let sample_index = require_column(&schema, &[SAMPLE_ID])?;
-    let intensity_index = require_column(&schema, &[NORM_INTENSITY])?;
-    let condition_index = find_column(&schema, &[CONDITION]);
-    let weight = weight_column
-        .map(|column| require_column(&schema, &[column]).map(|index| (index, column)))
-        .transpose()?;
-    let peptide_index = find_column(&schema, &[PEPTIDE_CANONICAL, PEPTIDE_SEQUENCE]);
-    let species_indices = preserve_species
-        .then(|| {
-            find_column(&schema, &[PEPTIDE_SEQUENCE])
-                .zip(find_column(&schema, &["PrecursorCharge"]))
-        })
-        .flatten();
-    let has_condition = condition_index.is_some();
-    let has_peptide = peptide_index.is_some();
+    let columns = PeptideParquetColumns::new(&schema, preserve_species, weight_column)?;
 
     let reader = builder
         .build()
@@ -152,34 +137,80 @@ fn read_peptide_parquet_impl(
     let mut rows = Vec::new();
     for batch in reader {
         let batch = batch.map_err(|source| parquet_read_error(path, &source.to_string()))?;
-        let protein = batch.column(protein_index).as_ref();
-        let sample = batch.column(sample_index).as_ref();
-        let intensity = batch.column(intensity_index).as_ref();
-        let condition = condition_index.map(|index| batch.column(index).as_ref());
+        columns.append_batch(&batch, &mut rows)?;
+    }
+    Ok(RawPeptideTable {
+        rows,
+        has_condition: columns.condition.is_some(),
+        has_peptide: columns.peptide.is_some(),
+    })
+}
+
+struct PeptideParquetColumns<'a> {
+    protein: usize,
+    sample: usize,
+    intensity: usize,
+    condition: Option<usize>,
+    weight: Option<(usize, &'a str)>,
+    peptide: Option<usize>,
+    species: Option<(usize, usize)>,
+}
+
+impl<'a> PeptideParquetColumns<'a> {
+    fn new(
+        schema: &Schema,
+        preserve_species: bool,
+        weight_column: Option<&'a str>,
+    ) -> Result<Self> {
+        let protein = require_column(schema, &[PROTEIN_NAME])?;
+        let sample = require_column(schema, &[SAMPLE_ID])?;
+        let intensity = require_column(schema, &[NORM_INTENSITY])?;
+        let condition = find_column(schema, &[CONDITION]);
+        let weight = weight_column
+            .map(|column| require_column(schema, &[column]).map(|index| (index, column)))
+            .transpose()?;
+        let peptide = find_column(schema, &[PEPTIDE_CANONICAL, PEPTIDE_SEQUENCE]);
+        let species = preserve_species
+            .then(|| {
+                find_column(schema, &[PEPTIDE_SEQUENCE])
+                    .zip(find_column(schema, &["PrecursorCharge"]))
+            })
+            .flatten();
+        Ok(Self {
+            protein,
+            sample,
+            intensity,
+            condition,
+            weight,
+            peptide,
+            species,
+        })
+    }
+
+    fn append_batch(&self, batch: &RecordBatch, rows: &mut Vec<RawPeptideRow>) -> Result<()> {
+        let protein = batch.column(self.protein).as_ref();
+        let sample = batch.column(self.sample).as_ref();
+        let intensity = batch.column(self.intensity).as_ref();
+        let condition = self.condition.map(|index| batch.column(index).as_ref());
 
         for row in 0..batch.num_rows() {
             rows.push(RawPeptideRow {
                 protein: string_value(protein, row, PROTEIN_NAME)?.unwrap_or_default(),
                 sample: string_value(sample, row, SAMPLE_ID)?.unwrap_or_default(),
-                peptide: parquet_peptide_id(&batch, row, peptide_index, species_indices)?,
+                peptide: parquet_peptide_id(batch, row, self.peptide, self.species)?,
                 condition: match condition {
                     Some(array) => string_value(array, row, CONDITION)?,
                     None => None,
                 },
                 intensity: f64_value(intensity, row, NORM_INTENSITY)?,
-                weight: match weight {
+                weight: match self.weight {
                     Some((index, column)) => f64_value(batch.column(index).as_ref(), row, column)?,
                     None => None,
                 },
             });
         }
+        Ok(())
     }
-
-    Ok(RawPeptideTable {
-        rows,
-        has_condition,
-        has_peptide,
-    })
 }
 
 fn parquet_peptide_id(
@@ -304,6 +335,19 @@ fn f64_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<f64>>
             downcast::<Float32Array>(array, column)?.value(row),
         ))),
         DataType::Float64 => Ok(Some(downcast::<Float64Array>(array, column)?.value(row))),
+        DataType::Utf8 => {
+            parse_numeric_string(downcast::<StringArray>(array, column)?.value(row), column)
+        }
+        DataType::LargeUtf8 => parse_numeric_string(
+            downcast::<LargeStringArray>(array, column)?.value(row),
+            column,
+        ),
+        _ => integer_f64_value(array, row, column),
+    }
+}
+
+fn integer_f64_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<f64>> {
+    match array.data_type() {
         DataType::Int8 => Ok(Some(f64::from(
             downcast::<Int8Array>(array, column)?.value(row),
         ))),
@@ -316,13 +360,6 @@ fn f64_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<f64>>
         DataType::Int64 => Ok(Some(
             downcast::<Int64Array>(array, column)?.value(row) as f64
         )),
-        DataType::Utf8 => {
-            parse_numeric_string(downcast::<StringArray>(array, column)?.value(row), column)
-        }
-        DataType::LargeUtf8 => parse_numeric_string(
-            downcast::<LargeStringArray>(array, column)?.value(row),
-            column,
-        ),
         _ => Err(unsupported_column(column, array)),
     }
 }

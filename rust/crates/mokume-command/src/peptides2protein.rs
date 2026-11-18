@@ -652,52 +652,92 @@ fn load_peptide_table_csv(
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
 
-    let protein_index = column_index(&headers, PROTEIN_NAME)?;
-    let sample_index = column_index(&headers, SAMPLE_ID)?;
-    let intensity_index = column_index(&headers, NORM_INTENSITY)?;
-    let condition_index = optional_column_index(&headers, CONDITION);
-    let weight_index = weight_column
-        .map(|column| Ok((column_index(&headers, column)?, column)))
-        .transpose()?;
-    let peptide_index = optional_column_index(&headers, PEPTIDE_CANONICAL)
-        .or_else(|| optional_column_index(&headers, PEPTIDE_SEQUENCE));
-    let species_indices = preserve_species
-        .then(|| {
-            optional_column_index(&headers, PEPTIDE_SEQUENCE)
-                .zip(optional_column_index(&headers, "PrecursorCharge"))
-        })
-        .flatten();
-
+    let columns = PeptideCsvColumns::new(&headers, preserve_species, weight_column)?;
     let mut rows = Vec::new();
     for record in reader.records() {
         let record = record.map_err(|source| csv_error(path, source))?;
-        let Some(intensity) = positive_csv_intensity(&record, intensity_index, path)? else {
-            continue;
-        };
-        let condition = condition_index
-            .map(|index| field(&record, index, path))
-            .transpose()?
-            .map_or_else(|| "Empty".to_owned(), ToOwned::to_owned);
-        let peptide = csv_peptide_id(&record, path, peptide_index, species_indices)?;
-        if preserve_species && peptide.is_empty() {
-            continue;
+        if let Some(row) = columns.read_row(&record, path, preserve_species)? {
+            rows.push(row);
         }
-        let weight = csv_weight(&record, weight_index, path)?;
-        rows.push(PeptideRow {
-            protein: field(&record, protein_index, path)?.to_owned(),
-            sample: field(&record, sample_index, path)?.to_owned(),
-            peptide,
-            condition,
-            intensity,
-            weight,
-        });
     }
 
     Ok(PeptideTable {
         rows,
-        has_condition: condition_index.is_some(),
-        has_peptide: peptide_index.is_some(),
+        has_condition: columns.condition.is_some(),
+        has_peptide: columns.peptide.is_some(),
     })
+}
+
+struct PeptideCsvColumns<'a> {
+    protein: usize,
+    sample: usize,
+    intensity: usize,
+    condition: Option<usize>,
+    weight: Option<(usize, &'a str)>,
+    peptide: Option<usize>,
+    species: Option<(usize, usize)>,
+}
+
+impl<'a> PeptideCsvColumns<'a> {
+    fn new(
+        headers: &[String],
+        preserve_species: bool,
+        weight_column: Option<&'a str>,
+    ) -> Result<Self> {
+        let protein = column_index(headers, PROTEIN_NAME)?;
+        let sample = column_index(headers, SAMPLE_ID)?;
+        let intensity = column_index(headers, NORM_INTENSITY)?;
+        let condition = optional_column_index(headers, CONDITION);
+        let weight = weight_column
+            .map(|column| Ok((column_index(headers, column)?, column)))
+            .transpose()?;
+        let peptide = optional_column_index(headers, PEPTIDE_CANONICAL)
+            .or_else(|| optional_column_index(headers, PEPTIDE_SEQUENCE));
+        let species = preserve_species
+            .then(|| {
+                optional_column_index(headers, PEPTIDE_SEQUENCE)
+                    .zip(optional_column_index(headers, "PrecursorCharge"))
+            })
+            .flatten();
+        Ok(Self {
+            protein,
+            sample,
+            intensity,
+            condition,
+            weight,
+            peptide,
+            species,
+        })
+    }
+
+    fn read_row(
+        &self,
+        record: &csv::StringRecord,
+        path: &Path,
+        preserve_species: bool,
+    ) -> Result<Option<PeptideRow>> {
+        let Some(intensity) = positive_csv_intensity(record, self.intensity, path)? else {
+            return Ok(None);
+        };
+        let condition = self
+            .condition
+            .map(|index| field(record, index, path))
+            .transpose()?
+            .map_or_else(|| "Empty".to_owned(), ToOwned::to_owned);
+        let peptide = csv_peptide_id(record, path, self.peptide, self.species)?;
+        if preserve_species && peptide.is_empty() {
+            return Ok(None);
+        }
+        let weight = csv_weight(record, self.weight, path)?;
+        Ok(Some(PeptideRow {
+            protein: field(record, self.protein, path)?.to_owned(),
+            sample: field(record, self.sample, path)?.to_owned(),
+            peptide,
+            condition,
+            intensity,
+            weight,
+        }))
+    }
 }
 
 /// A `--weight-column` value of a kept row: weighted aggregation needs a

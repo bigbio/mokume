@@ -214,12 +214,16 @@ fn quantile_cell_assignments(
     }))
 }
 
-fn sum_canonical_cell(
+pub(crate) fn sum_canonical_cell(
     peptides: &HashMap<PeptideId, f64>,
     peptide_to_canonical: &HashMap<PeptideId, PeptideId>,
 ) -> HashMap<PeptideId, f64> {
+    // Add in peptide order: HashMap order differs per process, and float sums
+    // depend on the order of their terms.
+    let mut entries = peptides.iter().collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|(peptide, _)| **peptide);
     let mut summed = HashMap::new();
-    for (peptide, intensity) in peptides {
+    for (peptide, intensity) in entries {
         let canonical = peptide_to_canonical
             .get(peptide)
             .copied()

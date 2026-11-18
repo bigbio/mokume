@@ -20,7 +20,7 @@ use crate::normalization_factors::{
     NormalizationFactorCollector, has_removed_accession, load_normalization_proteins,
     passes_feature_filter,
 };
-use crate::peptide_normalization::sum_peptide_values;
+use crate::peptide_normalization::{sum_canonical_cell, sum_peptide_values};
 use crate::pibaq::allocation::FamilyCounts;
 use crate::pibaq::allocation::finalize_family_resolved;
 use crate::pibaq::evidence::PibaqRowType;

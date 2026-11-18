@@ -138,8 +138,7 @@ fn distinct_members(accessions: &[String]) -> Vec<String> {
     accessions
         .iter()
         .filter(|accession| {
-            let name = accession_name(accession);
-            !name.is_empty() && seen.insert(name, ()).is_none()
+            !accession_name(accession).is_empty() && seen.insert(accession.trim(), ()).is_none()
         })
         .cloned()
         .collect()
@@ -290,6 +289,19 @@ mod tests {
         let groups = groups.finish();
         assert_eq!(groups.resolve(&target), target);
         assert_eq!(groups.resolve(&decoy), decoy);
+    }
+
+    #[test]
+    fn a_row_listing_a_target_and_its_decoy_keeps_both_in_either_order() {
+        let target = "sp|P00001|ENTRY_HUMAN".to_owned();
+        let decoy = "DECOY_sp|P00001|ENTRY_HUMAN".to_owned();
+        let mut groups = ObservedOrders::default();
+        groups.observe(vec![target.clone(), decoy.clone()]);
+        groups.observe(vec![decoy.clone(), target.clone()]);
+        let groups = groups.finish();
+        let both = vec![decoy.clone(), target.clone()];
+        assert_eq!(groups.resolve(&[target.clone(), decoy.clone()]), both);
+        assert_eq!(groups.resolve(&[decoy, target]), both);
     }
 
     #[test]

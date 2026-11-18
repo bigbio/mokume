@@ -15,9 +15,8 @@ def ordered_members(group):
     members = {}
     for item in group:
         accession = item["accession"] if isinstance(item, dict) else item
-        name = accession_name(accession)
-        if name:
-            members.setdefault(name, accession)
+        if accession_name(accession):
+            members.setdefault(accession.strip(), accession)
     return members
 
 
@@ -26,9 +25,10 @@ def canonical_members(groups):
     preferred = {}
     parsed = [ordered_members(group) if group is not None else {} for group in groups]
     # Key by stored accession, not by name: a decoy shares its target's name.
-    keys = [tuple(sorted(a.strip() for a in members.values())) for members in parsed]
+    keys = [tuple(sorted(members)) for members in parsed]
     for key, members in zip(keys, parsed):
-        candidate = (";".join(members), tuple(members.values()))
+        names = ";".join(map(accession_name, members.values()))
+        candidate = (names, tuple(members.values()))
         preferred[key] = min(preferred.get(key, candidate), candidate)
     return [list(preferred[key][1]) for key in keys]
 

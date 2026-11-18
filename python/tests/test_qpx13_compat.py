@@ -287,6 +287,8 @@ def test_group_identity_keeps_decoy_apart_from_its_target():
     target, decoy = ["sp|P00001|ENTRY_HUMAN"], ["DECOY_sp|P00001|ENTRY_HUMAN"]
     assert canonical_members([target, decoy]) == [target, decoy]
     assert canonical_members([decoy, target]) == [decoy, target]
+    # A row listing both keeps both, whatever their stored order.
+    assert canonical_members([target + decoy, decoy + target]) == [decoy + target] * 2
 
 
 def _shared_anchor_groups(path):

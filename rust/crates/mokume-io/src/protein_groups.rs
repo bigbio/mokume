@@ -87,7 +87,7 @@ impl ObservedOrders {
         let key = member_set(&members);
         let name = members
             .iter()
-            .map(|value| accession_name(value))
+            .map(|value| parse_protein_accession(value))
             .collect::<Vec<_>>()
             .join(";");
         self.insert_min(key.clone(), (name, members));
@@ -138,7 +138,8 @@ fn distinct_members(accessions: &[String]) -> Vec<String> {
     accessions
         .iter()
         .filter(|accession| {
-            !accession_name(accession).is_empty() && seen.insert(accession.trim(), ()).is_none()
+            !parse_protein_accession(accession).is_empty()
+                && seen.insert(accession.trim(), ()).is_none()
         })
         .cloned()
         .collect()
@@ -155,13 +156,20 @@ fn member_set(accessions: &[String]) -> Vec<String> {
     members
 }
 
-fn accession_name(accession: &str) -> &str {
+/// The protein name a matrix shows for a stored accession.
+pub fn parse_protein_accession(accession: &str) -> &str {
     let accession = accession.trim();
-    let fields = accession.split('|').collect::<Vec<_>>();
-    if fields.len() == 3 {
-        fields[1]
+    let Some((database, rest)) = accession.split_once('|') else {
+        return accession;
+    };
+    if ["sp", "tr", "sw", "nxp", "ups"]
+        .iter()
+        .any(|prefix| database.eq_ignore_ascii_case(prefix))
+    {
+        rest.split_once('|')
+            .map_or(rest, |(accession, _)| accession)
     } else {
-        accession
+        database
     }
 }
 
@@ -296,13 +304,14 @@ mod tests {
 
     #[test]
     fn a_row_listing_a_target_and_its_decoy_keeps_both_in_either_order() {
-        let target = "sp|P00001|ENTRY_HUMAN".to_owned();
-        let decoy = "DECOY_sp|P00001|ENTRY_HUMAN".to_owned();
+        let target = "sp|A0A000|ENTRY_HUMAN".to_owned();
+        let decoy = "DECOY_sp|A0A000|ENTRY_HUMAN".to_owned();
         let mut groups = ObservedOrders::default();
         groups.observe(vec![target.clone(), decoy.clone()]);
         groups.observe(vec![decoy.clone(), target.clone()]);
         let groups = groups.finish();
-        let both = vec![decoy.clone(), target.clone()];
+        // The matrix names them A0A000 and DECOY_sp; A0A000;DECOY_sp is smaller.
+        let both = vec![target.clone(), decoy.clone()];
         assert_eq!(groups.resolve(&[target.clone(), decoy.clone()]), both);
         assert_eq!(groups.resolve(&[decoy, target]), both);
     }

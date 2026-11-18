@@ -23,21 +23,7 @@ pub(crate) fn first_protein_name(accessions: &[String]) -> Option<String> {
         .map(str::to_owned)
 }
 
-pub(crate) fn parse_protein_accession(accession: &str) -> &str {
-    let accession = accession.trim();
-    let Some((database, rest)) = accession.split_once('|') else {
-        return accession;
-    };
-    if ["sp", "tr", "sw", "nxp", "ups"]
-        .iter()
-        .any(|prefix| database.eq_ignore_ascii_case(prefix))
-    {
-        rest.split_once('|')
-            .map_or(rest, |(accession, _)| accession)
-    } else {
-        database
-    }
-}
+pub(crate) use mokume_io::parse_protein_accession;
 
 pub(crate) fn sdrf_record<'a>(
     feature: &QpxFeatureRecord,

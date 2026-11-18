@@ -714,26 +714,7 @@ class Feature:
 
     def _create_unnest_view(self, view_name="parquet_db") -> None:
         """Create the long-format DuckDB view by unnesting intensities."""
-        if self._is_new_qpx:
-            # LFQ: the intensity's owning run is its label (keep run_file_name only
-            # as provenance). TMT: label is a channel, run stays run_file_name.
-            run_key = "unnest.label" if self._label_is_run else "run_file_name"
-            unnest_sql = (
-                f"{run_key} as sample_accession,\n"
-                "                    unnest.label as channel,\n"
-                "                    unnest.intensity"
-            )
-            sa_default = run_key
-            run_expr = run_key
-        else:
-            unnest_sql = (
-                "unnest.sample_accession,\n"
-                "                    unnest.channel,\n"
-                "                    unnest.intensity"
-            )
-            sa_default = "unnest.sample_accession"
-            run_expr = self._run_col
-
+        unnest_sql, sa_default, run_expr = self._unnest_view_sample_projection()
         charge_col, run_col = self._charge_col, self._run_col
         # Normalize pg_accessions: extract accession strings from struct if needed
         pg_expr = (
@@ -741,22 +722,7 @@ class Feature:
             if self._pg_accessions_is_struct
             else "pg_accessions"
         )
-
-        # Optional new QPX columns
-        extra_cols = self._compat_projection()
-        if self._has_is_decoy:
-            extra_cols += ",\n                    is_decoy"
-        if self._has_anchor_protein:
-            extra_cols += ",\n                    anchor_protein"
-        extra_cols += _optional_passthrough_projection(
-            self._has_additional_scores, "additional_scores", 20
-        )
-        extra_cols += _optional_qvalue_projection(
-            self._peptide_qvalue_col, "peptide_qvalue", 20
-        )
-        extra_cols += _optional_qvalue_projection(
-            self._protein_qvalue_col, "pg_global_qvalue", 20
-        )
+        extra_cols = self._unnest_view_extra_projection()
 
         self.parquet_db.execute(
             "".join(
@@ -792,6 +758,44 @@ class Feature:
                 ]
             )
         )
+
+    def _unnest_view_sample_projection(self):
+        """Return the intensity, default sample and run SQL expressions."""
+        if self._is_new_qpx:
+            # LFQ: the intensity's owning run is its label (keep run_file_name only
+            # as provenance). TMT: label is a channel, run stays run_file_name.
+            run_key = "unnest.label" if self._label_is_run else "run_file_name"
+            unnest_sql = (
+                f"{run_key} as sample_accession,\n"
+                "                    unnest.label as channel,\n"
+                "                    unnest.intensity"
+            )
+            return unnest_sql, run_key, run_key
+        unnest_sql = (
+            "unnest.sample_accession,\n"
+            "                    unnest.channel,\n"
+            "                    unnest.intensity"
+        )
+        return unnest_sql, "unnest.sample_accession", self._run_col
+
+    def _unnest_view_extra_projection(self):
+        """Return the optional QPX columns for the long-format view."""
+        extra_cols = self._compat_projection()
+        if self._has_is_decoy:
+            extra_cols += ",\n                    is_decoy"
+        if self._has_anchor_protein:
+            extra_cols += ",\n                    anchor_protein"
+        extra_cols += _optional_passthrough_projection(
+            self._has_additional_scores, "additional_scores", 20
+        )
+        extra_cols += _optional_qvalue_projection(
+            self._peptide_qvalue_col, "peptide_qvalue", 20
+        )
+        extra_cols += _optional_qvalue_projection(
+            self._protein_qvalue_col, "pg_global_qvalue", 20
+        )
+
+        return extra_cols
 
     def enrich_with_run(self, run_path: str) -> pd.DataFrame:
         """Map measured entries by exact run and label, without SDRF aliases."""

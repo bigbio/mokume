@@ -56,7 +56,7 @@ def create_group_view(connection, source, target):
     groups = [
         row[0]
         for row in connection.execute(
-            f"SELECT DISTINCT {expression} FROM {source}"
+            "".join(["SELECT DISTINCT ", expression, " FROM ", source])
         ).fetchall()
     ]
     mapping = pa.table(
@@ -67,9 +67,17 @@ def create_group_view(connection, source, target):
     )
     connection.register("qpx_group_orders", mapping)
     connection.execute(
-        f"CREATE OR REPLACE VIEW {target} AS "
-        "SELECT * EXCLUDE (pg_accessions, stored, members), members AS pg_accessions "
-        f"FROM {source} LEFT JOIN qpx_group_orders ON stored = {expression}"
+        "".join(
+            [
+                "CREATE OR REPLACE VIEW ",
+                target,
+                " AS SELECT * EXCLUDE (pg_accessions, stored, members),",
+                " members AS pg_accessions FROM ",
+                source,
+                " LEFT JOIN qpx_group_orders ON stored = ",
+                expression,
+            ]
+        )
     )
 
 

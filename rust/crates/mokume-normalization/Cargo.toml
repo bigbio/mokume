@@ -2,6 +2,7 @@
 name = "mokume-normalization"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -11,4 +12,4 @@ description = "Normalization algorithms for mokume"
 workspace = true
 
 [dependencies]
-mokume-core = { path = "../mokume-core" }
+mokume-core = { workspace = true }

@@ -54,18 +54,22 @@ PSM-level QPX evidence and does not accept MSstats feature tables.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-s/--sdrf` | none | SDRF file for sample metadata |
+| `-s/--sdrf` | none | SDRF file for sample metadata; conflicts with `--run` |
+| `--run` | none | QPX run.parquet sample mapping; conflicts with `--sdrf` |
 | `--min-aa` | 7 | Minimum amino acid length |
 | `--filter-protein-fdr` | none | Keep protein groups whose best QPX `pg_global_qvalue` is `<=` this value (e.g. `0.01`); requires QPX `--parquet` input with a populated `pg_global_qvalue`; not available for `spectral-count` |
 | `--transferred-features` | keep | `drop` removes QPX features without an identification in their own run before normalization and quantification; see the rules below |
+| `--transferred-weight` | off | Weight in (0, 1] of QPX features without an identification in their own run: MaxLFQ takes weighted pair medians and `top<N>` takes identified peptides first (MaxLFQ and `top<N>` only) |
 | `--min-unique` | 2 | Minimum unique peptides per protein/sample; piBAQ uses its method-specific value 0 and rejects this option |
 | `--keep-contaminants` | off | Keep contaminants (a group is a contaminant only if all its accessions are); rows marked `is_decoy=true` are always removed |
 
-For `--transferred-features drop`, `identification_type=transferred` marks a
-transfer. Rows without a type use `id_run_file_name`: null or another run
-marks a transfer. QPX input must have at least one of those columns. Removing
-every feature is an error. `drop` is unavailable for MSstats input and
-`spectral-count`; explicit `keep` is accepted and has no effect there.
+For `--transferred-features drop` and `--transferred-weight`,
+`identification_type=transferred` marks a transfer. Rows without a type use
+`id_run_file_name`: null or another run marks a transfer. QPX input must have
+at least one of those columns. Removing every feature is an error. `drop` is
+unavailable for MSstats input and `spectral-count`; explicit `keep` is accepted
+and has no effect there. `--transferred-weight` keeps the transferred features,
+so it cannot be combined with `drop`, and it is unavailable for MSstats input.
 
 ### Quantification
 
@@ -105,9 +109,10 @@ DirectLFQ and Ratio manage normalization internally. `peptide-count` and
 `spectral-count` count evidence identities and do not use intensity
 normalization. All four therefore default both normalization layers to `none`;
 passing a non-`none` value is rejected. Other methods default to `median` /
-`global-median`, except that MaxLFQ's sample normalization defaults to
-`hierarchical` (`global-median` when `--normalization-proteins` is given): the
-median of a sample's detected features moves with detection depth and spike-in
+`global-median`, except that the sample normalization of MaxLFQ, `top<N>`,
+`sum` and `median` defaults to `hierarchical` (`global-median` when
+`--normalization-proteins` is given): the median of a sample's detected features
+moves with detection depth, match-between-runs transfers and spike-in
 composition, while hierarchical alignment compares the peptides that samples share.
 
 ### IRS (Multi-Plex TMT)
@@ -132,7 +137,7 @@ normalization and quantification. Label-free rows are untouched.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--tmt-row-merge` | `max` | Repeated rows of one peptidoform/charge in one plex (several PSMs, fractions): `max` takes the maximum per channel independently; `best-row` keeps the single row with the highest reporter sum, so all channels come from one spectrum |
-| `--tmt-impurity` | none | Isotope-impurity table for reporter correction (non-negative least squares per row) |
+| `--tmt-impurity` | none | Isotope-impurity table for reporter correction; rejected when companion QPX provenance declares `isotope_corrected=true` |
 | `--tmt-interference-floor` | none | Subtract an additive co-isolation floor: a fraction (e.g. `0.05`) or `auto` (estimated per plex) |
 | `--tmt-floor-quantile` | 0.01 | Ratio quantile used by `--tmt-interference-floor auto` |
 
@@ -151,6 +156,13 @@ channel  -2   -1    +1    +2
 Fields may be separated by tabs, spaces, commas or semicolons. Lines that do
 not start with a channel name (such as the header) are skipped; every channel
 line needs exactly four numbers, otherwise the table is rejected.
+
+Before applying `--tmt-impurity`, Mokume checks the sibling
+`<prefix>.provenance.parquet` for `<prefix>.feature.parquet`. If any tool step
+has a `parameters` entry `isotope_corrected=true`, the command fails and names
+the provenance file and tool: another correction would subtract impurities
+twice. A value of `false`, an absent key, or a missing provenance file leaves
+correction enabled.
 
 Channel names may carry a `TMT` prefix; `N`/`C` channels leak into the next
 channel of the same type (126 counts as `C`). With
@@ -261,6 +273,10 @@ subject column. Values are looked up like the conditions (source name, then data
 file). A constant, missing, or confounded covariate is rejected. With covariates
 `auto` selects `deqms`, and the other methods reject the option. Without
 covariates each contrast keeps the two-group fit on its own samples.
+
+A sample whose factor value is `not applicable` or `not available`, as on an
+empty TMT channel, has no condition and stays out of the fit, also with
+`--de-block`.
 
 `--de-block` treats the levels of an SDRF column as random blocks of that
 design, as limma's `duplicateCorrelation` and `lmFit(block =, correlation =)`
@@ -376,7 +392,8 @@ mokume quantify features2peptides [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-p/--parquet` | required | Input parquet file |
-| `-s/--sdrf` | none | SDRF file for metadata |
+| `-s/--sdrf` | none | SDRF file for metadata; conflicts with `--run` |
+| `--run` | none | QPX run.parquet sample mapping; conflicts with `--sdrf` |
 | `-o/--output` | required | Output peptide intensity file |
 | `--min-aa` | 7 | Minimum amino acid length |
 | `--min-unique` | 2 | Minimum unique peptides per protein |
@@ -427,7 +444,7 @@ them through `features2proteins`, where the full matrix exists.
 | `--filter-charge-state` | none | Charge state override; repeat for multiple states |
 | `--filter-max-missed-cleavages` | none | Max missed cleavages (override) |
 | `--filter-peptide-fdr` | none | Max QPX peptide q-value (override) |
-| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better`, or from the `qpx.struct_lists` footer for struct scores; complete top-level `precursor_qvalue`/`global_qvalue` columns are read directly |
+| `--filter-score NAME=THRESHOLD` | none | Named QPX score threshold; direction comes from `higher_better`, or from the `qpx.struct_lists` footer for struct scores; typed `peptide_qvalue`/`precursor_qvalue`/`global_qvalue` columns take precedence, including partial nulls |
 | `--filter-exclude-modification` | none | Modification name or accession to exclude, compared case-insensitively with the `name` and `accession` of the QPX `modifications` list when present; repeat for multiple values |
 | `--filter-protein-fdr` | none | Max QPX protein-group q-value (override) |
 | `--filter-min-features` | none | Min features per run (override) |
@@ -440,6 +457,10 @@ disabled by default and requires populated `peptide_qvalue` or
 Named-score filtering is applied before normalization and aggregation, matches
 `additional_scores.score_name` exactly, and fails if the requested score is
 missing or has inconsistent `higher_better` values.
+Rows without the requested score still fail the filter. An INFO message
+reports their count and the transferred count; Python reports only the total
+when the file has no `identification_type` column. `match_qvalue` is not used
+as a substitute for the requested score.
 Active unsupported filter-config values are rejected instead of being logged and
 ignored.
 
@@ -460,6 +481,7 @@ mokume quantify peptides2protein [OPTIONS]
 | `--quant-method` | `pibaq` | Method: pibaq, `top<N>` (top3, top5, top10, ...), maxlfq, sum, directlfq |
 | `--maxlfq-min-ratio-count` | `2` | Minimum shared peptide species per sample pair (MaxLFQ only) |
 | `--stabilize` | off | Enable overlap-dependent large-ratio stabilization (MaxLFQ only; may worsen some ratios) |
+| `--weight-column` | none | Column of per-row weights in (0, 1]: MaxLFQ takes weighted pair medians and `top<N>` takes the highest-weight rows first (MaxLFQ and `top<N>` only) |
 | `--enzyme` | `Trypsin` | Enzyme for in-silico digestion |
 | `--normalize` | off | Normalize quantification values |
 | `--min-aa` | 7 | Min amino acid length |

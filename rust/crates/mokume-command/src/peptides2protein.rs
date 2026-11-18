@@ -50,11 +50,11 @@ use std::path::Path;
 
 use mokume_core::quant::parse_topn_from_method_name;
 use mokume_core::{DirectLfqConfig, MaxLfqConfig, MokumeError, PibaqConfig, Result};
-use mokume_io::{read_peptide_parquet, read_peptide_parquet_with_species};
+use mokume_io::read_peptide_parquet_with_weights;
 use mokume_pipeline::{
-    run_lfq_from_peptides_with_threads, run_maxlfq_from_peptides_with_threads,
-    run_pibaq_from_peptides, LfqPeptideObservation, PeptideObservation, PibaqDigest,
-    PibaqFromPeptidesParams, PibaqProteinRow,
+    LfqPeptideObservation, PeptideObservation, PibaqDigest, PibaqFromPeptidesParams,
+    PibaqProteinRow, run_lfq_from_peptides_with_threads, run_maxlfq_from_peptides_with_threads,
+    run_pibaq_from_peptides,
 };
 
 use crate::Peptides2ProteinArgs;
@@ -90,6 +90,8 @@ struct PeptideRow {
     peptide: String,
     condition: String,
     intensity: f64,
+    /// `--weight-column` value, 1 without one.
+    weight: f64,
 }
 
 pub fn run_peptides_to_protein_with_digest(
@@ -151,6 +153,15 @@ fn validate_lfq_options(args: &Peptides2ProteinArgs, method: &str) -> Result<()>
             message: "--stabilize requires --quant-method maxlfq".to_owned(),
         });
     }
+    if args.weight_column.is_some()
+        && method != "maxlfq"
+        && parse_topn_from_method_name(method).is_none()
+    {
+        return Err(MokumeError::InvalidInput {
+            message: "--weight-column only applies to peptides2protein MaxLFQ and top<N>"
+                .to_owned(),
+        });
+    }
     Ok(())
 }
 
@@ -198,7 +209,11 @@ pub(crate) fn validate_options(args: &Peptides2ProteinArgs) -> Result<()> {
 
 /// Dispatch to the requested LFQ algorithm and emit positive long-format rows.
 fn run_lfq(args: &Peptides2ProteinArgs, method: &str, output: &Path) -> Result<()> {
-    let table = load_peptide_table_with_species(&args.peptides, method == "maxlfq")?;
+    let table = load_peptide_table_with(
+        &args.peptides,
+        method == "maxlfq",
+        args.weight_column.as_deref(),
+    )?;
     if !table.has_peptide {
         return Err(MokumeError::InvalidInput {
             message: format!(
@@ -218,6 +233,7 @@ fn run_lfq(args: &Peptides2ProteinArgs, method: &str, output: &Path) -> Result<(
             peptide: row.peptide.clone(),
             sample: row.sample.clone(),
             intensity: row.intensity,
+            weight: row.weight,
         });
     }
 
@@ -427,16 +443,16 @@ fn run_generic(args: &Peptides2ProteinArgs, method: &str, output: &Path) -> Resu
             None => {
                 return Err(MokumeError::InvalidInput {
                     message: format!("unknown peptides2protein method '{name}'"),
-                })
+                });
             }
         },
     };
 
-    let table = load_peptide_table(&args.peptides)?;
+    let table = load_peptide_table_with(&args.peptides, false, args.weight_column.as_deref())?;
 
     // Group raw rows by (protein, sample); Python does not collapse charges or
     // peptidoforms here, so neither do we.
-    let mut groups: HashMap<(String, String), Vec<f64>> = HashMap::new();
+    let mut groups: HashMap<(String, String), Vec<(f64, f64)>> = HashMap::new();
     let mut condition_by_sample: HashMap<String, String> = HashMap::new();
     for row in &table.rows {
         condition_by_sample
@@ -445,7 +461,7 @@ fn run_generic(args: &Peptides2ProteinArgs, method: &str, output: &Path) -> Resu
         groups
             .entry((row.protein.clone(), row.sample.clone()))
             .or_default()
-            .push(row.intensity);
+            .push((row.weight, row.intensity));
     }
 
     let mut results: Vec<GenericRow> = groups
@@ -486,19 +502,29 @@ fn run_generic(args: &Peptides2ProteinArgs, method: &str, output: &Path) -> Resu
     )
 }
 
-/// Aggregate one (protein, sample) group: sum (when `topn` is `None`) or the
-/// mean of the `topn` most intense rows. Mirrors Python's `groupby.sum` and
-/// `sort_values(desc).head(n).mean`.
-fn aggregate(mut intensities: Vec<f64>, topn: Option<usize>) -> f64 {
+/// Aggregate one (protein, sample) group of `(weight, intensity)` rows: sum
+/// (when `topn` is `None`) or the mean of the `topn` most intense rows, taking
+/// higher-weight rows first. With equal weights this mirrors Python's
+/// `groupby.sum` and `sort_values(desc).head(n).mean`.
+fn aggregate(mut rows: Vec<(f64, f64)>, topn: Option<usize>) -> f64 {
     match topn {
-        None => intensities.iter().sum(),
+        None => rows.iter().map(|&(_, intensity)| intensity).sum(),
         Some(n) => {
-            intensities.sort_by(|left, right| right.total_cmp(left));
-            let selected = &intensities[..intensities.len().min(n.max(1))];
+            rows.sort_by(|left, right| {
+                right
+                    .0
+                    .total_cmp(&left.0)
+                    .then_with(|| right.1.total_cmp(&left.1))
+            });
+            let selected = &rows[..rows.len().min(n.max(1))];
             if selected.is_empty() {
                 0.0
             } else {
-                selected.iter().sum::<f64>() / selected.len() as f64
+                selected
+                    .iter()
+                    .map(|&(_, intensity)| intensity)
+                    .sum::<f64>()
+                    / selected.len() as f64
             }
         }
     }
@@ -514,14 +540,20 @@ struct GenericRow {
 /// parquet magic bytes (`PAR1`) exactly like Python's `is_parquet`, so the same
 /// `--peptides` path resolves to the same loader regardless of file extension.
 fn load_peptide_table(path: &Path) -> Result<PeptideTable> {
-    load_peptide_table_with_species(path, false)
+    load_peptide_table_with(path, false, None)
 }
 
-fn load_peptide_table_with_species(path: &Path, preserve_species: bool) -> Result<PeptideTable> {
+/// Load the table, keeping modification and charge when `preserve_species`
+/// and reading `weight_column` into each row's weight.
+fn load_peptide_table_with(
+    path: &Path,
+    preserve_species: bool,
+    weight_column: Option<&str>,
+) -> Result<PeptideTable> {
     if looks_like_parquet(path)? {
-        load_peptide_table_parquet(path, preserve_species)
+        load_peptide_table_parquet(path, preserve_species, weight_column)
     } else {
-        load_peptide_table_csv(path, preserve_species)
+        load_peptide_table_csv(path, preserve_species, weight_column)
     }
 }
 
@@ -549,12 +581,12 @@ fn looks_like_parquet(path: &Path) -> Result<bool> {
 /// (`dropna` + `> 0`) and `"Empty"` condition default as the CSV path so both
 /// inputs yield identical [`PeptideTable`]s. Mirrors Python's `pd.read_parquet`
 /// followed by the generic / piBAQ numeric coercion.
-fn load_peptide_table_parquet(path: &Path, preserve_species: bool) -> Result<PeptideTable> {
-    let raw = if preserve_species {
-        read_peptide_parquet_with_species(path)?
-    } else {
-        read_peptide_parquet(path)?
-    };
+fn load_peptide_table_parquet(
+    path: &Path,
+    preserve_species: bool,
+    weight_column: Option<&str>,
+) -> Result<PeptideTable> {
+    let raw = read_peptide_parquet_with_weights(path, preserve_species, weight_column)?;
     let mut rows = Vec::with_capacity(raw.rows.len());
     for row in raw.rows {
         if preserve_species && row.peptide.as_deref().is_none_or(str::is_empty) {
@@ -571,12 +603,14 @@ fn load_peptide_table_parquet(path: &Path, preserve_species: bool) -> Result<Pep
         } else {
             "Empty".to_owned()
         };
+        let weight = weight_column.map_or(Ok(1.0), |column| row_weight(row.weight, column))?;
         rows.push(PeptideRow {
             protein: row.protein,
             sample: row.sample,
             peptide: row.peptide.unwrap_or_default(),
             condition,
             intensity,
+            weight,
         });
     }
 
@@ -591,7 +625,11 @@ fn load_peptide_table_parquet(path: &Path, preserve_species: bool) -> Result<Pep
 /// missing or non-positive intensity are dropped, matching the Python
 /// `dropna` + `> 0` filter applied on the piBAQ path and the implicit numeric
 /// coercion on the generic path.
-fn load_peptide_table_csv(path: &Path, preserve_species: bool) -> Result<PeptideTable> {
+fn load_peptide_table_csv(
+    path: &Path,
+    preserve_species: bool,
+    weight_column: Option<&str>,
+) -> Result<PeptideTable> {
     let delimiter = if path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -614,47 +652,116 @@ fn load_peptide_table_csv(path: &Path, preserve_species: bool) -> Result<Peptide
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
 
-    let protein_index = column_index(&headers, PROTEIN_NAME)?;
-    let sample_index = column_index(&headers, SAMPLE_ID)?;
-    let intensity_index = column_index(&headers, NORM_INTENSITY)?;
-    let condition_index = optional_column_index(&headers, CONDITION);
-    let peptide_index = optional_column_index(&headers, PEPTIDE_CANONICAL)
-        .or_else(|| optional_column_index(&headers, PEPTIDE_SEQUENCE));
-    let species_indices = preserve_species
-        .then(|| {
-            optional_column_index(&headers, PEPTIDE_SEQUENCE)
-                .zip(optional_column_index(&headers, "PrecursorCharge"))
-        })
-        .flatten();
-
+    let columns = PeptideCsvColumns::new(&headers, preserve_species, weight_column)?;
     let mut rows = Vec::new();
     for record in reader.records() {
         let record = record.map_err(|source| csv_error(path, source))?;
-        let Some(intensity) = positive_csv_intensity(&record, intensity_index, path)? else {
-            continue;
-        };
-        let condition = condition_index
-            .map(|index| field(&record, index, path))
-            .transpose()?
-            .map_or_else(|| "Empty".to_owned(), ToOwned::to_owned);
-        let peptide = csv_peptide_id(&record, path, peptide_index, species_indices)?;
-        if preserve_species && peptide.is_empty() {
-            continue;
+        if let Some(row) = columns.read_row(&record, path, preserve_species)? {
+            rows.push(row);
         }
-        rows.push(PeptideRow {
-            protein: field(&record, protein_index, path)?.to_owned(),
-            sample: field(&record, sample_index, path)?.to_owned(),
-            peptide,
-            condition,
-            intensity,
-        });
     }
 
     Ok(PeptideTable {
         rows,
-        has_condition: condition_index.is_some(),
-        has_peptide: peptide_index.is_some(),
+        has_condition: columns.condition.is_some(),
+        has_peptide: columns.peptide.is_some(),
     })
+}
+
+struct PeptideCsvColumns<'a> {
+    protein: usize,
+    sample: usize,
+    intensity: usize,
+    condition: Option<usize>,
+    weight: Option<(usize, &'a str)>,
+    peptide: Option<usize>,
+    species: Option<(usize, usize)>,
+}
+
+impl<'a> PeptideCsvColumns<'a> {
+    fn new(
+        headers: &[String],
+        preserve_species: bool,
+        weight_column: Option<&'a str>,
+    ) -> Result<Self> {
+        let protein = column_index(headers, PROTEIN_NAME)?;
+        let sample = column_index(headers, SAMPLE_ID)?;
+        let intensity = column_index(headers, NORM_INTENSITY)?;
+        let condition = optional_column_index(headers, CONDITION);
+        let weight = weight_column
+            .map(|column| Ok((column_index(headers, column)?, column)))
+            .transpose()?;
+        let peptide = optional_column_index(headers, PEPTIDE_CANONICAL)
+            .or_else(|| optional_column_index(headers, PEPTIDE_SEQUENCE));
+        let species = preserve_species
+            .then(|| {
+                optional_column_index(headers, PEPTIDE_SEQUENCE)
+                    .zip(optional_column_index(headers, "PrecursorCharge"))
+            })
+            .flatten();
+        Ok(Self {
+            protein,
+            sample,
+            intensity,
+            condition,
+            weight,
+            peptide,
+            species,
+        })
+    }
+
+    fn read_row(
+        &self,
+        record: &csv::StringRecord,
+        path: &Path,
+        preserve_species: bool,
+    ) -> Result<Option<PeptideRow>> {
+        let Some(intensity) = positive_csv_intensity(record, self.intensity, path)? else {
+            return Ok(None);
+        };
+        let condition = self
+            .condition
+            .map(|index| field(record, index, path))
+            .transpose()?
+            .map_or_else(|| "Empty".to_owned(), ToOwned::to_owned);
+        let peptide = csv_peptide_id(record, path, self.peptide, self.species)?;
+        if preserve_species && peptide.is_empty() {
+            return Ok(None);
+        }
+        let weight = csv_weight(record, self.weight, path)?;
+        Ok(Some(PeptideRow {
+            protein: field(record, self.protein, path)?.to_owned(),
+            sample: field(record, self.sample, path)?.to_owned(),
+            peptide,
+            condition,
+            intensity,
+            weight,
+        }))
+    }
+}
+
+/// A `--weight-column` value of a kept row: weighted aggregation needs a
+/// weight in (0, 1] for every row, which also keeps pair-weight products finite.
+fn row_weight(weight: Option<f64>, column: &str) -> Result<f64> {
+    weight
+        .filter(|weight| *weight > 0.0 && *weight <= 1.0)
+        .ok_or_else(|| MokumeError::InvalidInput {
+            message: format!(
+                "column '{column}' must hold a weight above 0 and at most 1 in every row"
+            ),
+        })
+}
+
+/// The row's `--weight-column` value, 1 without the option.
+fn csv_weight(
+    record: &csv::StringRecord,
+    weight: Option<(usize, &str)>,
+    path: &Path,
+) -> Result<f64> {
+    let Some((index, column)) = weight else {
+        return Ok(1.0);
+    };
+    row_weight(field(record, index, path)?.trim().parse().ok(), column)
 }
 
 fn positive_csv_intensity(
@@ -855,13 +962,13 @@ fn write_generic_output(
 }
 
 fn create_writer(output: &Path) -> Result<BufWriter<File>> {
-    if let Some(parent) = output.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent).map_err(|source| MokumeError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
-        }
+    if let Some(parent) = output.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent).map_err(|source| MokumeError::Io {
+            path: parent.to_path_buf(),
+            source,
+        })?;
     }
     let file = File::create(output).map_err(|source| MokumeError::Io {
         path: output.to_path_buf(),
@@ -1257,6 +1364,7 @@ P3,THIDPECK,S1,A,900.0\n";
             directlfq_min_nonan: None,
             maxlfq_min_ratio_count: None,
             stabilize: false,
+            weight_column: None,
             families_yaml: None,
             min_shared: None,
             min_anchors: None,
@@ -1810,13 +1918,13 @@ P3,THIDPECK,S1,A,900.0\n";
         write_file(
             &peptides,
             concat!(
-            "ProteinName,PeptideCanonical,PeptideSequence,PrecursorCharge,SampleID,NormIntensity\n",
-            "P,PEPTIDEAK,PEPTIDEAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,3,S1,1\n",
-            "P,ANOTHERAK,ANOTHERAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,2,S2,1\n",
-            "P,PEPTIDEAK,PEPTIDEAK,3,S2,9\nP,ANOTHERAK,ANOTHERAK,2,S2,3\n",
-            "P,INVALID,INVALID,NaN,S1,1000\nP,INVALID,INVALID,NaN,S2,1000\n",
-            "P,INVALID,INVALID,0,S1,1000\nP,INVALID,INVALID,0,S2,1000\n",
-        ),
+                "ProteinName,PeptideCanonical,PeptideSequence,PrecursorCharge,SampleID,NormIntensity\n",
+                "P,PEPTIDEAK,PEPTIDEAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,3,S1,1\n",
+                "P,ANOTHERAK,ANOTHERAK,2,S1,1\nP,PEPTIDEAK,PEPTIDEAK,2,S2,1\n",
+                "P,PEPTIDEAK,PEPTIDEAK,3,S2,9\nP,ANOTHERAK,ANOTHERAK,2,S2,3\n",
+                "P,INVALID,INVALID,NaN,S1,1000\nP,INVALID,INVALID,NaN,S2,1000\n",
+                "P,INVALID,INVALID,0,S1,1000\nP,INVALID,INVALID,0,S2,1000\n",
+            ),
         )?;
         let mut args = base_args(&peptides, &output);
         args.quant_method = "maxlfq".to_owned();
@@ -1866,6 +1974,86 @@ P3,THIDPECK,S1,A,900.0\n";
                 error
                     .to_string()
                     .contains("--stabilize requires --quant-method maxlfq"),
+                "{error}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn peptides2protein_weight_column_orders_top_n_and_weighs_maxlfq() -> TestResult<()> {
+        let (_tempdir, dir) = temp_dir("weights")?;
+        let peptides = dir.join("peptides.csv");
+        let output = dir.join("proteins.tsv");
+        write_file(
+            &peptides,
+            concat!(
+                "ProteinName,PeptideCanonical,SampleID,NormIntensity,Weight\n",
+                "P,PEPTIDEAK,S1,100,1\nP,ANOTHERAK,S1,100,1\n",
+                "P,PEPTIDEAK,S2,100,1\nP,ANOTHERAK,S2,400,0.5\n",
+            ),
+        )?;
+        let mut args = base_args(&peptides, &output);
+        args.quant_method = "top1".to_owned();
+        for (column, expected) in [(None, 400.0), (Some("Weight"), 100.0)] {
+            args.weight_column = column.map(ToOwned::to_owned);
+            run_peptides_to_protein_with_digest(&args, None)?;
+            let (headers, rows) = read_table(&output)?;
+            assert_cell_close(&headers, &rows, "P", "S2", "Intensity", expected)?;
+        }
+        // The pair's log2 ratios are 0 and 2 (weight 0.5): their median is 1
+        // and the weighted median the full-weight 0.
+        args.quant_method = "maxlfq".to_owned();
+        for (column, expected) in [(None, 2.0), (Some("Weight"), 1.0)] {
+            args.weight_column = column.map(ToOwned::to_owned);
+            run_peptides_to_protein_with_digest(&args, None)?;
+            let (_, rows) = read_table(&output)?;
+            let ratio = rows[1][2].parse::<f64>()? / rows[0][2].parse::<f64>()?;
+            assert!((ratio - expected).abs() < 1e-12, "{column:?}: {ratio}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn peptides2protein_weight_column_rejects_missing_or_invalid_weights() -> TestResult<()> {
+        let (_tempdir, dir) = temp_dir("weights-invalid")?;
+        let peptides = dir.join("peptides.csv");
+        let output = dir.join("proteins.tsv");
+        let mut args = base_args(&peptides, &output);
+        args.quant_method = "top3".to_owned();
+        args.weight_column = Some("Weight".to_owned());
+        let header = "ProteinName,PeptideCanonical,SampleID,NormIntensity";
+        for (csv, message) in [
+            (
+                format!("{header}\nP,PEPTIDEAK,S1,100\n"),
+                "could not find required column 'Weight'",
+            ),
+            (
+                format!("{header},Weight\nP,PEPTIDEAK,S1,100,0\n"),
+                "column 'Weight' must hold a weight above 0 and at most 1",
+            ),
+            (
+                format!("{header},Weight\nP,PEPTIDEAK,S1,100,1.5\n"),
+                "column 'Weight' must hold a weight above 0 and at most 1",
+            ),
+            (
+                format!("{header},Weight\nP,PEPTIDEAK,S1,100,\n"),
+                "column 'Weight' must hold a weight above 0 and at most 1",
+            ),
+        ] {
+            write_file(&peptides, &csv)?;
+            let Err(error) = run_peptides_to_protein_with_digest(&args, None) else {
+                panic!("accepted {csv:?}");
+            };
+            assert!(error.to_string().contains(message), "{error}");
+        }
+        for method in ["sum", "directlfq", "pibaq"] {
+            args.quant_method = method.to_owned();
+            let Err(error) = run_peptides_to_protein_with_digest(&args, None) else {
+                panic!("{method} accepted --weight-column");
+            };
+            assert!(
+                error.to_string().contains("--weight-column only applies"),
                 "{error}"
             );
         }

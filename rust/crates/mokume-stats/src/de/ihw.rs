@@ -185,19 +185,19 @@ fn validate_options(opt: &IhwOptions, n: usize) -> Result<()> {
             "IHW testing requires at least two outer/inner folds and one inner split",
         ));
     }
-    if let Some(labels) = &opt.folds {
-        if labels.len() != n || labels.iter().any(|&f| f >= opt.n_folds) {
-            return Err(invalid(
-                "IHW fold labels must match input length and lie in 0..n_folds",
-            ));
-        }
+    if let Some(labels) = &opt.folds
+        && (labels.len() != n || labels.iter().any(|&f| f >= opt.n_folds))
+    {
+        return Err(invalid(
+            "IHW fold labels must match input length and lie in 0..n_folds",
+        ));
     }
-    if let Some(lambdas) = &opt.lambdas {
-        if lambdas.is_empty() || lambdas.iter().any(|&v| v.is_nan() || v < 0.0) {
-            return Err(invalid(
-                "IHW lambdas must be a nonempty sequence of nonnegative values",
-            ));
-        }
+    if let Some(lambdas) = &opt.lambdas
+        && (lambdas.is_empty() || lambdas.iter().any(|&v| v.is_nan() || v < 0.0))
+    {
+        return Err(invalid(
+            "IHW lambdas must be a nonempty sequence of nonnegative values",
+        ));
     }
     Ok(())
 }

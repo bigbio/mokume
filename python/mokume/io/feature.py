@@ -18,7 +18,9 @@ import duckdb
 from mokume.model.labeling import QuantificationCategory, IsobaricLabel
 from mokume.core.constants import load_sdrf
 from mokume.core.logger import get_logger
+from mokume.io._protein_groups import create_group_view
 from mokume.io._qpx import measured_intensity_clause, resolve_score_source
+from mokume.io.run import load_run
 from mokume.io.msstats import create_msstats_feature_table
 from mokume.preprocessing.sdrf import warn_shared_source_names
 
@@ -175,7 +177,7 @@ class SQLFilterBuilder:
         means a one-protein group.
     has_is_decoy : bool
         Whether the parquet has an ``is_decoy`` column. When True, DECOY
-        filtering uses ``is_decoy = false`` instead of text pattern matching.
+        filtering treats null ``is_decoy`` values as targets.
         Automatically set by :class:`Feature` after format detection.
     named_score_name : str, optional
         Exact QPX ``additional_scores.score_name`` to filter.
@@ -304,7 +306,7 @@ class SQLFilterBuilder:
         decoys = [p for p in self.contaminant_patterns if p.upper() == "DECOY"]
         contams = [p for p in self.contaminant_patterns if p.upper() != "DECOY"]
         if decoys and self.has_is_decoy:
-            conditions.append("is_decoy = false")
+            conditions.append("NOT coalesce(is_decoy, false)")
         if decoys:
             conditions.append(
                 f"NOT coalesce(list_bool_or({any_member(decoys)}), false)"
@@ -440,6 +442,8 @@ class Feature:
             if filter_builder.exclude_modifications:
                 wanted.add("modifications")
         self._compat_columns = [n for n in self._compat_columns if n in wanted]
+        create_group_view(self.parquet_db, "parquet_db_raw", "parquet_db_grouped")
+        self._pg_accessions_is_struct = False
         self._create_unnest_view()
 
         self._samples: Optional[list[str]] = None
@@ -484,6 +488,7 @@ class Feature:
         self.filter_builder.named_score_source = resolve_score_source(
             self.parquet_db, self._parquet_path, name
         )
+        self._log_missing_named_scores(name)
         if self.filter_builder.named_score_source is not None:
             expression, _ = self.filter_builder.named_score_source
             self._validate_scalar_score(name, expression)
@@ -525,7 +530,7 @@ class Feature:
         present = (
             "additional_scores IS NOT NULL"
             if expression.startswith("additional_scores.")
-            else "TRUE"
+            else f"{expression} IS NOT NULL"
         )
         values = (
             self.parquet_db.table("parquet_db_raw")
@@ -537,10 +542,44 @@ class Feature:
         ).fetchall()[0]
         if not count:
             raise ValueError(
-                f"--filter-score requires QPX additional_scores entry `{name}`"
+                f"--filter-score found no non-null values for QPX score `{name}`"
             )
         if invalid:
             raise ValueError(f"QPX score `{name}` contains null or non-finite values")
+
+    def _log_missing_named_scores(self, name: str) -> None:
+        """Report raw feature rows discarded for having no requested score."""
+        source = self.filter_builder.named_score_source
+        params = []
+        if source is not None:
+            expression, _ = source
+            missing = (
+                "additional_scores IS NULL"
+                if expression.startswith("additional_scores.")
+                else f"{expression} IS NULL"
+            )
+        elif self._has_additional_scores:
+            missing = (
+                "NOT EXISTS (SELECT 1 FROM UNNEST(additional_scores) AS item(score) "
+                "WHERE score.score_name = ?)"
+            )
+            params.append(name)
+        else:
+            return
+        transfer = (
+            ", count(*) FILTER (WHERE identification_type = 'transferred')"
+            if self._has_identification_type
+            else ""
+        )
+        query = "".join(
+            ["SELECT count(*)", transfer, " FROM parquet_db_raw WHERE ", missing]
+        )
+        counts = self.parquet_db.execute(query, params).fetchall()[0]
+        if counts[0]:
+            message = "Dropped %d QPX feature rows because score '%s' is null"
+            if self._has_identification_type:
+                message += " (%d transferred rows)"
+            logger.info(message, counts[0], name, *counts[1:])
 
     def _compat_projection(self, prefix: str = "") -> str:
         """Carry optional QPX metadata through the canonical long views."""
@@ -596,6 +635,7 @@ class Feature:
         self._has_is_decoy = "is_decoy" in cols
         self._has_anchor_protein = "anchor_protein" in cols
         self._has_additional_scores = "additional_scores" in cols
+        self._has_identification_type = "identification_type" in cols
         self._peptide_qvalue_col = _first_present(
             cols, ("peptide_qvalue", "peptide_q_value")
         )
@@ -672,28 +712,9 @@ class Feature:
             "sample_accession, condition and mixture would be NULL."
         )
 
-    def _create_unnest_view(self) -> None:
+    def _create_unnest_view(self, view_name="parquet_db") -> None:
         """Create the long-format DuckDB view by unnesting intensities."""
-        if self._is_new_qpx:
-            # LFQ: the intensity's owning run is its label (keep run_file_name only
-            # as provenance). TMT: label is a channel, run stays run_file_name.
-            run_key = "unnest.label" if self._label_is_run else "run_file_name"
-            unnest_sql = (
-                f"{run_key} as sample_accession,\n"
-                "                    unnest.label as channel,\n"
-                "                    unnest.intensity"
-            )
-            sa_default = run_key
-            run_expr = run_key
-        else:
-            unnest_sql = (
-                "unnest.sample_accession,\n"
-                "                    unnest.channel,\n"
-                "                    unnest.intensity"
-            )
-            sa_default = "unnest.sample_accession"
-            run_expr = self._run_col
-
+        unnest_sql, sa_default, run_expr = self._unnest_view_sample_projection()
         charge_col, run_col = self._charge_col, self._run_col
         # Normalize pg_accessions: extract accession strings from struct if needed
         pg_expr = (
@@ -701,27 +722,12 @@ class Feature:
             if self._pg_accessions_is_struct
             else "pg_accessions"
         )
-
-        # Optional new QPX columns
-        extra_cols = self._compat_projection()
-        if self._has_is_decoy:
-            extra_cols += ",\n                    is_decoy"
-        if self._has_anchor_protein:
-            extra_cols += ",\n                    anchor_protein"
-        extra_cols += _optional_passthrough_projection(
-            self._has_additional_scores, "additional_scores", 20
-        )
-        extra_cols += _optional_qvalue_projection(
-            self._peptide_qvalue_col, "peptide_qvalue", 20
-        )
-        extra_cols += _optional_qvalue_projection(
-            self._protein_qvalue_col, "pg_global_qvalue", 20
-        )
+        extra_cols = self._unnest_view_extra_projection()
 
         self.parquet_db.execute(
             "".join(
                 [
-                    "CREATE VIEW parquet_db AS SELECT",
+                    f"CREATE VIEW {view_name} AS SELECT",
                     " sequence, peptidoform, ",
                     pg_expr,
                     ",",
@@ -746,12 +752,85 @@ class Feature:
                     sa_default,
                     ", '_', 1) as mixture",
                     extra_cols,
-                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_raw)",
+                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_grouped)",
                     " WHERE unnest.intensity IS NOT NULL AND unnest.intensity > 0",
                     f" AND {self._measured_clause}",
                 ]
             )
         )
+
+    def _unnest_view_sample_projection(self):
+        """Return the intensity, default sample and run SQL expressions."""
+        if self._is_new_qpx:
+            # LFQ: the intensity's owning run is its label (keep run_file_name only
+            # as provenance). TMT: label is a channel, run stays run_file_name.
+            run_key = "unnest.label" if self._label_is_run else "run_file_name"
+            unnest_sql = (
+                f"{run_key} as sample_accession,\n"
+                "                    unnest.label as channel,\n"
+                "                    unnest.intensity"
+            )
+            return unnest_sql, run_key, run_key
+        unnest_sql = (
+            "unnest.sample_accession,\n"
+            "                    unnest.channel,\n"
+            "                    unnest.intensity"
+        )
+        return unnest_sql, "unnest.sample_accession", self._run_col
+
+    def _unnest_view_extra_projection(self):
+        """Return the optional QPX columns for the long-format view."""
+        extra_cols = self._compat_projection()
+        if self._has_is_decoy:
+            extra_cols += ",\n                    is_decoy"
+        if self._has_anchor_protein:
+            extra_cols += ",\n                    anchor_protein"
+        extra_cols += _optional_passthrough_projection(
+            self._has_additional_scores, "additional_scores", 20
+        )
+        extra_cols += _optional_qvalue_projection(
+            self._peptide_qvalue_col, "peptide_qvalue", 20
+        )
+        extra_cols += _optional_qvalue_projection(
+            self._protein_qvalue_col, "pg_global_qvalue", 20
+        )
+
+        return extra_cols
+
+    def enrich_with_run(self, run_path: str) -> pd.DataFrame:
+        """Map measured entries by exact run and label, without SDRF aliases."""
+        run_table = load_run(run_path)
+        mapping = run_table.rename(
+            columns={
+                "comment[data file]": "qpx_run",
+                "comment[label]": "qpx_label",
+                "source name": "mapped_sample",
+                "factor value[condition]": "mapped_condition",
+                "characteristics[biological replicate]": "mapped_bio",
+                "comment[fraction identifier]": "mapped_fraction",
+            }
+        )
+        self.parquet_db.register("run_mapping", mapping)
+        self._create_unnest_view("parquet_db_unmapped")
+        unmatched = self.parquet_db.sql(
+            "SELECT DISTINCT p.run_file_name, p.channel FROM parquet_db_unmapped p "
+            "LEFT JOIN run_mapping m ON p.run_file_name = m.qpx_run AND p.channel = m.qpx_label "
+            "WHERE p.intensity > 0 AND m.mapped_sample IS NULL"
+        ).fetchall()
+        if unmatched:
+            raise ValueError(
+                f"QPX run and label have no exact run view match: {unmatched[:5]}"
+            )
+        self.parquet_db.execute(
+            "CREATE OR REPLACE VIEW parquet_db AS SELECT p.* REPLACE ("
+            "m.mapped_sample AS sample_accession, m.mapped_condition AS condition, "
+            "m.mapped_bio AS biological_replicate, m.mapped_fraction AS fraction, "
+            "p.run_file_name AS run) "
+            "FROM parquet_db_unmapped p LEFT JOIN run_mapping m "
+            "ON p.run_file_name = m.qpx_run AND p.channel = m.qpx_label"
+        )
+        self.samples = list(dict.fromkeys(mapping["mapped_sample"]))
+        return run_table
 
     def enrich_with_sdrf(self, sdrf_path: str) -> None:
         """Enrich parquet data with SDRF metadata (condition, biological_replicate, etc.).
@@ -921,7 +1000,7 @@ class Feature:
                     " as run",
                     extra_cols,
                     opt_cols_raw,
-                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_raw)",
+                    " FROM (SELECT *, UNNEST(intensities) AS unnest FROM parquet_db_grouped)",
                     " WHERE unnest.intensity IS NOT NULL AND unnest.intensity > 0",
                     f" AND {self._measured_clause}",
                 ]
@@ -1018,41 +1097,24 @@ class Feature:
         else:
             where_clause, where_params = "1=1", []
 
-        # Use anchor_protein directly when available (new QPX), otherwise parse pg_accessions
-        if self._has_anchor_protein:
-            sql = "".join(
-                [
-                    'SELECT "sequence", anchor_protein as protein,',
-                    ' COUNT(DISTINCT sample_accession) as "count"',
-                    " FROM parquet_db WHERE ",
-                    where_clause,
-                    ' GROUP BY "sequence", anchor_protein',
-                ]
-            )
-            f_table = self.parquet_db.execute(sql, where_params).df()
-            f_table.dropna(subset=["protein"], inplace=True)
-        else:
-            sql = "".join(
-                [
-                    'SELECT "sequence", "pg_accessions",',
-                    ' COUNT(DISTINCT sample_accession) as "count"',
-                    " FROM parquet_db WHERE ",
-                    where_clause,
-                    ' GROUP BY "sequence", "pg_accessions"',
-                ]
-            )
-            f_table = self.parquet_db.execute(sql, where_params).df()
-            f_table.dropna(subset=["pg_accessions"], inplace=True)
-            try:
-                f_table["protein"] = f_table["pg_accessions"].apply(
-                    lambda x: x[0].split("|")[1]
-                )
-            except IndexError:
-                f_table["protein"] = f_table["pg_accessions"].apply(lambda x: x[0])
-            except Exception as e:
-                raise ValueError(
-                    "Some errors occurred when parsing pg_accessions column in feature parquet!"
-                ) from e
+        members, member_params = (
+            self.filter_builder.build_protein_members()
+            if self.filter_builder is not None
+            else ("pg_accessions", [])
+        )
+        sql = "".join(
+            [
+                "SELECT sequence, array_to_string(list_transform(",
+                members,
+                ", lambda x: CASE WHEN len(string_split(x, '|')) = 3 ",
+                "THEN string_split(x, '|')[2] ELSE x END), ';') AS protein, ",
+                "COUNT(DISTINCT sample_accession) AS count FROM parquet_db WHERE ",
+                where_clause,
+                " GROUP BY sequence, protein",
+            ]
+        )
+        f_table = self.parquet_db.execute(sql, [*member_params, *where_params]).df()
+        f_table.dropna(subset=["protein"], inplace=True)
 
         f_table.set_index(["sequence", "protein"], inplace=True)
         f_table.drop(

@@ -65,21 +65,26 @@ Applied after all samples are loaded, operating on the complete dataset:
 | `hierarchical` | DirectLFQ-style hierarchical clustering normalization |
 
 !!! tip "When to use hierarchical normalization"
-    Use `--sample-normalization hierarchical` when you want DirectLFQ-style normalization **combined with a different quantification method** (e.g., MaxLFQ or Sum; piBAQ accepts only `quantile` among the dataset-level methods). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.
+    Hierarchical normalization is the default for MaxLFQ, `top<N>`, `sum` and `median`. Pass `--sample-normalization hierarchical` to combine DirectLFQ-style normalization **with another intensity method** (piBAQ accepts only `quantile` among the dataset-level methods). This gives you the normalization quality of DirectLFQ with the quantification approach of your choice.
 
 ### Global Median
 
-The default for most intensity methods; MaxLFQ defaults to hierarchical
-normalization (below) unless `--normalization-proteins` is given. For each
-sample, computes:
+The default for piBAQ, `abd` and `intensity`, and for every intensity method
+given `--normalization-proteins`; MaxLFQ, `top<N>`, `sum` and `median`
+otherwise default to hierarchical normalization (below). For each sample,
+computes:
 
 $$\text{normalized} = \frac{\text{intensity}}{\text{sample\_median} / \text{global\_median}}$$
 
-This ensures all samples have comparable median intensities.
+This ensures all samples have comparable median intensities. The sample
+median is taken over all of a sample's detected features, so it moves with
+detection depth: features that match-between-runs transfers into a run, or
+the weak features that a deeper run detects, lower its median, and
+global-median then scales the run up although its loading did not change.
 
 ### Hierarchical Normalization
 
-Uses the DirectLFQ hierarchical clustering approach (Ammar et al., 2023) implemented natively in mokume. MaxLFQ uses it by default: a sample with less material loses its weakest features, so the median of its detected features stays high and global-median under-corrects, while hierarchical alignment compares the peptides that samples share.
+Uses the DirectLFQ hierarchical clustering approach (Ammar et al., 2023) implemented natively in mokume. MaxLFQ, `top<N>`, `sum` and `median` use it by default: a sample with less material loses its weakest features, so the median of its detected features stays high and global-median under-corrects, while hierarchical alignment compares the peptides that samples share.
 
 1. Convert to log2 scale
 2. Align samples using variance-guided pairwise normalization

@@ -3,15 +3,15 @@ use std::fs::File;
 use std::path::Path;
 
 use arrow::array::{
-    Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array,
-    Int8Array, LargeListArray, LargeStringArray, ListArray, StringArray, StructArray, UInt16Array,
-    UInt32Array, UInt64Array, UInt8Array,
+    Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array,
+    Int64Array, LargeListArray, LargeStringArray, ListArray, StringArray, StructArray, UInt8Array,
+    UInt16Array, UInt32Array, UInt64Array,
 };
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use parquet::arrow::ProjectionMask;
+use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use parquet::file::metadata::ParquetMetaData;
 use parquet::schema::types::SchemaDescriptor;
 
@@ -22,7 +22,9 @@ const PEPTIDOFORM_COLUMNS: &[&str] = &["peptidoform", "modified_sequence"];
 const CHARGE_COLUMNS: &[&str] = &["charge", "precursor_charge"];
 const RUN_COLUMNS: &[&str] = &["run_file_name", "reference_file_name", "run", "raw_file"];
 const INTENSITY_COLUMNS: &[&str] = &["intensities", "primary_intensities"];
-const PROTEIN_GROUP_COLUMNS: &[&str] = &["pg_accessions", "protein_accessions", "proteins"];
+pub(crate) const PROTEIN_GROUP_COLUMNS: &[&str] =
+    &["pg_accessions", "protein_accessions", "proteins"];
+pub(crate) const PROTEIN_GROUP_FIELDS: &[&str] = &["accession", "protein_accession", "protein"];
 const ANCHOR_PROTEIN_COLUMNS: &[&str] = &["anchor_protein", "protein"];
 const UNIQUE_COLUMNS: &[&str] = &["unique", "is_unique"];
 const DECOY_COLUMNS: &[&str] = &["is_decoy", "decoy"];
@@ -198,6 +200,7 @@ fn feature_projection(
                 || root == "imputed_labels"
                 || (with_id_runs
                     && (ID_RUN_COLUMNS.contains(&root) || root == "identification_type"))
+                || (!score.is_empty() && root == "identification_type")
                 || (with_modifications && root == "modifications")
                 || score.contains(index)
         })
@@ -206,16 +209,15 @@ fn feature_projection(
 }
 
 fn complete_qvalue(metadata: &ParquetMetaData, name: &str) -> bool {
-    matches!(name, "precursor_qvalue" | "global_qvalue")
-        && metadata.row_groups().iter().all(|group| {
-            group
-                .columns()
-                .iter()
-                .find(|column| column.column_path().parts() == [name])
-                .and_then(|column| column.statistics())
-                .and_then(|stats| stats.null_count_opt())
-                == Some(0)
-        })
+    matches!(
+        name,
+        "peptide_qvalue" | "precursor_qvalue" | "global_qvalue"
+    ) && metadata
+        .file_metadata()
+        .schema_descr()
+        .columns()
+        .iter()
+        .any(|column| column.path().parts() == [name])
 }
 
 fn struct_score_layout(raw: Option<&str>, name: &str) -> Result<(String, bool)> {
@@ -427,7 +429,7 @@ impl QpxRowMetadata {
             columns.protein_groups,
             row,
             "pg_accessions",
-            &["accession", "protein_accession", "protein"],
+            PROTEIN_GROUP_FIELDS,
         )?;
         if protein_accessions.is_empty() {
             protein_accessions.extend(anchor_protein.iter().cloned());
@@ -498,10 +500,10 @@ fn row_transferred(
     labels_are_runs: bool,
     run_keys: &mut RunKeys,
 ) -> Result<bool> {
-    if let Some(column) = columns.identification_type {
-        if let Some(value) = optional_string_value(column, row, "identification_type")? {
-            return Ok(value == "transferred");
-        }
+    if let Some(column) = columns.identification_type
+        && let Some(value) = optional_string_value(column, row, "identification_type")?
+    {
+        return Ok(value == "transferred");
     }
     let Some(column) = columns.id_run_file_name else {
         return Ok(false);
@@ -589,10 +591,12 @@ fn requested_score_column<'a>(
     let Some(name) = score_name else {
         return Ok(None);
     };
-    if matches!(name, "precursor_qvalue" | "global_qvalue") {
-        if let Some(column) = optional_column_by_names(batch, &[name]) {
-            return Ok(Some(ScoreColumn::Scalar(column, false, None)));
-        }
+    if matches!(
+        name,
+        "peptide_qvalue" | "precursor_qvalue" | "global_qvalue"
+    ) && let Some(column) = optional_column_by_names(batch, &[name])
+    {
+        return Ok(Some(ScoreColumn::Scalar(column, false, None)));
     }
     let column = column_by_names(batch, SCORE_COLUMNS)?;
     if let Some(values) = column.as_any().downcast_ref::<StructArray>() {
@@ -622,7 +626,9 @@ fn selected_score_value(
     match scores {
         ScoreColumn::List(array) => named_score_value(array, row, name),
         ScoreColumn::Scalar(array, higher_better, parent) => {
-            if parent.is_some_and(|parent| parent.is_null(row)) {
+            if parent.is_some_and(|parent| parent.is_null(row))
+                || (parent.is_none() && array.is_null(row))
+            {
                 return Ok(None);
             }
             Ok(Some(QpxScoreValue {
@@ -762,7 +768,7 @@ fn optional_column_by_names<'a>(
     })
 }
 
-fn required_string_value(array: &dyn Array, row: usize, column: &str) -> Result<String> {
+pub(crate) fn required_string_value(array: &dyn Array, row: usize, column: &str) -> Result<String> {
     optional_string_value(array, row, column)?.ok_or_else(|| {
         invalid_input(format!(
             "required QPX string column `{column}` is null at row {row}"
@@ -770,7 +776,11 @@ fn required_string_value(array: &dyn Array, row: usize, column: &str) -> Result<
     })
 }
 
-fn optional_string_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<String>> {
+pub(crate) fn optional_string_value(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<String>> {
     if array.is_null(row) {
         return Ok(None);
     }
@@ -792,7 +802,11 @@ fn required_i32_value(array: &dyn Array, row: usize, column: &str) -> Result<i32
     })
 }
 
-fn optional_i32_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<i32>> {
+pub(crate) fn optional_i32_value(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<i32>> {
     if array.is_null(row) {
         return Ok(None);
     }
@@ -847,7 +861,11 @@ fn optional_bool_value(array: &dyn Array, row: usize, column: &str) -> Result<Op
     }
 }
 
-fn optional_f64_value(array: &dyn Array, row: usize, column: &str) -> Result<Option<f64>> {
+pub(crate) fn optional_f64_value(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<f64>> {
     if array.is_null(row) {
         return Ok(None);
     }
@@ -867,7 +885,7 @@ fn optional_f64_value(array: &dyn Array, row: usize, column: &str) -> Result<Opt
     }
 }
 
-fn list_string_values(
+pub(crate) fn list_string_values(
     array: &dyn Array,
     row: usize,
     column: &str,
@@ -931,7 +949,11 @@ fn intensity_entries(array: &dyn Array, row: usize) -> Result<Vec<QpxIntensityEn
     Ok(entries)
 }
 
-fn list_row_values(array: &dyn Array, row: usize, column: &str) -> Result<Option<ArrayRef>> {
+pub(crate) fn list_row_values(
+    array: &dyn Array,
+    row: usize,
+    column: &str,
+) -> Result<Option<ArrayRef>> {
     if array.is_null(row) {
         return Ok(None);
     }
@@ -998,7 +1020,7 @@ mod tests {
     };
     use arrow::datatypes::{DataType, Field, Fields, Schema};
 
-    use super::{flatten_qpx_batch, QpxParquetReader};
+    use super::{QpxParquetReader, flatten_qpx_batch};
     use crate::sdrf::SdrfTable;
     use arrow::array::{Float32Array, StructArray};
     use arrow::record_batch::RecordBatch;
@@ -1043,40 +1065,9 @@ mod tests {
     }
 
     #[test]
-    fn flattens_new_qpx_struct_accessions_and_label_intensities(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let intensities = new_qpx_intensities()?;
-        let proteins = new_qpx_proteins()?;
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("sequence", DataType::Utf8, false),
-            Field::new("peptidoform", DataType::Utf8, false),
-            Field::new("charge", DataType::Int16, false),
-            Field::new("run_file_name", DataType::Utf8, false),
-            Field::new("anchor_protein", DataType::Utf8, false),
-            Field::new("unique", DataType::Boolean, false),
-            Field::new("is_decoy", DataType::Boolean, false),
-            Field::new("peptide_qvalue", DataType::Float64, true),
-            Field::new("pg_global_qvalue", DataType::Float64, true),
-            Field::new("intensities", intensities.data_type().clone(), true),
-            Field::new("pg_accessions", proteins.data_type().clone(), true),
-        ]));
-        let batch = arrow::record_batch::RecordBatch::try_new(
-            schema,
-            vec![
-                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
-                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
-                Arc::new(Int16Array::from(vec![2])) as ArrayRef,
-                Arc::new(StringArray::from(vec!["run1"])) as ArrayRef,
-                Arc::new(StringArray::from(vec!["sp|P12345|PROT_HUMAN"])) as ArrayRef,
-                Arc::new(BooleanArray::from(vec![true])) as ArrayRef,
-                Arc::new(BooleanArray::from(vec![false])) as ArrayRef,
-                Arc::new(Float64Array::from(vec![Some(0.005)])) as ArrayRef,
-                Arc::new(Float64Array::from(vec![Some(0.008)])) as ArrayRef,
-                intensities,
-                proteins,
-            ],
-        )?;
-
+    fn flattens_new_qpx_struct_accessions_and_label_intensities()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let batch = new_qpx_struct_batch()?;
         let records = flatten_qpx_batch(&batch)?;
 
         assert_eq!(records.len(), 2);
@@ -1120,6 +1111,40 @@ mod tests {
             ]
         );
         Ok(())
+    }
+
+    fn new_qpx_struct_batch() -> Result<RecordBatch, Box<dyn std::error::Error>> {
+        let intensities = new_qpx_intensities()?;
+        let proteins = new_qpx_proteins()?;
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("sequence", DataType::Utf8, false),
+            Field::new("peptidoform", DataType::Utf8, false),
+            Field::new("charge", DataType::Int16, false),
+            Field::new("run_file_name", DataType::Utf8, false),
+            Field::new("anchor_protein", DataType::Utf8, false),
+            Field::new("unique", DataType::Boolean, false),
+            Field::new("is_decoy", DataType::Boolean, false),
+            Field::new("peptide_qvalue", DataType::Float64, true),
+            Field::new("pg_global_qvalue", DataType::Float64, true),
+            Field::new("intensities", intensities.data_type().clone(), true),
+            Field::new("pg_accessions", proteins.data_type().clone(), true),
+        ]));
+        Ok(RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
+                Arc::new(Int16Array::from(vec![2])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["run1"])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["sp|P12345|PROT_HUMAN"])) as ArrayRef,
+                Arc::new(BooleanArray::from(vec![true])) as ArrayRef,
+                Arc::new(BooleanArray::from(vec![false])) as ArrayRef,
+                Arc::new(Float64Array::from(vec![Some(0.005)])) as ArrayRef,
+                Arc::new(Float64Array::from(vec![Some(0.008)])) as ArrayRef,
+                intensities,
+                proteins,
+            ],
+        )?)
     }
 
     #[test]
@@ -1224,8 +1249,8 @@ mod tests {
     }
 
     #[test]
-    fn marks_features_without_an_identification_in_their_run(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn marks_features_without_an_identification_in_their_run()
+    -> Result<(), Box<dyn std::error::Error>> {
         // quantms leaves id_run_file_name null for match-between-runs features.
         for (id_run, transferred) in [
             (Some("Run_A_01.mzML"), false),
@@ -1242,8 +1267,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_identification_runs_for_rows_with_several_runs(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn rejects_identification_runs_for_rows_with_several_runs()
+    -> Result<(), Box<dyn std::error::Error>> {
         let batch = id_run_batch(Some("Run_A_01.mzML"), labeled_intensities(&LFQ_RUNS)?)?;
         assert!(flatten_qpx_batch(&batch).is_err());
         // A row labeled with its own run is still one run.
@@ -1343,8 +1368,8 @@ mod tests {
     }
 
     #[test]
-    fn struct_scores_distinguish_null_parent_and_invalid_field(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn struct_scores_distinguish_null_parent_and_invalid_field()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("scores.parquet");
         for value in [None, Some(f32::INFINITY), Some(f32::NAN)] {
@@ -1378,45 +1403,50 @@ mod tests {
                 })
                 .collect();
             let batch = RecordBatch::try_new(schema, columns)?;
-            assert!(super::flatten_qpx_batch_with_score(&batch, "quality")?[0]
-                .selected_score
-                .is_none());
-        }
-        Ok(())
-    }
-
-    fn top_qvalue_batch(value: Option<f64>) -> Result<RecordBatch, Box<dyn std::error::Error>> {
-        Ok(with_column(
-            score_batch(Some(0.9))?,
-            "global_qvalue",
-            Arc::new(Float64Array::from(vec![value])),
-        )?)
-    }
-
-    #[test]
-    fn top_qvalue_requires_every_row_group_nonnull() -> Result<(), Box<dyn std::error::Error>> {
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("top.parquet");
-        for partial in [false, true] {
-            let first = top_qvalue_batch(Some(0.01))?;
-            let second = top_qvalue_batch(if partial { None } else { Some(0.2) })?;
-            write_scores(&path, &[first, second], true)?;
-            let mut reader = QpxParquetReader::open(&path, 8, Some("global_qvalue"), false, false)?;
-            let batch = reader.next_raw_batch().ok_or("missing batch")??;
-            assert_eq!(batch.column_by_name("global_qvalue").is_some(), !partial);
-            assert_eq!(batch.column_by_name("additional_scores").is_some(), partial);
-            let records = super::flatten_qpx_batch_with_score(&batch, "global_qvalue")?;
-            assert_eq!(
-                records[0].selected_score.ok_or("missing score")?.value,
-                if partial { 0.02 } else { 0.01 }
+            assert!(
+                super::flatten_qpx_batch_with_score(&batch, "quality")?[0]
+                    .selected_score
+                    .is_none()
             );
         }
         Ok(())
     }
 
     #[test]
-    fn identification_type_overrides_id_run_and_null_falls_back(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn top_qvalue_accepts_nulls_and_does_not_read_score_lists()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("top.parquet");
+        for name in ["peptide_qvalue", "precursor_qvalue", "global_qvalue"] {
+            let batches = [Some(0.01), None]
+                .into_iter()
+                .map(|value| {
+                    with_column(
+                        score_batch(Some(0.9))?,
+                        name,
+                        Arc::new(Float64Array::from(vec![value])),
+                    )
+                    .map_err(Into::into)
+                })
+                .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+            write_scores(&path, &batches, false)?;
+            let mut reader = QpxParquetReader::open(&path, 8, Some(name), false, false)?;
+            let batch = reader.next_raw_batch().ok_or("missing batch")??;
+            assert!(batch.column_by_name(name).is_some());
+            assert!(batch.column_by_name("additional_scores").is_none());
+            let records = super::flatten_qpx_batch_with_score(&batch, name)?;
+            assert_eq!(
+                records[0].selected_score.ok_or("missing score")?.value,
+                0.01
+            );
+            assert!(records[1].selected_score.is_none());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn identification_type_overrides_id_run_and_null_falls_back()
+    -> Result<(), Box<dyn std::error::Error>> {
         for (kind, id_run, expected) in [
             (Some("transferred"), Some("Run_A_01.mzML"), true),
             (Some("secondary"), None, false),
@@ -1436,8 +1466,8 @@ mod tests {
     }
 
     #[test]
-    fn imputed_labels_drop_entries_and_modifications_are_optional(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn imputed_labels_drop_entries_and_modifications_are_optional()
+    -> Result<(), Box<dyn std::error::Error>> {
         let batch = id_run_batch(None, new_qpx_intensities()?)?;
         let mut labels = ListBuilder::new(StringBuilder::new());
         labels.values().append_value("TMT126");

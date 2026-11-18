@@ -20,9 +20,9 @@
 use mokume_core::{MokumeError, Result};
 
 use super::correct::bh_adjust;
-use super::limma::{squeeze_var, LimmaModeration, MIN_PER_GROUP};
+use super::limma::{LimmaModeration, MIN_PER_GROUP, squeeze_var};
 use super::student_t::student_t_sf;
-use super::{classify, DeResult};
+use super::{DeResult, classify};
 
 /// `lm.fit`'s rank tolerance.
 const LM_TOL: f64 = 1e-7;

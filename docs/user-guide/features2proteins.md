@@ -47,6 +47,18 @@ The `features2proteins` command is the recommended way to go from raw feature da
     ])
     ```
 
+## QPX run metadata without SDRF
+
+Use `--run experiment.run.parquet` instead of `--sdrf` to map each
+`(run_file_name, label)` exactly onto `run.samples`. This supports TMT/iTRAQ
+channels and LFQ fractions of the same sample. The run view supplies sample
+accessions, fractions and replicate metadata. Each sample forms its own
+condition (`condition = sample_accession`), including across fractions.
+Python infers technical replicate identifiers from run names, as with SDRF.
+Unmatched measured entries are rejected.
+`--run` and `--sdrf` are mutually exclusive. Omitting both preserves the
+existing metadata inference.
+
 ## Input Formats
 
 Choose one input mode:
@@ -113,7 +125,7 @@ sample its own source name. Neither message changes the output.
 | TMT Abundance | `--quant-method abd` | No | Median of log2 peptide intensities (TMT) |
 | TMT Reporter Intensity | `--quant-method intensity` | No | Sum of raw reporter intensities (TMT) |
 | Peptide Count | `--quant-method peptide-count` | No | Distinct canonical peptides from feature QPX |
-| Spectral Count | `--quant-method spectral-count --psm PSM --parquet FEATURE` | No | Unique QPX `psm_id` values from feature-linked PSMs; requires SDRF |
+| Spectral Count | `--quant-method spectral-count --psm PSM --parquet FEATURE` | No | Independent `(run, scan, sequence)` keys from feature-linked rank-one PSMs; requires SDRF |
 
 In practice:
 
@@ -129,9 +141,11 @@ In practice:
   `FamilyId` / `EvidenceLevel` metadata columns.
 - Use `ratio` for TMT PS-style reference-based analysis.
 - Use `peptide-count` for distinct peptide identifications from feature QPX;
-  use `spectral-count` for unique feature-linked PSMs from matching PSM and
-  feature QPX files. Both are integer evidence counts, so run/sample intensity
-  normalization and IRS are rejected.
+  use `spectral-count` for independent spectrum/sequence keys from matching
+  PSM and feature QPX files. Supplied ranks must be 1; PSMs without a rank are
+  retained. Duplicate keys count once, while different peptides in a chimeric
+  spectrum count separately. Both methods are integer evidence counts, so
+  run/sample intensity normalization and IRS are rejected.
 - Use `top<N>` for the classic Top3-style summary; `top3` is the method from
   Silva et al. 2006, and any other N works the same way (`top5`, `top10`, ...).
 
@@ -243,6 +257,31 @@ the leading `directlfq` and `maxlfq` configurations by about 0.02, also on
 the proteins that `drop` still quantifies; `sum`, `top3` and `pibaq` were
 about unchanged.
 
+To keep transferred features but trust them less, pass `--transferred-weight`
+with a weight in (0, 1] instead (MaxLFQ and `top<N>` only):
+
+```bash
+mokume quantify features2proteins \
+    -p features.parquet \
+    -o proteins.csv \
+    -s experiment.sdrf.tsv \
+    --quant-method maxlfq \
+    --transferred-weight 0.5
+```
+
+Identified features weigh 1. MaxLFQ weights the log ratio of each species that
+a sample pair shares by the product of its two measurements' weights, and takes
+the weighted median as the pair ratio (the midpoint when half the total weight
+falls exactly between two ratios). Within one sample, biological replicate and
+condition, a species measured more than once keeps its largest intensity and its
+largest weight, which can come from different features. Equal weights reproduce the unweighted result exactly; the summed-intensity ratio that `--stabilize` blends in stays
+unweighted. `top<N>` takes a protein's identified peptides before its
+transferred ones, the most intense first within each group; a peptide counts as
+identified when any of its charge states or modified forms is. The option reads
+the same columns as `drop`, cannot be combined with it, and is rejected for
+MSstats input and for methods that do not weigh features, such as DirectLFQ
+and `sum`.
+
 ## Normalization Options
 
 ### Run-Level Normalization
@@ -301,8 +340,8 @@ It is unavailable for DirectLFQ, Ratio, peptide-count, and spectral-count.
     hierarchical, Mokume selects the built-in MaxLFQ path so the requested
     normalization is actually applied.
 
-- `global-median` is the default and a good general-purpose starting point.
-- `hierarchical` is useful when you want DirectLFQ-style normalization with a non-DirectLFQ quantification method.
+- `hierarchical` is the default for MaxLFQ, `top<N>`, `sum` and `median`. It aligns the peptides that samples share, so detection depth and match-between-runs transfers do not move it.
+- `global-median` remains the default for piBAQ, `abd` and `intensity`, and whenever `--normalization-proteins` is given. Its sample median moves with the number of weak features each run detects or receives by transfer.
 
 ## IRS Normalization (Multi-Plex TMT)
 
@@ -520,6 +559,10 @@ mokume quantify features2proteins \
 A constant, missing, or confounded covariate is rejected. With covariates
 `--de-method auto` selects `deqms`; ROTS, LimROTS, proDA, and ensemble reject
 the option.
+
+A sample whose factor value is `not applicable` or `not available`, as on an
+empty TMT channel, has no condition and stays out of the fit, also with
+`--de-block`.
 
 `--de-block` models a column's levels as random blocks instead of fixed effects
 (limma's `duplicateCorrelation`), for example the subject of a repeated-measures

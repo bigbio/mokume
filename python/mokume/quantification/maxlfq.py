@@ -107,10 +107,11 @@ def _maxlfq_solve_protein(
 
     Each valid sample-pair edge has equal weight. Medians are computed in log2
     space, including the midpoint convention for an even number of ratios.
-    Samples without a valid edge return zero (Fig. 2D). Disconnected components
-    are independently anchored to their observed intensity totals, then the
-    whole supported profile is rescaled to the total input intensity. No ratio
-    between disconnected components is identifiable from shared species.
+    Samples without a valid edge cannot be estimated and return NaN (missing),
+    not a measured zero. Disconnected components are independently anchored to
+    their observed intensity totals, then the whole supported profile is
+    rescaled to the total input intensity. No ratio between disconnected
+    components is identifiable from shared species.
 
     ``peptide_ids`` is accepted for compatibility; no reference peptide is used.
     """
@@ -137,7 +138,7 @@ def _solve_protein(peptide_matrix, min_ratio_count, stabilize):
     laplacian, rhs, stabilized_pairs = _ratio_system(
         log_matrix, min_ratio_count, stabilize
     )
-    log_profile = np.full(matrix.shape[1], -np.inf)
+    log_profile = np.full(matrix.shape[1], np.nan)
     components = list(_components(laplacian))
     for component in components:
         free = component[1:]
@@ -155,7 +156,7 @@ def _solve_protein(peptide_matrix, min_ratio_count, stabilize):
         )
     with np.errstate(over="ignore", under="ignore"):
         result = np.exp2(log_profile)
-    if np.any(~np.isfinite(result)) or np.any(np.isfinite(log_profile) & (result == 0)):
+    if np.any(np.isinf(result) | (np.isfinite(log_profile) & (result == 0))):
         raise ValueError("MaxLFQ protein intensity is outside the finite float64 range")
     return result, stabilized_pairs
 
@@ -257,7 +258,8 @@ class MaxLFQQuantification(ProteinQuantificationMethod):
 
     ``min_ratio_count`` is the number of shared species required for EACH sample
     pair (default 2). ``min_peptides`` is its legacy argument alias. Proteins or
-    samples without a valid ratio are not replaced by median aggregation.
+    samples without a valid ratio are not replaced by median aggregation; they
+    are missing from the output rather than reported as zero.
     ``force_builtin`` is retained as a no-op for compatibility. MaxLFQ never
     dispatches to DirectLFQ. ``threads`` follows joblib's worker-count semantics.
     ``stabilize`` enables Eq. 5's overlap-dependent large-ratio stabilization.

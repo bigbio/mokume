@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use mokume_core::{PeptideId, Result, SampleId};
-use mokume_quant::{solve_max_lfq_with_stabilization, PeptideMeasurement};
+use mokume_quant::{PeptideMeasurement, solve_max_lfq_with_stabilization};
 use rayon::prelude::*;
 use tracing::{info, warn};
 
-use crate::{threading, LfqPeptideObservation, LfqProteinIntensity};
+use crate::{LfqPeptideObservation, LfqProteinIntensity, threading};
 
 /// Quantify prepared peptide-species observations with Cox et al.'s Eq. 3.
 /// Normalization must be performed explicitly upstream. Peptide identifiers
@@ -54,6 +54,7 @@ fn quantify(
                 peptide: *peptides.entry(row.peptide.as_str()).or_insert(next),
                 sample: sample_index[row.sample.as_str()],
                 intensity: row.intensity,
+                weight: row.weight,
             }
         }).collect::<Vec<_>>();
         let result = solve_max_lfq_with_stabilization(&measurements, &samples, min_ratio_count, stabilize)?;

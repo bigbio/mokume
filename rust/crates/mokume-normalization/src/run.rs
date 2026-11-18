@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use mokume_core::stats::{mean_positive, median, quantile_linear};
 use mokume_core::Result;
+use mokume_core::stats::{mean_positive, median, quantile_linear};
 
 use crate::math::{unsupported, valid_scale};
 
@@ -74,10 +74,10 @@ pub fn run_normalization_transforms(
 
     let mut run_metrics = Vec::new();
     for (key, mut values) in run_values {
-        if let Some(metric) = run_metric(method, &mut values) {
-            if valid_scale(metric) {
-                run_metrics.push((key, metric));
-            }
+        if let Some(metric) = run_metric(method, &mut values)
+            && valid_scale(metric)
+        {
+            run_metrics.push((key, metric));
         }
     }
     run_metrics.sort_by(|(left, _), (right, _)| {

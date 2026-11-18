@@ -10,13 +10,13 @@ dependencies:
   # --- Python ---
   - python >=3.10
   - pip
-  - pyopenms >=3.4,<4  # base wheel runtime for piBAQ FASTA digestion
+  - pyopenms >=3.2,<4  # base wheel runtime for piBAQ FASTA digestion
 
   # --- Rust toolchain (builds the extension) ---
-  # rust-toolchain.toml pins 1.96.0; conda-forge's rust may differ. To match CI
-  # exactly, prefer `rustup default 1.96.0`; conda's rust is fine otherwise
+  # rust-toolchain.toml pins 1.100.0; conda-forge's rust may differ. To match CI
+  # exactly, prefer `rustup default 1.100.0`; conda's rust is fine otherwise
   # (the abi3 + stdlib features are not version-sensitive).
-  - rust >=1.96
+  - rust >=1.100
   - maturin >=1.7,<2
 
   # --- Native build deps (hdf5-metno static builds libhdf5 from C via CMake) ---
@@ -37,7 +37,7 @@ dependencies:
   - numpy
   - pandas
   - scipy
-  - duckdb >=0.10.1
+  - duckdb >=1.5.0
   - matplotlib >=3.7
   - seaborn
   - scikit-learn

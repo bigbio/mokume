@@ -42,7 +42,7 @@ dependencies = [
     "joblib",
     "typing_extensions>=4.6.3",
     "pyyaml>=6.0",
-    "pyopenms>=3.4,<4",
+    "pyopenms>=3.2,<4",
 ]
 
 [project.optional-dependencies]

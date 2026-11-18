@@ -49,8 +49,8 @@ fn options(case: &OfficialCase) -> IhwOptions {
 }
 
 #[test]
-fn cross_weighting_and_nested_cv_match_official_ihw(
-) -> std::result::Result<(), Box<dyn std::error::Error>> {
+fn cross_weighting_and_nested_cv_match_official_ihw()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
     for case in fixtures()?.cases {
         let cov: Vec<f64> = (0..case.pvalues.len()).map(|i| i as f64).collect();
         let output = ihw_with_options(&case.pvalues, &cov, 0.1, &options(&case))?;
@@ -80,8 +80,8 @@ fn cross_weighting_and_nested_cv_match_official_ihw(
 }
 
 #[test]
-fn held_out_pvalues_do_not_train_their_own_weights(
-) -> std::result::Result<(), Box<dyn std::error::Error>> {
+fn held_out_pvalues_do_not_train_their_own_weights()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
     let Some(case) = fixtures()?.cases.into_iter().next() else {
         panic!("missing official fixture");
     };

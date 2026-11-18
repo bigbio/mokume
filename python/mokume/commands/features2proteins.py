@@ -178,8 +178,10 @@ QUANT_METHOD = QuantMethodParamType()
 @click.option(
     "--sample-normalization",
     "sample_normalization",
-    help="Sample normalization method. "
-    "Use 'hierarchical' for DirectLFQ-style clustering-based normalization.",
+    help="Sample normalization method [default: hierarchical for maxlfq, top<N>, "
+    "sum and median; globalmedian for the other intensity methods; none for "
+    "directlfq, ratio and peptide_count]. 'hierarchical' is DirectLFQ-style "
+    "clustering-based normalization.",
     type=click.Choice(SAMPLE_NORM_CHOICES, case_sensitive=False),
     default=None,
 )
@@ -637,6 +639,11 @@ QUANT_METHOD = QuantMethodParamType()
     type=click.IntRange(min=1),
     default=None,
 )
+@click.option(
+    "--run",
+    type=click.Path(exists=True),
+    help="QPX run.parquet sample mapping; conflicts with --sdrf",
+)
 @click.pass_context
 def features2proteins(
     ctx,
@@ -644,6 +651,7 @@ def features2proteins(
     msstats: str,
     output: str,
     sdrf: str,
+    run: str,
     quant_method: str,
     min_aa: int,
     min_unique: int,
@@ -813,6 +821,7 @@ def features2proteins(
         msstats=msstats,
         output=output,
         sdrf=sdrf,
+        run=run,
         quant_method=quant_method,
         min_aa=min_aa,
         min_unique_peptides=min_unique,

@@ -188,7 +188,7 @@ fn mass_and_kind(key: &str, uses_suffix: bool) -> (i32, &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{channel_key, ImpurityMatrix};
+    use super::{ImpurityMatrix, channel_key};
 
     #[test]
     fn channel_keys_strip_prefixes() {

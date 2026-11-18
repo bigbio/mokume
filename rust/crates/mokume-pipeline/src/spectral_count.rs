@@ -28,8 +28,9 @@ pub(crate) struct SpectralCountResult {
 struct SpectrumAssignment {
     proteins: BTreeSet<String>,
     sample: String,
-    sequence: String,
 }
+
+type SpectrumKey = (String, Vec<i64>, String);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FeatureProteinGroup {
@@ -118,13 +119,13 @@ fn insert_feature_group(
         contaminant: super::matches_sql_contaminant(&record.protein_accessions, &[]),
         is_decoy: record.is_decoy,
     };
-    if let Some(existing) = groups.insert(record.feature_id, group.clone()) {
-        if existing != group {
-            return Err(super::invalid_input(format!(
-                "QPX feature_id {} has conflicting protein-group mappings",
-                record.feature_id
-            )));
-        }
+    if let Some(existing) = groups.insert(record.feature_id, group.clone())
+        && existing != group
+    {
+        return Err(super::invalid_input(format!(
+            "QPX feature_id {} has conflicting protein-group mappings",
+            record.feature_id
+        )));
     }
     Ok(())
 }
@@ -135,7 +136,7 @@ fn collect_assignments(
     memory: &MemoryPlan,
     mut reader: QpxPsmParquetReader,
     feature_groups: &HashMap<i64, FeatureProteinGroup>,
-) -> Result<(HashMap<i64, SpectrumAssignment>, usize)> {
+) -> Result<(HashMap<SpectrumKey, SpectrumAssignment>, usize)> {
     let mut assignments = HashMap::new();
     let mut run_samples = HashMap::new();
     let mut target_psms = 0;
@@ -159,7 +160,7 @@ fn add_record(
     filtering: &FilterConfig,
     sdrf: &SdrfTable,
     run_samples: &mut HashMap<String, String>,
-    assignments: &mut HashMap<i64, SpectrumAssignment>,
+    assignments: &mut HashMap<SpectrumKey, SpectrumAssignment>,
     record: QpxPsmRecord,
     feature_groups: &HashMap<i64, FeatureProteinGroup>,
 ) -> Result<bool> {
@@ -208,36 +209,32 @@ fn sample_for_run(
 }
 
 fn insert_assignment(
-    assignments: &mut HashMap<i64, SpectrumAssignment>,
+    assignments: &mut HashMap<SpectrumKey, SpectrumAssignment>,
     record: QpxPsmRecord,
     proteins: BTreeSet<String>,
     sample: String,
 ) -> Result<()> {
-    let psm_id = record.psm_id;
-    let assignment = SpectrumAssignment {
-        proteins,
-        sample,
-        sequence: record.sequence,
-    };
-    if let Some(existing) = assignments.insert(psm_id, assignment.clone()) {
-        if existing != assignment {
+    let key = (record.run_file_name, record.scan, record.sequence);
+    let assignment = SpectrumAssignment { proteins, sample };
+    if let Some(existing) = assignments.get(&key) {
+        if existing != &assignment {
             return Err(super::invalid_input(format!(
-                "QPX psm_id {psm_id} has conflicting spectral-count assignments"
+                "QPX spectrum (run {}, scan {:?}, sequence {}) has conflicting spectral-count assignments",
+                key.0, key.1, key.2
             )));
         }
-        return Err(super::invalid_input(format!(
-            "QPX psm_id {psm_id} is duplicated"
-        )));
+    } else {
+        assignments.insert(key, assignment);
     }
     Ok(())
 }
 
 fn collapse_assignments(
-    assignments: HashMap<i64, SpectrumAssignment>,
+    assignments: HashMap<SpectrumKey, SpectrumAssignment>,
     min_unique: usize,
 ) -> Vec<SpectralCountCell> {
     let mut cells = BTreeMap::<(String, String), (usize, HashSet<String>)>::new();
-    for assignment in assignments.into_values() {
+    for ((_, _, sequence), assignment) in assignments {
         let protein_group = assignment
             .proteins
             .into_iter()
@@ -245,7 +242,7 @@ fn collapse_assignments(
             .join(";");
         let cell = cells.entry((protein_group, assignment.sample)).or_default();
         cell.0 += 1;
-        cell.1.insert(assignment.sequence);
+        cell.1.insert(sequence);
     }
     cells
         .into_iter()
@@ -279,29 +276,80 @@ mod tests {
     use mokume_io::{QpxPsmRecord, SdrfTable};
 
     use super::{
-        add_record, collapse_assignments, insert_assignment, protein_set, FeatureProteinGroup,
-        SpectrumAssignment,
+        FeatureProteinGroup, SpectrumAssignment, SpectrumKey, add_record, collapse_assignments,
+        insert_assignment, protein_set,
     };
 
-    fn assignment(protein: &str, sample: &str, sequence: &str) -> SpectrumAssignment {
+    fn assignment(protein: &str, sample: &str) -> SpectrumAssignment {
         SpectrumAssignment {
             proteins: BTreeSet::from([protein.to_owned()]),
             sample: sample.to_owned(),
-            sequence: sequence.to_owned(),
         }
     }
 
+    fn spectrum(scan: i64, sequence: &str) -> SpectrumKey {
+        ("run-a".to_owned(), vec![scan], sequence.to_owned())
+    }
+
     #[test]
-    fn counts_psms_not_unique_peptides() {
+    fn counts_spectra_not_unique_peptides() {
         let assignments = HashMap::from([
-            (1, assignment("P1", "S1", "PEPTIDEA")),
-            (2, assignment("P1", "S1", "PEPTIDEA")),
-            (3, assignment("P1", "S1", "PEPTIDEB")),
+            (spectrum(1, "PEPTIDEA"), assignment("P1", "S1")),
+            (spectrum(2, "PEPTIDEA"), assignment("P1", "S1")),
+            (spectrum(3, "PEPTIDEB"), assignment("P1", "S1")),
         ]);
         let cells = collapse_assignments(assignments, 2);
         assert_eq!(cells.len(), 1);
         assert_eq!(cells[0].psms, 3);
         assert_eq!(cells[0].sequences.len(), 2);
+    }
+
+    fn psm(psm_id: i64, scan: Vec<i64>) -> QpxPsmRecord {
+        QpxPsmRecord {
+            psm_id,
+            sequence: "PEPTIDEA".to_owned(),
+            run_file_name: "run-a".to_owned(),
+            scan,
+            feature_id: Some(10),
+            is_decoy: false,
+        }
+    }
+
+    #[test]
+    fn collapses_duplicates_and_rejects_conflicting_assignments()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut assignments = HashMap::new();
+        for id in [1, 2] {
+            insert_assignment(
+                &mut assignments,
+                psm(id, vec![10, 1]),
+                BTreeSet::from(["P1".to_owned()]),
+                "S1".to_owned(),
+            )?;
+        }
+        insert_assignment(
+            &mut assignments,
+            psm(3, vec![10, 2]),
+            BTreeSet::from(["P1".to_owned()]),
+            "S1".to_owned(),
+        )?;
+        assert_eq!(assignments.len(), 2);
+        for (protein, sample) in [("P2", "S1"), ("P1", "S2")] {
+            let result = insert_assignment(
+                &mut assignments,
+                psm(4, vec![10, 1]),
+                BTreeSet::from([protein.to_owned()]),
+                sample.to_owned(),
+            );
+            assert!(
+                result
+                    .err()
+                    .ok_or("conflict was accepted")?
+                    .to_string()
+                    .contains("conflicting")
+            );
+        }
+        Ok(())
     }
 
     #[test]

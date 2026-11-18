@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use mokume_core::quant::parse_topn_from_method_name;
-use mokume_core::{parse_memory_to_bytes, NamedScoreFilterConfig, QuantMethod};
+use mokume_core::{NamedScoreFilterConfig, QuantMethod, parse_memory_to_bytes};
 
 /// The fixed `--quant-method` names, i.e. every method whose name carries no
 /// parameter. The TopN family is spelled `top<N>` and is not listed here.
@@ -175,6 +175,17 @@ pub(crate) fn parse_nonnegative_f64(value: &str) -> std::result::Result<f64, Str
     Ok(parsed)
 }
 
+/// A transferred-feature weight in (0, 1]; identified features weigh 1.
+pub(crate) fn parse_transferred_weight(value: &str) -> std::result::Result<f64, String> {
+    let parsed = parse_finite_f64(value)?;
+    if parsed <= 0.0 || parsed > 1.0 {
+        return Err(format!(
+            "expected a weight above 0 and at most 1, got `{value}`"
+        ));
+    }
+    Ok(parsed)
+}
+
 pub(crate) fn parse_fraction(value: &str) -> std::result::Result<f64, String> {
     let parsed = parse_finite_f64(value)?;
     if !(0.0..=1.0).contains(&parsed) {
@@ -250,5 +261,7 @@ fn invalid_topn_message(value: &str) -> String {
 
 /// Error for a name that is neither a fixed method nor a `top<N>`.
 fn unknown_method_message(value: &str) -> String {
-    format!("unknown quantification method `{value}`: expected one of {FIXED_QUANT_METHODS}, or `top<N>` (e.g. `top3`)")
+    format!(
+        "unknown quantification method `{value}`: expected one of {FIXED_QUANT_METHODS}, or `top<N>` (e.g. `top3`)"
+    )
 }

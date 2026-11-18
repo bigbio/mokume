@@ -1,6 +1,65 @@
 use super::*;
 
 #[test]
+fn features2peptides_uses_run_view_sample_mapping() -> Result<(), Box<dyn Error>> {
+    let (_tempdir, root) = temp_root()?;
+    let parquet = root.join("features.parquet");
+    let run = root.join("run.parquet");
+    let output = root.join("peptides.csv");
+    let channels = [("TMT126", 10.0), ("TMT127", 20.0)];
+    let rows = ["PEPTIDEAK", "APEPTIDECK"].map(|sequence| TmtRow {
+        sequence,
+        run_file_name: "run_a",
+        channels: &channels,
+        accessions: &["P1"],
+    });
+    write_qpx_tmt_rows(&parquet, &rows)?;
+    write_peptide_run_view(&run)?;
+    let mut config = default_peptides_config(parquet, output.clone());
+    config.input.run = Some(run);
+    run_features_to_peptides(&config)?;
+    let table = read_csv(&output)?;
+    assert_eq!(table.rows.len(), 4);
+    for row in table.rows {
+        let expected = match row[2].as_str() {
+            "S0" => 10.0,
+            "S1" => 20.0,
+            other => return Err(format!("unexpected sample {other}").into()),
+        };
+        assert_eq!(row[4], row[2]);
+        assert_eq!(row[5].parse::<f64>()?, expected);
+    }
+    Ok(())
+}
+
+fn write_peptide_run_view(path: &Path) -> Result<(), Box<dyn Error>> {
+    let fields = Fields::from(vec![
+        Field::new("sample_accession", DataType::Utf8, false),
+        Field::new("label", DataType::Utf8, false),
+    ]);
+    let mut samples = ListBuilder::new(StructBuilder::from_fields(fields, 2));
+    for (sample, label) in [("S0", "TMT126"), ("S1", "TMT127")] {
+        append_string_field(samples.values(), 0, sample)?;
+        append_string_field(samples.values(), 1, label)?;
+        samples.values().append(true);
+    }
+    samples.append(true);
+    let samples = Arc::new(samples.finish()) as ArrayRef;
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("run_file_name", DataType::Utf8, false),
+        Field::new("samples", samples.data_type().clone(), false),
+    ]));
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![Arc::new(StringArray::from(vec!["run_a"])), samples],
+    )?;
+    let mut writer = ArrowWriter::try_new(File::create(path)?, schema, None)?;
+    writer.write(&batch)?;
+    writer.close()?;
+    Ok(())
+}
+
+#[test]
 fn tmm_peptide_export_matches_canonical_protein_rollup() -> Result<(), Box<dyn Error>> {
     let (_tempdir, root) = temp_root()?;
     let parquet = root.join("features.parquet");
@@ -255,4 +314,40 @@ fn write_export_features(path: &Path) -> Result<(), Box<dyn Error>> {
         }
     }
     write_qpx_rows(path, &rows)
+}
+
+#[test]
+fn protein_groups_merge_observed_orders_without_sorting_single_order_groups()
+-> Result<(), Box<dyn Error>> {
+    let (_guard, root) = temp_root()?;
+    let parquet = root.join("groups.parquet");
+    let sdrf = root.join("samples.tsv");
+    write_synthetic_sdrf(&sdrf)?;
+    let rows = vec![
+        QpxRow::new("PEPTIDEAK", "run1.raw", 10.0, &["P2", "P1", "P2"]),
+        QpxRow::new("PEPTIDECK", "run1.raw", 20.0, &["P1", "P2"]),
+        QpxRow::new("PEPTIDEAK", "run1.raw", 30.0, &["P4", "P3"]),
+    ];
+    write_qpx_rows(&parquet, &rows)?;
+    let output = root.join("proteins.csv");
+    let mut config = default_sum_config(parquet, sdrf, output.clone());
+    config.filtering.min_unique_peptides = 1;
+    run_features_to_proteins(&config)?;
+    let table = read_csv(&output)?;
+    assert_eq!(
+        table
+            .rows
+            .iter()
+            .map(|row| row[0].as_str())
+            .collect::<Vec<_>>(),
+        vec!["P1;P2", "P4;P3"]
+    );
+    let expected = std::fs::read(&output)?;
+    write_qpx_rows(
+        config.input.parquet.as_ref().ok_or("missing input")?,
+        &rows.into_iter().rev().collect::<Vec<_>>(),
+    )?;
+    run_features_to_proteins(&config)?;
+    assert_eq!(expected, std::fs::read(output)?);
+    Ok(())
 }

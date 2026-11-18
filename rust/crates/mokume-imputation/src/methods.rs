@@ -12,7 +12,7 @@ mod minprob;
 mod qrilc;
 mod seqknn;
 
-pub(crate) use basic::{constant_imputed_values, sample_stat_imputed_values, SampleImputationStat};
+pub(crate) use basic::{SampleImputationStat, constant_imputed_values, sample_stat_imputed_values};
 pub(crate) use bpca::bpca_imputed_values;
 pub(crate) use gms::gms_imputed_values;
 pub(crate) use impseq::impseq_imputed_values;

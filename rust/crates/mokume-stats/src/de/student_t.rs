@@ -14,11 +14,7 @@ pub(crate) fn student_t_sf(t: f64, df: f64) -> f64 {
     }
     let x = df / (df + t * t);
     let half = 0.5 * regularized_incomplete_beta(df / 2.0, 0.5, x);
-    if t >= 0.0 {
-        half
-    } else {
-        1.0 - half
-    }
+    if t >= 0.0 { half } else { 1.0 - half }
 }
 
 /// Natural logarithm of the two-sided Student's t p-value.

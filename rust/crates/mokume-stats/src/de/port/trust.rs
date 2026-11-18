@@ -139,11 +139,7 @@ impl Trust {
         if gnorm == 0.0 {
             upper += 0.001 + 0.001 * upper;
         }
-        if upper <= 0.0 {
-            0.001
-        } else {
-            upper
-        }
+        if upper <= 0.0 { 0.001 } else { upper }
     }
 
     fn restart(&mut self, s: &mut Search<'_>) -> Option<Step> {
@@ -221,10 +217,10 @@ impl Trust {
                 return self.finish(s);
             }
             s.old_phi = phi;
-            if phi < 0.0 {
-                if let Some(step) = self.hard_case(s) {
-                    return step;
-                }
+            if phi < 0.0
+                && let Some(step) = self.hard_case(s)
+            {
+                return step;
             }
             if s.iteration >= s.limit {
                 return self.finish(s);

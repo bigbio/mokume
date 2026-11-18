@@ -13,10 +13,11 @@ References
 Proteome Sciences post-processing protocol for TMT data.
 """
 
+import re
+
 import duckdb
 import numpy as np
 import pandas as pd
-import re
 
 from mokume.core.constants import (
     PROTEIN_NAME,
@@ -26,6 +27,7 @@ from mokume.core.constants import (
 )
 from mokume.core.logger import get_logger
 from mokume.core.registry import PluginRegistry
+from mokume.io._protein_groups import create_group_view, protein_group_names
 from mokume.io._qpx import measured_intensity_clause
 from mokume.io.feature import SQLFilterBuilder
 
@@ -329,33 +331,6 @@ def _parquet_columns(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> list
     ]
 
 
-def _pg_accessions_projection(
-    conn: duckdb.DuckDBPyConnection,
-    parquet_path: str,
-    columns: list[str],
-) -> str:
-    """Return the SQL projection for pg_accessions across QPX formats."""
-    if "pg_accessions" not in columns:
-        return "pg_accessions"
-
-    try:
-        type_str = (
-            conn.execute(
-                "SELECT typeof(pg_accessions) FROM read_parquet(?) LIMIT 1",
-                [parquet_path],
-            )
-            .fetchone()[0]
-            .lower()
-        )
-    except Exception as exc:
-        logger.debug("Could not detect pg_accessions type: %s", exc)
-        return "pg_accessions"
-
-    if "struct" in type_str:
-        return "list_transform(pg_accessions, lambda x: x.accession) as pg_accessions"
-    return "pg_accessions"
-
-
 def _qpx_psm_base_query(pg_col: str, is_new_qpx: bool) -> str:
     """Return the trusted base query for the detected QPX layout."""
     if is_new_qpx:
@@ -368,7 +343,7 @@ def _qpx_psm_base_query(pg_col: str, is_new_qpx: bool) -> str:
                 " run_file_name as run_file_name,",
                 " unnest.label as label,",
                 " unnest.intensity as intensity",
-                " FROM (SELECT *, UNNEST(intensities) AS unnest FROM read_parquet(?))",
+                " FROM (SELECT *, UNNEST(intensities) AS unnest FROM ratio_input)",
                 " WHERE unnest.intensity IS NOT NULL AND ",
             ]
         )
@@ -383,7 +358,7 @@ def _qpx_psm_base_query(pg_col: str, is_new_qpx: bool) -> str:
             " reference_file_name as run_file_name,",
             " unnest.channel as label,",
             " unnest.intensity as intensity",
-            " FROM (SELECT *, UNNEST(intensities) AS unnest FROM read_parquet(?))",
+            " FROM (SELECT *, UNNEST(intensities) AS unnest FROM ratio_input)",
             " WHERE unnest.intensity IS NOT NULL AND ",
         ]
     )
@@ -402,12 +377,14 @@ def _load_qpx_psm_rows(
             filter_builder.has_is_decoy = True
 
         where_clause, where_params = filter_builder.build_where_clause()
-        pg_col = _pg_accessions_projection(conn, parquet_path, columns)
+        conn.read_parquet(parquet_path).create_view("ratio_source")
+        create_group_view(conn, "ratio_source", "ratio_input")
+        pg_col = "pg_accessions"
         measured = measured_intensity_clause(columns)
         query = "".join(
             (_qpx_psm_base_query(pg_col, is_new_qpx), measured, " AND ", where_clause)
         )
-        return conn.execute(query, [parquet_path] + where_params).df(), is_new_qpx
+        return conn.execute(query, where_params).df(), is_new_qpx
     finally:
         conn.close()
 
@@ -473,12 +450,7 @@ def _apply_sdrf_metadata(
 
 def _finalize_psm_data(df: pd.DataFrame, min_unique_peptides: int) -> pd.DataFrame:
     """Rename, select and filter PSM rows for ratio quantification."""
-    first_acc = df["pg_accessions"].str[0].fillna("")
-    df[PROTEIN_NAME] = np.where(
-        first_acc.str.contains("|", regex=False),
-        first_acc.str.split("|").str[1],
-        first_acc,
-    )
+    df[PROTEIN_NAME] = protein_group_names(df["pg_accessions"]).str.split(";").str[0]
     df[PEPTIDE_CANONICAL] = df["sequence"]
     df[PEPTIDE_CHARGE] = df["precursor_charge"]
     df[SAMPLE_ID] = df["sample_accession"]

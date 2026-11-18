@@ -1,7 +1,7 @@
 use super::super::correct::bh_adjust;
 use super::{
-    analyze, analyze_fits, fit, limrots_two_group, limrots_two_group_with_options, LimRotsOptions,
-    SamplingPlan,
+    LimRotsOptions, SamplingPlan, analyze, analyze_fits, fit, limrots_two_group,
+    limrots_two_group_with_options,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;

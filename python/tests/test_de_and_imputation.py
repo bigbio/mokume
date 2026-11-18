@@ -836,7 +836,7 @@ class TestDEEnsemble:
         stage = PostprocessingStage(config)
         peptide_rows = pd.DataFrame(
             {
-                "anchor_protein": ["P1", "P1", "P2"],
+                "pg_accessions": [["P1"], ["P1"], ["P2"]],
                 "sequence": ["AAA", "BBB", "CCC"],
             }
         )

@@ -101,6 +101,7 @@ def peptide_normalization(
     aggregation_level: str = AGGREGATION_LEVEL_SAMPLE,
     filter_config: Optional["PreprocessingFilterConfig"] = None,
     keep_shared_peptides: bool = False,
+    run: str = None,
 ) -> None:
     """
     Perform peptide normalization on a proteomics dataset.
@@ -186,11 +187,17 @@ def peptide_normalization(
             require_unique=not keep_shared_peptides,
         )
 
+    if sdrf and run:
+        raise ValueError("--run conflicts with --sdrf")
     feature = Feature(parquet, filter_builder=filter_builder)
 
     if sdrf:
         feature.enrich_with_sdrf(sdrf)
         technical_repetitions, label, sample_names, choice = analyse_sdrf(sdrf)
+    elif run:
+        technical_repetitions, label, sample_names, choice = analyse_sdrf(
+            feature.enrich_with_run(run)
+        )
     else:
         technical_repetitions, label, sample_names, choice = (
             feature.experimental_inference
@@ -278,6 +285,10 @@ def peptide_normalization(
                 len(filter_pipeline),
             )
 
+    # An empty frame among others gives the Parquet output null column types,
+    # so a sample without rows is written only when no sample kept any.
+    empty_output = None
+    wrote_rows = False
     for samples, df in feature.iter_samples():
         df.dropna(subset=["pg_accessions"], inplace=True)
         for sample in samples:
@@ -385,7 +396,8 @@ def peptide_normalization(
                     elapsed,
                 )
 
-            if not skip_normalization:
+            # Filters can leave a sample without rows, and so without a median.
+            if not skip_normalization and not dataset_df.empty:
                 dataset_df = peptide_normalized(dataset_df, sample, med_map)
 
             if remove_low_frequency_peptides and len(sample_names) > 1:
@@ -419,6 +431,10 @@ def peptide_normalization(
             if log2:
                 dataset_df[NORM_INTENSITY] = np.log2(dataset_df[NORM_INTENSITY])
 
+            if dataset_df.empty:
+                empty_output = dataset_df
+                continue
+            wrote_rows = True
             logger.info(
                 "%s: Saving the normalized peptide intensities...", str(sample).upper()
             )
@@ -427,6 +443,11 @@ def peptide_normalization(
                 writer_parquet_task.write(dataset_df)
             if write_csv:
                 write_csv_task.write(dataset_df)
+
+    if not wrote_rows and empty_output is not None:
+        if save_parquet:
+            writer_parquet_task.write(empty_output)
+        write_csv_task.write(empty_output)
 
     if write_csv:
         write_csv_task.close()

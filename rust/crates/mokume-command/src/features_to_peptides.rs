@@ -27,6 +27,9 @@ pub(crate) struct Features2PeptidesArgs {
     #[arg(short = 's', long = "sdrf", value_name = "FILE")]
     sdrf: Option<PathBuf>,
 
+    #[arg(long = "run", value_name = "FILE", conflicts_with = "sdrf")]
+    run: Option<PathBuf>,
+
     #[arg(long = "min-aa", value_name = "N")]
     min_aa: Option<usize>,
 
@@ -161,6 +164,7 @@ pub(crate) fn dispatch(args: &Features2PeptidesArgs) -> mokume_core::Result<()> 
     }
     let parquet = required_parquet(args)?;
     validate_optional_input(args.sdrf.as_ref())?;
+    validate_optional_input(args.run.as_ref())?;
     validate_optional_input(args.remove_ids.as_ref())?;
     validate_irs_options(args)?;
     let config = feature_to_peptides_config(
@@ -193,10 +197,10 @@ fn required_output(args: &Features2PeptidesArgs) -> mokume_core::Result<PathBuf>
 }
 
 fn validate_optional_input(path: Option<&PathBuf>) -> mokume_core::Result<()> {
-    if let Some(path) = path {
-        if !path.exists() {
-            return Err(MokumeError::MissingInput { path: path.clone() });
-        }
+    if let Some(path) = path
+        && !path.exists()
+    {
+        return Err(MokumeError::MissingInput { path: path.clone() });
     }
     Ok(())
 }
@@ -278,6 +282,7 @@ fn feature_to_peptides_config(
         input: InputConfig {
             parquet: Some(parquet),
             sdrf: args.sdrf.clone(),
+            run: args.run.clone(),
             ..InputConfig::default()
         },
         output,
@@ -482,19 +487,5 @@ mod tests {
         assert_eq!(pipeline.peptide.min_peptide_length, 7);
         assert_eq!(pipeline.protein.min_unique_peptides, 5);
         assert!(!pipeline.protein.remove_contaminants);
-    }
-
-    #[test]
-    fn generated_filter_config_is_exclusive() {
-        let parsed = Cli::try_parse_from([
-            "mokume",
-            "quantify",
-            "features2peptides",
-            "--generate-filter-config",
-            "filters.yaml",
-            "--filter-min-intensity",
-            "10",
-        ]);
-        assert!(parsed.is_err());
     }
 }

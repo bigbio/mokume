@@ -3,9 +3,10 @@
 //! Every matrix sample with a condition enters one limma model: one cell-mean
 //! column per condition plus the encoded SDRF covariates (numeric columns as
 //! is, categorical columns as k-1 indicators), as R's
-//! `model.matrix(~0 + condition + covariates)`. Each contrast is the difference
-//! of its two condition coefficients. A paired design passes the subject column
-//! as a covariate.
+//! `model.matrix(~0 + condition + covariates)`. The SDRF's reserved "not
+//! applicable" and "not available", as on an empty TMT channel, are no
+//! condition. Each contrast is the difference of its two condition
+//! coefficients. A paired design passes the subject column as a covariate.
 //!
 //! `--de-block` makes an SDRF column's levels random blocks instead, as limma's
 //! `duplicateCorrelation` + `lmFit(block =, correlation =)`: one intra-block
@@ -16,22 +17,25 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use mokume_core::{DifferentialExpressionConfig, Result, SampleId};
-use mokume_io::{normalize_file_key, SdrfRawTable};
+use mokume_io::{SdrfRawTable, normalize_file_key};
 use mokume_stats::de::{
-    deqms_design, duplicate_correlation, limma_design, validate_design, DesignContrast, RandomBlock,
+    DesignContrast, RandomBlock, deqms_design, duplicate_correlation, limma_design, validate_design,
 };
 use tracing::{info, warn};
 
 use super::{
-    available_conditions, build_count_vector, de_output_path, finalize_member_results,
-    sample_condition, write_de_csv, Contrast, DeMethod, MemberMethod, Prepared,
+    Contrast, DeMethod, MemberMethod, Prepared, available_conditions, build_count_vector,
+    de_output_path, finalize_member_results, sample_condition, write_de_csv,
 };
 use crate::{
-    encode_covariate, invalid_input, match_sdrf_column, ProteinMatrix, SDRF_SAMPLE_COLUMNS,
+    ProteinMatrix, SDRF_SAMPLE_COLUMNS, encode_covariate, invalid_input, match_sdrf_column,
 };
 
 /// SDRF column holding the run file, used for run-level matrix columns.
 const SDRF_DATA_FILE_COLUMN: &str = "comment[data file]";
+
+/// SDRF's reserved values for a factor that does not apply or is unknown.
+const SDRF_NO_CONDITION: [&str; 2] = ["not applicable", "not available"];
 
 pub(super) struct ModelDesign<'a> {
     /// Model samples in matrix column order.
@@ -58,7 +62,12 @@ impl<'a> ModelDesign<'a> {
         let mut names = Vec::new();
         let mut sample_conditions = Vec::new();
         for (sample, name) in samples {
-            if let Some(condition) = sample_condition(condition_by_sample, name) {
+            let condition = sample_condition(condition_by_sample, name).filter(|condition| {
+                !SDRF_NO_CONDITION
+                    .iter()
+                    .any(|reserved| condition.eq_ignore_ascii_case(reserved))
+            });
+            if let Some(condition) = condition {
                 ids.push(*sample);
                 names.push(*name);
                 sample_conditions.push(condition);

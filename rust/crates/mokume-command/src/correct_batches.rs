@@ -32,7 +32,7 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use mokume_core::{MokumeError, Result};
-use mokume_stats::batch::{combat_parametric, ComBatParams};
+use mokume_stats::batch::{ComBatParams, combat_parametric};
 
 use crate::CorrectBatchesArgs;
 
@@ -455,10 +455,10 @@ fn matched_files(folder: &Path, pattern: &str) -> Result<Vec<PathBuf>> {
         if !path.is_file() {
             continue;
         }
-        if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
-            if glob_match(pattern, name) {
-                matches.push(path);
-            }
+        if let Some(name) = path.file_name().and_then(|name| name.to_str())
+            && glob_match(pattern, name)
+        {
+            matches.push(path);
         }
     }
     matches.sort();
@@ -863,9 +863,11 @@ mod tests {
         let Err(error) = build_matrix(&table, &proteins, &samples) else {
             panic!("missing cell was accepted");
         };
-        assert!(error
-            .to_string()
-            .contains("complete protein x sample matrix"));
+        assert!(
+            error
+                .to_string()
+                .contains("complete protein x sample matrix")
+        );
         assert!(parse_value("", 2).is_err());
         assert!(parse_value("NaN", 2).is_err());
     }

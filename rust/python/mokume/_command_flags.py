@@ -4,7 +4,7 @@ from __future__ import annotations
 
 _ALLOWED = {
     "features2peptides": set(
-        "parquet sdrf min_aa min_unique keep_shared_peptides "
+        "parquet sdrf run min_aa min_unique keep_shared_peptides "
         "remove_ids remove_decoy_contaminants "
         "remove_low_frequency_peptides output skip_normalization run_normalization "
         "sample_normalization log2 save_parquet irs_channel irs_autodetect_regex "
@@ -15,9 +15,9 @@ _ALLOWED = {
         "filter_min_features filter_max_missing_rate".split()
     ),
     "features2proteins": set(
-        "parquet msstats psm output sdrf quant_method min_aa "
-        "min_unique filter_protein_fdr transferred_features keep_contaminants "
-        "run_normalization sample_normalization normalization_proteins "
+        "parquet msstats psm output sdrf run quant_method min_aa "
+        "min_unique filter_protein_fdr transferred_features transferred_weight "
+        "keep_contaminants run_normalization sample_normalization normalization_proteins "
         "fasta pibaq_enzyme pibaq_max_aa pibaq_missed_cleavages "
         "pibaq_min_shared pibaq_families pibaq_min_anchors "
         "pibaq_shared pibaq_family_rows pibaq_evidence "
@@ -41,7 +41,7 @@ _ALLOWED = {
     "peptides2protein": set(
         "fasta peptides quant_method enzyme normalize min_aa max_aa tpa ruler ploidy "
         "organism cpc output qc_report threads directlfq_min_nonan families "
-        "min_shared min_anchors high_anchor_threshold".split()
+        "min_shared min_anchors high_anchor_threshold weight_column".split()
     ),
     "correct-batches": set(
         "input pattern comment sep output sample_id_column protein_id_column "

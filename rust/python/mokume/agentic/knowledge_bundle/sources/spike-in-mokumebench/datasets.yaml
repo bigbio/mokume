@@ -2407,7 +2407,7 @@
           yeast: -1.0
           ecoli: 2.0
   ground_truth:
-    entity_count: 2547
+    entity_count: 2215
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2422,7 +2422,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.592
+    held_out_rank_spearman: 0.477
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2431,9 +2431,9 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 14
-    held_out_deficit: 0.022002
-    deficit_regret: 0.00681
+    held_out_benchmark_rank: 9
+    held_out_deficit: 0.026473
+    deficit_regret: 0.008852
     oracle_config_id: directlfq|median|minprob|none|deqms
 - id: PXD002952_HYE124__HYE124_TTOF5600_64var
   project_accession: PXD002952
@@ -2457,7 +2457,7 @@
           yeast: -1.0
           ecoli: 2.0
   ground_truth:
-    entity_count: 3419
+    entity_count: 2957
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2472,7 +2472,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.4267
+    held_out_rank_spearman: 0.4627
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2481,10 +2481,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 14
-    held_out_deficit: 0.026671
-    deficit_regret: 0.012273
-    oracle_config_id: directlfq|median|minprob|none|rots
+    held_out_benchmark_rank: 18
+    held_out_deficit: 0.021575
+    deficit_regret: 0.010879
+    oracle_config_id: directlfq|median|minprob|none|deqms
 - id: PXD002952_HYE124__HYE124_TTOF6600_32fix
   project_accession: PXD002952
   study: PXD002952
@@ -2507,7 +2507,7 @@
           yeast: -1.0
           ecoli: 2.0
   ground_truth:
-    entity_count: 3880
+    entity_count: 3442
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2522,7 +2522,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.8168
+    held_out_rank_spearman: 0.6441
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2531,10 +2531,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 36
-    held_out_deficit: 0.035342
-    deficit_regret: 0.023562
-    oracle_config_id: directlfq|median|qrilc|none|limrots
+    held_out_benchmark_rank: 30
+    held_out_deficit: 0.025921
+    deficit_regret: 0.018255
+    oracle_config_id: directlfq|median|qrilc|none|rots
 - id: PXD002952_HYE124__HYE124_TTOF6600_64var
   project_accession: PXD002952
   study: PXD002952
@@ -2557,7 +2557,7 @@
           yeast: -1.0
           ecoli: 2.0
   ground_truth:
-    entity_count: 4544
+    entity_count: 4172
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2572,7 +2572,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.8581
+    held_out_rank_spearman: 0.769
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2582,9 +2582,9 @@
       fdr_method: bh
       log2fc_threshold: 0.584963
     held_out_benchmark_rank: 23
-    held_out_deficit: 0.022336
-    deficit_regret: 0.013913
-    oracle_config_id: maxlfq|none|minprob|none|deqms
+    held_out_deficit: 0.016887
+    deficit_regret: 0.009771
+    oracle_config_id: maxlfq|median|mindet|none|rots
 - id: PXD002952_HYE110__HYE110_TTOF6600_32fix
   project_accession: PXD002952
   study: PXD002952
@@ -2607,7 +2607,7 @@
           yeast: -3.321928094887362
           ecoli: 3.321928094887362
   ground_truth:
-    entity_count: 3360
+    entity_count: 3009
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2622,7 +2622,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.1911
+    held_out_rank_spearman: 0.3628
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2631,10 +2631,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 51
-    held_out_deficit: 0.037882
-    deficit_regret: 0.037724
-    oracle_config_id: pibaq|median|minprob|none|limrots
+    held_out_benchmark_rank: 54
+    held_out_deficit: 0.041906
+    deficit_regret: 0.038996
+    oracle_config_id: pibaq|median|minprob|none|rots
 - id: PXD002952_HYE110__HYE110_TTOF6600_32var
   project_accession: PXD002952
   study: PXD002952
@@ -2657,7 +2657,7 @@
           yeast: -3.321928094887362
           ecoli: 3.321928094887362
   ground_truth:
-    entity_count: 3738
+    entity_count: 3344
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2672,7 +2672,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.2008
+    held_out_rank_spearman: 0.3679
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2681,10 +2681,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 49
-    held_out_deficit: 0.03933
-    deficit_regret: 0.038707
-    oracle_config_id: pibaq|none|minprob|none|limrots
+    held_out_benchmark_rank: 62
+    held_out_deficit: 0.032346
+    deficit_regret: 0.03068
+    oracle_config_id: pibaq|median|mindet|none|limrots
 - id: PXD002952_HYE110__HYE110_TTOF6600_64fix
   project_accession: PXD002952
   study: PXD002952
@@ -2707,7 +2707,7 @@
           yeast: -3.321928094887362
           ecoli: 3.321928094887362
   ground_truth:
-    entity_count: 3632
+    entity_count: 3193
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2722,7 +2722,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.1412
+    held_out_rank_spearman: 0.3671
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2731,9 +2731,9 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 52
-    held_out_deficit: 0.040122
-    deficit_regret: 0.039258
+    held_out_benchmark_rank: 40
+    held_out_deficit: 0.035035
+    deficit_regret: 0.034777
     oracle_config_id: pibaq|median|minprob|none|limrots
 - id: PXD002952_HYE110__HYE110_TTOF6600_64var
   project_accession: PXD002952
@@ -2757,7 +2757,7 @@
           yeast: -3.321928094887362
           ecoli: 3.321928094887362
   ground_truth:
-    entity_count: 4137
+    entity_count: 3791
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2772,7 +2772,7 @@
     held_out_study: PXD002952
     training_datasets: 30
     ranked_workflows: 390
-    held_out_rank_spearman: 0.2231
+    held_out_rank_spearman: 0.3954
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2781,10 +2781,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 41
-    held_out_deficit: 0.028698
-    deficit_regret: 0.028076
-    oracle_config_id: pibaq|median|mindet|none|limrots
+    held_out_benchmark_rank: 51
+    held_out_deficit: 0.030442
+    deficit_regret: 0.030076
+    oracle_config_id: pibaq|none|minprob|none|rots
 - id: PXD018408_DIA
   project_accession: PXD018408
   study: PXD018408
@@ -2806,7 +2806,7 @@
           human: 0.0
           ecoli: 1.0
   ground_truth:
-    entity_count: 755
+    entity_count: 671
     source:
       type: fasta_components
       changing_components: ecoli
@@ -2821,19 +2821,19 @@
     held_out_study: PXD018408
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.6919
+    held_out_rank_spearman: 0.6838
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 20
-    held_out_deficit: 0.018333
-    deficit_regret: 0.01442
-    oracle_config_id: directlfq|none|minprob|none|deqms
+    held_out_benchmark_rank: 1
+    held_out_deficit: 0.003132
+    deficit_regret: 0.0
+    oracle_config_id: directlfq|none|mindet|none|deqms
 - id: PXD019777_DIA
   project_accession: PXD019777
   study: PXD019777
@@ -2873,7 +2873,7 @@
           human: 0.0
           ecoli: 1.3219280948873624
   ground_truth:
-    entity_count: 852
+    entity_count: 717
     source:
       type: fasta_components
       changing_components: ecoli
@@ -2888,7 +2888,7 @@
     held_out_study: PXD019777
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.8504
+    held_out_rank_spearman: 0.7066
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -2897,9 +2897,9 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 62
-    held_out_deficit: 0.033393
-    deficit_regret: 0.017187
+    held_out_benchmark_rank: 66
+    held_out_deficit: 0.026112
+    deficit_regret: 0.018532
     oracle_config_id: maxlfq|none|impseq|none|deqms
 - id: PXD022589
   project_accession: PXD022589
@@ -2923,7 +2923,7 @@
           yeast: -1.0
           ecoli: 2.0
   ground_truth:
-    entity_count: 5430
+    entity_count: 5147
     source:
       type: protein_components
       changing_components: ecoli;yeast
@@ -2938,18 +2938,18 @@
     held_out_study: PXD022589
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.5978
+    held_out_rank_spearman: 0.2739
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 122
-    held_out_deficit: 0.059596
-    deficit_regret: 0.052564
+    held_out_benchmark_rank: 30
+    held_out_deficit: 0.012302
+    deficit_regret: 0.007448
     oracle_config_id: maxlfq|median|minprob|none|deqms
 - id: PXD026600
   project_accession: PXD026600
@@ -3013,7 +3013,7 @@
     held_out_study: PXD026600
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.4755
+    held_out_rank_spearman: 0.3168
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -3023,9 +3023,9 @@
       fdr_method: bh
       log2fc_threshold: 0.584963
     held_out_benchmark_rank: 123
-    held_out_deficit: 0.056018
-    deficit_regret: 0.03973
-    oracle_config_id: pibaq|none|impseq|none|limrots
+    held_out_deficit: 0.041634
+    deficit_regret: 0.036244
+    oracle_config_id: pibaq|none|impseq|none|rots
 - id: PXD036786__SWATH_0.5uL
   project_accession: PXD036786
   study: PXD036786
@@ -3047,7 +3047,7 @@
           human: 0.0
           yeast: 1.0
   ground_truth:
-    entity_count: 901
+    entity_count: 708
     source:
       type: fasta_components
       changing_components: yeast
@@ -3062,7 +3062,7 @@
     held_out_study: PXD036786
     training_datasets: 34
     ranked_workflows: 390
-    held_out_rank_spearman: 0.0256
+    held_out_rank_spearman: 0.0157
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -3071,10 +3071,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 223
-    held_out_deficit: 0.22996
-    deficit_regret: 0.188233
-    oracle_config_id: pibaq|none|impseqrob|none|rots
+    held_out_benchmark_rank: 237
+    held_out_deficit: 0.224497
+    deficit_regret: 0.196326
+    oracle_config_id: sum|none|knn|none|limrots
 - id: PXD036786__SWATH_1uL
   project_accession: PXD036786
   study: PXD036786
@@ -3096,7 +3096,7 @@
           human: 0.0
           yeast: 1.0
   ground_truth:
-    entity_count: 1254
+    entity_count: 959
     source:
       type: fasta_components
       changing_components: yeast
@@ -3111,7 +3111,7 @@
     held_out_study: PXD036786
     training_datasets: 34
     ranked_workflows: 390
-    held_out_rank_spearman: 0.2589
+    held_out_rank_spearman: 0.1149
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -3120,10 +3120,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 198
-    held_out_deficit: 0.169899
-    deficit_regret: 0.115917
-    oracle_config_id: sum|none|mindet|none|deqms
+    held_out_benchmark_rank: 230
+    held_out_deficit: 0.171563
+    deficit_regret: 0.138772
+    oracle_config_id: pibaq|none|impseqrob|none|limrots
 - id: PXD036786__ZenoSWATH_0.5uL
   project_accession: PXD036786
   study: PXD036786
@@ -3145,7 +3145,7 @@
           human: 0.0
           yeast: 1.0
   ground_truth:
-    entity_count: 1812
+    entity_count: 1469
     source:
       type: fasta_components
       changing_components: yeast
@@ -3160,7 +3160,7 @@
     held_out_study: PXD036786
     training_datasets: 34
     ranked_workflows: 390
-    held_out_rank_spearman: 0.2692
+    held_out_rank_spearman: 0.1926
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -3169,10 +3169,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 243
-    held_out_deficit: 0.14058
-    deficit_regret: 0.12969
-    oracle_config_id: maxlfq|none|mindet|none|limrots
+    held_out_benchmark_rank: 284
+    held_out_deficit: 0.121614
+    deficit_regret: 0.10564
+    oracle_config_id: pibaq|none|mindet|none|limrots
 - id: PXD036786__ZenoSWATH_1uL
   project_accession: PXD036786
   study: PXD036786
@@ -3194,7 +3194,7 @@
           human: 0.0
           yeast: 1.0
   ground_truth:
-    entity_count: 2039
+    entity_count: 1722
     source:
       type: fasta_components
       changing_components: yeast
@@ -3209,7 +3209,7 @@
     held_out_study: PXD036786
     training_datasets: 34
     ranked_workflows: 390
-    held_out_rank_spearman: 0.4681
+    held_out_rank_spearman: 0.5233
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -3219,8 +3219,8 @@
       fdr_method: bh
       log2fc_threshold: 0.584963
     held_out_benchmark_rank: 86
-    held_out_deficit: 0.0853
-    deficit_regret: 0.074513
+    held_out_deficit: 0.057163
+    deficit_regret: 0.055747
     oracle_config_id: maxlfq|none|mindet|none|limrots
 - id: PXD040205
   project_accession: PXD040205
@@ -3243,7 +3243,7 @@
           human: 0.0
           ecoli: 1.3219280948873624
   ground_truth:
-    entity_count: 1124
+    entity_count: 1016
     source:
       type: fasta_components
       changing_components: ecoli
@@ -3258,18 +3258,18 @@
     held_out_study: PXD040205
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.6714
+    held_out_rank_spearman: 0.4603
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 40
-    held_out_deficit: 0.039281
-    deficit_regret: 0.02777
+    held_out_benchmark_rank: 3
+    held_out_deficit: 0.012925
+    deficit_regret: 0.002047
     oracle_config_id: directlfq|none|impseqrob|none|deqms
 - id: PXD044981_DIA
   project_accession: PXD044981
@@ -3310,7 +3310,7 @@
           yeast: 0.0
           ups: 1.3219280948873624
   ground_truth:
-    entity_count: 28
+    entity_count: 26
     source:
       type: fasta_components
       changing_components: ups
@@ -3325,19 +3325,19 @@
     held_out_study: PXD044981
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.3474
+    held_out_rank_spearman: -0.003
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 123
-    held_out_deficit: 0.048598
-    deficit_regret: 0.036396
-    oracle_config_id: directlfq|none|knn|none|limrots
+    held_out_benchmark_rank: 57
+    held_out_deficit: 0.01571
+    deficit_regret: 0.01571
+    oracle_config_id: directlfq|median|impseqrob|none|deqms
 - id: PXD046444
   project_accession: PXD046444
   study: PXD046444
@@ -3380,7 +3380,7 @@
           yeast: 0.5849625007211562
           ecoli: -0.5849625007211563
   ground_truth:
-    entity_count: 6123
+    entity_count: 5756
     source:
       type: fasta_headers
       changing_components: ecoli;yeast
@@ -3395,7 +3395,7 @@
     held_out_study: PXD046444
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.3745
+    held_out_rank_spearman: 0.3239
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -3404,10 +3404,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 32
-    held_out_deficit: 0.055615
-    deficit_regret: 0.050593
-    oracle_config_id: maxlfq|none|minprob|none|deqms
+    held_out_benchmark_rank: 46
+    held_out_deficit: 0.063837
+    deficit_regret: 0.058065
+    oracle_config_id: maxlfq|none|seqknn|none|deqms
 - id: PXD056598_DIA__A_evo_ex_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3430,7 +3430,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 3497
+    entity_count: 3146
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3445,19 +3445,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.1408
+    held_out_rank_spearman: 0.1627
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 62
-    held_out_deficit: 0.069756
-    deficit_regret: 0.06146
-    oracle_config_id: pibaq|none|minprob|none|deqms
+    held_out_benchmark_rank: 67
+    held_out_deficit: 0.084666
+    deficit_regret: 0.081018
+    oracle_config_id: pibaq|median|mindet|none|rots
 - id: PXD056598_DIA__A_ulti_ex_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3480,7 +3480,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 4017
+    entity_count: 3706
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3495,18 +3495,18 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.2404
+    held_out_rank_spearman: 0.2945
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 110
-    held_out_deficit: 0.069506
-    deficit_regret: 0.060215
+    held_out_benchmark_rank: 21
+    held_out_deficit: 0.038463
+    deficit_regret: 0.028896
     oracle_config_id: pibaq|median|minprob|none|deqms
 - id: PXD056598_DIA__B_ulti_HFX_DIA_PYE1
   project_accession: PXD056598
@@ -3530,7 +3530,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 2836
+    entity_count: 2577
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3545,19 +3545,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.1946
+    held_out_rank_spearman: 0.2667
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 108
-    held_out_deficit: 0.066088
-    deficit_regret: 0.058478
-    oracle_config_id: pibaq|median|mindet|none|limrots
+    held_out_benchmark_rank: 62
+    held_out_deficit: 0.092485
+    deficit_regret: 0.086749
+    oracle_config_id: pibaq|none|mindet|none|limrots
 - id: PXD056598_DIA__B_ulti_HF_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3580,7 +3580,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 2462
+    entity_count: 2231
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3595,19 +3595,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.3452
+    held_out_rank_spearman: 0.3827
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 90
-    held_out_deficit: 0.066344
-    deficit_regret: 0.043508
-    oracle_config_id: directlfq|median|mindet|none|deqms
+    held_out_benchmark_rank: 47
+    held_out_deficit: 0.066251
+    deficit_regret: 0.056246
+    oracle_config_id: pibaq|median|mindet|none|limma
 - id: PXD056598_DIA__D_Vanq_ex_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3630,7 +3630,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 2613
+    entity_count: 2333
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3645,19 +3645,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.2133
+    held_out_rank_spearman: 0.344
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 127
-    held_out_deficit: 0.071992
-    deficit_regret: 0.060005
-    oracle_config_id: pibaq|none|mindet|none|limrots
+    held_out_benchmark_rank: 46
+    held_out_deficit: 0.07125
+    deficit_regret: 0.063557
+    oracle_config_id: pibaq|none|mindet|none|rots
 - id: PXD056598_DIA__D_ulti_ecl_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3680,7 +3680,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 3408
+    entity_count: 3146
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3695,19 +3695,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.2398
+    held_out_rank_spearman: 0.1847
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 30
-    held_out_deficit: 0.032937
-    deficit_regret: 0.015674
-    oracle_config_id: pibaq|none|mindet|none|limrots
+    held_out_benchmark_rank: 44
+    held_out_deficit: 0.056537
+    deficit_regret: 0.046389
+    oracle_config_id: pibaq|median|mindet|none|deqms
 - id: PXD056598_DIA__E_ulti_lumos_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3730,7 +3730,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 3874
+    entity_count: 3571
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3745,19 +3745,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.1441
+    held_out_rank_spearman: 0.2636
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 96
-    held_out_deficit: 0.079336
-    deficit_regret: 0.067872
-    oracle_config_id: pibaq|median|mindet|none|deqms
+    held_out_benchmark_rank: 22
+    held_out_deficit: 0.056025
+    deficit_regret: 0.0458
+    oracle_config_id: pibaq|none|minprob|none|deqms
 - id: PXD056598_DIA__G_ulti_ex_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3780,7 +3780,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 3907
+    entity_count: 3540
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3795,19 +3795,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.3547
+    held_out_rank_spearman: 0.2286
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 32
-    held_out_deficit: 0.03137
-    deficit_regret: 0.021245
-    oracle_config_id: directlfq|none|mindet|none|deqms
+    held_out_benchmark_rank: 45
+    held_out_deficit: 0.059767
+    deficit_regret: 0.038162
+    oracle_config_id: pibaq|median|mindet|none|deqms
 - id: PXD056598_DIA__H_ulti_ecl_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3830,7 +3830,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 4470
+    entity_count: 4197
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3845,19 +3845,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.491
+    held_out_rank_spearman: 0.4079
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 61
-    held_out_deficit: 0.063308
-    deficit_regret: 0.045952
-    oracle_config_id: maxlfq|median|mindet|none|proda
+    held_out_benchmark_rank: 18
+    held_out_deficit: 0.035425
+    deficit_regret: 0.019154
+    oracle_config_id: pibaq|median|mindet|none|limrots
 - id: PXD056598_DIA__H_ulti_ex_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3880,7 +3880,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 4567
+    entity_count: 4262
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3895,19 +3895,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.4024
+    held_out_rank_spearman: 0.3175
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 24
-    held_out_deficit: 0.022878
-    deficit_regret: 0.013962
-    oracle_config_id: directlfq|none|mindet|none|deqms
+    held_out_benchmark_rank: 8
+    held_out_deficit: 0.021516
+    deficit_regret: 0.002594
+    oracle_config_id: maxlfq|median|mindet|none|deqms
 - id: PXD056598_DIA__I_nLC_ex_DIA_PYE1
   project_accession: PXD056598
   study: PXD056598
@@ -3930,7 +3930,7 @@
           yeast: -1.5849625007211563
           ecoli: 1.0
   ground_truth:
-    entity_count: 4032
+    entity_count: 3755
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -3945,19 +3945,19 @@
     held_out_study: PXD056598
     training_datasets: 27
     ranked_workflows: 390
-    held_out_rank_spearman: 0.1944
+    held_out_rank_spearman: 0.3096
     selected_pipeline:
-      id: maxlfq|none|minprob|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
-      imputation: minprob
+      imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 106
-    held_out_deficit: 0.06869
-    deficit_regret: 0.059896
-    oracle_config_id: pibaq|none|mindet|none|limrots
+    held_out_benchmark_rank: 38
+    held_out_deficit: 0.038183
+    deficit_regret: 0.026456
+    oracle_config_id: pibaq|median|mindet|none|limrots
 - id: PXD056832__HYEPept_Batch1
   project_accession: PXD056832
   study: PXD056832
@@ -4000,7 +4000,7 @@
           yeast: 1.0
           ecoli: -1.584962500721156
   ground_truth:
-    entity_count: 1258
+    entity_count: 1045
     source:
       type: fasta_headers
       changing_components: ecoli;yeast
@@ -4015,7 +4015,7 @@
     held_out_study: PXD056832
     training_datasets: 35
     ranked_workflows: 390
-    held_out_rank_spearman: -0.0027
+    held_out_rank_spearman: -0.0677
     selected_pipeline:
       id: maxlfq|none|mindet|none|deqms
       quantification: maxlfq
@@ -4024,9 +4024,9 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 268
-    held_out_deficit: 0.196405
-    deficit_regret: 0.189165
+    held_out_benchmark_rank: 240
+    held_out_deficit: 0.196398
+    deficit_regret: 0.189472
     oracle_config_id: directlfq|none|mindet|none|rots
 - id: PXD056832__HYEPept_Batch2
   project_accession: PXD056832
@@ -4070,7 +4070,7 @@
           yeast: 1.0
           ecoli: -1.584962500721156
   ground_truth:
-    entity_count: 1246
+    entity_count: 1034
     source:
       type: fasta_headers
       changing_components: ecoli;yeast
@@ -4085,7 +4085,7 @@
     held_out_study: PXD056832
     training_datasets: 35
     ranked_workflows: 390
-    held_out_rank_spearman: 0.1847
+    held_out_rank_spearman: 0.3643
     selected_pipeline:
       id: maxlfq|none|mindet|none|deqms
       quantification: maxlfq
@@ -4094,10 +4094,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 43
-    held_out_deficit: 0.030859
-    deficit_regret: 0.024841
-    oracle_config_id: pibaq|none|mindet|none|limrots
+    held_out_benchmark_rank: 37
+    held_out_deficit: 0.033603
+    deficit_regret: 0.024908
+    oracle_config_id: pibaq|none|mindet|none|rots
 - id: PXD056832__HYEPept_Batch3
   project_accession: PXD056832
   study: PXD056832
@@ -4140,7 +4140,7 @@
           yeast: 1.0
           ecoli: -1.584962500721156
   ground_truth:
-    entity_count: 1262
+    entity_count: 1070
     source:
       type: fasta_headers
       changing_components: ecoli;yeast
@@ -4155,7 +4155,7 @@
     held_out_study: PXD056832
     training_datasets: 35
     ranked_workflows: 390
-    held_out_rank_spearman: 0.0274
+    held_out_rank_spearman: 0.1982
     selected_pipeline:
       id: maxlfq|none|mindet|none|deqms
       quantification: maxlfq
@@ -4164,10 +4164,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 85
-    held_out_deficit: 0.037498
-    deficit_regret: 0.036052
-    oracle_config_id: pibaq|none|mindet|none|rots
+    held_out_benchmark_rank: 107
+    held_out_deficit: 0.05396
+    deficit_regret: 0.052833
+    oracle_config_id: pibaq|none|mindet|none|limrots
 - id: PXD062685
   project_accession: PXD062685
   study: PXD062685
@@ -4190,7 +4190,7 @@
           yeast: 1.0
           ecoli: -2.0
   ground_truth:
-    entity_count: 3789
+    entity_count: 3391
     source:
       type: fasta_headers
       changing_components: ecoli;yeast
@@ -4205,7 +4205,7 @@
     held_out_study: PXD062685
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.8589
+    held_out_rank_spearman: 0.8531
     selected_pipeline:
       id: directlfq|none|mindet|none|deqms
       quantification: directlfq
@@ -4214,10 +4214,10 @@
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 42
-    held_out_deficit: 0.02821
-    deficit_regret: 0.02125
-    oracle_config_id: maxlfq|none|qrilc|none|limrots
+    held_out_benchmark_rank: 18
+    held_out_deficit: 0.015682
+    deficit_regret: 0.010872
+    oracle_config_id: maxlfq|none|mindet|none|rots
 - id: PXD066672
   project_accession: PXD066672
   study: PXD066672
@@ -4260,7 +4260,7 @@
           yeast: 2.321928094887362
           ecoli: -0.84799690655495
   ground_truth:
-    entity_count: 6470
+    entity_count: 6093
     source:
       type: fasta_headers
       changing_components: ecoli;yeast
@@ -4275,18 +4275,18 @@
     held_out_study: PXD066672
     training_datasets: 37
     ranked_workflows: 390
-    held_out_rank_spearman: 0.8296
+    held_out_rank_spearman: 0.7056
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 18
-    held_out_deficit: 0.029533
-    deficit_regret: 0.013455
+    held_out_benchmark_rank: 3
+    held_out_deficit: 0.015139
+    deficit_regret: 0.001325
     oracle_config_id: directlfq|none|seqknn|none|deqms
 - id: PXD070049
   project_accession: PXD070049
@@ -4310,7 +4310,7 @@
           yeast: 1.0
           ecoli: -2.0
   ground_truth:
-    entity_count: 2924
+    entity_count: 2402
     source:
       type: fasta_headers
       changing_components: ecoli;yeast
@@ -4325,19 +4325,19 @@
     held_out_study: PXD070049
     training_datasets: 35
     ranked_workflows: 390
-    held_out_rank_spearman: 0.7583
+    held_out_rank_spearman: 0.613
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 117
-    held_out_deficit: 0.048572
-    deficit_regret: 0.042778
-    oracle_config_id: maxlfq|median|qrilc|none|limrots
+    held_out_benchmark_rank: 20
+    held_out_deficit: 0.015124
+    deficit_regret: 0.011192
+    oracle_config_id: directlfq|none|minprob|none|limrots
 - id: PXD071205_TE__TE_15min_50ng
   project_accession: PXD071205
   study: PXD070049
@@ -4380,7 +4380,7 @@
           yeast: -2.321928094887362
           ecoli: 0.6780719051126377
   ground_truth:
-    entity_count: 5398
+    entity_count: 4927
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -4395,19 +4395,19 @@
     held_out_study: PXD070049
     training_datasets: 35
     ranked_workflows: 390
-    held_out_rank_spearman: 0.7774
+    held_out_rank_spearman: 0.6299
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 5
-    held_out_deficit: 0.006214
-    deficit_regret: 0.004062
-    oracle_config_id: maxlfq|none|mindet|none|rots
+    held_out_benchmark_rank: 19
+    held_out_deficit: 0.016055
+    deficit_regret: 0.009216
+    oracle_config_id: maxlfq|none|mindet|none|deqms
 - id: PXD071205_TE__TE_5min_50ng
   project_accession: PXD071205
   study: PXD070049
@@ -4450,7 +4450,7 @@
           yeast: -2.321928094887362
           ecoli: 0.6780719051126377
   ground_truth:
-    entity_count: 4811
+    entity_count: 4250
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -4465,19 +4465,19 @@
     held_out_study: PXD070049
     training_datasets: 35
     ranked_workflows: 390
-    held_out_rank_spearman: 0.5205
+    held_out_rank_spearman: 0.5846
     selected_pipeline:
-      id: maxlfq|none|mindet|none|deqms
-      quantification: maxlfq
+      id: directlfq|none|mindet|none|deqms
+      quantification: directlfq
       normalization: none
       imputation: mindet
       de_method: deqms
       fdr_method: bh
       log2fc_threshold: 0.584963
-    held_out_benchmark_rank: 17
-    held_out_deficit: 0.013328
-    deficit_regret: 0.006865
-    oracle_config_id: directlfq|none|mindet|none|limrots
+    held_out_benchmark_rank: 23
+    held_out_deficit: 0.021822
+    deficit_regret: 0.018746
+    oracle_config_id: pibaq|none|mindet|none|limrots
 - id: PXD071205_DI__DI_15min_250pg
   project_accession: PXD071205
   study: PXD070049
@@ -4520,7 +4520,7 @@
           yeast: -2.321928094887362
           ecoli: 0.6780719051126377
   ground_truth:
-    entity_count: 2016
+    entity_count: 1637
     source:
       type: fasta_components
       changing_components: ecoli;yeast
@@ -4574,7 +4574,7 @@
           yeast: -2.321928094887362
           ecoli: 0.6780719051126377
   ground_truth:
-    entity_count: 1450
+    entity_count: 1146
     source:
       type: fasta_components
       changing_components: ecoli;yeast

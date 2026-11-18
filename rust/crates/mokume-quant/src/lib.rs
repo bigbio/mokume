@@ -5,21 +5,24 @@ mod maxlfq;
 mod precision;
 
 pub use directlfq_aligned::{
-    direct_lfq_aligned, direct_lfq_aligned_with, sample_shifts as direct_lfq_sample_shifts,
-    sparse_sample_shifts as direct_lfq_sparse_sample_shifts, DirectLfqIon, DirectLfqNormalizedIon,
-    DirectLfqResult, DirectLfqRetain,
+    DirectLfqIon, DirectLfqNormalizedIon, DirectLfqResult, DirectLfqRetain, direct_lfq_aligned,
+    direct_lfq_aligned_with, sample_shifts as direct_lfq_sample_shifts,
+    sparse_sample_shifts as direct_lfq_sparse_sample_shifts,
 };
 pub use maxlfq::{
-    max_lfq, max_lfq_with_samples, solve_max_lfq, solve_max_lfq_with_stabilization, MaxLfqResult,
-    DEFAULT_MAXLFQ_MIN_RATIO_COUNT,
+    DEFAULT_MAXLFQ_MIN_RATIO_COUNT, MaxLfqResult, max_lfq, max_lfq_with_samples, solve_max_lfq,
+    solve_max_lfq_with_stabilization,
 };
-pub use precision::{cell_precisions, profile_residuals, ProfileResiduals};
+pub use precision::{ProfileResiduals, cell_precisions, profile_residuals};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PeptideMeasurement {
     pub peptide: PeptideId,
     pub sample: SampleId,
     pub intensity: f64,
+    /// Relative reliability of the value, for example lower for a value
+    /// transferred by match-between-runs; 1 for an unweighted measurement.
+    pub weight: f64,
 }
 
 pub fn supported_methods() -> &'static [QuantMethod] {
@@ -71,7 +74,7 @@ pub(crate) fn median(values: &mut Vec<f64>) -> Option<f64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{max_lfq, PeptideMeasurement};
+    use super::{PeptideMeasurement, max_lfq};
     use mokume_core::{PeptideId, SampleId};
 
     #[test]
@@ -81,21 +84,25 @@ mod tests {
                 peptide: PeptideId::new(0),
                 sample: SampleId::new(0),
                 intensity: 100.0,
+                weight: 1.0,
             },
             PeptideMeasurement {
                 peptide: PeptideId::new(0),
                 sample: SampleId::new(1),
                 intensity: 200.0,
+                weight: 1.0,
             },
             PeptideMeasurement {
                 peptide: PeptideId::new(1),
                 sample: SampleId::new(0),
                 intensity: 400.0,
+                weight: 1.0,
             },
             PeptideMeasurement {
                 peptide: PeptideId::new(1),
                 sample: SampleId::new(1),
                 intensity: 800.0,
+                weight: 1.0,
             },
         ];
 

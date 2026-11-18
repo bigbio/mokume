@@ -13,9 +13,10 @@ mod support;
 use mokume_core::{ImputationConfig, MokumeError, ProteinId, Result, SampleId};
 
 use methods::{
-    bpca_imputed_values, constant_imputed_values, gms_imputed_values, impseq_imputed_values,
-    impseqrob_imputed_values, knn_imputed_values, mindet_imputed_values, minprob_imputed_values,
-    qrilc_imputed_values, sample_stat_imputed_values, seqknn_imputed_values, SampleImputationStat,
+    SampleImputationStat, bpca_imputed_values, constant_imputed_values, gms_imputed_values,
+    impseq_imputed_values, impseqrob_imputed_values, knn_imputed_values, mindet_imputed_values,
+    minprob_imputed_values, qrilc_imputed_values, sample_stat_imputed_values,
+    seqknn_imputed_values,
 };
 
 pub fn imputed_values<F>(
@@ -36,6 +37,11 @@ where
         });
     }
 
+    let sample_stat = |stat, value_at: &mut F| {
+        Ok(sample_stat_imputed_values(
+            proteins, samples, stat, value_at,
+        ))
+    };
     match method.as_str() {
         "" | "none" => Ok(Vec::new()),
         "mindet" => Ok(mindet_imputed_values(
@@ -44,56 +50,52 @@ where
             config.quantile,
             &mut value_at,
         )),
-        "minprob" => minprob_imputed_values(
-            proteins,
-            samples,
-            config.quantile,
-            config.tune_sigma,
-            config.seed,
-            &mut value_at,
-        ),
-        "mean" => Ok(sample_stat_imputed_values(
-            proteins,
-            samples,
-            SampleImputationStat::Mean,
-            &mut value_at,
-        )),
-        "median" => Ok(sample_stat_imputed_values(
-            proteins,
-            samples,
-            SampleImputationStat::Median,
-            &mut value_at,
-        )),
-        "most_frequent" => Ok(sample_stat_imputed_values(
-            proteins,
-            samples,
-            SampleImputationStat::MostFrequent,
-            &mut value_at,
-        )),
+        "mean" => sample_stat(SampleImputationStat::Mean, &mut value_at),
+        "median" => sample_stat(SampleImputationStat::Median, &mut value_at),
+        "most_frequent" => sample_stat(SampleImputationStat::MostFrequent, &mut value_at),
         "constant" | "zero" => Ok(constant_imputed_values(
             proteins,
             samples,
             0.0,
             &mut value_at,
         )),
+        _ => model_imputed_values(&method, config, proteins, samples, &mut value_at),
+    }
+}
+
+fn model_imputed_values<F>(
+    method: &str,
+    config: &ImputationConfig,
+    proteins: &[ProteinId],
+    samples: &[SampleId],
+    value_at: &mut F,
+) -> Result<Vec<(ProteinId, SampleId, f64)>>
+where
+    F: FnMut(ProteinId, SampleId) -> Option<f64>,
+{
+    match method {
+        "minprob" => minprob_imputed_values(
+            proteins,
+            samples,
+            config.quantile,
+            config.tune_sigma,
+            config.seed,
+            value_at,
+        ),
         "knn" => Ok(knn_imputed_values(
             proteins,
             samples,
             config.n_neighbors,
-            &mut value_at,
+            value_at,
         )),
-        "seqknn" => seqknn_imputed_values(proteins, samples, config.n_neighbors, &mut value_at),
-        "impseq" => impseq_imputed_values(proteins, samples, &mut value_at),
-        "gms" => Ok(gms_imputed_values(proteins, samples, &mut value_at)),
-        "bpca" => bpca_imputed_values(proteins, samples, &mut value_at),
-        "impseqrob" => impseqrob_imputed_values(proteins, samples, &mut value_at),
-        "qrilc" => qrilc_imputed_values(
-            proteins,
-            samples,
-            config.tune_sigma,
-            config.seed,
-            &mut value_at,
-        ),
+        "seqknn" => seqknn_imputed_values(proteins, samples, config.n_neighbors, value_at),
+        "impseq" => impseq_imputed_values(proteins, samples, value_at),
+        "gms" => Ok(gms_imputed_values(proteins, samples, value_at)),
+        "bpca" => bpca_imputed_values(proteins, samples, value_at),
+        "impseqrob" => impseqrob_imputed_values(proteins, samples, value_at),
+        "qrilc" => {
+            qrilc_imputed_values(proteins, samples, config.tune_sigma, config.seed, value_at)
+        }
         _ => unsupported("imputation"),
     }
 }

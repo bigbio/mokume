@@ -8,12 +8,12 @@ pub use coverage::coverage_filtered_proteins;
 pub use irs::irs_scaling_factors;
 pub use mokume_core::stats::{mean_positive, median, median_finite, quantile_linear};
 pub use run::{
-    parse_run_normalization_method, run_normalization_factors, run_normalization_transforms,
-    RunCellKey, RunNormalizationMethod, RunNormalizationTransform,
+    RunCellKey, RunNormalizationMethod, RunNormalizationTransform, parse_run_normalization_method,
+    run_normalization_factors, run_normalization_transforms,
 };
 pub use sample::{
-    condition_median_sample_factors, global_median_sample_factors,
-    parse_sample_normalization_method, tmm_norm_factors, SampleNormalizationMethod,
+    SampleNormalizationMethod, condition_median_sample_factors, global_median_sample_factors,
+    parse_sample_normalization_method, tmm_norm_factors,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,9 +25,9 @@ pub enum NormalizationScale {
 #[cfg(test)]
 mod tests {
     use super::{
+        RunCellKey, RunNormalizationMethod, RunNormalizationTransform, SampleNormalizationMethod,
         parse_run_normalization_method, parse_sample_normalization_method,
-        run_normalization_transforms, RunCellKey, RunNormalizationMethod,
-        RunNormalizationTransform, SampleNormalizationMethod,
+        run_normalization_transforms,
     };
     use std::collections::HashMap;
 

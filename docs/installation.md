@@ -6,6 +6,13 @@
 pip install mokume
 ```
 
+!!! warning "PyPI still serves 0.1.0"
+
+    Until 0.2.0 is published, `pip install mokume` installs 0.1.0, the earlier
+    pure-Python release, whose `maxlfq` is a DirectLFQ-style trace alignment
+    rather than the MaxLFQ solver. Install 0.2.0 [from source](#from-source).
+    `mokume-py` is not on PyPI yet; install it from source too.
+
 `mokume` is the default Rust-kernel distribution. It installs the compiled
 `mokume._mokume` extension, its Python API and periphery, and the `mokume`
 console command.
@@ -109,6 +116,10 @@ mokume builds from two project roots, one per distribution:
   pip install ./rust            # builds the extension via the maturin backend
   ```
 
+  The build needs the Rust toolchain that `rust/rust-toolchain.toml` pins
+  (1.100.0; rustup installs it on first use) and CMake, which builds the bundled
+  HDF5 library.
+
 For a development checkout of the Rust wheel, build the extension in place with
 `maturin develop` run from `rust/`; the periphery is plain Python and needs no
 separate build step.
@@ -125,6 +136,10 @@ pip install ./rust
 
 - Python >= 3.10 for the Rust-backed ``mokume`` distribution, ``mokume-py``,
   and the optional Plugin/MCP workflow
+- If `pip install mokume` installs 0.1.0, the earlier pure-Python release,
+  either Python is older than 3.10 or pyOpenMS 3.2 or newer has no wheel for
+  the platform (for example macOS before 13 on Intel or before 14 on Apple
+  silicon), and pip fell back to 0.1.0 without an error
 - Both distributions declare pyOpenMS as a base dependency. In the default
   Rust-backed wheel, piBAQ reads every protease registered by the installed
   runtime, digests the FASTA in Python, and passes the complete theoretical-

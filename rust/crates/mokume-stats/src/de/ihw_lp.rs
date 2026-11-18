@@ -1,5 +1,5 @@
 //! The IHW Grenander linear program for an ordinal covariate.
-use super::{invalid, Result};
+use super::{Result, invalid};
 use microlp::{ComparisonOp, OptimizationDirection, Problem, Variable};
 
 pub(super) fn learn(

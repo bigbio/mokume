@@ -87,6 +87,13 @@ pub(crate) struct Peptides2ProteinArgs {
     )]
     pub(crate) stabilize: bool,
 
+    #[arg(
+        long = "weight-column",
+        value_name = "COLUMN",
+        help = "MaxLFQ and top<N> only: column of per-row weights in (0, 1]; MaxLFQ takes weighted pair medians and top<N> takes the highest-weight rows first"
+    )]
+    pub(crate) weight_column: Option<String>,
+
     #[arg(long = "families", value_name = "FILE")]
     pub(crate) families_yaml: Option<PathBuf>,
 

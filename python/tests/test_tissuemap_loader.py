@@ -113,6 +113,7 @@ def test_tmt_pg_numeric_channels_use_qpx_sample_order(tmp_path):
         [
             {
                 "anchor_protein": "P1",
+                "pg_accessions": ["P1"],
                 "run_file_name": "run-1",
                 "intensities": [
                     {"label": "1", "intensity": 10.0},
@@ -209,6 +210,7 @@ def test_duckdb_tmt_normalizes_each_run_by_its_reference_channel(tmp_path):
     feature_rows = [
         {
             "anchor_protein": "P1",
+            "pg_accessions": ["P1"],
             "run_file_name": "run-1",
             "intensities": [
                 {"label": "TMT126", "intensity": 10.0},
@@ -219,6 +221,7 @@ def test_duckdb_tmt_normalizes_each_run_by_its_reference_channel(tmp_path):
         },
         {
             "anchor_protein": "P1",
+            "pg_accessions": ["P1"],
             "run_file_name": "run-2",
             "intensities": [
                 {"label": "TMT126", "intensity": 30.0},
@@ -308,12 +311,14 @@ def test_load_dataset_lfq_stays_on_existing_path(tmp_path, monkeypatch, legacy):
         [
             {
                 "anchor_protein": "P1",
+                "pg_accessions": ["P1"],
                 "run_file_name": "run-1",
                 "intensities": [_lfq_intensity(10.0, legacy)],
                 "is_decoy": False,
             },
             {
                 "anchor_protein": "P1",
+                "pg_accessions": ["P1"],
                 "run_file_name": "run-2",
                 "intensities": [_lfq_intensity(20.0, legacy)],
                 "is_decoy": False,
@@ -385,6 +390,8 @@ def test_load_dataset_lfq_matches_exploded_sums(tmp_path):
         intensities=lambda rows: [
             [{"label": "LFQ", "intensity": value}] for value in rows["value"]
         ]
+    ).assign(
+        pg_accessions=lambda frame: frame["anchor_protein"].map(lambda value: [value])
     ).drop(columns="value").to_parquet(
         tmp_path / "qpx_output" / "TEST.feature.parquet", index=False
     )
@@ -417,21 +424,21 @@ def test_load_dataset_detects_tmt_from_feature_labels(tmp_path, monkeypatch):
         [
             {
                 "anchor_protein": "P1",
+                "pg_accessions": ["P1"],
                 "run_file_name": "run-1",
                 "intensities": [{"label": "TMT126", "intensity": 10.0}],
                 "is_decoy": False,
             }
         ]
     ).to_parquet(tmp_path / "qpx_output" / "TEST.feature.parquet", index=False)
-    monkeypatch.setattr(
-        loader,
-        "_aggregate_tmt_with_duckdb",
-        lambda *_args: pd.DataFrame(
-            {"protein": ["P1"], "sample_accession": ["sample-a"], "intensity": [3.0]}
-        ),
+    aggregated = pd.DataFrame(
+        {"protein": ["P1"], "sample_accession": ["sample-a"], "intensity": [3.0]}
     )
+    aggregated.attrs["anchor_protein"] = {"P1": "P1"}
+    monkeypatch.setattr(loader, "_aggregate_tmt_with_duckdb", lambda *_args: aggregated)
 
     matrix, metadata = load_dataset(tmp_path, "TEST")
 
     assert matrix.loc["P1", "sample-a"] == 3.0
+    assert matrix.attrs["anchor_protein"] == {"P1": "P1"}
     assert set(metadata["quant_type"]) == {"TMT"}

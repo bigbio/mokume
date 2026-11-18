@@ -92,7 +92,7 @@ pub fn iterative_outlier_removal(
         let outlier_local_indices: Vec<usize> = labels
             .iter()
             .enumerate()
-            .filter(|(_, &label)| label == -1)
+            .filter(|&(_, &label)| label == -1)
             .map(|(idx, _)| idx)
             .collect();
 
@@ -172,9 +172,11 @@ mod tests {
         assert!(!kept_names.contains(&"OUT2"));
         // All twelve dense samples survive.
         assert_eq!(kept_names.len(), 12);
-        assert!(kept_names
-            .iter()
-            .all(|name| name.starts_with('A') || name.starts_with('B')));
+        assert!(
+            kept_names
+                .iter()
+                .all(|name| name.starts_with('A') || name.starts_with('B'))
+        );
 
         // Converges: first iteration removes the outliers, second finds none.
         assert!(!result.iterations.is_empty());

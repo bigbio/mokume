@@ -11,7 +11,7 @@ mod irs;
 mod pibaq;
 
 use super::Features2ProteinsArgs;
-use crate::parsers::{QuantMethodArg, DEFAULT_TOPN_PEPTIDES};
+use crate::parsers::{DEFAULT_TOPN_PEPTIDES, QuantMethodArg};
 use differential_expression::resolve_differential_expression;
 use imputation::resolve_imputation;
 use irs::resolve_irs;
@@ -112,10 +112,11 @@ fn resolve_quantification(
 }
 
 /// Default run and sample normalization for `method`. Global-median takes the
-/// median of each sample's detected features, which moves with detection depth
-/// and spike-in composition, so MaxLFQ defaults to the hierarchical (DirectLFQ)
-/// alignment of shared peptide species unless normalization proteins ask for a
-/// median over those proteins.
+/// median of each sample's detected features, which moves with detection depth,
+/// match-between-runs transfers and spike-in composition, so MaxLFQ, top-N, sum
+/// and median default to the hierarchical (DirectLFQ) alignment of shared
+/// peptide species unless normalization proteins ask for a median over those
+/// proteins. The other intensity methods keep global-median.
 fn default_normalization(
     args: &Features2ProteinsArgs,
     method: QuantMethod,
@@ -125,7 +126,11 @@ fn default_normalization(
         return ("none".to_owned(), "none".to_owned());
     }
     let defaults = NormalizationConfig::default();
-    if method == QuantMethod::MaxLfq && args.normalization_proteins.is_none() {
+    let hierarchical = matches!(
+        method,
+        QuantMethod::MaxLfq | QuantMethod::TopN | QuantMethod::Sum | QuantMethod::Median
+    );
+    if hierarchical && args.normalization_proteins.is_none() {
         (defaults.run_method, "hierarchical".to_owned())
     } else {
         (defaults.run_method, defaults.sample_method)
@@ -185,20 +190,27 @@ fn validate_protein_fdr_request(
     Ok(())
 }
 
-/// `--transferred-features` reads `id_run_file_name` from QPX feature input;
-/// MSstats input has no such column and spectral-count does not read features.
+/// `--transferred-features` and `--transferred-weight` read `id_run_file_name`
+/// from QPX feature input; MSstats input has no such column and spectral-count
+/// does not read features. Only MaxLFQ pair medians and top-N selection weigh
+/// features, and a weight needs the transferred features that `drop` removes.
 fn validate_transferred_features_request(
     args: &Features2ProteinsArgs,
     method: QuantMethod,
 ) -> mokume_core::Result<()> {
-    if args
+    let drop = args
         .transferred_features
         .as_deref()
-        .is_some_and(|value| value.eq_ignore_ascii_case("drop"))
-        && (args.msstats.is_some() || method == QuantMethod::SpectralCount)
-    {
+        .is_some_and(|value| value.eq_ignore_ascii_case("drop"));
+    if drop && (args.msstats.is_some() || method == QuantMethod::SpectralCount) {
         return Err(invalid_input(
             "--transferred-features requires QPX --parquet feature input and a feature-based quantification method",
+        ));
+    }
+    let weighs = matches!(method, QuantMethod::MaxLfq | QuantMethod::TopN);
+    if args.transferred_weight.is_some() && (drop || args.msstats.is_some() || !weighs) {
+        return Err(invalid_input(
+            "--transferred-weight requires QPX --parquet feature input, --quant-method maxlfq or top<N>, and transferred features kept",
         ));
     }
     Ok(())
@@ -456,6 +468,7 @@ fn input_config(args: &Features2ProteinsArgs) -> InputConfig {
         msstats: args.msstats.clone(),
         psm: args.psm.clone(),
         sdrf: args.sdrf.clone(),
+        run: args.run.clone(),
         fasta: args.fasta.clone(),
         transferred_features: if args
             .transferred_features
@@ -466,6 +479,7 @@ fn input_config(args: &Features2ProteinsArgs) -> InputConfig {
         } else {
             TransferredFeatures::Keep
         },
+        transferred_weight: args.transferred_weight,
     }
 }
 

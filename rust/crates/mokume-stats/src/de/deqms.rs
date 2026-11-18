@@ -14,13 +14,13 @@ mod weighted;
 use mokume_core::Result;
 
 use super::correct::bh_adjust;
-use super::limma::{run_limma_moderation, LimmaModeration};
-use super::limma_design::{reportable, run_design_moderation, DesignContrast};
+use super::limma::{LimmaModeration, run_limma_moderation};
+use super::limma_design::{DesignContrast, reportable, run_design_moderation};
 use super::special::{digamma, trigamma};
 use super::student_t::{student_t_sf, student_t_two_sided_log_pvalue};
-use super::{classify, DeResult};
+use super::{DeResult, classify};
 
-pub use weighted::{deqms_two_group_weighted, PrecisionRows};
+pub use weighted::{PrecisionRows, deqms_two_group_weighted};
 
 /// Minimum number of valid (finite `log_var`, `x`, `df`) proteins required for
 /// the quadratic count path (floor(.75*n) must contain at least three points).
@@ -383,7 +383,7 @@ fn grid_search_d0(mean_myfct: f64, n_genes: usize) -> f64 {
 mod tests {
     use super::deqms_two_group;
     use crate::de::{
-        limma_two_group, Significance, DEFAULT_FDR_THRESHOLD, DEFAULT_LOG2FC_THRESHOLD,
+        DEFAULT_FDR_THRESHOLD, DEFAULT_LOG2FC_THRESHOLD, Significance, limma_two_group,
     };
 
     // 15-protein / 3-vs-3 log2 fixture shared by the oracle scripts in the
@@ -551,9 +551,11 @@ mod tests {
         }
 
         // Sanity: the fallback still produces a non-trivial significance call.
-        assert!(deqms
-            .iter()
-            .any(|r| r.significance != Significance::Unchanged));
+        assert!(
+            deqms
+                .iter()
+                .any(|r| r.significance != Significance::Unchanged)
+        );
     }
 }
 

@@ -26,6 +26,7 @@ pub struct SdrfRecord {
 #[derive(Debug, Clone, Default)]
 pub struct SdrfTable {
     records: Vec<SdrfRecord>,
+    exact: bool,
     // Both indexes hold positions in `records`; they are built once in `from_records`.
     by_run: HashMap<String, Vec<usize>>,
     by_run_label: HashMap<(String, String), usize>,
@@ -71,11 +72,30 @@ impl SdrfTable {
         let record_count = records.len();
         let mut table = Self {
             records,
+            exact: false,
             by_run: HashMap::with_capacity(record_count),
             by_run_label: HashMap::with_capacity(record_count),
         };
         table.rebuild_index()?;
         Ok(table)
+    }
+
+    pub fn from_run_path(path: impl AsRef<Path>) -> Result<Self> {
+        let records = crate::run::read_run(path.as_ref())?;
+        let mut by_run_label = HashMap::new();
+        for (index, record) in records.iter().enumerate() {
+            let key = (
+                record.data_file.clone(),
+                record.label.clone().unwrap_or_default(),
+            );
+            by_run_label.insert(key, index);
+        }
+        Ok(Self {
+            records,
+            exact: true,
+            by_run: HashMap::new(),
+            by_run_label,
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -106,6 +126,9 @@ impl SdrfTable {
     }
 
     pub fn lookup(&self, run_file_name: &str, label: Option<&str>) -> Result<&SdrfRecord> {
+        if self.exact {
+            return self.lookup_run(run_file_name, label);
+        }
         let run_key = normalize_file_key(run_file_name);
         if let Some(label) = label {
             let label_key = normalize_label_key(label);
@@ -143,6 +166,19 @@ impl SdrfTable {
                 self.record_context(indices)
             ))),
         }
+    }
+
+    fn lookup_run(&self, run: &str, label: Option<&str>) -> Result<&SdrfRecord> {
+        let key = (run.to_owned(), label.unwrap_or_default().to_owned());
+        self.by_run_label
+            .get(&key)
+            .map(|index| &self.records[*index])
+            .ok_or_else(|| {
+                invalid_input(format!(
+                    "QPX run `{run}` and label `{}` have no exact run view match",
+                    key.1
+                ))
+            })
     }
 
     fn rebuild_index(&mut self) -> Result<()> {

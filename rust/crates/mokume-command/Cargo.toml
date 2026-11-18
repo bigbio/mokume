@@ -2,6 +2,7 @@
 name = "mokume-command"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -16,10 +17,10 @@ clap = { workspace = true }
 csv = "1.4.0"
 hdf5-metno = { version = "0.15.0", features = ["static"] }
 ndarray = "0.17"
-mokume-core = { path = "../mokume-core" }
-mokume-io = { path = "../mokume-io" }
-mokume-pipeline = { path = "../mokume-pipeline" }
-mokume-stats = { version = "0.2.0", path = "../mokume-stats" }
+mokume-core = { workspace = true }
+mokume-io = { workspace = true }
+mokume-pipeline = { workspace = true }
+mokume-stats = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

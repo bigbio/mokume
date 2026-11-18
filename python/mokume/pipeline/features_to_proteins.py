@@ -671,6 +671,7 @@ def features_to_proteins(
     msstats: Optional[str] = None,
     maxlfq_min_ratio_count: int = 2,
     stabilize: bool = False,
+    run: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Quantify proteins from QPX feature parquet or legacy SDRF+MSstats data.
@@ -708,13 +709,16 @@ def features_to_proteins(
         Minimum unique peptides per protein/sample cell. Default: 2.
     remove_contaminants : bool
         Whether to remove contaminants and decoys. Default: True.
-    run_normalization : str
+    run_normalization : str, optional
         Run/technical replicate normalization method. Options:
         none, median, mean, max, global, max_min, IQR. DirectLFQ and Ratio
         manage normalization internally; peptide_count is unaffected by
         intensity normalization. These methods therefore require ``none``.
-    sample_normalization : str
-        Sample-to-sample normalization method. Options:
+        Default: ``none`` for these methods, ``median`` otherwise.
+    sample_normalization : str, optional
+        Sample-to-sample normalization method. Default: ``hierarchical`` for
+        MaxLFQ, ``top<N>``, sum and median, ``none`` for DirectLFQ, Ratio and
+        peptide_count, and ``globalMedian`` otherwise. Options:
         - 'none': No normalization
         - 'globalMedian': Sample median / global median
         - 'conditionMedian': Condition-specific median
@@ -777,16 +781,6 @@ def features_to_proteins(
     pd.DataFrame
         Protein intensities matrix.
     """
-    quant_method_lower = quant_method.lower()
-    manages_normalization = quant_method_lower in {
-        "directlfq",
-        "ratio",
-        "peptide_count",
-    }
-    if run_normalization is None:
-        run_normalization = "none" if manages_normalization else "median"
-    if sample_normalization is None:
-        sample_normalization = "none" if manages_normalization else "globalMedian"
     if ion_alignment is not None:
         raise ValueError("ion_alignment is no longer supported")
 
@@ -794,6 +788,7 @@ def features_to_proteins(
         input=InputConfig(
             parquet=parquet,
             sdrf=sdrf,
+            run=run,
             fasta_file=fasta_file,
             msstats=msstats,
         ),

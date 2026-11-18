@@ -6,13 +6,14 @@ mod impurity;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
+use std::path::Path;
 
 use mokume_core::{MokumeError, Result, TmtConfig, TmtRowMerge};
-use mokume_io::{QpxFeatureRecord, SdrfTable};
+use mokume_io::{QpxFeatureRecord, SdrfTable, reject_isotope_corrected};
 use tracing::{info, warn};
 
-use floor::{plex_model, PlexModel, PlexSample};
-use impurity::{channel_key, ImpurityMatrix};
+use floor::{PlexModel, PlexSample, plex_model};
+use impurity::{ImpurityMatrix, channel_key};
 
 const FLOOR_CLAMP: f64 = 0.01;
 
@@ -40,7 +41,14 @@ pub(crate) struct TmtRowProcessor {
 }
 
 impl TmtRowProcessor {
-    pub(crate) fn new(config: &TmtConfig, sample_plex: HashMap<String, String>) -> Result<Self> {
+    pub(crate) fn new(
+        config: &TmtConfig,
+        sample_plex: HashMap<String, String>,
+        feature: Option<&Path>,
+    ) -> Result<Self> {
+        if let (Some(_), Some(feature)) = (&config.impurity_table, feature) {
+            reject_isotope_corrected(feature)?;
+        }
         let impurity = config
             .impurity_table
             .as_deref()
@@ -330,7 +338,7 @@ mod tests {
             row_merge: TmtRowMerge::BestRow,
             ..TmtConfig::default()
         };
-        let mut processor = TmtRowProcessor::new(&config, HashMap::new())?;
+        let mut processor = TmtRowProcessor::new(&config, HashMap::new(), None)?;
         let low = row("PEPTIDEK", &[("TMT126", 10.0), ("TMT127N", 90.0)]);
         let high = row("PEPTIDEK", &[("TMT126", 100.0), ("TMT127N", 50.0)]);
         processor.observe(low.clone(), None);

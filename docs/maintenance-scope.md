@@ -63,6 +63,11 @@ which implementation leads and how each is maintained.
 | `peptides2protein`   | ✅ Leading — authoritative | ✅ Added value · best-effort |
 | `correct-batches`    | ✅ Leading — authoritative (native ComBat) | ✅ Added value · best-effort |
 
+Some options exist only in the Rust kernel. For example, mokume-py has no
+counterpart of the measurement weights of `features2proteins
+--transferred-weight` and `peptides2protein --weight-column`; it rolls up
+transferred and identified values on equal terms.
+
 Legend:
 
 - **Leading — authoritative:** new computation lands here first; defines correct

@@ -8,8 +8,8 @@ use arrow::array::{
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use mokume_core::{MokumeError, Result};
-use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use parquet::arrow::ProjectionMask;
+use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 
 const FEATURE_GROUP_COLUMNS: &[&str] = &[
     "feature_id",
@@ -113,14 +113,13 @@ pub fn flatten_feature_protein_groups(batch: &RecordBatch) -> Result<Vec<QpxFeat
                 .map(|column| list_strings(column, row, "pg_accessions"))
                 .transpose()?
                 .unwrap_or_default();
-            if protein_accessions.is_empty() {
-                if let Some(anchor) = anchors
+            if protein_accessions.is_empty()
+                && let Some(anchor) = anchors
                     .map(|column| optional_string(column, row, "anchor_protein"))
                     .transpose()?
                     .flatten()
-                {
-                    protein_accessions.push(anchor);
-                }
+            {
+                protein_accessions.push(anchor);
             }
             let is_decoy = decoys
                 .map(|column| optional_bool(column, row, "is_decoy"))

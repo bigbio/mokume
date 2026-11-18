@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use mokume_core::stats::median;
 use mokume_core::Result;
+use mokume_core::stats::median;
 
 use crate::math::{unsupported, valid_scale};
 

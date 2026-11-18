@@ -12,7 +12,7 @@ use faer::Mat;
 use mokume_core::{MokumeError, Result};
 use rayon::prelude::*;
 
-use super::limma_design::{column_major, Qr};
+use super::limma_design::{Qr, column_major};
 
 const TRIM: f64 = 0.15;
 const RHO_MAX: f64 = 0.99;
@@ -49,7 +49,9 @@ pub fn duplicate_correlation(
         ));
     }
     if block_in_design(design, blocks) {
-        return Ok(zero("Block factor already encoded in the design matrix: setting intrablock correlation to zero."));
+        return Ok(zero(
+            "Block factor already encoded in the design matrix: setting intrablock correlation to zero.",
+        ));
     }
     let n_beta = design[0].len();
     let rho_min = 1.0 / (1.0 - max_block_size as f64) + 0.01;

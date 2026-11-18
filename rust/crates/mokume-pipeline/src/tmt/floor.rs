@@ -44,10 +44,10 @@ impl PlexSample {
         self.rng ^= self.rng >> 7;
         self.rng ^= self.rng << 17;
         let slot = self.rng % self.seen;
-        if let Ok(slot) = usize::try_from(slot) {
-            if slot < RESERVOIR_ROWS {
-                self.rows[slot] = row;
-            }
+        if let Ok(slot) = usize::try_from(slot)
+            && slot < RESERVOIR_ROWS
+        {
+            self.rows[slot] = row;
         }
     }
 }
@@ -155,7 +155,7 @@ fn quantile_of(values: &mut [f64], quantile: f64) -> f64 {
 mod tests {
     use mokume_core::TmtInterferenceFloor;
 
-    use super::{plex_model, PlexSample};
+    use super::{PlexSample, plex_model};
 
     #[test]
     fn interference_floor_is_subtracted_relative_to_the_row_mean() {

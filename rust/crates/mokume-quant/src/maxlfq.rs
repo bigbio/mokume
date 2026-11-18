@@ -11,7 +11,7 @@ use faer::linalg::cholesky::llt;
 use faer::{Mat, Par};
 use mokume_core::{MokumeError, Result, SampleId};
 
-use crate::{median, sample_order, PeptideMeasurement};
+use crate::{PeptideMeasurement, median, sample_order};
 
 /// The minimum number of shared species supporting a sample-pair ratio.
 pub const DEFAULT_MAXLFQ_MIN_RATIO_COUNT: usize = 2;
@@ -39,7 +39,11 @@ pub fn max_lfq_with_samples(
 }
 
 /// Minimize the unweighted squared residuals of all valid pairwise log ratios.
-/// Duplicate species/sample observations are summed before taking logarithms.
+/// Each pair's ratio is the median of its shared species' log ratios; when the
+/// measurements carry unequal weights it is the weighted median, each species'
+/// ratio weighted by the product of its two measurement weights.
+/// Duplicate species/sample observations are summed before taking logarithms
+/// and keep their largest weight.
 /// Missing, nonpositive and nonfinite observations do not support a ratio.
 /// A sample without a valid edge stays zero (Cox et al., Fig. 2D).
 pub fn solve_max_lfq(
@@ -65,8 +69,8 @@ pub fn solve_max_lfq_with_stabilization(
     if sample_index.len() != samples.len() {
         return Err(invalid("sample identifiers must be unique"));
     }
-    let rows = intensity_rows(measurements, &sample_index)?;
-    let columns = SampleColumns::new(&rows, samples.len());
+    let (rows, weights) = intensity_rows(measurements, &sample_index)?;
+    let columns = SampleColumns::new(&rows, weights.as_deref(), samples.len());
     let components = connected_components(
         columns
             .linked_pairs(min_ratio_count)
@@ -115,10 +119,15 @@ fn linear_intensities(samples: &[SampleId], log_profile: Vec<f64>) -> Result<Vec
         .collect()
 }
 
+/// Values by species (rows) and sample (columns).
+type SpeciesRows = Vec<Vec<f64>>;
+
+/// Species-by-sample intensities and, when any measurement is weighted, the
+/// matching weights.
 fn intensity_rows(
     measurements: &[PeptideMeasurement],
     sample_index: &HashMap<SampleId, usize>,
-) -> Result<Vec<Vec<f64>>> {
+) -> Result<(SpeciesRows, Option<SpeciesRows>)> {
     let mut ordered = measurements
         .iter()
         .filter(|m| {
@@ -130,20 +139,23 @@ fn intensity_rows(
             .cmp(&(b.peptide.get(), b.sample.get()))
             .then_with(|| a.intensity.total_cmp(&b.intensity))
     });
-    let mut rows = BTreeMap::<u32, Vec<f64>>::new();
+    let weighted = ordered.iter().any(|m| m.weight != 1.0);
+    let mut rows = BTreeMap::<u32, (Vec<f64>, Vec<f64>)>::new();
     for measurement in ordered {
-        let values = rows
+        let (values, weights) = rows
             .entry(measurement.peptide.get())
-            .or_insert_with(|| vec![0.0; sample_index.len()]);
-        let value = &mut values[sample_index[&measurement.sample]];
-        *value += measurement.intensity;
-        if !value.is_finite() {
+            .or_insert_with(|| (vec![0.0; sample_index.len()], vec![0.0; sample_index.len()]));
+        let slot = sample_index[&measurement.sample];
+        values[slot] += measurement.intensity;
+        weights[slot] = weights[slot].max(measurement.weight);
+        if !values[slot].is_finite() {
             return Err(invalid(
                 "summed species intensity is outside the finite f64 range",
             ));
         }
     }
-    Ok(rows.into_values().collect())
+    let (rows, weights): (Vec<_>, Vec<_>) = rows.into_values().unzip();
+    Ok((rows, weighted.then_some(weights)))
 }
 
 /// Sample-major logs and per-sample bitsets of observed species: each pair
@@ -152,15 +164,26 @@ struct SampleColumns {
     species: usize,
     words: usize,
     logs: Vec<f64>,
+    /// Sample-major measurement weights, present only for weighted input.
+    weights: Option<Vec<f64>>,
     observed: Vec<u64>,
     /// Samples observing at least one species; no other sample can pair.
     present: Vec<usize>,
 }
 
 impl SampleColumns {
-    fn new(rows: &[Vec<f64>], n: usize) -> Self {
+    fn new(rows: &[Vec<f64>], weight_rows: Option<&[Vec<f64>]>, n: usize) -> Self {
         let species = rows.len();
         let words = species.div_ceil(64);
+        let weights = weight_rows.map(|weight_rows| {
+            let mut weights = vec![0.0; n * species];
+            for (row_index, row) in weight_rows.iter().enumerate() {
+                for (sample, &weight) in row.iter().enumerate() {
+                    weights[sample * species + row_index] = weight;
+                }
+            }
+            weights
+        });
         let mut logs = vec![0.0; n * species];
         let mut observed = vec![0_u64; n * words];
         for (row_index, row) in rows.iter().enumerate() {
@@ -183,6 +206,7 @@ impl SampleColumns {
             species,
             words,
             logs,
+            weights,
             observed,
             present,
         }
@@ -214,20 +238,88 @@ impl SampleColumns {
             .sum()
     }
 
-    /// Log ratios of `j` over `i` for the species both observe, in species order.
-    fn ratios_into(&self, i: usize, j: usize, ratios: &mut Vec<f64>) {
-        let logs_i = &self.logs[i * self.species..(i + 1) * self.species];
-        let logs_j = &self.logs[j * self.species..(j + 1) * self.species];
-        ratios.clear();
+    /// Call `visit` with each species both samples observe, in species order.
+    fn for_each_shared(&self, i: usize, j: usize, mut visit: impl FnMut(usize)) {
         for (word, (a, b)) in self.seen(i).iter().zip(self.seen(j)).enumerate() {
             let mut both = a & b;
             while both != 0 {
-                let row = word * 64 + both.trailing_zeros() as usize;
-                ratios.push(logs_j[row] - logs_i[row]);
+                visit(word * 64 + both.trailing_zeros() as usize);
                 both &= both - 1;
             }
         }
     }
+
+    fn column<'a>(&self, values: &'a [f64], sample: usize) -> &'a [f64] {
+        &values[sample * self.species..(sample + 1) * self.species]
+    }
+
+    /// Log ratios of `j` over `i` for the species both observe, in species order.
+    fn ratios_into(&self, i: usize, j: usize, ratios: &mut Vec<f64>) {
+        let (logs_i, logs_j) = (self.column(&self.logs, i), self.column(&self.logs, j));
+        ratios.clear();
+        self.for_each_shared(i, j, |row| ratios.push(logs_j[row] - logs_i[row]));
+    }
+
+    /// [`Self::ratios_into`] paired with the product of the two measurement weights.
+    fn weighted_ratios_into(
+        &self,
+        weights: &[f64],
+        i: usize,
+        j: usize,
+        pairs: &mut Vec<(f64, f64)>,
+    ) {
+        let (logs_i, logs_j) = (self.column(&self.logs, i), self.column(&self.logs, j));
+        let (weights_i, weights_j) = (self.column(weights, i), self.column(weights, j));
+        pairs.clear();
+        self.for_each_shared(i, j, |row| {
+            pairs.push((logs_j[row] - logs_i[row], weights_i[row] * weights_j[row]));
+        });
+    }
+
+    /// The pair's median log ratio, weighted when the input is weighted.
+    fn pair_ratio(
+        &self,
+        (i, j): (usize, usize),
+        ratios: &mut Vec<f64>,
+        pairs: &mut Vec<(f64, f64)>,
+    ) -> Option<f64> {
+        match &self.weights {
+            Some(weights) => {
+                self.weighted_ratios_into(weights, i, j, pairs);
+                weighted_median(pairs, ratios)
+            }
+            None => {
+                self.ratios_into(i, j, ratios);
+                median(ratios)
+            }
+        }
+    }
+}
+
+/// Weighted median with the midpoint convention: the value at which the
+/// cumulative weight first exceeds half the total, or the mean of two values
+/// when half the total falls exactly between them. Equal weights take
+/// [`median`] itself, so they reproduce the unweighted result bit for bit.
+fn weighted_median(pairs: &mut [(f64, f64)], values: &mut Vec<f64>) -> Option<f64> {
+    let first = pairs.first()?.1;
+    if pairs.iter().all(|&(_, weight)| weight == first) {
+        values.clear();
+        values.extend(pairs.iter().map(|&(value, _)| value));
+        return median(values);
+    }
+    pairs.sort_by(|left, right| left.0.total_cmp(&right.0));
+    let half = pairs.iter().map(|&(_, weight)| weight).sum::<f64>() / 2.0;
+    let mut cumulative = 0.0;
+    for (index, &(value, weight)) in pairs.iter().enumerate() {
+        cumulative += weight;
+        if cumulative == half {
+            return Some((value + pairs[index + 1].0) / 2.0);
+        }
+        if cumulative > half {
+            return Some(value);
+        }
+    }
+    None
 }
 
 /// Reduced graph Laplacian and right-hand side of one component.
@@ -259,9 +351,9 @@ fn solve_components(
         .collect::<Vec<_>>();
     let mut stabilized_pairs = 0;
     let mut ratios = Vec::with_capacity(rows.len());
+    let mut pairs = Vec::new();
     for (left, right, shared) in columns.linked_pairs(min_count) {
-        columns.ratios_into(left, right, &mut ratios);
-        let Some(ratio) = median(&mut ratios) else {
+        let Some(ratio) = columns.pair_ratio((left, right), &mut ratios, &mut pairs) else {
             continue;
         };
         let (ratio, applied) = if stabilize {

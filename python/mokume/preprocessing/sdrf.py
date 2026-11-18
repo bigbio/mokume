@@ -33,7 +33,11 @@ def analyse_sdrf(
         A tuple containing the number of technical repetitions, the quantification category,
         a list of unique sample names, and the isobaric label scheme if applicable.
     """
-    sdrf_df = load_sdrf(sdrf_path)
+    sdrf_df = (
+        sdrf_path.copy()
+        if isinstance(sdrf_path, pd.DataFrame)
+        else load_sdrf(sdrf_path)
+    )
 
     labels = set(sdrf_df["comment[label]"])
     # Determine label type

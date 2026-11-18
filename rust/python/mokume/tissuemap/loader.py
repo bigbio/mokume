@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
+from mokume.io._protein_groups import create_group_view, protein_group_names
 from mokume.io._qpx import measured_intensity_clause
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,9 @@ _FLAT_VIEW_QUERY = """
         CAST(reporter.intensity AS DOUBLE) AS intensity
     FROM (
         SELECT
-            anchor_protein AS protein,
+            array_to_string(list_transform(pg_accessions,
+                lambda x: CASE WHEN len(string_split(x, '|')) = 3
+                    THEN string_split(x, '|')[2] ELSE x END), ';') AS protein,
             run_file_name,
             {imputed_projection}
             UNNEST(intensities) AS reporter
@@ -275,7 +278,8 @@ def _execute_aggregation(
         con.execute(f"SET threads = {workers}")
         con.execute("SET preserve_insertion_order = false")
         con.register("sample_map", sample_map)
-        con.read_parquet(str(parquet_path)).create_view("feature_input")
+        con.read_parquet(str(parquet_path)).create_view("feature_source")
+        create_group_view(con, "feature_source", "feature_input")
         columns = con.read_parquet(str(parquet_path)).columns
         intensity_fields = (
             pq.read_schema(parquet_path).field("intensities").type.value_type
@@ -291,7 +295,15 @@ def _execute_aggregation(
                 measured_clause=measured_intensity_clause(columns, "reporter"),
             )
         )
-        return con.execute(query).df()
+        result = con.execute(query).df()
+        annotations = con.sql(
+            "SELECT DISTINCT pg_accessions, anchor_protein FROM feature_input"
+        ).df()
+        annotations["protein"] = protein_group_names(annotations["pg_accessions"])
+        result.attrs["anchor_protein"] = (
+            annotations.groupby("protein")["anchor_protein"].min().to_dict()
+        )
+        return result
     finally:
         con.close()
 
@@ -394,6 +406,7 @@ def _pivot_and_annotate(
         values="intensity",
         aggfunc="sum",
     )
+    mat.attrs["anchor_protein"] = merged.attrs["anchor_protein"]
     tissue_meta = (
         prot_samp[["sample_accession", "tissue"]]
         .drop_duplicates("sample_accession")

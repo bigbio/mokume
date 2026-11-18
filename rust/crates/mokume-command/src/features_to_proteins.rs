@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use clap::Args;
 use mokume_core::{FilterConfig, PibaqConfig, QuantMethod, TmtInterferenceFloor};
 
-use crate::parsers::{
-    parse_correlation, parse_finite_f64, parse_fraction, parse_memory, parse_nonnegative_f64,
-    parse_positive_usize, parse_quant_method, parse_tmt_floor, QuantMethodArg,
-};
 use crate::PibaqDigestRequest;
+use crate::parsers::{
+    QuantMethodArg, parse_correlation, parse_finite_f64, parse_fraction, parse_memory,
+    parse_nonnegative_f64, parse_positive_usize, parse_quant_method, parse_tmt_floor,
+    parse_transferred_weight,
+};
 
 mod config;
 mod de_args;
@@ -52,6 +53,9 @@ pub(crate) struct Features2ProteinsArgs {
     #[arg(short = 's', long = "sdrf", value_name = "FILE")]
     sdrf: Option<PathBuf>,
 
+    #[arg(long = "run", value_name = "FILE", conflicts_with = "sdrf")]
+    run: Option<PathBuf>,
+
     #[arg(
         long = "quant-method",
         default_value = "maxlfq",
@@ -89,6 +93,14 @@ intensity, peptide-count, spectral-count, top<N> (e.g. top3)]"
     )]
     transferred_features: Option<String>,
 
+    #[arg(
+        long = "transferred-weight",
+        value_name = "WEIGHT",
+        value_parser = parse_transferred_weight,
+        help = "MaxLFQ and top<N> only: weight in (0, 1] of QPX features without an identification in their run; MaxLFQ takes weighted pair medians and top<N> takes identified peptides first [default: off]"
+    )]
+    transferred_weight: Option<f64>,
+
     #[arg(long = "keep-contaminants", help = "Decoys are always removed")]
     keep_contaminants: bool,
 
@@ -114,7 +126,8 @@ intensity, peptide-count, spectral-count, top<N> (e.g. top3)]"
         "tmm",
     ], ignore_case = true,
     hide_possible_values = true,
-    help = "[default: global-median; maxlfq without --normalization-proteins: hierarchical;\n\
+    help = "[default: global-median; maxlfq, top<N>, sum and median without\n\
+--normalization-proteins: hierarchical;\n\
 directlfq, ratio, peptide-count, spectral-count: none]\n\
 [possible values: none, global-median, condition-median, hierarchical, quantile, median-center, \
 mean-center, rlr, loess, tmm]"
@@ -319,7 +332,7 @@ mean-center, rlr, loess, tmm]"
     #[arg(
         long = "tmt-impurity",
         value_name = "FILE",
-        help = "Reporter isotope-impurity table (channel, -2, -1, +1, +2 in percent) for per-row correction"
+        help = "Reporter isotope-impurity table (channel, -2, -1, +1, +2 in percent); rejected when companion QPX provenance declares isotope_corrected=true"
     )]
     tmt_impurity: Option<PathBuf>,
 

@@ -127,7 +127,9 @@ class TestSpectralCount:
     def test_counts_spectra(self, peptide_df):
         sc = SpectralCountQuantification()
         result = sc.quantify(
-            peptide_df,
+            peptide_df.assign(
+                run_file_name="run", scan=[[i] for i in range(len(peptide_df))]
+            ),
             protein_column="Protein",
             peptide_column="Peptide",
             intensity_column="NormIntensity",
@@ -136,7 +138,41 @@ class TestSpectralCount:
         a_s1 = result[(result["Protein"] == "A") & (result["Sample"] == "S1")][
             "Intensity"
         ].iloc[0]
-        assert a_s1 == 3  # 3 PSMs for protein A in S1
+        assert a_s1 == 3
+
+    def test_deduplicates_rank_one_spectrum_sequences(self):
+        """Collapse duplicates, preserve chimeras and reject assignment conflicts."""
+        frame = pd.DataFrame(
+            {
+                "ProteinName": ["P1"] * 6,
+                "SampleID": ["S1"] * 6,
+                "PeptideCanonical": [
+                    "PEPTIDEA",
+                    "PEPTIDEA",
+                    "PEPTIDEB",
+                    "RANKTWO",
+                    "PEPTIDEA",
+                    "PEPTIDEA",
+                ],
+                "run_file_name": ["run"] * 5 + ["other-run"],
+                "scan": [[10, 1], [10, 1], [10, 1], [10, 1], [10, 2], [10, 1]],
+                "additional_scores": [
+                    None,
+                    None,
+                    [{"score_name": "rank", "score_value": 1}],
+                    [{"score_name": "rank", "score_value": 2}],
+                    None,
+                    None,
+                ],
+            }
+        )
+        result = SpectralCountQuantification().quantify(frame)
+        assert result["Intensity"].tolist() == [4]
+        for column in ["ProteinName", "SampleID"]:
+            conflict = frame.copy()
+            conflict.loc[1, column] = "other"
+            with pytest.raises(ValueError, match="conflicting"):
+                SpectralCountQuantification().quantify(conflict)
 
     def test_name(self):
         assert SpectralCountQuantification().name == "SpectralCount"

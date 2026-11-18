@@ -65,6 +65,12 @@ Install the default Rust-backed distribution:
 pip install mokume
 ```
 
+PyPI still serves `mokume` 0.1.0, the earlier pure-Python release, whose
+`maxlfq` is a DirectLFQ-style trace alignment rather than the MaxLFQ solver.
+Until 0.2.0 is published, install it from a checkout with `pip install ./rust`,
+which needs the Rust toolchain and CMake (see
+[Installation](docs/installation.md#from-source)).
+
 The base wheel contains the native quantification, normalization, imputation,
 batch-correction, and differential-expression kernel. It also installs pyOpenMS
 (including pyOpenMS's numpy, pandas, and matplotlib dependencies); piBAQ reads
@@ -84,9 +90,14 @@ the optional wheel workflows. After installing the matching extra, run
 `mokume interactive-report` directly.
 
 Mokume and the optional Plugin/MCP workflow require Python 3.10 or newer.
+If `pip install mokume` installs 0.1.0, the earlier pure-Python release,
+either Python is older than 3.10 or pyOpenMS 3.2 or newer has no wheel for the
+platform (for example macOS before 13 on Intel or before 14 on Apple silicon),
+and pip fell back to 0.1.0 without an error.
 
-For the separate pure-Python implementation, use `pip install mokume-py`; its
-base install also includes pyOpenMS and piBAQ calls pyOpenMS digestion directly.
+For the separate pure-Python implementation, install `mokume-py` from a
+checkout with `pip install ./python` (it is not on PyPI yet); its base install
+also includes pyOpenMS and piBAQ calls pyOpenMS digestion directly.
 Do not install `mokume` and `mokume-py` together because both provide the
 `mokume` import package and console command. Agentic recommendation belongs to
 the default `mokume` distribution and its installable plugin, not `mokume-py`.

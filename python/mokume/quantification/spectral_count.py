@@ -1,6 +1,6 @@
 """Count-based protein quantification methods.
 
-``SpectralCountQuantification`` counts PSM rows, whereas
+``SpectralCountQuantification`` counts distinct (run, scan, sequence) keys, whereas
 ``PeptideCountQuantification`` counts distinct canonical peptide sequences.
 Keeping both contracts explicit prevents feature-level input from being
 misreported as a spectral count.
@@ -23,7 +23,47 @@ from mokume.core.constants import (
     PEPTIDE_CANONICAL,
     NORM_INTENSITY,
     SAMPLE_ID,
+    RUN,
 )
+
+
+def _rank_one(scores) -> bool:
+    """Keep rank one, or rows for which the producer supplied no rank."""
+    if scores is None:
+        return True
+    if isinstance(scores, dict):
+        return "rank" not in scores or scores["rank"] == 1
+    return all(
+        score["score_value"] == 1 for score in scores if score["score_name"] == "rank"
+    )
+
+
+def _spectrum_rows(
+    frame: pd.DataFrame, group_cols: list[str], sequence: str
+) -> pd.DataFrame:
+    """Deduplicate complete spectrum keys and reject conflicting assignments."""
+    run = (
+        group_cols[2]
+        if len(group_cols) == 3
+        else ("run_file_name" if "run_file_name" in frame else RUN)
+    )
+    if run not in frame or "scan" not in frame:
+        raise ValueError(
+            "spectral_count requires run_file_name (or Run) and scan columns"
+        )
+    if "additional_scores" in frame:
+        frame = frame.loc[frame["additional_scores"].map(_rank_one)]
+    frame = frame.assign(_spectrum_scan=frame["scan"].map(tuple))
+    keys = [run, "_spectrum_scan", sequence]
+    assignments = frame.groupby(keys, dropna=False)[group_cols[:2]].nunique(
+        dropna=False
+    )
+    if assignments.gt(1).any().any():
+        raise ValueError(
+            "PSMs for one (run, scan, sequence) have conflicting "
+            "protein-group or sample assignments"
+        )
+    return frame.drop_duplicates(keys)
 
 
 @PluginRegistry.register("quantification", "spectral_count")
@@ -31,8 +71,8 @@ class SpectralCountQuantification(ProteinQuantificationMethod):
     """
     Spectral count quantification.
 
-    Protein abundance is the number of peptide-spectrum matches (PSMs)
-    per protein per sample.
+    Protein abundance is the number of independent spectrum/sequence pairs
+    per protein per sample, after excluding ranks other than one.
     """
 
     @property
@@ -53,12 +93,12 @@ class SpectralCountQuantification(ProteinQuantificationMethod):
         Parameters
         ----------
         peptide_df : pd.DataFrame
-            DataFrame containing peptide-level data.  Each row is one
-            PSM; the method counts rows per (protein, sample).
+            PSM rows with a run column and a ``scan`` integer array. Repeated
+            (run, complete scan array, peptide sequence) keys count once.
         protein_column : str
             Column name for protein identifiers.
         peptide_column : str
-            Unused (kept for API compatibility).
+            Column containing the peptide sequence used in the spectrum key.
         intensity_column : str
             Unused (kept for API compatibility).
         sample_column : str
@@ -85,9 +125,9 @@ class SpectralCountQuantification(ProteinQuantificationMethod):
         group_cols: list[str],
         peptide_column: str,
     ) -> pd.DataFrame:
-        """Aggregate PSM rows into one count per protein and sample or run."""
-        del peptide_column
-        return peptide_df.groupby(group_cols).size().reset_index(name="Intensity")
+        """Count independent spectrum/sequence pairs per protein and sample or run."""
+        rows = _spectrum_rows(peptide_df, group_cols, peptide_column)
+        return rows.groupby(group_cols).size().reset_index(name="Intensity")
 
 
 @PluginRegistry.register("quantification", "peptide_count")

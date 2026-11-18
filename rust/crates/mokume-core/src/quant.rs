@@ -98,7 +98,7 @@ impl FromStr for QuantMethod {
 mod tests {
     use std::str::FromStr;
 
-    use super::{parse_topn_from_method_name, QuantMethod};
+    use super::{QuantMethod, parse_topn_from_method_name};
 
     #[test]
     fn parses_topn_family_names() {

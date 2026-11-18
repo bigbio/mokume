@@ -2,6 +2,7 @@
 name = "mokume-quant"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -11,7 +12,7 @@ description = "Protein quantification algorithms for mokume"
 workspace = true
 
 [dependencies]
-mokume-core = { path = "../mokume-core" }
+mokume-core = { workspace = true }
 # Blocked Cholesky for the MaxLFQ sample-graph solve.
 faer = { version = "0.24", default-features = false, features = ["std"] }
 rayon = "1.12.0"

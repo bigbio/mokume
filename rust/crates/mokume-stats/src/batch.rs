@@ -13,12 +13,12 @@ mod hdbscan;
 mod outlier;
 mod pca;
 
-pub use combat::{combat, combat_parametric, ComBatParams};
+pub use combat::{ComBatParams, combat, combat_parametric};
 pub use detection::{
-    detect_batches, factorize, sample_prefix, BatchDetectionMethod, DetectBatchesError,
+    BatchDetectionMethod, DetectBatchesError, detect_batches, factorize, sample_prefix,
 };
 pub use hdbscan::hdbscan_labels;
-pub use outlier::{iterative_outlier_removal, OutlierIteration, OutlierRemoval};
+pub use outlier::{OutlierIteration, OutlierRemoval, iterative_outlier_removal};
 pub use pca::pca_scores;
 
 #[cfg(test)]

@@ -14,7 +14,7 @@
 //! supported by this two-group entry point.
 
 use super::correct::permutation_fdr;
-use super::{classify, DeResult};
+use super::{DeResult, classify};
 use rayon::prelude::*;
 
 /// Default bootstrap iterations, matching `run_rots(n_boot=100)` (rots.py:268).
@@ -620,10 +620,10 @@ fn testable(row: &[f64], n_a: usize, n_b: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_n_grid, build_ssq_grid, calculate_p, compute_d_stat, group_stats, rots_two_group,
-        rots_two_group_seeded, SplitMix64,
+        SplitMix64, build_n_grid, build_ssq_grid, calculate_p, compute_d_stat, group_stats,
+        rots_two_group, rots_two_group_seeded,
     };
-    use crate::de::{Significance, DEFAULT_FDR_THRESHOLD, DEFAULT_LOG2FC_THRESHOLD};
+    use crate::de::{DEFAULT_FDR_THRESHOLD, DEFAULT_LOG2FC_THRESHOLD, Significance};
 
     const TOL: f64 = 1e-9;
 

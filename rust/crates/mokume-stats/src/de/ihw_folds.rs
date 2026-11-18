@@ -1,5 +1,5 @@
 //! Held-out weight learning and the official ordered lambda search.
-use super::{bh_adjust, invalid, lp, weighted_p, Result, SplitMix64};
+use super::{Result, SplitMix64, bh_adjust, invalid, lp, weighted_p};
 
 #[derive(Clone, Copy)]
 pub(super) struct Point {

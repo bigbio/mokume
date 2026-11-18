@@ -5,7 +5,12 @@ from pathlib import Path
 import pytest
 
 from mokume.normalization.peptide import peptide_normalization
-from mokume.pipeline.config import InputConfig, NormalizationConfig, PipelineConfig
+from mokume.pipeline.config import (
+    InputConfig,
+    NormalizationConfig,
+    PipelineConfig,
+    QuantificationConfig,
+)
 from mokume.pipeline.features_to_proteins import (
     QuantificationPipeline,
     features_to_proteins,
@@ -84,3 +89,34 @@ def test_invalid_normalization_fails_before_input_or_output(
         _invoke(entrypoint, parquet, output, run_method, sample_method)
 
     assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    ("quant_method", "expected"),
+    [
+        ("maxlfq", ("median", "hierarchical")),
+        ("top3", ("median", "hierarchical")),
+        ("sum", ("median", "hierarchical")),
+        ("median", ("median", "hierarchical")),
+        ("pibaq", ("median", "globalmedian")),
+        ("directlfq", ("none", "none")),
+        ("peptide_count", ("none", "none")),
+    ],
+)
+def test_unset_normalization_takes_the_quant_method_default(
+    quant_method, expected
+) -> None:
+    """PipelineConfig fills unset methods as the features2proteins command does."""
+    config = PipelineConfig(
+        input=InputConfig(parquet="features.parquet"),
+        quantification=QuantificationConfig(method=quant_method),
+    )
+    normalization = config.normalization
+    assert (normalization.run_method, normalization.sample_method) == expected
+
+    explicit = PipelineConfig(
+        input=InputConfig(parquet="features.parquet"),
+        normalization=NormalizationConfig(sample_method="globalMedian"),
+        quantification=QuantificationConfig(method=quant_method),
+    )
+    assert explicit.normalization.sample_method == "globalMedian"

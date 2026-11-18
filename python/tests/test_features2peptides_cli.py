@@ -3,9 +3,17 @@
 import json
 from pathlib import Path
 
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pytest
 from click.testing import CliRunner
 
 from mokume.mokume_cli import cli
+from mokume.commands.features2proteins import features2proteins
+from mokume.commands.features2peptides import features2parquet
+
+from .test_qpx_format_compat import _make_scored_qpx_parquet as make_scored_qpx_parquet
 
 
 def _patch_peptide_normalization(monkeypatch):
@@ -218,6 +226,48 @@ def test_named_score_cli_reaches_filter_config(monkeypatch, tmp_path: Path):
     assert score.threshold == 0.8
 
 
+@pytest.mark.parametrize("method", ["globalmedian", "conditionmedian"])
+@pytest.mark.parametrize(("threshold", "samples"), [("0.05", ["run_a"]), ("0.001", [])])
+def test_sample_without_passing_rows_is_skipped(
+    tmp_path: Path, method, threshold, samples
+):
+    """A score filter that empties samples leaves the other samples' output."""
+    parquet = tmp_path / "input.parquet"
+    make_scored_qpx_parquet(str(parquet))
+    table = pq.read_table(parquet)
+    index = table.schema.get_field_index("intensities")
+    intensities = [[{"label": "LFQ", "intensity": value}] for value in (10.0, 20.0)]
+    table = table.set_column(
+        index, "intensities", pa.array(intensities, type=table.schema.field(index).type)
+    )
+    pq.write_table(table, parquet)
+    output = tmp_path / "peptides.csv"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "features2peptides",
+            "-p",
+            str(parquet),
+            "-o",
+            str(output),
+            "--filter-score",
+            f"qvalue={threshold}",
+            "--filter-min-unique-peptides",
+            "1",
+            "--sample-normalization",
+            method,
+            "--save_parquet",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert pd.read_csv(output)["SampleID"].tolist() == samples
+    assert (
+        pd.read_parquet(output.with_suffix(".parquet"))["SampleID"].tolist() == samples
+    )
+
+
 def test_named_score_cli_rejects_ambiguous_value(tmp_path: Path):
     parquet = tmp_path / "input.parquet"
     parquet.write_text("placeholder", encoding="utf-8")
@@ -237,3 +287,31 @@ def test_named_score_cli_rejects_ambiguous_value(tmp_path: Path):
 
     assert result.exit_code != 0
     assert "expected NAME=THRESHOLD" in result.output
+
+
+def test_run_and_sdrf_conflict_before_reading(tmp_path):
+    """Both commands reach pipeline validation before reading input."""
+
+    feature_path = tmp_path / "feature.parquet"
+    feature_path.touch()
+    sdrf = tmp_path / "samples.tsv"
+    sdrf.touch()
+    run_path = tmp_path / "run.parquet"
+    run_path.touch()
+    for command in [features2proteins, features2parquet]:
+        result = CliRunner().invoke(
+            command,
+            [
+                "-p",
+                str(feature_path),
+                "-o",
+                str(tmp_path / "out.csv"),
+                "--sdrf",
+                str(sdrf),
+                "--run",
+                str(run_path),
+            ],
+        )
+        assert result.exit_code != 0
+        assert isinstance(result.exception, ValueError)
+        assert str(result.exception) == "--run conflicts with --sdrf"

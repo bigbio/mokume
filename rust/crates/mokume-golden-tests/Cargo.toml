@@ -2,6 +2,7 @@
 name = "mokume-golden-tests"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -10,10 +11,10 @@ description = "Golden pipeline tests for mokume"
 [lints]
 workspace = true
 
-[dependencies]
+[dev-dependencies]
 arrow = "60.0.0"
 csv = "1.4.0"
-mokume-core = { path = "../mokume-core" }
-mokume-pipeline = { path = "../mokume-pipeline" }
+mokume-core = { workspace = true }
+mokume-pipeline = { workspace = true }
 parquet = "60.0.0"
 tempfile = "3"

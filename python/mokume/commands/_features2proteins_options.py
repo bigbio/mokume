@@ -4,6 +4,8 @@ import csv
 
 import click
 
+from mokume.model.normalization import default_normalization_methods
+
 
 def _supplied(ctx: click.Context, *names: str) -> bool:
     return any(
@@ -18,10 +20,9 @@ def _resolved_normalizations(ctx: click.Context) -> tuple[str, str, str]:
     manages_normalization = quant_method in {"directlfq", "ratio"}
     is_count_method = quant_method == "peptide_count"
     requires_none = manages_normalization or is_count_method
-    run_method = params["run_normalization"] or ("none" if requires_none else "median")
-    sample_method = params["sample_normalization"] or (
-        "none" if requires_none else "globalmedian"
-    )
+    default_run, default_sample = default_normalization_methods(quant_method)
+    run_method = params["run_normalization"] or default_run
+    sample_method = params["sample_normalization"] or default_sample
     explicitly_active = any(
         _supplied(ctx, name) and method.lower() != "none"
         for name, method in (

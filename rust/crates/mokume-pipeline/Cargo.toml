@@ -2,6 +2,7 @@
 name = "mokume-pipeline"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -12,12 +13,12 @@ workspace = true
 
 [dependencies]
 csv = "1.4.0"
-mokume-core = { path = "../mokume-core" }
-mokume-imputation = { version = "0.2.0", path = "../mokume-imputation" }
-mokume-io = { version = "0.2.0", path = "../mokume-io" }
-mokume-normalization = { version = "0.2.0", path = "../mokume-normalization" }
-mokume-quant = { version = "0.2.0", path = "../mokume-quant" }
-mokume-stats = { version = "0.2.0", path = "../mokume-stats" }
+mokume-core = { workspace = true }
+mokume-imputation = { workspace = true }
+mokume-io = { workspace = true }
+mokume-normalization = { workspace = true }
+mokume-quant = { workspace = true }
+mokume-stats = { workspace = true }
 rayon = "1.12.0"
 regex = "1.12.3"
 tracing = { workspace = true }

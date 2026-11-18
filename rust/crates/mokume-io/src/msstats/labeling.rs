@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use mokume_core::Result;
 
 use super::invalid_input;
-use crate::{normalize_label_key, SdrfTable};
+use crate::{SdrfTable, normalize_label_key};
 
 const TMT6: &[&str] = &["TMT126", "TMT127", "TMT128", "TMT129", "TMT130", "TMT131"];
 pub(super) const TMT10: &[&str] = &[

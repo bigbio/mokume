@@ -32,10 +32,10 @@ where
     let mut imputed = Vec::new();
     for protein in proteins {
         for sample in samples {
-            if !has_finite_value(*protein, *sample, value_at) {
-                if let Some(fill) = fills.get(sample).copied() {
-                    imputed.push((*protein, *sample, fill));
-                }
+            if !has_finite_value(*protein, *sample, value_at)
+                && let Some(fill) = fills.get(sample).copied()
+            {
+                imputed.push((*protein, *sample, fill));
             }
         }
     }

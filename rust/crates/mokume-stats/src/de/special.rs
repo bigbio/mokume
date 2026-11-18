@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn digamma_matches_scipy() {
         assert_close(digamma(0.5), -1.9635100260214235);
-        assert_close(digamma(1.0), -0.5772156649015329);
+        assert_close(digamma(1.0), -std::f64::consts::EULER_GAMMA);
         assert_close(digamma(2.0), 0.4227843350984671);
         assert_close(digamma(5.0), 1.5061176684318003);
     }

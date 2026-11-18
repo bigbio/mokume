@@ -1,6 +1,6 @@
 use mokume_core::{PibaqConfig, PibaqFamilyRows, PibaqSharedMode, QuantMethod};
 
-use super::{invalid_input, Features2ProteinsArgs};
+use super::{Features2ProteinsArgs, invalid_input};
 
 /// piBAQ needs a FASTA, and its digestion and shared-peptide options need piBAQ.
 pub(super) fn validate_pibaq_options(

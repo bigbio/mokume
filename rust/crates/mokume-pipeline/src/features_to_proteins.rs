@@ -73,9 +73,7 @@ fn run_features_to_proteins_inner(
         config
     };
 
-    validate_de_ensemble_options(config)?;
-    validate_features_to_proteins(config)?;
-    validate_implemented_subset(config)?;
+    validate_protein_request(config)?;
     let memory = initialize_memory_plan(&config.runtime)?;
     let sdrf = input_sample_table(&config.input)?;
     let raw_sdrf = config
@@ -88,45 +86,115 @@ fn run_features_to_proteins_inner(
         let matrix = spectral_count_matrix(config, sdrf.as_ref(), &memory)?;
         return finish_protein_matrix(config, sdrf.as_ref(), raw_sdrf.as_ref(), &memory, matrix);
     }
+    let (state, dataset_normalization) = aggregate_protein_features(
+        config,
+        sdrf.as_ref(),
+        raw_sdrf.as_ref(),
+        &memory,
+        pibaq_digest,
+    )?;
+    log_protein_aggregation(config, &state);
+
+    let min_unique_peptides = if config.quantification == QuantMethod::Pibaq {
+        0
+    } else {
+        config.filtering.min_unique_peptides
+    };
+    let matrix = state.into_matrix(config, min_unique_peptides, dataset_normalization)?;
+    memory.check("protein matrix materialization")?;
+    finish_protein_matrix(config, sdrf.as_ref(), raw_sdrf.as_ref(), &memory, matrix)
+}
+
+fn validate_protein_request(config: &FeatureToProteinsConfig) -> Result<()> {
+    validate_de_ensemble_options(config)?;
+    validate_features_to_proteins(config)?;
+    validate_implemented_subset(config)
+}
+
+fn log_protein_aggregation(config: &FeatureToProteinsConfig, state: &FeatureToProteinState) {
+    info!(
+        accepted_features = state.accepted_features,
+        accepted_measurements = state.accepted_measurements,
+        proteins = state.proteins.len(),
+        samples = state.samples.len(),
+        quant_method = %config.quantification,
+        output = %config.output.protein_matrix.display(),
+        "features2proteins aggregation finished"
+    );
+}
+
+fn aggregate_protein_features(
+    config: &FeatureToProteinsConfig,
+    sdrf: Option<&SdrfTable>,
+    raw_sdrf: Option<&SdrfRawTable>,
+    memory: &MemoryPlan,
+    pibaq_digest: Option<PibaqDigest>,
+) -> Result<(
+    FeatureToProteinState,
+    Option<crate::SampleNormalizationMethod>,
+)> {
+    let protein_fdr_allowed = protein_fdr_groups(config)?;
     // The protein pipeline has no custom contaminant patterns; an empty slice
     // makes the median pre-pass fall back to the default `is_contaminant` path.
     // The median pre-pass keeps shared peptides only for piBAQ (Python
     // `stages.py:325`: `keep_shared_peptides = method == "pibaq"`).
-    // `--filter-protein-fdr`: resolve the passing protein groups (and fail on a
-    // missing q-value column) before any other pre-pass or output is produced.
-    // Like `features2peptides`, the filter applies at ingest only; the
-    // normalization median pre-pass is unaffected.
-    let protein_fdr_allowed = match config.protein_fdr_threshold {
-        Some(threshold) => collect_fdr_filter_state(
-            required_parquet(&config.input)?,
-            None,
-            Some(threshold),
-            None,
-        )?,
-        None => None,
-    };
-    let mut tmt_processor = build_tmt_processor(config, sdrf.as_ref(), raw_sdrf.as_ref(), &memory)?;
+    let mut tmt_processor = build_tmt_processor(config, sdrf, raw_sdrf, memory)?;
     let intensity_factors = collect_intensity_factors(
         config,
-        sdrf.as_ref(),
+        sdrf,
         &[],
         config.quantification == QuantMethod::Pibaq,
-        &memory,
+        memory,
         None,
         tmt_processor.as_mut(),
     )?;
     memory.check("normalization pre-pass")?;
     let intensity_factors = (!intensity_factors.is_empty()).then_some(&intensity_factors);
     let dataset_normalization = dataset_sample_normalization_method(config)?;
-    let mut state =
-        FeatureToProteinState::new(config, sdrf.as_ref(), raw_sdrf.as_ref(), pibaq_digest)?;
+    let mut state = FeatureToProteinState::new(config, sdrf, raw_sdrf, pibaq_digest)?;
     state.protein_fdr_allowed = protein_fdr_allowed;
-    if let Some(processor) = tmt_processor.as_mut() {
-        let mut sdrf_lookup = sdrf.as_ref().map(SdrfLookupCache::new);
+    ingest_protein_features(
+        &mut state,
+        config,
+        sdrf,
+        memory,
+        intensity_factors,
+        tmt_processor.as_mut(),
+    )?;
+    memory.check("feature aggregation")?;
+    Ok((state, dataset_normalization))
+}
+
+fn protein_fdr_groups(config: &FeatureToProteinsConfig) -> Result<Option<HashSet<String>>> {
+    // `--filter-protein-fdr`: resolve the passing protein groups (and fail on a
+    // missing q-value column) before any other pre-pass or output is produced.
+    // Like `features2peptides`, the filter applies at ingest only; the
+    // normalization median pre-pass is unaffected.
+    match config.protein_fdr_threshold {
+        Some(threshold) => collect_fdr_filter_state(
+            required_parquet(&config.input)?,
+            None,
+            Some(threshold),
+            None,
+        ),
+        None => Ok(None),
+    }
+}
+
+fn ingest_protein_features(
+    state: &mut FeatureToProteinState,
+    config: &FeatureToProteinsConfig,
+    sdrf: Option<&SdrfTable>,
+    memory: &MemoryPlan,
+    intensity_factors: Option<&IntensityFactors>,
+    tmt_processor: Option<&mut crate::tmt::TmtRowProcessor>,
+) -> Result<()> {
+    if let Some(processor) = tmt_processor {
+        let mut sdrf_lookup = sdrf.map(SdrfLookupCache::new);
         stream_tmt_features(
             &config.input,
-            sdrf.as_ref(),
-            &memory,
+            sdrf,
+            memory,
             processor,
             "quantification",
             |feature| {
@@ -138,36 +206,10 @@ fn run_features_to_proteins_inner(
                     None,
                 )
             },
-        )?;
+        )
     } else {
-        ingest_features(
-            &mut state,
-            config,
-            sdrf.as_ref(),
-            &memory,
-            intensity_factors,
-        )?;
+        ingest_features(state, config, sdrf, memory, intensity_factors)
     }
-    memory.check("feature aggregation")?;
-
-    info!(
-        accepted_features = state.accepted_features,
-        accepted_measurements = state.accepted_measurements,
-        proteins = state.proteins.len(),
-        samples = state.samples.len(),
-        quant_method = %config.quantification,
-        output = %config.output.protein_matrix.display(),
-        "features2proteins aggregation finished"
-    );
-
-    let min_unique_peptides = if config.quantification == QuantMethod::Pibaq {
-        0
-    } else {
-        config.filtering.min_unique_peptides
-    };
-    let matrix = state.into_matrix(config, min_unique_peptides, dataset_normalization)?;
-    memory.check("protein matrix materialization")?;
-    finish_protein_matrix(config, sdrf.as_ref(), raw_sdrf.as_ref(), &memory, matrix)
 }
 
 /// Accepted features per message of a pipelined ingest.

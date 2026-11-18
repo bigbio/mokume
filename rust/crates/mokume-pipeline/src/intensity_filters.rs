@@ -53,6 +53,40 @@ pub(crate) fn collect_intensity_group_filters(
     if !cv_active && !quantile_active {
         return Ok(IntensityGroupFilters::default());
     }
+    let (group_intensities, cell_canonicals) = buffer_group_intensities(
+        parquet,
+        sdrf,
+        source,
+        intensity,
+        run_qc_excluded,
+        named_score,
+    )?;
+    let min_unique = if source.keep_shared_peptides {
+        0
+    } else {
+        source.min_unique_peptides
+    };
+
+    Ok(finish_group_intensity_filters(
+        group_intensities,
+        &cell_canonicals,
+        min_unique,
+        intensity,
+        quantile_active,
+    ))
+}
+
+type GroupIntensities = HashMap<(String, String, String), Vec<f64>>;
+type CellCanonicals = HashMap<(String, String), HashSet<String>>;
+
+fn buffer_group_intensities(
+    parquet: &Path,
+    sdrf: Option<&SdrfTable>,
+    source: &RunQcSource<'_>,
+    intensity: &IntensityFilterConfig,
+    run_qc_excluded: &HashSet<RunQcKey>,
+    named_score: Option<&NamedScoreFilterConfig>,
+) -> Result<(GroupIntensities, CellCanonicals)> {
     // MinIntensityFilter runs in the pipeline ahead of both CV and Quantile, so
     // apply the same floor before collecting (a no-op beyond the `> 0` load filter
     // when `min_intensity == 0`).
@@ -72,8 +106,8 @@ pub(crate) fn collect_intensity_group_filters(
     // ingest per-row drop still removes contaminants from the exported output,
     // matching the later `ContaminantFilter`; only the group decisions must
     // include them, so this pre-pass deliberately omits the contaminant check.
-    let mut group_intensities: HashMap<(String, String, String), Vec<f64>> = HashMap::new();
-    let mut cell_canonicals: HashMap<(String, String), HashSet<String>> = HashMap::new();
+    let mut group_intensities: GroupIntensities = HashMap::new();
+    let mut cell_canonicals: CellCanonicals = HashMap::new();
     let mut sdrf_lookup = sdrf.map(SdrfLookupCache::new);
     stream_qpx_features(parquet, &MemoryPlan::unlimited(), named_score, |feature| {
         if !passes_feature_filter(&feature, source.filtering, source.keep_shared_peptides) {
@@ -102,12 +136,16 @@ pub(crate) fn collect_intensity_group_filters(
         Ok(())
     })?;
 
-    let min_unique = if source.keep_shared_peptides {
-        0
-    } else {
-        source.min_unique_peptides
-    };
+    Ok((group_intensities, cell_canonicals))
+}
 
+fn finish_group_intensity_filters(
+    group_intensities: GroupIntensities,
+    cell_canonicals: &CellCanonicals,
+    min_unique: usize,
+    intensity: &IntensityFilterConfig,
+    quantile_active: bool,
+) -> IntensityGroupFilters {
     // Phase 2: per group, apply the `min_unique` gate (Python applies it before the
     // filter pipeline, peptide.py:278-281), then the CV decision. Surviving groups'
     // intensities are pooled per sample for the quantile bounds.
@@ -146,6 +184,18 @@ pub(crate) fn collect_intensity_group_filters(
         }
     }
 
+    let quantile_bounds = group_quantile_bounds(per_sample, intensity, quantile_active);
+    IntensityGroupFilters {
+        cv_dropped,
+        quantile_bounds,
+    }
+}
+
+fn group_quantile_bounds(
+    per_sample: HashMap<String, Vec<f64>>,
+    intensity: &IntensityFilterConfig,
+    quantile_active: bool,
+) -> HashMap<String, (f64, f64)> {
     let mut quantile_bounds = HashMap::new();
     if quantile_active {
         for (sample, mut values) in per_sample {
@@ -160,8 +210,5 @@ pub(crate) fn collect_intensity_group_filters(
             }
         }
     }
-    Ok(IntensityGroupFilters {
-        cv_dropped,
-        quantile_bounds,
-    })
+    quantile_bounds
 }

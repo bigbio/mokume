@@ -175,19 +175,7 @@ fn apply_quantile_to_peptide_cells(
         }
     }
 
-    let assignments =
-        quantile_normalized_assignments(canonical_cells.iter().flat_map(|(cell, peptides)| {
-            peptides.iter().map(|(peptide, intensity)| {
-                (
-                    QuantilePeptideKey {
-                        protein: cell.protein,
-                        peptide: *peptide,
-                    },
-                    cell.sample,
-                    *intensity,
-                )
-            })
-        }));
+    let assignments = quantile_cell_assignments(&canonical_cells);
 
     for (cell, peptides) in cells {
         if !allowed_cells.contains(cell) {
@@ -207,4 +195,59 @@ fn apply_quantile_to_peptide_cells(
             }
         }
     }
+}
+
+fn quantile_cell_assignments(
+    canonical_cells: &HashMap<CellKey, HashMap<PeptideId, f64>>,
+) -> HashMap<(QuantilePeptideKey, SampleId), f64> {
+    quantile_normalized_assignments(canonical_cells.iter().flat_map(|(cell, peptides)| {
+        peptides.iter().map(|(peptide, intensity)| {
+            (
+                QuantilePeptideKey {
+                    protein: cell.protein,
+                    peptide: *peptide,
+                },
+                cell.sample,
+                *intensity,
+            )
+        })
+    }))
+}
+
+fn sum_canonical_cell(
+    peptides: &HashMap<PeptideId, f64>,
+    peptide_to_canonical: &HashMap<PeptideId, PeptideId>,
+) -> HashMap<PeptideId, f64> {
+    let mut summed = HashMap::new();
+    for (peptide, intensity) in peptides {
+        let canonical = peptide_to_canonical
+            .get(peptide)
+            .copied()
+            .unwrap_or(*peptide);
+        *summed.entry(canonical).or_insert(0.0) += *intensity;
+    }
+    summed
+}
+
+fn log2_canonical_cells(
+    cells: &HashMap<CellKey, HashMap<PeptideId, f64>>,
+    allowed_cells: &HashSet<CellKey>,
+    peptide_to_canonical: &HashMap<PeptideId, PeptideId>,
+) -> HashMap<CellKey, HashMap<PeptideId, f64>> {
+    let mut log2_cells = HashMap::<CellKey, HashMap<PeptideId, f64>>::new();
+    for (cell, peptides) in cells.iter() {
+        if !allowed_cells.contains(cell) {
+            continue;
+        }
+        let summed = sum_canonical_cell(peptides, peptide_to_canonical);
+        let log_row = summed
+            .into_iter()
+            .filter(|(_, value)| value.is_finite() && *value > 0.0)
+            .map(|(canonical, value)| (canonical, value.log2()))
+            .collect::<HashMap<_, _>>();
+        if !log_row.is_empty() {
+            log2_cells.insert(*cell, log_row);
+        }
+    }
+    log2_cells
 }

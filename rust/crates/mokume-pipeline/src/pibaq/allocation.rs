@@ -28,64 +28,16 @@ pub(crate) fn finalize_family_allocation(
     proteins: &mut StringIdRegistry<ProteinId>,
 ) -> HashMap<CellKey, PibaqCell> {
     let mut output = HashMap::new();
-    let member_set = family.members.iter().cloned().collect::<HashSet<_>>();
-    let mut peptide_members = HashMap::<String, Vec<String>>::new();
-    for (peptide, _, _) in observations {
-        let members = peptide_accessions
-            .get(peptide)
-            .map(|accessions| {
-                let mut members = accessions
-                    .intersection(&member_set)
-                    .cloned()
-                    .collect::<Vec<_>>();
-                members.sort();
-                members
-            })
-            .unwrap_or_default();
-        if !members.is_empty() {
-            peptide_members.entry(peptide.clone()).or_insert(members);
-        }
-    }
-
-    let mut anchor_intensity = HashMap::<(String, SampleId), f64>::new();
-    let mut combined = HashMap::<(String, SampleId), f64>::new();
-    for (peptide, sample, intensity) in observations {
-        let Some(members) = peptide_members.get(peptide) else {
-            continue;
-        };
-        if members.len() == 1 {
-            let key = (members[0].clone(), *sample);
-            *anchor_intensity.entry(key.clone()).or_insert(0.0) += *intensity;
-            *combined.entry(key).or_insert(0.0) += *intensity;
-        }
-    }
-
-    for (peptide, sample, intensity) in observations {
-        let Some(members) = peptide_members.get(peptide) else {
-            continue;
-        };
-        if members.len() <= 1 {
-            continue;
-        }
-        let weights = members
-            .iter()
-            .map(|member| {
-                anchor_intensity
-                    .get(&(member.clone(), *sample))
-                    .copied()
-                    .unwrap_or(0.0)
-            })
-            .collect::<Vec<_>>();
-        let weight_sum = weights.iter().sum::<f64>();
-        for (member, weight) in members.iter().zip(weights) {
-            let allocated = if weight_sum > 0.0 && !force_equal_shared {
-                *intensity * weight / weight_sum
-            } else {
-                *intensity / members.len() as f64
-            };
-            *combined.entry((member.clone(), *sample)).or_insert(0.0) += allocated;
-        }
-    }
+    let peptide_members = observed_family_members(family, observations, peptide_accessions);
+    let (anchor_intensity, mut combined) =
+        unique_family_intensities(observations, &peptide_members);
+    add_shared_family_intensities(
+        observations,
+        &peptide_members,
+        &anchor_intensity,
+        &mut combined,
+        force_equal_shared,
+    );
 
     let denominators = family
         .members
@@ -112,6 +64,88 @@ pub(crate) fn finalize_family_allocation(
         }
     }
     output
+}
+
+fn observed_family_members(
+    family: &ProteinFamily,
+    observations: &[PibaqObservation],
+    peptide_accessions: &HashMap<String, HashSet<String>>,
+) -> HashMap<String, Vec<String>> {
+    let member_set = family.members.iter().cloned().collect::<HashSet<_>>();
+    let mut peptide_members = HashMap::<String, Vec<String>>::new();
+    for (peptide, _, _) in observations {
+        let members = peptide_accessions
+            .get(peptide)
+            .map(|accessions| {
+                let mut members = accessions
+                    .intersection(&member_set)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                members.sort();
+                members
+            })
+            .unwrap_or_default();
+        if !members.is_empty() {
+            peptide_members.entry(peptide.clone()).or_insert(members);
+        }
+    }
+    peptide_members
+}
+
+type FamilyIntensities = HashMap<(String, SampleId), f64>;
+
+fn unique_family_intensities(
+    observations: &[PibaqObservation],
+    peptide_members: &HashMap<String, Vec<String>>,
+) -> (FamilyIntensities, FamilyIntensities) {
+    let mut anchor_intensity = HashMap::<(String, SampleId), f64>::new();
+    let mut combined = HashMap::<(String, SampleId), f64>::new();
+    for (peptide, sample, intensity) in observations {
+        let Some(members) = peptide_members.get(peptide) else {
+            continue;
+        };
+        if members.len() == 1 {
+            let key = (members[0].clone(), *sample);
+            *anchor_intensity.entry(key.clone()).or_insert(0.0) += *intensity;
+            *combined.entry(key).or_insert(0.0) += *intensity;
+        }
+    }
+    (anchor_intensity, combined)
+}
+
+fn add_shared_family_intensities(
+    observations: &[PibaqObservation],
+    peptide_members: &HashMap<String, Vec<String>>,
+    anchor_intensity: &FamilyIntensities,
+    combined: &mut FamilyIntensities,
+    force_equal_shared: bool,
+) {
+    for (peptide, sample, intensity) in observations {
+        let Some(members) = peptide_members.get(peptide) else {
+            continue;
+        };
+        if members.len() <= 1 {
+            continue;
+        }
+        let weights = members
+            .iter()
+            .map(|member| {
+                anchor_intensity
+                    .get(&(member.clone(), *sample))
+                    .copied()
+                    .unwrap_or(0.0)
+            })
+            .collect::<Vec<_>>();
+        let weight_sum = weights.iter().sum::<f64>();
+        for (member, weight) in members.iter().zip(weights) {
+            let allocated = if weight_sum > 0.0 && !force_equal_shared {
+                *intensity * weight / weight_sum
+            } else {
+                *intensity / members.len() as f64
+            };
+            *combined.entry((member.clone(), *sample)).or_insert(0.0) += allocated;
+        }
+    }
 }
 
 fn insert_pibaq_value(

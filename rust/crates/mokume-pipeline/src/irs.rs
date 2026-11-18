@@ -2,8 +2,8 @@ use crate::accessions::{matches_sql_contaminant, sdrf_record};
 use crate::qpx_stream::stream_qpx_features;
 use crate::{
     BTreeMap, HashMap, IrsChannelConfig, IrsScope, IrsStat, MemoryPlan, MokumeError,
-    NamedScoreFilterConfig, Path, Regex, Result, SdrfLookupCache, SdrfRawTable, SdrfTable,
-    mean_positive, median,
+    NamedScoreFilterConfig, Path, QpxFeatureRecord, Regex, Result, SdrfLookupCache, SdrfRawTable,
+    SdrfTable, mean_positive, median,
 };
 
 /// First `_`-token of `value`, i.e. DuckDB `split_part(value, '_', 1)`. A name
@@ -42,32 +42,65 @@ pub(crate) fn collect_irs_scale(
     min_intensity: f64,
     named_score: Option<&NamedScoreFilterConfig>,
 ) -> Result<HashMap<String, f64>> {
-    // Phase 1: per run, buffer the reference-channel intensities and remember
-    // the mixture used by the non-global scopes.
-    struct RunBuffer {
-        mixture: String,
-        intensities: Vec<f64>,
-    }
+    let runs = buffer_irs_runs(
+        parquet,
+        irs,
+        sdrf,
+        remove_contaminants,
+        contaminant_patterns,
+        min_intensity,
+        named_score,
+    )?;
+
+    // Collapse each run's buffered intensities into one `irs_value`, then
+    // derive the scale under `irs.scope`. Collect into a `BTreeMap` keyed by run
+    // name so the runs are visited in a stable (sorted) order.
+    let per_run: Vec<(String, String, Vec<f64>)> = runs
+        .into_iter()
+        .map(|(run_name, buffer)| (run_name, (buffer.mixture, buffer.intensities)))
+        .collect::<BTreeMap<_, _>>()
+        .into_iter()
+        .map(|(run_name, (mixture, intensities))| (run_name, mixture, intensities))
+        .collect();
+    Ok(match irs.scope {
+        IrsScope::Global => {
+            let runs = per_run
+                .into_iter()
+                .map(|(run, _mixture, intensities)| (run, intensities))
+                .collect();
+            irs_global_scale_from_runs(runs, irs.stat)
+        }
+        IrsScope::ByMixture => irs_by_mixture_scale_from_runs(per_run, irs.stat),
+        IrsScope::TwoStage => irs_two_stage_scale_from_runs(per_run, irs.stat),
+    })
+}
+
+struct RunBuffer {
+    mixture: String,
+    intensities: Vec<f64>,
+}
+
+// Per run, buffer the reference-channel intensities and remember the mixture
+// used by the non-global scopes.
+fn buffer_irs_runs(
+    parquet: &Path,
+    irs: &IrsChannelConfig,
+    sdrf: Option<&SdrfTable>,
+    remove_contaminants: bool,
+    contaminant_patterns: &[String],
+    min_intensity: f64,
+    named_score: Option<&NamedScoreFilterConfig>,
+) -> Result<HashMap<String, RunBuffer>> {
     let mut runs: HashMap<String, RunBuffer> = HashMap::new();
     let mut sdrf_lookup = sdrf.map(SdrfLookupCache::new);
     stream_qpx_features(parquet, &MemoryPlan::unlimited(), named_score, |feature| {
-        // Channel match is on the *raw* feature label (Python filters on
-        // `channel = ?` before any reformat). A row with no label never matches.
-        if feature.label.as_deref() != Some(irs.channel.as_str()) {
-            return Ok(());
-        }
-        if !(feature.intensity.is_finite() && feature.intensity > 0.0) {
-            return Ok(());
-        }
-        if min_intensity > 0.0 && feature.intensity < min_intensity {
-            return Ok(());
-        }
-        // Contaminant `NOT LIKE` on the raw `pg_accessions`, mirroring the median
-        // pre-pass / Python's `SQLFilterBuilder` (case-sensitive substring; the
-        // default pattern list routes through the `is_contaminant` fallback).
-        if remove_contaminants
-            && matches_sql_contaminant(&feature.protein_accessions, contaminant_patterns)
-        {
+        if !is_irs_reference_feature(
+            &feature,
+            &irs.channel,
+            remove_contaminants,
+            contaminant_patterns,
+            min_intensity,
+        ) {
             return Ok(());
         }
         let sdrf_record = sdrf_record(&feature, sdrf_lookup.as_mut())?;
@@ -92,27 +125,36 @@ pub(crate) fn collect_irs_scale(
         Ok(())
     })?;
 
-    // Phase 2: collapse each run's buffered intensities into one `irs_value`, then
-    // derive the scale under `irs.scope`. Collect into a `BTreeMap` keyed by run
-    // name so the runs are visited in a stable (sorted) order.
-    let per_run: Vec<(String, String, Vec<f64>)> = runs
-        .into_iter()
-        .map(|(run_name, buffer)| (run_name, (buffer.mixture, buffer.intensities)))
-        .collect::<BTreeMap<_, _>>()
-        .into_iter()
-        .map(|(run_name, (mixture, intensities))| (run_name, mixture, intensities))
-        .collect();
-    Ok(match irs.scope {
-        IrsScope::Global => {
-            let runs = per_run
-                .into_iter()
-                .map(|(run, _mixture, intensities)| (run, intensities))
-                .collect();
-            irs_global_scale_from_runs(runs, irs.stat)
-        }
-        IrsScope::ByMixture => irs_by_mixture_scale_from_runs(per_run, irs.stat),
-        IrsScope::TwoStage => irs_two_stage_scale_from_runs(per_run, irs.stat),
-    })
+    Ok(runs)
+}
+
+fn is_irs_reference_feature(
+    feature: &QpxFeatureRecord,
+    channel: &str,
+    remove_contaminants: bool,
+    contaminant_patterns: &[String],
+    min_intensity: f64,
+) -> bool {
+    // Channel match is on the *raw* feature label (Python filters on
+    // `channel = ?` before any reformat). A row with no label never matches.
+    if feature.label.as_deref() != Some(channel) {
+        return false;
+    }
+    if !(feature.intensity.is_finite() && feature.intensity > 0.0) {
+        return false;
+    }
+    if min_intensity > 0.0 && feature.intensity < min_intensity {
+        return false;
+    }
+    // Contaminant `NOT LIKE` on the raw `pg_accessions`, mirroring the median
+    // pre-pass / Python's `SQLFilterBuilder` (case-sensitive substring; the
+    // default pattern list routes through the `is_contaminant` fallback).
+    if remove_contaminants
+        && matches_sql_contaminant(&feature.protein_accessions, contaminant_patterns)
+    {
+        return false;
+    }
+    true
 }
 
 /// Pure global-scope IRS math (Python `get_irs_scaling_factors`,

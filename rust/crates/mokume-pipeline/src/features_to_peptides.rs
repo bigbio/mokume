@@ -15,8 +15,8 @@ use crate::{
     BTreeMap, BatchCorrectionConfig, DifferentialExpressionConfig, DirectLfqConfig,
     FeatureToPeptidesConfig, FeatureToProteinsConfig, HashMap, HashSet, ImputationConfig,
     IrsConfig, MaxLfqConfig, MemoryPlan, NamedScoreFilterConfig, NormalizationConfig, OutputConfig,
-    OutputFormat, Path, PibaqConfig, PreprocessingFilterConfig, QuantMethod, RatioConfig, Result,
-    RuntimeConfig, SdrfLookupCache, TmtConfig, info, invalid_input,
+    OutputFormat, Path, PibaqConfig, PreprocessingFilterConfig, QpxFeatureRecord, QuantMethod,
+    RatioConfig, Result, RuntimeConfig, SdrfLookupCache, SdrfTable, TmtConfig, info, invalid_input,
 };
 
 pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> {
@@ -39,6 +39,43 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         proteins_config.filtering.min_unique_peptides = pipeline.protein.min_unique_peptides;
     }
     let sdrf = input_sample_table(&proteins_config.input)?;
+    let intensity_factors = peptide_intensity_factors(
+        config,
+        &proteins_config,
+        parquet,
+        sdrf.as_ref(),
+        filter_pipeline,
+        named_score,
+    )?;
+    let intensity_factors = (!intensity_factors.is_empty()).then_some(&intensity_factors);
+    let mut state = prepare_peptide_export(
+        config,
+        &proteins_config,
+        parquet,
+        sdrf.as_ref(),
+        filter_pipeline,
+        named_score,
+    )?;
+    ingest_export_peptides(
+        &mut state,
+        config,
+        &proteins_config,
+        parquet,
+        sdrf.as_ref(),
+        intensity_factors,
+        filter_pipeline,
+    )?;
+    write_peptide_exports(&mut state, config, &proteins_config, filter_pipeline)
+}
+
+fn peptide_intensity_factors(
+    config: &FeatureToPeptidesConfig,
+    proteins_config: &FeatureToProteinsConfig,
+    parquet: &Path,
+    sdrf: Option<&SdrfTable>,
+    filter_pipeline: Option<&PreprocessingFilterConfig>,
+    named_score: Option<&NamedScoreFilterConfig>,
+) -> Result<IntensityFactors> {
     // The median pre-pass mirrors Python's `SQLFilterBuilder`, which removes
     // contaminants on the **raw** `pg_accessions` before computing the median.
     // Route the filter pipeline's custom patterns through (default list -> the
@@ -53,8 +90,8 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         // Python `peptide.py:168/176` (`require_unique = not keep_shared`).
         // `proteins_config` cannot carry this (it pins quantification to `Sum`).
         collect_intensity_factors(
-            &proteins_config,
-            sdrf.as_ref(),
+            proteins_config,
+            sdrf,
             median_contaminant_patterns,
             config.keep_shared_peptides,
             &MemoryPlan::unlimited(),
@@ -69,7 +106,7 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         let irs_scale_by_run = collect_irs_scale(
             parquet,
             irs,
-            sdrf.as_ref(),
+            sdrf,
             proteins_config.filtering.remove_contaminants,
             median_contaminant_patterns,
             irs_min_intensity,
@@ -83,8 +120,18 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         }
         intensity_factors.irs_scale_by_run = irs_scale_by_run;
     }
-    let intensity_factors = (!intensity_factors.is_empty()).then_some(&intensity_factors);
-    let mut state = FeatureToProteinState::new(&proteins_config, sdrf.as_ref(), None, None)?;
+    Ok(intensity_factors)
+}
+
+fn prepare_peptide_export(
+    config: &FeatureToPeptidesConfig,
+    proteins_config: &FeatureToProteinsConfig,
+    parquet: &Path,
+    sdrf: Option<&SdrfTable>,
+    filter_pipeline: Option<&PreprocessingFilterConfig>,
+    named_score: Option<&NamedScoreFilterConfig>,
+) -> Result<FeatureToProteinState> {
+    let mut state = FeatureToProteinState::new(proteins_config, sdrf, None, None)?;
     // `--keep-shared-peptides`: keep non-unique rows during ingest (Python skips
     // the `unique == 1` filter) and skip the per-protein `min_unique` gate at
     // export by forcing the effective threshold to 0 (Python skips the
@@ -93,7 +140,7 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
     // `--aggregation_level run`: re-create the peptide export so its keys carry
     // the run dimension. The protein-export path never requests run mode.
     let run_mode = config.aggregation_level.is_run();
-    state.export_rows = IntermediateExports::new_with_run_mode(&proteins_config, run_mode);
+    state.export_rows = IntermediateExports::new_with_run_mode(proteins_config, run_mode);
     if let Some(path) = &config.remove_ids {
         state.remove_protein_ids = load_remove_ids(path)?;
     }
@@ -105,28 +152,40 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         configure_fdr_and_sequence_filters(&mut state, parquet, pipeline, named_score)?;
         state.export_rows.rows.razor_handling =
             parse_razor_handling(&pipeline.protein.razor_peptide_handling);
+        configure_peptide_group_filters(
+            &mut state,
+            proteins_config,
+            parquet,
+            sdrf,
+            pipeline,
+            named_score,
+        )?;
     }
+    Ok(state)
+}
+
+fn configure_peptide_group_filters(
+    state: &mut FeatureToProteinState,
+    proteins_config: &FeatureToProteinsConfig,
+    parquet: &Path,
+    sdrf: Option<&SdrfTable>,
+    pipeline: &PreprocessingFilterConfig,
+    named_score: Option<&NamedScoreFilterConfig>,
+) -> Result<()> {
     // Run-QC filters run inside each sample frame and group by technical
     // replicate. Decide which runs to drop in a pre-pass (the median is computed
     // independently in `collect_intensity_factors`, so excluded runs still feed
     // it -- matching Python, where `get_median_map` runs via `SQLFilterBuilder`
     // ahead of the per-sample filter pipeline).
-    if let Some(pipeline) = filter_pipeline {
-        let source = RunQcSource {
-            filtering: proteins_config.filtering,
-            keep_shared_peptides: config.keep_shared_peptides,
-            min_unique_peptides: proteins_config.filtering.min_unique_peptides,
-            contaminant_patterns: &pipeline.protein.contaminant_patterns,
-            remove_protein_ids: &state.remove_protein_ids,
-        };
-        state.run_qc_excluded_runs = collect_run_qc_exclusions(
-            parquet,
-            sdrf.as_ref(),
-            &pipeline.run_qc,
-            &source,
-            named_score,
-        )?;
-    }
+    let source = RunQcSource {
+        filtering: proteins_config.filtering,
+        keep_shared_peptides: state.keep_shared_peptides,
+        min_unique_peptides: proteins_config.filtering.min_unique_peptides,
+        contaminant_patterns: &pipeline.protein.contaminant_patterns,
+        remove_protein_ids: &state.remove_protein_ids,
+    };
+    state.run_qc_excluded_runs =
+        collect_run_qc_exclusions(parquet, sdrf, &pipeline.run_qc, &source, named_score)?;
     // CVThresholdFilter and QuantileFilter are group-level filters: both need the
     // whole sample's `min_unique`-gated intensities, which the streaming ingest
     // cannot see one row at a time. Compute them together in a pre-pass (like
@@ -135,31 +194,35 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
     // quantile bounds see the post-CV survivors (Python orders CV before Quantile).
     // Excluded Run-QC technical runs are skipped so they do not feed either
     // decision.
-    if let Some(pipeline) = filter_pipeline {
-        let source = RunQcSource {
-            filtering: proteins_config.filtering,
-            keep_shared_peptides: config.keep_shared_peptides,
-            min_unique_peptides: proteins_config.filtering.min_unique_peptides,
-            contaminant_patterns: &pipeline.protein.contaminant_patterns,
-            remove_protein_ids: &state.remove_protein_ids,
-        };
-        let group_filters = collect_intensity_group_filters(
-            parquet,
-            sdrf.as_ref(),
-            &source,
-            &pipeline.intensity,
-            &state.run_qc_excluded_runs,
-            named_score,
-        )?;
-        state.cv_dropped = group_filters.cv_dropped;
-        state.quantile_bounds = group_filters.quantile_bounds;
-        // ReplicateAgreementFilter degeneracy: `min_replicate_agreement > 1` drops
-        // every row under Python's per-sample application (nunique(SampleID) == 1),
-        // so the whole output is header-only. Set the flag so ingest rejects all
-        // features (the warning is emitted in `validate_filter_pipeline_subset`).
-        state.replicate_agreement_wipes_all = pipeline.intensity.min_replicate_agreement > 1;
-    }
-    let mut sdrf_lookup = sdrf.as_ref().map(SdrfLookupCache::new);
+    let group_filters = collect_intensity_group_filters(
+        parquet,
+        sdrf,
+        &source,
+        &pipeline.intensity,
+        &state.run_qc_excluded_runs,
+        named_score,
+    )?;
+    state.cv_dropped = group_filters.cv_dropped;
+    state.quantile_bounds = group_filters.quantile_bounds;
+    // ReplicateAgreementFilter degeneracy: `min_replicate_agreement > 1` drops
+    // every row under Python's per-sample application (nunique(SampleID) == 1),
+    // so the whole output is header-only. Set the flag so ingest rejects all
+    // features (the warning is emitted in `validate_filter_pipeline_subset`).
+    state.replicate_agreement_wipes_all = pipeline.intensity.min_replicate_agreement > 1;
+    Ok(())
+}
+
+fn ingest_export_peptides(
+    state: &mut FeatureToProteinState,
+    config: &FeatureToPeptidesConfig,
+    proteins_config: &FeatureToProteinsConfig,
+    parquet: &Path,
+    sdrf: Option<&SdrfTable>,
+    intensity_factors: Option<&IntensityFactors>,
+    filter_pipeline: Option<&PreprocessingFilterConfig>,
+) -> Result<()> {
+    let named_score = filter_pipeline.and_then(|pipeline| pipeline.peptide.score.as_ref());
+    let mut sdrf_lookup = sdrf.map(SdrfLookupCache::new);
     let with_modifications =
         filter_pipeline.is_some_and(|pipeline| !pipeline.peptide.exclude_modifications.is_empty());
     stream_selected_qpx_features(
@@ -187,6 +250,15 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         "features2peptides aggregation finished"
     );
 
+    Ok(())
+}
+
+fn write_peptide_exports(
+    state: &mut FeatureToProteinState,
+    config: &FeatureToPeptidesConfig,
+    proteins_config: &FeatureToProteinsConfig,
+    filter_pipeline: Option<&PreprocessingFilterConfig>,
+) -> Result<()> {
     // `--keep-shared-peptides` skips the per-protein `min_unique` gate
     // (peptide.py:278-281, guarded by `if not keep_shared_peptides`). But the
     // filter pipeline's `MinPeptideFilter` (peptide.py:291-293 -> protein.py:134-146)
@@ -201,7 +273,7 @@ pub fn run_features_to_peptides(config: &FeatureToPeptidesConfig) -> Result<()> 
         proteins_config.filtering.min_unique_peptides
     };
     state.write_intermediate_exports(
-        &proteins_config,
+        proteins_config,
         &state.allowed_cells(min_unique),
         PeptideExportOptions {
             log2: config.log2,
@@ -258,18 +330,35 @@ pub(crate) fn collect_fdr_filter_state(
         return Ok(None);
     }
 
-    let mut peptide_values = 0_usize;
-    let mut protein_values = 0_usize;
-    let mut protein_min_qvalue: HashMap<String, f64> = HashMap::new();
-    let mut group_ids: HashMap<String, u32> = HashMap::new();
-    let mut run_groups: BTreeMap<String, HashSet<u32>> = BTreeMap::new();
+    let mut scan = FdrScan::default();
     stream_qpx_features(parquet, &MemoryPlan::unlimited(), named_score, |feature| {
+        scan.observe(&feature, peptide_threshold, protein_threshold)
+    })?;
+    scan.finish(peptide_threshold, protein_threshold)
+}
+
+#[derive(Default)]
+struct FdrScan {
+    peptide_values: usize,
+    protein_values: usize,
+    protein_min_qvalue: HashMap<String, f64>,
+    group_ids: HashMap<String, u32>,
+    run_groups: BTreeMap<String, HashSet<u32>>,
+}
+
+impl FdrScan {
+    fn observe(
+        &mut self,
+        feature: &QpxFeatureRecord,
+        peptide_threshold: Option<f64>,
+        protein_threshold: Option<f64>,
+    ) -> Result<()> {
         if peptide_threshold.is_some()
             && feature
                 .peptide_qvalue
                 .is_some_and(|qvalue| qvalue.is_finite())
         {
-            peptide_values += 1;
+            self.peptide_values += 1;
         }
         if protein_threshold.is_none() {
             return Ok(());
@@ -278,52 +367,65 @@ pub(crate) fn collect_fdr_filter_state(
             return Ok(());
         };
         if !feature.is_decoy.unwrap_or(false) {
-            let id = match group_ids.get(&protein) {
+            let id = match self.group_ids.get(&protein) {
                 Some(&id) => id,
                 None => {
-                    let id = u32::try_from(group_ids.len())
+                    let id = u32::try_from(self.group_ids.len())
                         .map_err(|_| invalid_input("protein FDR report id overflow"))?;
-                    group_ids.insert(protein.clone(), id);
+                    self.group_ids.insert(protein.clone(), id);
                     id
                 }
             };
-            if let Some(groups) = run_groups.get_mut(&feature.run_file_name) {
+            if let Some(groups) = self.run_groups.get_mut(&feature.run_file_name) {
                 groups.insert(id);
             } else {
-                run_groups.insert(feature.run_file_name.clone(), HashSet::from([id]));
+                self.run_groups
+                    .insert(feature.run_file_name.clone(), HashSet::from([id]));
             }
         }
         if let Some(qvalue) = feature.pg_global_qvalue.filter(|qvalue| qvalue.is_finite()) {
-            protein_values += 1;
-            protein_min_qvalue
+            self.protein_values += 1;
+            self.protein_min_qvalue
                 .entry(protein)
                 .and_modify(|known| *known = known.min(qvalue))
                 .or_insert(qvalue);
         }
         Ok(())
-    })?;
+    }
 
-    if peptide_threshold.is_some() && peptide_values == 0 {
-        return Err(invalid_input(
-            "--filter-peptide-fdr requires a populated QPX `peptide_qvalue` column",
-        ));
+    fn finish(
+        self,
+        peptide_threshold: Option<f64>,
+        protein_threshold: Option<f64>,
+    ) -> Result<Option<HashSet<String>>> {
+        if peptide_threshold.is_some() && self.peptide_values == 0 {
+            return Err(invalid_input(
+                "--filter-peptide-fdr requires a populated QPX `peptide_qvalue` column",
+            ));
+        }
+        let Some(threshold) = protein_threshold else {
+            return Ok(None);
+        };
+        if self.protein_values == 0 {
+            return Err(invalid_input(
+                "--filter-protein-fdr requires a populated QPX `pg_global_qvalue` column",
+            ));
+        }
+        let allowed: HashSet<String> = self
+            .protein_min_qvalue
+            .iter()
+            .filter(|&(_, &qvalue)| qvalue <= threshold)
+            .map(|(protein, _)| protein.clone())
+            .collect();
+        let report = ProteinFdrReport::new(
+            &self.group_ids,
+            &self.protein_min_qvalue,
+            &self.run_groups,
+            threshold,
+        );
+        log_protein_fdr_report(&report);
+        Ok(Some(allowed))
     }
-    let Some(threshold) = protein_threshold else {
-        return Ok(None);
-    };
-    if protein_values == 0 {
-        return Err(invalid_input(
-            "--filter-protein-fdr requires a populated QPX `pg_global_qvalue` column",
-        ));
-    }
-    let allowed: HashSet<String> = protein_min_qvalue
-        .iter()
-        .filter(|&(_, &qvalue)| qvalue <= threshold)
-        .map(|(protein, _)| protein.clone())
-        .collect();
-    let report = ProteinFdrReport::new(&group_ids, &protein_min_qvalue, &run_groups, threshold);
-    log_protein_fdr_report(&report);
-    Ok(Some(allowed))
 }
 
 /// Protein groups before/after `--filter-protein-fdr`, per run and for the

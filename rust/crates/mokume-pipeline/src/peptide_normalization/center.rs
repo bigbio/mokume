@@ -1,3 +1,4 @@
+use super::log2_canonical_cells;
 use crate::state::CellKey;
 use crate::{HashMap, HashSet, PeptideId, SampleId, median_finite};
 
@@ -38,28 +39,7 @@ pub(crate) fn apply_center_to_peptide_cells(
     stat: CenterStat,
 ) {
     // (1) Collapse to canonical and log2 the strictly-positive sums.
-    let mut log2_cells = HashMap::<CellKey, HashMap<PeptideId, f64>>::new();
-    for (cell, peptides) in cells.iter() {
-        if !allowed_cells.contains(cell) {
-            continue;
-        }
-        let mut summed = HashMap::<PeptideId, f64>::new();
-        for (peptide, intensity) in peptides {
-            let canonical = peptide_to_canonical
-                .get(peptide)
-                .copied()
-                .unwrap_or(*peptide);
-            *summed.entry(canonical).or_insert(0.0) += *intensity;
-        }
-        let log_row = summed
-            .into_iter()
-            .filter(|(_, value)| value.is_finite() && *value > 0.0)
-            .map(|(canonical, value)| (canonical, value.log2()))
-            .collect::<HashMap<_, _>>();
-        if !log_row.is_empty() {
-            log2_cells.insert(*cell, log_row);
-        }
-    }
+    let log2_cells = log2_canonical_cells(cells, allowed_cells, peptide_to_canonical);
     if log2_cells.is_empty() {
         return;
     }

@@ -90,10 +90,23 @@ where
             consume(feature)
         });
     }
+    stream_direct_qpx_features(&mut reader, &groups, memory, score, consume)
+}
+
+fn stream_direct_qpx_features<F>(
+    reader: &mut QpxParquetReader,
+    groups: &ProteinGroupOrders,
+    memory: &MemoryPlan,
+    score: Option<&NamedScoreFilterConfig>,
+    mut consume: F,
+) -> Result<()>
+where
+    F: FnMut(QpxFeatureRecord) -> Result<()>,
+{
     let mut dropped = 0usize;
     let mut kept = 0usize;
     stream_qpx_reader(
-        &mut reader,
+        reader,
         memory,
         score,
         &mut |mut feature: QpxFeatureRecord| {

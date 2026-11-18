@@ -25,6 +25,28 @@ pub(crate) fn discover_families(
         return Err(invalid_input("pibaq-min-shared must be greater than 0"));
     }
 
+    let pair_counts = shared_accession_pair_counts(peptide_accessions);
+
+    let mut adjacency = accession_peptides
+        .keys()
+        .map(|accession| (accession.clone(), HashSet::<String>::new()))
+        .collect::<HashMap<_, _>>();
+    for ((left, right), count) in pair_counts {
+        if count >= min_shared {
+            adjacency
+                .entry(left.clone())
+                .or_default()
+                .insert(right.clone());
+            adjacency.entry(right).or_default().insert(left);
+        }
+    }
+
+    Ok(connected_protein_families(&adjacency, accession_peptides))
+}
+
+fn shared_accession_pair_counts(
+    peptide_accessions: &HashMap<String, HashSet<String>>,
+) -> HashMap<(String, String), usize> {
     let mut pair_counts = HashMap::<(String, String), usize>::new();
     for accessions in peptide_accessions.values() {
         if accessions.len() < 2 {
@@ -43,21 +65,13 @@ pub(crate) fn discover_families(
             }
         }
     }
+    pair_counts
+}
 
-    let mut adjacency = accession_peptides
-        .keys()
-        .map(|accession| (accession.clone(), HashSet::<String>::new()))
-        .collect::<HashMap<_, _>>();
-    for ((left, right), count) in pair_counts {
-        if count >= min_shared {
-            adjacency
-                .entry(left.clone())
-                .or_default()
-                .insert(right.clone());
-            adjacency.entry(right).or_default().insert(left);
-        }
-    }
-
+fn connected_protein_families(
+    adjacency: &HashMap<String, HashSet<String>>,
+    accession_peptides: &HashMap<String, HashSet<String>>,
+) -> Vec<ProteinFamily> {
     let mut seen = HashSet::<String>::new();
     let mut families = Vec::new();
     for start in adjacency.keys() {
@@ -87,7 +101,7 @@ pub(crate) fn discover_families(
         let family_id = choose_family_id(&members, accession_peptides);
         families.push(ProteinFamily { family_id, members });
     }
-    Ok(families)
+    families
 }
 
 fn choose_family_id(

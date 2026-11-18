@@ -91,44 +91,8 @@ pub fn run_lfq_from_peptides(
             return Vec::new();
         }
     }
-    let mut ions = Vec::with_capacity(observations.len());
-    for observation in observations {
-        let (Some(protein), Some(ion), Some(sample)) = (
-            proteins.get(&observation.protein),
-            peptides.get_or_insert(&observation.peptide),
-            samples.get(&observation.sample),
-        ) else {
-            continue;
-        };
-        ions.push(DirectLfqIon {
-            protein,
-            ion,
-            // Filled in below once all peptide strings are known.
-            ion_seq_rank: 0,
-            sample,
-            intensity: observation.intensity,
-        });
-    }
-    // DirectLFQ orders ion rows by `(protein, sequence)` lexically and
-    // `get_normfacts` breaks merge ties by row position, so rank each distinct
-    // peptide id by its sequence string and stamp it onto every ion.
-    let mut distinct_peptides = ions.iter().map(|ion| ion.ion).collect::<Vec<_>>();
-    distinct_peptides.sort_unstable_by_key(|peptide| peptide.get());
-    distinct_peptides.dedup();
-    distinct_peptides.sort_by(|a, b| {
-        peptides
-            .resolve(*a)
-            .cmp(&peptides.resolve(*b))
-            .then_with(|| a.get().cmp(&b.get()))
-    });
-    let peptide_rank = distinct_peptides
-        .into_iter()
-        .enumerate()
-        .map(|(rank, peptide)| (peptide, rank as u32))
-        .collect::<HashMap<_, _>>();
-    for ion in &mut ions {
-        ion.ion_seq_rank = peptide_rank.get(&ion.ion).copied().unwrap_or(u32::MAX);
-    }
+    let mut ions = directlfq_observation_ions(observations, &proteins, &samples, &mut peptides);
+    rank_directlfq_observation_ions(&mut ions, &peptides);
 
     let mut result = Vec::new();
     for (protein, per_sample) in direct_lfq_aligned(ions, min_nonan, num_samples_quadratic, true) {
@@ -148,6 +112,59 @@ pub fn run_lfq_from_peptides(
         }
     }
     result
+}
+
+fn directlfq_observation_ions(
+    observations: &[LfqPeptideObservation],
+    proteins: &StringIdRegistry<ProteinId>,
+    samples: &StringIdRegistry<SampleId>,
+    peptides: &mut StringIdRegistry<PeptideId>,
+) -> Vec<DirectLfqIon> {
+    let mut ions = Vec::with_capacity(observations.len());
+    for observation in observations {
+        let (Some(protein), Some(ion), Some(sample)) = (
+            proteins.get(&observation.protein),
+            peptides.get_or_insert(&observation.peptide),
+            samples.get(&observation.sample),
+        ) else {
+            continue;
+        };
+        ions.push(DirectLfqIon {
+            protein,
+            ion,
+            // Filled in below once all peptide strings are known.
+            ion_seq_rank: 0,
+            sample,
+            intensity: observation.intensity,
+        });
+    }
+    ions
+}
+
+fn rank_directlfq_observation_ions(
+    ions: &mut [DirectLfqIon],
+    peptides: &StringIdRegistry<PeptideId>,
+) {
+    // DirectLFQ orders ion rows by `(protein, sequence)` lexically and
+    // `get_normfacts` breaks merge ties by row position, so rank each distinct
+    // peptide id by its sequence string and stamp it onto every ion.
+    let mut distinct_peptides = ions.iter().map(|ion| ion.ion).collect::<Vec<_>>();
+    distinct_peptides.sort_unstable_by_key(|peptide| peptide.get());
+    distinct_peptides.dedup();
+    distinct_peptides.sort_by(|a, b| {
+        peptides
+            .resolve(*a)
+            .cmp(&peptides.resolve(*b))
+            .then_with(|| a.get().cmp(&b.get()))
+    });
+    let peptide_rank = distinct_peptides
+        .into_iter()
+        .enumerate()
+        .map(|(rank, peptide)| (peptide, rank as u32))
+        .collect::<HashMap<_, _>>();
+    for ion in ions {
+        ion.ion_seq_rank = peptide_rank.get(&ion.ion).copied().unwrap_or(u32::MAX);
+    }
 }
 
 /// FASTA-digest parameters for [`run_pibaq_from_peptides`], mirroring the piBAQ

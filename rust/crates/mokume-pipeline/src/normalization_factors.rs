@@ -138,15 +138,36 @@ impl<'a> NormalizationFactorCollector<'a> {
 
         let sdrf_record = sdrf_record(&feature, self.sdrf.as_mut())?;
         let sample = sample_name(&feature, sdrf_record);
+        self.collect_sample_value(&feature, &protein_group, &sample, sdrf_record);
+
+        if self.run_method.is_some() {
+            self.run_values
+                .entry(RunCellKey {
+                    sample,
+                    run: feature.run_file_name,
+                })
+                .or_default()
+                .push(feature.intensity);
+        }
+        Ok(())
+    }
+
+    fn collect_sample_value(
+        &mut self,
+        feature: &QpxFeatureRecord,
+        protein_group: &str,
+        sample: &str,
+        sdrf_record: Option<&crate::SdrfRecord>,
+    ) {
         if self
             .normalization_proteins
             .as_ref()
-            .is_none_or(|proteins| proteins.contains(&protein_group))
+            .is_none_or(|proteins| proteins.contains(protein_group))
         {
             match self.sample_method {
                 Some(SampleNormalizationMethod::GlobalMedian) => {
                     self.sample_values
-                        .entry(sample.clone())
+                        .entry(sample.to_owned())
                         .or_default()
                         .push(feature.intensity);
                 }
@@ -164,28 +185,17 @@ impl<'a> NormalizationFactorCollector<'a> {
                     | SampleNormalizationMethod::Tmm,
                 ) => {}
                 Some(SampleNormalizationMethod::ConditionMedian) => {
-                    let condition = sample_condition(&sample, sdrf_record);
+                    let condition = sample_condition(sample, sdrf_record);
                     self.condition_sample_values
                         .entry(condition)
                         .or_default()
-                        .entry(sample.clone())
+                        .entry(sample.to_owned())
                         .or_default()
                         .push(feature.intensity);
                 }
                 None => {}
             }
         }
-
-        if self.run_method.is_some() {
-            self.run_values
-                .entry(RunCellKey {
-                    sample,
-                    run: feature.run_file_name,
-                })
-                .or_default()
-                .push(feature.intensity);
-        }
-        Ok(())
     }
 
     fn into_factors(self) -> IntensityFactors {

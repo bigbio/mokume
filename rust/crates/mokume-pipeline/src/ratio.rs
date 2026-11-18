@@ -62,13 +62,7 @@ impl RatioAggregation {
             &self.reference_samples,
             &self.sample_to_plex,
         );
-        let peptide_ratios = ratio_peptide_log2_ratios(
-            &averaged,
-            &self.sample_names,
-            &self.reference_samples,
-            &self.sample_to_plex,
-            &reference_intensity,
-        );
+        let peptide_ratios = ratio_peptide_log2_ratios(&averaged, &self, &reference_intensity);
         ratio_protein_medians(peptide_ratios)
     }
 }
@@ -305,22 +299,22 @@ fn ratio_reference_intensities(
         .collect()
 }
 
+type RatioMeasurement = (ProteinId, PeptideId, i32, SampleId, f64);
+
 fn ratio_peptide_log2_ratios(
-    averaged: &[(ProteinId, PeptideId, i32, SampleId, f64)],
-    sample_names: &HashMap<SampleId, String>,
-    reference_samples: &HashSet<String>,
-    sample_to_plex: &HashMap<String, String>,
+    averaged: &[RatioMeasurement],
+    aggregation: &RatioAggregation,
     reference_intensity: &HashMap<(ProteinId, PeptideId, i32, String), f64>,
 ) -> HashMap<(ProteinId, PeptideId, SampleId), Vec<f64>> {
     let mut ratios = HashMap::<(ProteinId, PeptideId, SampleId), Vec<f64>>::new();
     for (protein, peptide, charge, sample, intensity) in averaged {
-        let Some(sample_name) = sample_names.get(sample) else {
+        let Some(sample_name) = aggregation.sample_names.get(sample) else {
             continue;
         };
-        if reference_samples.contains(sample_name) {
+        if aggregation.reference_samples.contains(sample_name) {
             continue;
         }
-        let plex = plex_of(sample_to_plex, sample_name);
+        let plex = plex_of(&aggregation.sample_to_plex, sample_name);
         let Some(reference) = reference_intensity.get(&(*protein, *peptide, *charge, plex)) else {
             continue;
         };

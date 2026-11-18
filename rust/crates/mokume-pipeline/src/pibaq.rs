@@ -99,15 +99,7 @@ impl PibaqAggregation {
         config: &FeatureToProteinsConfig,
         digest: PibaqDigest,
     ) -> Result<Self> {
-        info!(
-            pyopenms_version = digest.provenance.pyopenms_version,
-            enzyme = digest.provenance.enzyme,
-            catalog_hash = digest.provenance.catalog_hash,
-            min_aa = digest.provenance.min_aa,
-            max_aa = digest.provenance.max_aa,
-            missed_cleavages = digest.provenance.missed_cleavages,
-            "using runtime pyOpenMS FASTA digest"
-        );
+        log_pibaq_digest(&digest);
         let mut accession_peptides = digest.accession_peptides;
         accession_peptides.retain(|_, peptides| !peptides.is_empty());
         let contaminant_twins = if config.filtering.remove_contaminants {
@@ -239,9 +231,25 @@ impl PibaqAggregation {
             &self.peptide_accessions,
             &anchor_counts,
         );
+        self.log_digest_misses(&observations, &peptide_owner);
+        let family_to_peptides = invert_peptide_ownership(&peptide_owner);
+        let observations_by_family = group_pibaq_observations(observations, &peptide_owner);
+        self.finalize_observed_families(
+            proteins,
+            observations_by_family,
+            &family_to_peptides,
+            &anchor_counts,
+        )
+    }
+
+    fn log_digest_misses(
+        &self,
+        observations: &[PibaqObservation],
+        peptide_owner: &HashMap<String, String>,
+    ) {
         let misses = summarize_digest_misses(
-            &observations,
-            &peptide_owner,
+            observations,
+            peptide_owner,
             &self.peptide_accessions,
             self.digest_max_aa,
         );
@@ -255,17 +263,15 @@ impl PibaqAggregation {
             other = misses.other,
             "piBAQ: observed peptides outside the theoretical digest are dropped"
         );
-        let family_to_peptides = invert_peptide_ownership(&peptide_owner);
-        let mut observations_by_family = HashMap::<String, Vec<PibaqObservation>>::new();
-        for observation in observations {
-            if let Some(owner) = peptide_owner.get(&observation.0) {
-                observations_by_family
-                    .entry(owner.clone())
-                    .or_default()
-                    .push(observation);
-            }
-        }
+    }
 
+    fn finalize_observed_families(
+        &self,
+        proteins: &mut StringIdRegistry<ProteinId>,
+        mut observations_by_family: HashMap<String, Vec<PibaqObservation>>,
+        family_to_peptides: &HashMap<String, HashSet<String>>,
+        anchor_counts: &HashMap<String, usize>,
+    ) -> (HashMap<CellKey, PibaqDetailedCell>, Vec<PibaqEvidenceRow>) {
         let mut detailed = HashMap::new();
         let mut evidence_rows = Vec::new();
         for family in &self.families {
@@ -279,19 +285,13 @@ impl PibaqAggregation {
             if owned_peptides.is_empty() {
                 continue;
             }
-            let evidence = self.family_evidence(family, &anchor_counts);
+            let evidence = self.family_evidence(family, anchor_counts);
             let family_size = family.members.len();
             let (output, rows) =
                 self.allocate_family(family, &observations, &owned_peptides, evidence, proteins);
             evidence_rows.extend(rows);
             for (key, cell) in output {
-                let molecular_weight = self.mw_map.as_ref().map(|mw_map| {
-                    let member_mw = proteins
-                        .resolve(key.protein)
-                        .and_then(|member| mw_map.get(member).copied())
-                        .unwrap_or(0.0);
-                    if member_mw == 0.0 { 1.0 } else { member_mw }
-                });
+                let molecular_weight = self.member_molecular_weight(key, proteins);
                 let tpa = molecular_weight.map(|mw| cell.norm_intensity / mw);
                 detailed.insert(
                     key,
@@ -307,6 +307,20 @@ impl PibaqAggregation {
             }
         }
         (detailed, evidence_rows)
+    }
+
+    fn member_molecular_weight(
+        &self,
+        key: CellKey,
+        proteins: &StringIdRegistry<ProteinId>,
+    ) -> Option<f64> {
+        self.mw_map.as_ref().map(|mw_map| {
+            let member_mw = proteins
+                .resolve(key.protein)
+                .and_then(|member| mw_map.get(member).copied())
+                .unwrap_or(0.0);
+            if member_mw == 0.0 { 1.0 } else { member_mw }
+        })
     }
 
     /// Bucket a family by the unique-peptide anchors of its weakest and strongest member.
@@ -486,4 +500,33 @@ pub(crate) struct PibaqDetailedCell {
     /// TPA = `NormIntensity / MolecularWeight`, populated alongside
     /// `molecular_weight`.
     pub(crate) tpa: Option<f64>,
+}
+
+fn log_pibaq_digest(digest: &PibaqDigest) {
+    info!(
+        pyopenms_version = digest.provenance.pyopenms_version,
+        enzyme = digest.provenance.enzyme,
+        catalog_hash = digest.provenance.catalog_hash,
+        min_aa = digest.provenance.min_aa,
+        max_aa = digest.provenance.max_aa,
+        missed_cleavages = digest.provenance.missed_cleavages,
+        "using runtime pyOpenMS FASTA digest"
+    );
+}
+
+fn group_pibaq_observations(
+    observations: Vec<PibaqObservation>,
+    peptide_owner: &HashMap<String, String>,
+) -> HashMap<String, Vec<PibaqObservation>> {
+    let mut observations_by_family = HashMap::<String, Vec<PibaqObservation>>::new();
+    for observation in observations {
+        if let Some(owner) = peptide_owner.get(&observation.0) {
+            observations_by_family
+                .entry(owner.clone())
+                .or_default()
+                .push(observation);
+        }
+    }
+
+    observations_by_family
 }

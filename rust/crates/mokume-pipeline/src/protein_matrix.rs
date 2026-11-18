@@ -285,6 +285,27 @@ impl ProteinMatrix {
             .enumerate()
             .map(|(index, (sample, _))| (*sample, index))
             .collect::<HashMap<_, _>>();
+        let column_missing = self.missing_column_values(&samples, missing_fill);
+        let mut header = Vec::with_capacity(samples.len() + 1);
+        header.push(output_format.protein_column().to_owned());
+        header.extend(samples.iter().map(|(_, sample)| (*sample).to_owned()));
+        writer
+            .write_record(header)
+            .map_err(|source| csv_error(path, source))?;
+
+        self.write_protein_csv_rows(&mut writer, path, &sample_index, &column_missing)?;
+        writer.flush().map_err(|source| MokumeError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        Ok(())
+    }
+
+    fn missing_column_values(
+        &self,
+        samples: &[(SampleId, &str)],
+        missing_fill: Option<f64>,
+    ) -> Vec<String> {
         // Per-column fill for cells with no observed (positive, finite) value.
         // Mirrors Python's `pivot_table(fill_value=0)` over the observed samples:
         // the additive methods (sum / intensity / peptide_count / spectral_count /
@@ -294,20 +315,22 @@ impl ProteinMatrix {
         // because Python's pivot never densifies it (it is re-added as a NaN
         // column), not 0.
         let observed = self.observed_samples();
-        let column_missing = samples
+        samples
             .iter()
             .map(|(sample, _)| match missing_fill {
                 Some(value) if observed.contains(sample) => format_float(value),
                 _ => String::new(),
             })
-            .collect::<Vec<_>>();
-        let mut header = Vec::with_capacity(samples.len() + 1);
-        header.push(output_format.protein_column().to_owned());
-        header.extend(samples.iter().map(|(_, sample)| (*sample).to_owned()));
-        writer
-            .write_record(header)
-            .map_err(|source| csv_error(path, source))?;
+            .collect::<Vec<_>>()
+    }
 
+    fn write_protein_csv_rows(
+        &self,
+        writer: &mut csv::Writer<File>,
+        path: &Path,
+        sample_index: &HashMap<SampleId, usize>,
+        column_missing: &[String],
+    ) -> Result<()> {
         let mut proteins = self
             .proteins
             .iter()
@@ -318,19 +341,15 @@ impl ProteinMatrix {
             if !self.allowed_proteins.contains(&protein) {
                 continue;
             }
-            let mut row_values = column_missing.clone();
-            self.fill_row_values(protein, &sample_index, &mut row_values);
-            let mut row = Vec::with_capacity(samples.len() + 1);
+            let mut row_values = column_missing.to_vec();
+            self.fill_row_values(protein, sample_index, &mut row_values);
+            let mut row = Vec::with_capacity(column_missing.len() + 1);
             row.push(accession.to_owned());
             row.extend(row_values);
             writer
                 .write_record(row)
                 .map_err(|source| csv_error(path, source))?;
         }
-        writer.flush().map_err(|source| MokumeError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
         Ok(())
     }
 

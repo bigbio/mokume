@@ -54,12 +54,14 @@ fn fasta_identifier(header: &str) -> String {
         .to_owned()
 }
 
+const NONSTANDARD_AMINO_ACIDS: &str = "XBZJUO";
+
 fn strip_nonstandard_amino_acids(sequence: &str) -> String {
     sequence
         .chars()
         .filter_map(|aa| {
             let aa = aa.to_ascii_uppercase();
-            (!matches!(aa, 'X' | 'B' | 'Z' | 'J' | 'U' | 'O')).then_some(aa)
+            (!NONSTANDARD_AMINO_ACIDS.contains(aa)).then_some(aa)
         })
         .collect()
 }

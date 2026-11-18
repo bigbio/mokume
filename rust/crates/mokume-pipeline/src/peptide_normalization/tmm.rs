@@ -1,3 +1,4 @@
+use super::sum_canonical_cell;
 use crate::peptide_normalization::QuantilePeptideKey;
 use crate::state::CellKey;
 use crate::{HashMap, HashSet, PeptideId, SampleId, StringIdRegistry, tmm_norm_factors};
@@ -23,14 +24,7 @@ pub(crate) fn apply_tmm_to_peptide_cells(
         if !allowed_cells.contains(cell) {
             continue;
         }
-        let mut summed = HashMap::<PeptideId, f64>::new();
-        for (peptide, intensity) in peptides {
-            let canonical = peptide_to_canonical
-                .get(peptide)
-                .copied()
-                .unwrap_or(*peptide);
-            *summed.entry(canonical).or_insert(0.0) += *intensity;
-        }
+        let summed = sum_canonical_cell(peptides, peptide_to_canonical);
         if !summed.is_empty() {
             summed_cells.insert(*cell, summed);
         }
@@ -39,77 +33,9 @@ pub(crate) fn apply_tmm_to_peptide_cells(
         return;
     }
 
-    // (2) Build the deterministic row order: every (protein, canonical) key that
-    // appears in any cell, sorted by id so all columns share the same row order.
-    let mut row_keys: Vec<QuantilePeptideKey> = summed_cells
-        .iter()
-        .flat_map(|(cell, peptides)| {
-            peptides.keys().map(move |peptide| QuantilePeptideKey {
-                protein: cell.protein,
-                peptide: *peptide,
-            })
-        })
-        .collect();
-    row_keys.sort();
-    row_keys.dedup();
-    let row_index: HashMap<QuantilePeptideKey, usize> = row_keys
-        .iter()
-        .enumerate()
-        .map(|(index, key)| (*key, index))
-        .collect();
-
-    // (3) Column order: samples sorted by their string label, matching pandas'
-    // pivoted column ordering (drives the reference tie-break).
-    let mut sample_ids: Vec<SampleId> = summed_cells
-        .keys()
-        .map(|cell| cell.sample)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-    sample_ids.sort_by(|a, b| {
-        let name_a = samples.resolve(*a).unwrap_or("");
-        let name_b = samples.resolve(*b).unwrap_or("");
-        name_a.cmp(name_b).then_with(|| {
-            let raw_a: u32 = (*a).into();
-            let raw_b: u32 = (*b).into();
-            raw_a.cmp(&raw_b)
-        })
-    });
-    let column_names: Vec<String> = sample_ids
-        .iter()
-        .enumerate()
-        .map(|(index, id)| {
-            samples
-                .resolve(*id)
-                .map(|name| name.to_string())
-                .unwrap_or_else(|| format!("__sample_{index}"))
-        })
-        .collect();
-    let sample_column: HashMap<SampleId, usize> = sample_ids
-        .iter()
-        .enumerate()
-        .map(|(index, id)| (*id, index))
-        .collect();
-
-    // (4) Populate the column-major wide matrix. Missing (protein, canonical) x
-    // sample entries stay 0.0, which `tmm_norm_factors` treats as missing by
-    // filtering them out — the same outcome as Python, whose pivot fills gaps
-    // with NaN and `replace(0, NaN)` maps zeros to NaN before `skipna` drops them.
-    let mut matrix: Vec<Vec<f64>> = vec![vec![0.0; row_keys.len()]; sample_ids.len()];
-    for (cell, peptides) in &summed_cells {
-        let Some(&column) = sample_column.get(&cell.sample) else {
-            continue;
-        };
-        for (peptide, value) in peptides {
-            let key = QuantilePeptideKey {
-                protein: cell.protein,
-                peptide: *peptide,
-            };
-            if let Some(&row) = row_index.get(&key) {
-                matrix[column][row] = *value;
-            }
-        }
-    }
+    let row_keys = tmm_row_keys(&summed_cells);
+    let (sample_ids, column_names) = tmm_sample_columns(&summed_cells, samples);
+    let matrix = tmm_matrix(&summed_cells, &row_keys, &sample_ids);
 
     // Compute centered edgeR factors and divide the original peptidoforms.
     //
@@ -144,6 +70,98 @@ pub(crate) fn apply_tmm_to_peptide_cells(
             *value /= factor;
         }
     }
+}
+
+fn tmm_row_keys(
+    summed_cells: &HashMap<CellKey, HashMap<PeptideId, f64>>,
+) -> Vec<QuantilePeptideKey> {
+    // (2) Build the deterministic row order: every (protein, canonical) key that
+    // appears in any cell, sorted by id so all columns share the same row order.
+    let mut row_keys: Vec<QuantilePeptideKey> = summed_cells
+        .iter()
+        .flat_map(|(cell, peptides)| {
+            peptides.keys().map(move |peptide| QuantilePeptideKey {
+                protein: cell.protein,
+                peptide: *peptide,
+            })
+        })
+        .collect();
+    row_keys.sort();
+    row_keys.dedup();
+    row_keys
+}
+
+fn tmm_sample_columns(
+    summed_cells: &HashMap<CellKey, HashMap<PeptideId, f64>>,
+    samples: &StringIdRegistry<SampleId>,
+) -> (Vec<SampleId>, Vec<String>) {
+    // (3) Column order: samples sorted by their string label, matching pandas'
+    // pivoted column ordering (drives the reference tie-break).
+    let mut sample_ids: Vec<SampleId> = summed_cells
+        .keys()
+        .map(|cell| cell.sample)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    sample_ids.sort_by(|a, b| {
+        let name_a = samples.resolve(*a).unwrap_or("");
+        let name_b = samples.resolve(*b).unwrap_or("");
+        name_a.cmp(name_b).then_with(|| {
+            let raw_a: u32 = (*a).into();
+            let raw_b: u32 = (*b).into();
+            raw_a.cmp(&raw_b)
+        })
+    });
+    let column_names: Vec<String> = sample_ids
+        .iter()
+        .enumerate()
+        .map(|(index, id)| {
+            samples
+                .resolve(*id)
+                .map(|name| name.to_string())
+                .unwrap_or_else(|| format!("__sample_{index}"))
+        })
+        .collect();
+    (sample_ids, column_names)
+}
+
+fn tmm_matrix(
+    summed_cells: &HashMap<CellKey, HashMap<PeptideId, f64>>,
+    row_keys: &[QuantilePeptideKey],
+    sample_ids: &[SampleId],
+) -> Vec<Vec<f64>> {
+    let row_index: HashMap<QuantilePeptideKey, usize> = row_keys
+        .iter()
+        .enumerate()
+        .map(|(index, key)| (*key, index))
+        .collect();
+
+    let sample_column: HashMap<SampleId, usize> = sample_ids
+        .iter()
+        .enumerate()
+        .map(|(index, id)| (*id, index))
+        .collect();
+
+    // (4) Populate the column-major wide matrix. Missing (protein, canonical) x
+    // sample entries stay 0.0, which `tmm_norm_factors` treats as missing by
+    // filtering them out — the same outcome as Python, whose pivot fills gaps
+    // with NaN and `replace(0, NaN)` maps zeros to NaN before `skipna` drops them.
+    let mut matrix: Vec<Vec<f64>> = vec![vec![0.0; row_keys.len()]; sample_ids.len()];
+    for (cell, peptides) in summed_cells {
+        let Some(&column) = sample_column.get(&cell.sample) else {
+            continue;
+        };
+        for (peptide, value) in peptides {
+            let key = QuantilePeptideKey {
+                protein: cell.protein,
+                peptide: *peptide,
+            };
+            if let Some(&row) = row_index.get(&key) {
+                matrix[column][row] = *value;
+            }
+        }
+    }
+    matrix
 }
 
 /// A per-sample TMM factor is applied only when it is a genuine rescale: not the

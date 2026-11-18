@@ -12,7 +12,7 @@ use crate::state::{ContextualIds, FeatureToProteinState, IngestRecord, PeptideIn
 use crate::validation::fails_protein_fdr;
 use crate::{
     FeatureToProteinsConfig, FilterConfig, HashMap, HashSet, QpxFeatureRecord, Result,
-    SdrfLookupCache, SdrfRawTable, SdrfTable, StringIdRegistry, filters, invalid_input,
+    SdrfLookupCache, SdrfRawTable, SdrfRecord, SdrfTable, StringIdRegistry, filters, invalid_input,
 };
 impl FeatureToProteinState {
     pub(crate) fn new(
@@ -65,14 +65,47 @@ impl FeatureToProteinState {
         if self.replicate_agreement_wipes_all {
             return Ok(());
         }
-        let keep_shared = self.keep_shared_peptides || self.aggregation.keeps_shared_peptides();
-        if !passes_feature_filter(feature, filtering, keep_shared) {
-            return Ok(());
-        }
-
-        let Some(protein_group) = self.aggregation.protein_name(feature) else {
+        let Some((protein_group, cv_group)) = self.ingest_protein_group(feature, filtering) else {
             return Ok(());
         };
+        let sdrf_record = sdrf_record(feature, sdrf)?;
+        let sample_name = sample_name(feature, sdrf_record);
+        if !self.passes_ingest_group_filters(feature, sdrf_record, &sample_name, cv_group) {
+            return Ok(());
+        }
+        let record = self.register_ingest_record(
+            feature,
+            sdrf_record,
+            &sample_name,
+            &protein_group,
+            intensity_factors,
+        )?;
+        let measurement = IntermediateMeasurement {
+            protein: record.protein,
+            sample: record.sample,
+            peptide: record.peptide,
+            canonical: record.canonical,
+            intensity: record.intensity,
+            protein_name: &protein_group,
+            peptide_canonical: &feature.sequence,
+            sample_name: &sample_name,
+            run_file_name: &feature.run_file_name,
+            sdrf_record,
+        };
+        self.accept_ingest_record(record, feature, measurement, intensity_factors, deferred)
+    }
+
+    fn ingest_protein_group(
+        &self,
+        feature: &QpxFeatureRecord,
+        filtering: FilterConfig,
+    ) -> Option<(String, Option<String>)> {
+        let keep_shared = self.keep_shared_peptides || self.aggregation.keeps_shared_peptides();
+        if !passes_feature_filter(feature, filtering, keep_shared) {
+            return None;
+        }
+
+        let protein_group = self.aggregation.protein_name(feature)?;
         // The CV pre-pass keys groups by the name before the twin and
         // contaminant-member rewrites below.
         let cv_group = (!self.cv_dropped.is_empty()).then(|| protein_group.clone());
@@ -97,7 +130,7 @@ impl FeatureToProteinState {
             filtering.remove_contaminants,
             contaminant_patterns,
         ) {
-            return Ok(());
+            return None;
         }
         let protein_group = if filtering.remove_contaminants {
             strip_contaminant_members(&protein_group, contaminant_patterns).unwrap_or(protein_group)
@@ -105,17 +138,25 @@ impl FeatureToProteinState {
             protein_group
         };
         if has_removed_accession(&feature.protein_accessions, &self.remove_protein_ids) {
-            return Ok(());
+            return None;
         }
         // Opt-in per-row preprocessing filters run after the load-time filters
         // and before the per-`(protein, sample)` unique-peptide gate, matching
         // Python's pipeline chain (intensity/peptide filters before MinPeptide).
         if !self.passes_peptide_filter_pipeline(feature) {
-            return Ok(());
+            return None;
         }
 
-        let sdrf_record = sdrf_record(feature, sdrf)?;
-        let sample_name = sample_name(feature, sdrf_record);
+        Some((protein_group, cv_group))
+    }
+
+    fn passes_ingest_group_filters(
+        &self,
+        feature: &QpxFeatureRecord,
+        sdrf_record: Option<&SdrfRecord>,
+        sample_name: &str,
+        cv_group: Option<String>,
+    ) -> bool {
         // Python applies Run-QC within a per-sample frame but groups its rows by
         // `TechReplicate`. The pre-pass therefore rejects individual technical
         // runs; other runs from the same sample must remain available.
@@ -123,10 +164,10 @@ impl FeatureToProteinState {
             && self.run_qc_excluded_runs.contains(&run_qc_key(
                 feature,
                 sdrf_record,
-                sample_name.clone(),
+                sample_name.to_owned(),
             ))
         {
-            return Ok(());
+            return false;
         }
         // CVThresholdFilter (Python `intensity.py:127-141`): drop every row of a
         // `(sample, ProteinName, PeptideCanonical)` whose within-sample CV exceeds
@@ -138,9 +179,9 @@ impl FeatureToProteinState {
         // unless `cv_threshold` is set.
         if cv_group.is_some_and(|group| {
             self.cv_dropped
-                .contains(&(sample_name.clone(), group, feature.sequence.clone()))
+                .contains(&(sample_name.to_owned(), group, feature.sequence.clone()))
         }) {
-            return Ok(());
+            return false;
         }
         // QuantileFilter (Python `intensity.py:296-297`): drop rows whose raw
         // intensity is outside the per-sample `[lower, upper]` bounds (double-closed
@@ -149,12 +190,23 @@ impl FeatureToProteinState {
         // `quantile` and the comparison. The export-time `min_unique` gate then
         // re-counts canonicals on the survivors, reproducing the post-quantile
         // MinPeptideFilter.
-        if let Some(&(lower, upper)) = self.quantile_bounds.get(&sample_name)
+        if let Some(&(lower, upper)) = self.quantile_bounds.get(sample_name)
             && !(feature.intensity >= lower && feature.intensity <= upper)
         {
-            return Ok(());
+            return false;
         }
-        let sample = register_id(&mut self.samples, &sample_name, "sample")?;
+        true
+    }
+
+    fn register_ingest_record(
+        &mut self,
+        feature: &QpxFeatureRecord,
+        sdrf_record: Option<&SdrfRecord>,
+        sample_name: &str,
+        protein_group: &str,
+        intensity_factors: Option<&IntensityFactors>,
+    ) -> Result<IngestRecord> {
+        let sample = register_id(&mut self.samples, sample_name, "sample")?;
         let peptide_key = self.aggregation.peptide_key(feature);
         let base_peptide = register_id(&mut self.peptides, &peptide_key, "peptide")?;
         let canonical_peptide = register_id(
@@ -166,7 +218,7 @@ impl FeatureToProteinState {
             let biological_replicate = sdrf_record
                 .and_then(|record| record.biological_replicate)
                 .unwrap_or(1);
-            let condition = sample_condition(&sample_name, sdrf_record);
+            let condition = sample_condition(sample_name, sdrf_record);
             let condition_id = self
                 .conditions
                 .get_or_insert(&condition)
@@ -178,11 +230,11 @@ impl FeatureToProteinState {
         } else {
             None
         };
-        let protein = register_id(&mut self.proteins, &protein_group, "protein")?;
+        let protein = register_id(&mut self.proteins, protein_group, "protein")?;
         let intensity = intensity_factors.map_or(feature.intensity, |factors| {
-            factors.normalize(feature.intensity, &sample_name, &feature.run_file_name)
+            factors.normalize(feature.intensity, sample_name, &feature.run_file_name)
         });
-        let mut record = IngestRecord {
+        Ok(IngestRecord {
             protein,
             sample,
             peptide: base_peptide,
@@ -193,20 +245,18 @@ impl FeatureToProteinState {
             intensity,
             charge: feature.charge,
             transferred: feature.transferred,
-        };
+        })
+    }
+
+    fn accept_ingest_record(
+        &mut self,
+        mut record: IngestRecord,
+        feature: &QpxFeatureRecord,
+        measurement: IntermediateMeasurement<'_>,
+        intensity_factors: Option<&IntensityFactors>,
+        deferred: Option<&mut Vec<IngestRecord>>,
+    ) -> Result<()> {
         let contextual = self.aggregation.preserves_contextual_canonical_rows();
-        let measurement = IntermediateMeasurement {
-            protein,
-            sample,
-            peptide: record.peptide,
-            canonical: record.canonical,
-            intensity,
-            protein_name: &protein_group,
-            peptide_canonical: &feature.sequence,
-            sample_name: &sample_name,
-            run_file_name: &feature.run_file_name,
-            sdrf_record,
-        };
         self.export_measurement(
             &mut record,
             measurement,
@@ -219,10 +269,10 @@ impl FeatureToProteinState {
         } else {
             self.index.add(&record, contextual);
             self.aggregation
-                .push(record.measurement(&feature.sequence, &sample_name))?;
+                .push(record.measurement(&feature.sequence, measurement.sample_name))?;
         }
         if let Some(tracker) = &mut self.low_frequency {
-            tracker.observe(&protein_group, &feature.sequence, sample);
+            tracker.observe(measurement.protein_name, &feature.sequence, record.sample);
         }
         self.accepted_measurements += 1;
         self.accepted_features += 1;

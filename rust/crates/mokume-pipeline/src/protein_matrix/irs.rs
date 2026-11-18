@@ -33,25 +33,13 @@ impl ProteinMatrix {
             .iter()
             .map(|(sample, name)| (name.to_owned(), sample))
             .collect::<HashMap<_, _>>();
-        let mut refs_by_plex = HashMap::<String, Vec<SampleId>>::new();
-        for reference in &reference_samples {
-            let Some(sample) = sample_by_name.get(reference).copied() else {
-                continue;
-            };
-            let Some(plex) = sample_to_plex.get(reference) else {
-                continue;
-            };
-            refs_by_plex.entry(plex.clone()).or_default().push(sample);
-        }
-        for plex in &plexes {
-            if !refs_by_plex.contains_key(plex) {
-                return Err(invalid_input(format!(
-                    "No reference samples found in plex `{plex}`"
-                )));
-            }
-        }
-
-        let mut factors = irs_scaling_factors(
+        let refs_by_plex = irs_references_by_plex(
+            &sample_by_name,
+            &sample_to_plex,
+            &reference_samples,
+            &plexes,
+        )?;
+        let factors = irs_scaling_factors(
             self.allowed_proteins.iter().copied(),
             &plexes,
             &refs_by_plex,
@@ -63,13 +51,39 @@ impl ProteinMatrix {
                 "IRS normalization could not compute any finite scaling factors",
             ));
         }
-        let missing = self.irs_unreferenced_pairs(&sample_to_plex, &factors);
+        self.apply_irs_factors(&sample_to_plex, factors, config.missing_reference);
+
+        if config.remove_reference {
+            self.exclude_irs_references(reference_samples, &sample_by_name);
+        }
+        Ok(())
+    }
+
+    fn exclude_irs_references(
+        &mut self,
+        references: Vec<String>,
+        sample_by_name: &HashMap<String, SampleId>,
+    ) {
+        for reference in references {
+            if let Some(sample) = sample_by_name.get(&reference).copied() {
+                self.excluded_samples.insert(sample);
+            }
+        }
+    }
+
+    fn apply_irs_factors(
+        &mut self,
+        sample_to_plex: &HashMap<String, String>,
+        mut factors: HashMap<ProteinId, HashMap<String, f64>>,
+        missing_reference: IrsMissingReference,
+    ) {
+        let missing = self.irs_unreferenced_pairs(sample_to_plex, &factors);
         info!(
             protein_plex_pairs = missing.len(),
-            mode = config.missing_reference.label(),
+            mode = missing_reference.label(),
             "IRS: proteins with values but no reference value in a plex"
         );
-        if config.missing_reference == IrsMissingReference::PlexMedian {
+        if missing_reference == IrsMissingReference::PlexMedian {
             let medians = plex_median_factors(&factors);
             for (protein, plex) in &missing {
                 if let Some(median) = medians.get(plex) {
@@ -80,19 +94,10 @@ impl ProteinMatrix {
                 }
             }
         }
-        self.scale_by_irs(&sample_to_plex, &factors);
-        if config.missing_reference == IrsMissingReference::Drop {
-            self.drop_protein_plex_values(&sample_to_plex, &missing);
+        self.scale_by_irs(sample_to_plex, &factors);
+        if missing_reference == IrsMissingReference::Drop {
+            self.drop_protein_plex_values(sample_to_plex, &missing);
         }
-
-        if config.remove_reference {
-            for reference in reference_samples {
-                if let Some(sample) = sample_by_name.get(&reference).copied() {
-                    self.excluded_samples.insert(sample);
-                }
-            }
-        }
-        Ok(())
     }
 
     /// (protein, plex) pairs that have values but no IRS factor.
@@ -207,4 +212,30 @@ impl ProteinMatrix {
             }
         }
     }
+}
+
+fn irs_references_by_plex(
+    sample_by_name: &HashMap<String, SampleId>,
+    sample_to_plex: &HashMap<String, String>,
+    reference_samples: &[String],
+    plexes: &[String],
+) -> Result<HashMap<String, Vec<SampleId>>> {
+    let mut refs_by_plex = HashMap::<String, Vec<SampleId>>::new();
+    for reference in reference_samples {
+        let Some(sample) = sample_by_name.get(reference).copied() else {
+            continue;
+        };
+        let Some(plex) = sample_to_plex.get(reference) else {
+            continue;
+        };
+        refs_by_plex.entry(plex.clone()).or_default().push(sample);
+    }
+    for plex in plexes {
+        if !refs_by_plex.contains_key(plex) {
+            return Err(invalid_input(format!(
+                "No reference samples found in plex `{plex}`"
+            )));
+        }
+    }
+    Ok(refs_by_plex)
 }

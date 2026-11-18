@@ -12,7 +12,7 @@ use crate::peptide_normalization::{
 };
 use crate::protein_matrix::ProteinValues;
 use crate::solvers::{
-    directlfq_cells, prepare_directlfq_ions, solve_directlfq, write_directlfq_ions,
+    DirectLfqCells, directlfq_cells, prepare_directlfq_ions, solve_directlfq, write_directlfq_ions,
 };
 use crate::state::CellKey;
 use crate::{
@@ -348,87 +348,23 @@ impl FeatureAggregation {
         canonical_peptides: &StringIdRegistry<PeptideId>,
         samples: &StringIdRegistry<SampleId>,
     ) -> Result<(ProteinValues, HashMap<CellKey, f64>)> {
+        let rollup = CellRollup::new(allowed_cells, peptide_to_canonical);
         let values = match self {
-            Self::Sum(cells) => ProteinValues::Cells(
-                cells
-                    .into_iter()
-                    .filter_map(|(key, peptides)| {
-                        allowed_cells
-                            .contains(&key)
-                            .then(|| (key, sum_peptide_values(&peptides)))
-                    })
-                    .collect(),
-            ),
-            Self::Median(cells) => ProteinValues::Cells(
-                cells
-                    .into_iter()
-                    .filter_map(|(key, peptides)| {
-                        if !allowed_cells.contains(&key) {
-                            return None;
-                        }
-                        let canonical = collapse_to_canonical(peptides, peptide_to_canonical);
-                        let mut intensities = canonical.into_values().collect::<Vec<_>>();
-                        median(&mut intensities).map(|value| (key, value))
-                    })
-                    .collect(),
-            ),
-            Self::Abd(cells) => ProteinValues::Cells(
-                cells
-                    .into_iter()
-                    .filter_map(|(key, peptides)| {
-                        if !allowed_cells.contains(&key) {
-                            return None;
-                        }
-                        let canonical = collapse_to_canonical(peptides, peptide_to_canonical);
-                        let mut log2_intensities = canonical
-                            .into_values()
-                            .filter(|value| value.is_finite() && *value > 0.0)
-                            .map(f64::log2)
-                            .collect::<Vec<_>>();
-                        median_finite(&mut log2_intensities).map(|value| (key, value))
-                    })
-                    .collect(),
-            ),
-            Self::PeptideCount(cells) => ProteinValues::Cells(
-                cells
-                    .into_iter()
-                    .filter_map(|(key, peptides)| {
-                        if !allowed_cells.contains(&key) {
-                            return None;
-                        }
-                        let canonical = collapse_to_canonical(peptides, peptide_to_canonical);
-                        Some((key, canonical.len() as f64))
-                    })
-                    .collect(),
-            ),
-            Self::Pibaq(pibaq) => ProteinValues::Cells(pibaq.finalize(proteins)?),
-            Self::Ratio(ratio) => ProteinValues::Cells(ratio.finalize()),
+            Self::Sum(cells) => rollup.sum(cells),
+            Self::Median(cells) => rollup.canonical(cells, canonical_median),
+            Self::Abd(cells) => rollup.canonical(cells, abundance),
+            Self::PeptideCount(cells) => rollup.canonical(cells, canonical_count),
+            Self::Pibaq(pibaq) => pibaq.finalize(proteins)?,
+            Self::Ratio(ratio) => ratio.finalize(),
             Self::TopN {
                 topn,
                 cells,
-                mut weights,
-            } => ProteinValues::Cells(
-                cells
-                    .into_iter()
-                    .filter_map(|(key, peptides)| {
-                        if !allowed_cells.contains(&key) {
-                            return None;
-                        }
-                        let canonical = collapse_to_canonical(peptides, peptide_to_canonical);
-                        let weights = weights
-                            .as_mut()
-                            .map(|weights| weights.take_cell(&key, peptide_to_canonical));
-                        let selected = top_n_intensities(canonical, weights.as_ref(), topn);
-                        if selected.is_empty() {
-                            return None;
-                        }
-                        let value = selected.iter().sum::<f64>() / selected.len() as f64;
-                        Some((key, value))
-                    })
-                    .collect(),
-            ),
+                weights,
+            } => rollup.top_n(cells, weights, topn),
             Self::Lfq {
-                route_to_directlfq: true,
+                route_to_directlfq,
+                maxlfq_min_ratio_count,
+                stabilize,
                 directlfq_min_nonan,
                 directlfq_num_samples_quadratic,
                 directlfq_normalize_samples,
@@ -437,42 +373,153 @@ impl FeatureAggregation {
                 cached_directlfq,
                 ..
             } => {
-                if let Some((values, precision)) = cached_directlfq {
-                    return Ok((ProteinValues::Rows(values), precision));
-                }
-                let prepared = prepare_directlfq_ions(
-                    traces.into_directlfq_sums(),
-                    allowed_cells,
-                    proteins,
-                    canonical_peptides,
-                    samples,
-                );
-                let (values, precision) = solve_directlfq(
-                    prepared,
-                    directlfq_min_nonan,
-                    directlfq_num_samples_quadratic,
-                    directlfq_normalize_samples,
-                    cell_precision,
-                );
-                return Ok((ProteinValues::Rows(values), precision));
-            }
-            Self::Lfq {
-                traces,
-                maxlfq_min_ratio_count,
-                stabilize,
-                cell_precision,
-                ..
-            } => {
-                return traces.into_protein_values(
-                    allowed_cells,
-                    proteins,
-                    samples,
+                let lfq = LfqFinish {
+                    route_to_directlfq,
                     maxlfq_min_ratio_count,
                     stabilize,
                     cell_precision,
-                );
+                    directlfq_min_nonan,
+                    directlfq_num_samples_quadratic,
+                    directlfq_normalize_samples,
+                    cached_directlfq,
+                };
+                return lfq.finish(traces, allowed_cells, proteins, canonical_peptides, samples);
             }
         };
-        Ok((values, HashMap::new()))
+        Ok((ProteinValues::Cells(values), HashMap::new()))
+    }
+}
+
+type PeptideCells = HashMap<CellKey, HashMap<PeptideId, f64>>;
+
+struct CellRollup<'a> {
+    allowed_cells: &'a HashSet<CellKey>,
+    peptide_to_canonical: &'a HashMap<PeptideId, PeptideId>,
+}
+
+impl<'a> CellRollup<'a> {
+    fn new(
+        allowed_cells: &'a HashSet<CellKey>,
+        peptide_to_canonical: &'a HashMap<PeptideId, PeptideId>,
+    ) -> Self {
+        Self {
+            allowed_cells,
+            peptide_to_canonical,
+        }
+    }
+
+    fn sum(&self, cells: PeptideCells) -> HashMap<CellKey, f64> {
+        cells
+            .into_iter()
+            .filter_map(|(key, peptides)| {
+                self.allowed_cells
+                    .contains(&key)
+                    .then(|| (key, sum_peptide_values(&peptides)))
+            })
+            .collect()
+    }
+
+    fn canonical(
+        &self,
+        cells: PeptideCells,
+        mut collect_value: impl FnMut(CellKey, HashMap<PeptideId, f64>) -> Option<f64>,
+    ) -> HashMap<CellKey, f64> {
+        cells
+            .into_iter()
+            .filter_map(|(key, peptides)| {
+                if !self.allowed_cells.contains(&key) {
+                    return None;
+                }
+                let canonical = collapse_to_canonical(peptides, self.peptide_to_canonical);
+                collect_value(key, canonical).map(|value| (key, value))
+            })
+            .collect()
+    }
+
+    fn top_n(
+        &self,
+        cells: PeptideCells,
+        mut weights: Option<FeatureWeights>,
+        topn: usize,
+    ) -> HashMap<CellKey, f64> {
+        self.canonical(cells, |key, canonical| {
+            let weights = weights
+                .as_mut()
+                .map(|weights| weights.take_cell(&key, self.peptide_to_canonical));
+            let selected = top_n_intensities(canonical, weights.as_ref(), topn);
+            if selected.is_empty() {
+                return None;
+            }
+            Some(selected.iter().sum::<f64>() / selected.len() as f64)
+        })
+    }
+}
+
+fn abundance(_: CellKey, canonical: HashMap<PeptideId, f64>) -> Option<f64> {
+    let mut log2_intensities = canonical
+        .into_values()
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .map(f64::log2)
+        .collect::<Vec<_>>();
+    median_finite(&mut log2_intensities)
+}
+
+fn canonical_median(_: CellKey, canonical: HashMap<PeptideId, f64>) -> Option<f64> {
+    median(&mut canonical.into_values().collect::<Vec<_>>())
+}
+
+fn canonical_count(_: CellKey, canonical: HashMap<PeptideId, f64>) -> Option<f64> {
+    Some(canonical.len() as f64)
+}
+
+struct LfqFinish {
+    route_to_directlfq: bool,
+    maxlfq_min_ratio_count: usize,
+    stabilize: bool,
+    cell_precision: bool,
+    directlfq_min_nonan: usize,
+    directlfq_num_samples_quadratic: usize,
+    directlfq_normalize_samples: bool,
+    cached_directlfq: Option<DirectLfqCells>,
+}
+
+impl LfqFinish {
+    fn finish(
+        self,
+        traces: MaxLfqFeatureAggregation,
+        allowed_cells: &HashSet<CellKey>,
+        proteins: &StringIdRegistry<ProteinId>,
+        canonical_peptides: &StringIdRegistry<PeptideId>,
+        samples: &StringIdRegistry<SampleId>,
+    ) -> Result<(ProteinValues, HashMap<CellKey, f64>)> {
+        if !self.route_to_directlfq {
+            return traces.into_protein_values(
+                allowed_cells,
+                proteins,
+                samples,
+                self.maxlfq_min_ratio_count,
+                self.stabilize,
+                self.cell_precision,
+            );
+        }
+        let (values, precision) = if let Some(cached) = self.cached_directlfq {
+            cached
+        } else {
+            let prepared = prepare_directlfq_ions(
+                traces.into_directlfq_sums(),
+                allowed_cells,
+                proteins,
+                canonical_peptides,
+                samples,
+            );
+            solve_directlfq(
+                prepared,
+                self.directlfq_min_nonan,
+                self.directlfq_num_samples_quadratic,
+                self.directlfq_normalize_samples,
+                self.cell_precision,
+            )
+        };
+        Ok((ProteinValues::Rows(values), precision))
     }
 }

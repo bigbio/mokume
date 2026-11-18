@@ -1,3 +1,4 @@
+use super::log2_canonical_cells;
 use crate::peptide_normalization::QuantilePeptideKey;
 use crate::peptide_normalization::tmm::finite_median;
 use crate::state::CellKey;
@@ -38,87 +39,9 @@ pub(crate) fn apply_rlr_to_peptide_cells(
     // SUM, then log2 the strictly-positive sums (Python drops non-positive
     // values before `np.log2`). Rows of the wide matrix are (protein,
     // canonical); columns are samples.
-    let mut log2_cells = HashMap::<CellKey, HashMap<PeptideId, f64>>::new();
-    for (cell, peptides) in cells.iter() {
-        if !allowed_cells.contains(cell) {
-            continue;
-        }
-        let mut summed = HashMap::<PeptideId, f64>::new();
-        for (peptide, intensity) in peptides {
-            let canonical = peptide_to_canonical
-                .get(peptide)
-                .copied()
-                .unwrap_or(*peptide);
-            *summed.entry(canonical).or_insert(0.0) += *intensity;
-        }
-        let log_row = summed
-            .into_iter()
-            .filter(|(_, value)| value.is_finite() && *value > 0.0)
-            .map(|(canonical, value)| (canonical, value.log2()))
-            .collect::<HashMap<_, _>>();
-        if !log_row.is_empty() {
-            log2_cells.insert(*cell, log_row);
-        }
-    }
-
-    // (2) Per-row pseudo-reference: log2 median across samples (skipna). A row
-    // is identified by (protein, canonical); we gather every sample's log2
-    // value for that row.
-    let mut row_values = HashMap::<QuantilePeptideKey, Vec<f64>>::new();
-    for (cell, peptides) in &log2_cells {
-        for (peptide, value) in peptides {
-            row_values
-                .entry(QuantilePeptideKey {
-                    protein: cell.protein,
-                    peptide: *peptide,
-                })
-                .or_default()
-                .push(*value);
-        }
-    }
-    let reference = row_values
-        .into_iter()
-        .filter_map(|(key, mut values)| finite_median(&mut values).map(|median| (key, median)))
-        .collect::<HashMap<_, _>>();
-
-    // (3) Fit (intercept, slope) per sample via Huber IRLS against the
-    // reference, then transform each value as (y - intercept) / slope. The
-    // identity fit (0, 1) leaves the column untouched, matching the Python
-    // guards (< 5 valid points, non-finite / near-zero slope, fit failure).
-    let mut samples = log2_cells
-        .keys()
-        .map(|cell| cell.sample)
-        .collect::<Vec<_>>();
-    samples.sort();
-    samples.dedup();
-
-    let mut fits = HashMap::<SampleId, (f64, f64)>::new();
-    for sample in samples {
-        // Collect (reference, y) pairs where both are finite, in a stable
-        // row-id order so the regression is deterministic.
-        let mut pairs = Vec::<(QuantilePeptideKey, f64, f64)>::new();
-        for (cell, peptides) in &log2_cells {
-            if cell.sample != sample {
-                continue;
-            }
-            for (peptide, value) in peptides {
-                let key = QuantilePeptideKey {
-                    protein: cell.protein,
-                    peptide: *peptide,
-                };
-                if let Some(reference_value) = reference.get(&key).copied()
-                    && reference_value.is_finite()
-                    && value.is_finite()
-                {
-                    pairs.push((key, reference_value, *value));
-                }
-            }
-        }
-        pairs.sort_by_key(|pair| pair.0);
-        let reference_column = pairs.iter().map(|(_, x, _)| *x).collect::<Vec<_>>();
-        let response_column = pairs.iter().map(|(_, _, y)| *y).collect::<Vec<_>>();
-        fits.insert(sample, fit_rlr_sample(&reference_column, &response_column));
-    }
+    let log2_cells = log2_canonical_cells(cells, allowed_cells, peptide_to_canonical);
+    let reference = rlr_reference(&log2_cells);
+    let fits = rlr_fit_columns(&log2_cells, &reference);
 
     // (4) Write back: clear each allowed cell and reinsert canonical ->
     // 2 ** ((log2(value) - intercept) / slope) (exponentiate because we log2'd
@@ -149,12 +72,6 @@ pub(crate) fn apply_rlr_to_peptide_cells(
 /// `_fit_sample` guards. With identity, `(y - 0) / 1 == y`, so the column is
 /// left unchanged.
 fn fit_rlr_sample(reference: &[f64], y: &[f64]) -> (f64, f64) {
-    const HUBER_T: f64 = 1.345;
-    // 0.75 quantile of the standard normal; statsmodels `scale.mad` default c.
-    const MAD_C: f64 = 0.674_489_750_196_081_7;
-    const TOL: f64 = 1e-8;
-    const MAX_ITER: usize = 50;
-
     let n = reference.len();
     if n < 5 || y.len() != n {
         return (0.0, 1.0);
@@ -168,76 +85,17 @@ fn fit_rlr_sample(reference: &[f64], y: &[f64]) -> (f64, f64) {
         return (0.0, 1.0);
     };
 
-    let residual = |intercept: f64, slope: f64| -> Vec<f64> {
-        reference
-            .iter()
-            .zip(y)
-            .map(|(x, y)| y - (intercept + slope * x))
-            .collect::<Vec<_>>()
-    };
-
-    // MAD scale with center 0: median(|resid|) / c.
-    let mad_scale = |resid: &[f64]| -> f64 {
-        let mut abs = resid.iter().map(|value| value.abs()).collect::<Vec<_>>();
-        finite_median(&mut abs).unwrap_or(0.0) / MAD_C
-    };
-
-    // Huber weight: 1 if |z| <= t, else t / |z|, with z = resid / scale.
-    let huber_weights = |resid: &[f64], scale: f64| -> Vec<f64> {
-        resid
-            .iter()
-            .map(|value| {
-                let abs_z = (value / scale).abs();
-                if abs_z <= HUBER_T {
-                    1.0
-                } else {
-                    HUBER_T / abs_z
-                }
-            })
-            .collect::<Vec<_>>()
-    };
-
-    // Un-normalized Huber objective evaluated at z = resid / wls_scale, used by
-    // the `conv="dev"` stopping rule. `wls_scale` is the weighted-residual
-    // SSR / (n - 2), the scale `_MinimalWLS` reports for the current fit.
-    let wls_scale = |resid: &[f64], weights: &[f64]| -> f64 {
-        let ssr = resid
-            .iter()
-            .zip(weights)
-            .map(|(value, weight)| weight * value * value)
-            .sum::<f64>();
-        if n > 2 { ssr / (n - 2) as f64 } else { 0.0 }
-    };
-    let huber_objective = |resid: &[f64], scale: f64| -> f64 {
-        resid
-            .iter()
-            .map(|value| {
-                let abs_z = (value / scale).abs();
-                if abs_z <= HUBER_T {
-                    0.5 * abs_z * abs_z
-                } else {
-                    HUBER_T * abs_z - 0.5 * HUBER_T * HUBER_T
-                }
-            })
-            .sum::<f64>()
-    };
-
-    let mut resid = residual(intercept, slope);
-    let mut scale = mad_scale(&resid);
+    let mut resid = rlr_residual(reference, y, intercept, slope);
+    let mut scale = rlr_mad_scale(&resid);
     // Iteration 1 deviance: OLS fit (unit weights) at its own WLS scale.
-    let initial_wls_scale = wls_scale(&resid, &vec![1.0; n]);
-    let mut previous_deviance = if initial_wls_scale > 0.0 {
-        huber_objective(&resid, initial_wls_scale)
-    } else {
-        0.0
-    };
+    let mut previous_deviance = rlr_deviance(&resid, &vec![1.0; n], n);
 
     let mut iteration = 1;
     loop {
         if scale == 0.0 {
             break;
         }
-        let weights = huber_weights(&resid, scale);
+        let weights = rlr_huber_weights(&resid, scale);
         let Some((next_intercept, next_slope)) =
             solve_weighted_normal_equations(reference, y, &weights)
         else {
@@ -245,14 +103,9 @@ fn fit_rlr_sample(reference: &[f64], y: &[f64]) -> (f64, f64) {
         };
         intercept = next_intercept;
         slope = next_slope;
-        resid = residual(intercept, slope);
-        scale = mad_scale(&resid); // update_scale=True
-        let current_wls_scale = wls_scale(&resid, &weights);
-        let deviance = if current_wls_scale > 0.0 {
-            huber_objective(&resid, current_wls_scale)
-        } else {
-            0.0
-        };
+        resid = rlr_residual(reference, y, intercept, slope);
+        scale = rlr_mad_scale(&resid); // update_scale=True
+        let deviance = rlr_deviance(&resid, &weights, n);
         iteration += 1;
         let converged = (deviance - previous_deviance).abs() <= TOL || iteration >= MAX_ITER;
         previous_deviance = deviance;
@@ -265,6 +118,145 @@ fn fit_rlr_sample(reference: &[f64], y: &[f64]) -> (f64, f64) {
         return (0.0, 1.0);
     }
     (intercept, slope)
+}
+
+const HUBER_T: f64 = 1.345;
+// 0.75 quantile of the standard normal; statsmodels `scale.mad` default c.
+const MAD_C: f64 = 0.674_489_750_196_081_7;
+const TOL: f64 = 1e-8;
+const MAX_ITER: usize = 50;
+
+fn rlr_residual(reference: &[f64], y: &[f64], intercept: f64, slope: f64) -> Vec<f64> {
+    reference
+        .iter()
+        .zip(y)
+        .map(|(x, y)| y - (intercept + slope * x))
+        .collect::<Vec<_>>()
+}
+
+// MAD scale with center 0: median(|resid|) / c.
+fn rlr_mad_scale(resid: &[f64]) -> f64 {
+    let mut abs = resid.iter().map(|value| value.abs()).collect::<Vec<_>>();
+    finite_median(&mut abs).unwrap_or(0.0) / MAD_C
+}
+
+// Huber weight: 1 if |z| <= t, else t / |z|, with z = resid / scale.
+fn rlr_huber_weights(resid: &[f64], scale: f64) -> Vec<f64> {
+    resid
+        .iter()
+        .map(|value| {
+            let abs_z = (value / scale).abs();
+            if abs_z <= HUBER_T {
+                1.0
+            } else {
+                HUBER_T / abs_z
+            }
+        })
+        .collect::<Vec<_>>()
+}
+
+// Un-normalized Huber objective evaluated at z = resid / wls_scale, used by
+// the `conv="dev"` stopping rule. `wls_scale` is the weighted-residual
+// SSR / (n - 2), the scale `_MinimalWLS` reports for the current fit.
+fn rlr_wls_scale(resid: &[f64], weights: &[f64], n: usize) -> f64 {
+    let ssr = resid
+        .iter()
+        .zip(weights)
+        .map(|(value, weight)| weight * value * value)
+        .sum::<f64>();
+    if n > 2 { ssr / (n - 2) as f64 } else { 0.0 }
+}
+
+fn rlr_huber_objective(resid: &[f64], scale: f64) -> f64 {
+    resid
+        .iter()
+        .map(|value| {
+            let abs_z = (value / scale).abs();
+            if abs_z <= HUBER_T {
+                0.5 * abs_z * abs_z
+            } else {
+                HUBER_T * abs_z - 0.5 * HUBER_T * HUBER_T
+            }
+        })
+        .sum::<f64>()
+}
+
+fn rlr_deviance(resid: &[f64], weights: &[f64], n: usize) -> f64 {
+    let scale = rlr_wls_scale(resid, weights, n);
+    if scale > 0.0 {
+        rlr_huber_objective(resid, scale)
+    } else {
+        0.0
+    }
+}
+
+fn rlr_reference(
+    log2_cells: &HashMap<CellKey, HashMap<PeptideId, f64>>,
+) -> HashMap<QuantilePeptideKey, f64> {
+    // (2) Per-row pseudo-reference: log2 median across samples (skipna). A row
+    // is identified by (protein, canonical); we gather every sample's log2
+    // value for that row.
+    let mut row_values = HashMap::<QuantilePeptideKey, Vec<f64>>::new();
+    for (cell, peptides) in log2_cells {
+        for (peptide, value) in peptides {
+            row_values
+                .entry(QuantilePeptideKey {
+                    protein: cell.protein,
+                    peptide: *peptide,
+                })
+                .or_default()
+                .push(*value);
+        }
+    }
+    row_values
+        .into_iter()
+        .filter_map(|(key, mut values)| finite_median(&mut values).map(|median| (key, median)))
+        .collect::<HashMap<_, _>>()
+}
+
+fn rlr_fit_columns(
+    log2_cells: &HashMap<CellKey, HashMap<PeptideId, f64>>,
+    reference: &HashMap<QuantilePeptideKey, f64>,
+) -> HashMap<SampleId, (f64, f64)> {
+    // (3) Fit (intercept, slope) per sample via Huber IRLS against the
+    // reference, then transform each value as (y - intercept) / slope. The
+    // identity fit (0, 1) leaves the column untouched, matching the Python
+    // guards (< 5 valid points, non-finite / near-zero slope, fit failure).
+    let mut samples = log2_cells
+        .keys()
+        .map(|cell| cell.sample)
+        .collect::<Vec<_>>();
+    samples.sort();
+    samples.dedup();
+
+    let mut fits = HashMap::<SampleId, (f64, f64)>::new();
+    for sample in samples {
+        // Collect (reference, y) pairs where both are finite, in a stable
+        // row-id order so the regression is deterministic.
+        let mut pairs = Vec::<(QuantilePeptideKey, f64, f64)>::new();
+        for (cell, peptides) in log2_cells {
+            if cell.sample != sample {
+                continue;
+            }
+            for (peptide, value) in peptides {
+                let key = QuantilePeptideKey {
+                    protein: cell.protein,
+                    peptide: *peptide,
+                };
+                if let Some(reference_value) = reference.get(&key).copied()
+                    && reference_value.is_finite()
+                    && value.is_finite()
+                {
+                    pairs.push((key, reference_value, *value));
+                }
+            }
+        }
+        pairs.sort_by_key(|pair| pair.0);
+        let reference_column = pairs.iter().map(|(_, x, _)| *x).collect::<Vec<_>>();
+        let response_column = pairs.iter().map(|(_, _, y)| *y).collect::<Vec<_>>();
+        fits.insert(sample, fit_rlr_sample(&reference_column, &response_column));
+    }
+    fits
 }
 
 /// Solve the weighted least squares of `y` on `[1, x]`, i.e. the 2x2 system

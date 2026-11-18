@@ -22,7 +22,8 @@ const PEPTIDOFORM_COLUMNS: &[&str] = &["peptidoform", "modified_sequence"];
 const CHARGE_COLUMNS: &[&str] = &["charge", "precursor_charge"];
 const RUN_COLUMNS: &[&str] = &["run_file_name", "reference_file_name", "run", "raw_file"];
 const INTENSITY_COLUMNS: &[&str] = &["intensities", "primary_intensities"];
-const PROTEIN_GROUP_COLUMNS: &[&str] = &["pg_accessions", "protein_accessions", "proteins"];
+pub(crate) const PROTEIN_GROUP_COLUMNS: &[&str] =
+    &["pg_accessions", "protein_accessions", "proteins"];
 const ANCHOR_PROTEIN_COLUMNS: &[&str] = &["anchor_protein", "protein"];
 const UNIQUE_COLUMNS: &[&str] = &["unique", "is_unique"];
 const DECOY_COLUMNS: &[&str] = &["is_decoy", "decoy"];

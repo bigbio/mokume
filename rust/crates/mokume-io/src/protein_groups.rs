@@ -7,7 +7,7 @@ use parquet::arrow::ProjectionMask;
 use parquet::arrow::arrow_reader::{ArrowReaderMetadata, ParquetRecordBatchReaderBuilder};
 use rayon::prelude::*;
 
-use crate::qpx::list_string_values;
+use crate::qpx::{PROTEIN_GROUP_COLUMNS, list_string_values};
 
 /// Preferred observed member order for each unordered protein group.
 #[derive(Default, Clone)]
@@ -17,21 +17,14 @@ impl ProteinGroupOrders {
     pub fn from_path(path: &Path) -> Result<Self> {
         let metadata = ArrowReaderMetadata::load(&open_file(path)?, Default::default())
             .map_err(|error| invalid_input(error.to_string()))?;
-        let roots = metadata
-            .schema()
-            .fields()
+        // Read the column the feature reader takes: the first one present.
+        let Some(root) = PROTEIN_GROUP_COLUMNS
             .iter()
-            .enumerate()
-            .filter_map(|(index, field)| {
-                ["pg_accessions", "protein_accessions", "proteins"]
-                    .contains(&field.name().as_str())
-                    .then_some(index)
-            })
-            .collect::<Vec<_>>();
-        if roots.is_empty() {
+            .find_map(|name| metadata.schema().index_of(name).ok())
+        else {
             return Ok(Self::default());
-        }
-        let projection = ProjectionMask::roots(metadata.parquet_schema(), roots);
+        };
+        let projection = ProjectionMask::roots(metadata.parquet_schema(), [root]);
         let observed = (0..metadata.metadata().num_row_groups())
             .into_par_iter()
             .map(|index| ObservedOrders::from_row_group(path, &metadata, projection.clone(), index))
@@ -73,11 +66,12 @@ impl ObservedOrders {
         for batch in reader {
             let batch = batch.map_err(|error| invalid_input(error.to_string()))?;
             let column = batch.column(0);
+            let name = batch.schema_ref().field(0).name();
             for row in 0..batch.num_rows() {
                 groups.observe(list_string_values(
                     column.as_ref(),
                     row,
-                    "pg_accessions",
+                    name,
                     &["accession", "protein_accession"],
                 )?);
             }
@@ -179,8 +173,8 @@ fn invalid_input(message: String) -> MokumeError {
 #[cfg(test)]
 mod tests {
     use super::{ObservedOrders, ProteinGroupOrders};
-    use arrow::array::{Array, ArrayRef, ListBuilder, StringBuilder};
-    use arrow::datatypes::{Field, Schema};
+    use arrow::array::{Array, ArrayRef, ListBuilder, StringArray, StringBuilder};
+    use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
     use parquet::arrow::ArrowWriter;
     use parquet::file::properties::WriterProperties;
@@ -296,5 +290,34 @@ mod tests {
         let groups = groups.finish();
         assert_eq!(groups.resolve(&target), target);
         assert_eq!(groups.resolve(&decoy), decoy);
+    }
+
+    #[test]
+    fn prescan_reads_the_group_column_the_reader_prefers() -> Result<(), Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("groups.parquet");
+        let mut values = ListBuilder::new(StringBuilder::new());
+        for row in [["P2", "P1"], ["P1", "P2"]] {
+            for value in row {
+                values.values().append_value(value);
+            }
+            values.append(true);
+        }
+        let values = values.finish();
+        let text = StringArray::from(vec!["P2;P1", "P1;P2"]);
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("protein_accessions", DataType::Utf8, true),
+            Field::new("pg_accessions", values.data_type().clone(), true),
+        ]));
+        let columns = vec![Arc::new(text) as ArrayRef, Arc::new(values) as ArrayRef];
+        let batch = RecordBatch::try_new(schema.clone(), columns)?;
+        let mut writer = ArrowWriter::try_new(File::create(&path)?, schema, None)?;
+        writer.write(&batch)?;
+        writer.close()?;
+        let groups = ProteinGroupOrders::from_path(&path)?;
+        let ordered = vec!["P1", "P2"];
+        assert_eq!(groups.resolve(&["P2", "P1"].map(str::to_owned)), ordered);
+        assert_eq!(groups.resolve(&["P1", "P2"].map(str::to_owned)), ordered);
+        Ok(())
     }
 }

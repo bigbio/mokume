@@ -24,6 +24,7 @@ const RUN_COLUMNS: &[&str] = &["run_file_name", "reference_file_name", "run", "r
 const INTENSITY_COLUMNS: &[&str] = &["intensities", "primary_intensities"];
 pub(crate) const PROTEIN_GROUP_COLUMNS: &[&str] =
     &["pg_accessions", "protein_accessions", "proteins"];
+pub(crate) const PROTEIN_GROUP_FIELDS: &[&str] = &["accession", "protein_accession", "protein"];
 const ANCHOR_PROTEIN_COLUMNS: &[&str] = &["anchor_protein", "protein"];
 const UNIQUE_COLUMNS: &[&str] = &["unique", "is_unique"];
 const DECOY_COLUMNS: &[&str] = &["is_decoy", "decoy"];
@@ -428,7 +429,7 @@ impl QpxRowMetadata {
             columns.protein_groups,
             row,
             "pg_accessions",
-            &["accession", "protein_accession", "protein"],
+            PROTEIN_GROUP_FIELDS,
         )?;
         if protein_accessions.is_empty() {
             protein_accessions.extend(anchor_protein.iter().cloned());

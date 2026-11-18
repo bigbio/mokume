@@ -7,7 +7,7 @@ use parquet::arrow::ProjectionMask;
 use parquet::arrow::arrow_reader::{ArrowReaderMetadata, ParquetRecordBatchReaderBuilder};
 use rayon::prelude::*;
 
-use crate::qpx::{PROTEIN_GROUP_COLUMNS, list_string_values};
+use crate::qpx::{PROTEIN_GROUP_COLUMNS, PROTEIN_GROUP_FIELDS, list_string_values};
 
 /// Preferred observed member order for each unordered protein group.
 #[derive(Default, Clone)]
@@ -72,7 +72,7 @@ impl ObservedOrders {
                     column.as_ref(),
                     row,
                     name,
-                    &["accession", "protein_accession"],
+                    PROTEIN_GROUP_FIELDS,
                 )?);
             }
         }
@@ -172,7 +172,10 @@ fn invalid_input(message: String) -> MokumeError {
 #[cfg(test)]
 mod tests {
     use super::{ObservedOrders, ProteinGroupOrders};
-    use arrow::array::{Array, ArrayRef, ListBuilder, StringArray, StringBuilder};
+    use arrow::array::{
+        Array, ArrayRef, ListArray, ListBuilder, StringArray, StringBuilder, StructArray,
+    };
+    use arrow::buffer::OffsetBuffer;
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
     use parquet::arrow::ArrowWriter;
@@ -330,6 +333,38 @@ mod tests {
         let ordered = vec!["P1", "P2"];
         assert_eq!(groups.resolve(&["P2", "P1"].map(str::to_owned)), ordered);
         assert_eq!(groups.resolve(&["P1", "P2"].map(str::to_owned)), ordered);
+        Ok(())
+    }
+
+    #[test]
+    fn prescan_reads_the_member_fields_the_reader_accepts() -> Result<(), Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("groups.parquet");
+        let names = StringArray::from(vec!["P2", "P1", "P1", "P2"]);
+        let members = StructArray::from(vec![(
+            Arc::new(Field::new("protein", DataType::Utf8, true)),
+            Arc::new(names) as ArrayRef,
+        )]);
+        let values = ListArray::new(
+            Arc::new(Field::new_list_field(members.data_type().clone(), true)),
+            OffsetBuffer::from_lengths([2, 2]),
+            Arc::new(members),
+            None,
+        );
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "pg_accessions",
+            values.data_type().clone(),
+            true,
+        )]));
+        let batch = RecordBatch::try_new(schema.clone(), vec![Arc::new(values) as ArrayRef])?;
+        let mut writer = ArrowWriter::try_new(File::create(&path)?, schema, None)?;
+        writer.write(&batch)?;
+        writer.close()?;
+        let groups = ProteinGroupOrders::from_path(&path)?;
+        assert_eq!(
+            groups.resolve(&["P2", "P1"].map(str::to_owned)),
+            vec!["P1", "P2"]
+        );
         Ok(())
     }
 }

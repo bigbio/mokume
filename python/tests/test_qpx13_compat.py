@@ -9,7 +9,11 @@ import pytest
 
 from mokume.core.constants import PEPTIDE_SEQUENCE
 from mokume.io import feature as qpx_feature
-from mokume.io._protein_groups import protein_group_names, protein_peptide_counts
+from mokume.io._protein_groups import (
+    canonical_members,
+    protein_group_names,
+    protein_peptide_counts,
+)
 from mokume.pipeline.config import InputConfig
 from mokume.pipeline.features_to_proteins import features_to_proteins
 from mokume.preprocessing.filters.peptide import ModificationFilter
@@ -276,6 +280,13 @@ def test_group_identity_merges_orders_but_preserves_single_order():
         "P1;P2",
         "P4;P3",
     ]
+
+
+def test_group_identity_keeps_decoy_apart_from_its_target():
+    """A decoy shares its target's name but must not take over its members."""
+    target, decoy = ["sp|P00001|ENTRY_HUMAN"], ["DECOY_sp|P00001|ENTRY_HUMAN"]
+    assert canonical_members([target, decoy]) == [target, decoy]
+    assert canonical_members([decoy, target]) == [decoy, target]
 
 
 def _shared_anchor_groups(path):

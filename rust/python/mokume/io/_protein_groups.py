@@ -25,11 +25,12 @@ def canonical_members(groups):
     """Choose the smallest observed name for each unordered member set."""
     preferred = {}
     parsed = [ordered_members(group) if group is not None else {} for group in groups]
-    for members in parsed:
-        key = tuple(sorted(members))
+    # Key by stored accession, not by name: a decoy shares its target's name.
+    keys = [tuple(sorted(a.strip() for a in members.values())) for members in parsed]
+    for key, members in zip(keys, parsed):
         candidate = (";".join(members), tuple(members.values()))
         preferred[key] = min(preferred.get(key, candidate), candidate)
-    return [list(preferred[tuple(sorted(members))][1]) for members in parsed]
+    return [list(preferred[key][1]) for key in keys]
 
 
 def protein_group_names(groups):

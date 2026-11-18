@@ -151,10 +151,12 @@ fn distinct_members(accessions: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// Members compare by stored accession, not by matrix name: a decoy shares its
+/// target's name, and merging the two would rename the target as the decoy.
 fn member_set(accessions: &[String]) -> Vec<String> {
     let mut members = accessions
         .iter()
-        .map(|value| accession_name(value).to_owned())
+        .map(|value| value.trim().to_owned())
         .collect::<Vec<_>>();
     members.sort();
     members
@@ -282,5 +284,17 @@ mod tests {
         assert_eq!(groups.resolve(&rows[1]), rows[1]);
         assert!(groups.resolve(&rows[3]).is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn decoy_and_target_sharing_an_accession_stay_apart() {
+        let target = vec!["sp|P00001|ENTRY_HUMAN".to_owned()];
+        let decoy = vec!["DECOY_sp|P00001|ENTRY_HUMAN".to_owned()];
+        let mut groups = ObservedOrders::default();
+        groups.observe(target.clone());
+        groups.observe(decoy.clone());
+        let groups = groups.finish();
+        assert_eq!(groups.resolve(&target), target);
+        assert_eq!(groups.resolve(&decoy), decoy);
     }
 }

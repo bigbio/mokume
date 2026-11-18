@@ -3,11 +3,17 @@
 import json
 from pathlib import Path
 
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pytest
 from click.testing import CliRunner
 
 from mokume.mokume_cli import cli
 from mokume.commands.features2proteins import features2proteins
 from mokume.commands.features2peptides import features2parquet
+
+from .test_qpx_format_compat import _make_scored_qpx_parquet as make_scored_qpx_parquet
 
 
 def _patch_peptide_normalization(monkeypatch):
@@ -218,6 +224,41 @@ def test_named_score_cli_reaches_filter_config(monkeypatch, tmp_path: Path):
     score = captured["filter_config"].peptide.score
     assert score.name == "diann_ms1_profile_corr"
     assert score.threshold == 0.8
+
+
+@pytest.mark.parametrize("method", ["globalmedian", "conditionmedian"])
+def test_sample_without_passing_rows_is_skipped(tmp_path: Path, method):
+    """A score filter that empties one sample leaves the other samples' output."""
+    parquet = tmp_path / "input.parquet"
+    make_scored_qpx_parquet(str(parquet))
+    table = pq.read_table(parquet)
+    index = table.schema.get_field_index("intensities")
+    intensities = [[{"label": "LFQ", "intensity": value}] for value in (10.0, 20.0)]
+    table = table.set_column(
+        index, "intensities", pa.array(intensities, type=table.schema.field(index).type)
+    )
+    pq.write_table(table, parquet)
+    output = tmp_path / "peptides.csv"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "features2peptides",
+            "-p",
+            str(parquet),
+            "-o",
+            str(output),
+            "--filter-score",
+            "qvalue=0.05",
+            "--filter-min-unique-peptides",
+            "1",
+            "--sample-normalization",
+            method,
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert pd.read_csv(output)["SampleID"].tolist() == ["run_a"]
 
 
 def test_named_score_cli_rejects_ambiguous_value(tmp_path: Path):

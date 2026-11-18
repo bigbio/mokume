@@ -55,47 +55,7 @@ mod cases {
     #[test]
     fn write_csv_missing_fill_matches_python_per_method_convention()
     -> Result<(), Box<dyn std::error::Error>> {
-        // Columns sort by sample name: S1=col 1, S2=col 2, S3=col 3. P1 is observed
-        // in S1 and S2; P2 only in S1 (missing in the observed sample S2); S3 carries
-        // no observation at all.
-        let mut samples = StringIdRegistry::<SampleId>::new();
-        let s1 = samples.get_or_insert("S1").expect("s1");
-        let s2 = samples.get_or_insert("S2").expect("s2");
-        let _s3 = samples.get_or_insert("S3").expect("s3");
-        let mut proteins = StringIdRegistry::<ProteinId>::new();
-        let p1 = proteins.get_or_insert("P1").expect("p1");
-        let p2 = proteins.get_or_insert("P2").expect("p2");
-        let mut cells: std::collections::HashMap<CellKey, f64> = std::collections::HashMap::new();
-        cells.insert(
-            CellKey {
-                protein: p1,
-                sample: s1,
-            },
-            10.0,
-        );
-        cells.insert(
-            CellKey {
-                protein: p1,
-                sample: s2,
-            },
-            20.0,
-        );
-        cells.insert(
-            CellKey {
-                protein: p2,
-                sample: s1,
-            },
-            30.0,
-        );
-        let matrix = ProteinMatrix {
-            proteins,
-            samples,
-            allowed_proteins: [p1, p2].into_iter().collect(),
-            excluded_samples: HashSet::new(),
-            peptide_counts: std::collections::HashMap::new(),
-            precision: std::collections::HashMap::new(),
-            values: ProteinValues::Cells(cells),
-        };
+        let matrix = missing_fill_matrix();
 
         let cell = |csv: &str, protein: &str, col: usize| -> String {
             csv.lines()
@@ -128,5 +88,49 @@ mod cases {
         assert_eq!(cell(&nan, "P2", 2), "");
         assert_eq!(cell(&nan, "P2", 3), "");
         Ok(())
+    }
+
+    fn missing_fill_matrix() -> ProteinMatrix {
+        // Columns sort by sample name: S1=col 1, S2=col 2, S3=col 3. P1 is observed
+        // in S1 and S2; P2 only in S1 (missing in the observed sample S2); S3 carries
+        // no observation at all.
+        let mut samples = StringIdRegistry::<SampleId>::new();
+        let s1 = samples.get_or_insert("S1").expect("s1");
+        let s2 = samples.get_or_insert("S2").expect("s2");
+        let _s3 = samples.get_or_insert("S3").expect("s3");
+        let mut proteins = StringIdRegistry::<ProteinId>::new();
+        let p1 = proteins.get_or_insert("P1").expect("p1");
+        let p2 = proteins.get_or_insert("P2").expect("p2");
+        let mut cells: std::collections::HashMap<CellKey, f64> = std::collections::HashMap::new();
+        cells.insert(
+            CellKey {
+                protein: p1,
+                sample: s1,
+            },
+            10.0,
+        );
+        cells.insert(
+            CellKey {
+                protein: p1,
+                sample: s2,
+            },
+            20.0,
+        );
+        cells.insert(
+            CellKey {
+                protein: p2,
+                sample: s1,
+            },
+            30.0,
+        );
+        ProteinMatrix {
+            proteins,
+            samples,
+            allowed_proteins: [p1, p2].into_iter().collect(),
+            excluded_samples: HashSet::new(),
+            peptide_counts: std::collections::HashMap::new(),
+            precision: std::collections::HashMap::new(),
+            values: ProteinValues::Cells(cells),
+        }
     }
 }

@@ -8,42 +8,11 @@ mod cases {
 
     #[test]
     fn pibaq_shared_allocation_is_exact_and_conservative() {
-        let family = super::ProteinFamily {
-            family_id: "A|B".to_owned(),
-            members: vec!["A".to_owned(), "B".to_owned()],
-        };
         let sample_anchored = SampleId::new(1);
         let sample_unanchored = SampleId::new(2);
-        let observations = vec![
-            ("unique_a".to_owned(), sample_anchored, 100.0),
-            ("shared".to_owned(), sample_anchored, 300.0),
-            ("shared".to_owned(), sample_unanchored, 200.0),
-        ];
-        let owned_peptides = HashSet::from(["unique_a".to_owned(), "shared".to_owned()]);
-        let accession_peptides = HashMap::from([
-            (
-                "A".to_owned(),
-                HashSet::from(["unique_a".to_owned(), "shared".to_owned()]),
-            ),
-            ("B".to_owned(), HashSet::from(["shared".to_owned()])),
-        ]);
-        let peptide_accessions = HashMap::from([
-            ("unique_a".to_owned(), HashSet::from(["A".to_owned()])),
-            (
-                "shared".to_owned(),
-                HashSet::from(["A".to_owned(), "B".to_owned()]),
-            ),
-        ]);
+        let fixture = allocation_fixture(sample_anchored, sample_unanchored);
         let mut proteins = StringIdRegistry::<ProteinId>::new();
-        let output = super::finalize_family_allocation(
-            &family,
-            &observations,
-            &owned_peptides,
-            &accession_peptides,
-            &peptide_accessions,
-            false,
-            &mut proteins,
-        );
+        let output = fixture.allocate(false, &mut proteins);
 
         let Some(a) = proteins.get("A") else {
             panic!("A output missing");
@@ -72,15 +41,7 @@ mod cases {
         );
 
         let mut equal_proteins = StringIdRegistry::<ProteinId>::new();
-        let equal_output = super::finalize_family_allocation(
-            &family,
-            &observations,
-            &owned_peptides,
-            &accession_peptides,
-            &peptide_accessions,
-            true,
-            &mut equal_proteins,
-        );
+        let equal_output = fixture.allocate(true, &mut equal_proteins);
         let Some(a) = equal_proteins.get("A") else {
             panic!("A equal output missing");
         };
@@ -261,6 +222,69 @@ mod cases {
                 (got - expected).abs() <= 1e-9 * expected.abs().max(1.0),
                 "{sequence}: got {got}, expected {expected}"
             );
+        }
+    }
+
+    struct AllocationFixture {
+        family: super::ProteinFamily,
+        observations: Vec<crate::pibaq::allocation::PibaqObservation>,
+        owned_peptides: HashSet<String>,
+        accession_peptides: HashMap<String, HashSet<String>>,
+        peptide_accessions: HashMap<String, HashSet<String>>,
+    }
+
+    impl AllocationFixture {
+        fn allocate(
+            &self,
+            force_equal_shared: bool,
+            proteins: &mut StringIdRegistry<ProteinId>,
+        ) -> HashMap<super::CellKey, crate::pibaq::allocation::PibaqCell> {
+            super::finalize_family_allocation(
+                &self.family,
+                &self.observations,
+                &self.owned_peptides,
+                &self.accession_peptides,
+                &self.peptide_accessions,
+                force_equal_shared,
+                proteins,
+            )
+        }
+    }
+
+    fn allocation_fixture(
+        sample_anchored: SampleId,
+        sample_unanchored: SampleId,
+    ) -> AllocationFixture {
+        let family = super::ProteinFamily {
+            family_id: "A|B".to_owned(),
+            members: vec!["A".to_owned(), "B".to_owned()],
+        };
+        let observations = vec![
+            ("unique_a".to_owned(), sample_anchored, 100.0),
+            ("shared".to_owned(), sample_anchored, 300.0),
+            ("shared".to_owned(), sample_unanchored, 200.0),
+        ];
+        let owned_peptides = HashSet::from(["unique_a".to_owned(), "shared".to_owned()]);
+        let accession_peptides = HashMap::from([
+            (
+                "A".to_owned(),
+                HashSet::from(["unique_a".to_owned(), "shared".to_owned()]),
+            ),
+            ("B".to_owned(), HashSet::from(["shared".to_owned()])),
+        ]);
+        let peptide_accessions = HashMap::from([
+            ("unique_a".to_owned(), HashSet::from(["A".to_owned()])),
+            (
+                "shared".to_owned(),
+                HashSet::from(["A".to_owned(), "B".to_owned()]),
+            ),
+        ]);
+        AllocationFixture {
+            family,
+            observations,
+            owned_peptides,
+            accession_peptides,
+            peptide_accessions,
         }
     }
 }

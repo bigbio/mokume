@@ -1065,38 +1065,7 @@ mod tests {
     #[test]
     fn flattens_new_qpx_struct_accessions_and_label_intensities()
     -> Result<(), Box<dyn std::error::Error>> {
-        let intensities = new_qpx_intensities()?;
-        let proteins = new_qpx_proteins()?;
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("sequence", DataType::Utf8, false),
-            Field::new("peptidoform", DataType::Utf8, false),
-            Field::new("charge", DataType::Int16, false),
-            Field::new("run_file_name", DataType::Utf8, false),
-            Field::new("anchor_protein", DataType::Utf8, false),
-            Field::new("unique", DataType::Boolean, false),
-            Field::new("is_decoy", DataType::Boolean, false),
-            Field::new("peptide_qvalue", DataType::Float64, true),
-            Field::new("pg_global_qvalue", DataType::Float64, true),
-            Field::new("intensities", intensities.data_type().clone(), true),
-            Field::new("pg_accessions", proteins.data_type().clone(), true),
-        ]));
-        let batch = arrow::record_batch::RecordBatch::try_new(
-            schema,
-            vec![
-                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
-                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
-                Arc::new(Int16Array::from(vec![2])) as ArrayRef,
-                Arc::new(StringArray::from(vec!["run1"])) as ArrayRef,
-                Arc::new(StringArray::from(vec!["sp|P12345|PROT_HUMAN"])) as ArrayRef,
-                Arc::new(BooleanArray::from(vec![true])) as ArrayRef,
-                Arc::new(BooleanArray::from(vec![false])) as ArrayRef,
-                Arc::new(Float64Array::from(vec![Some(0.005)])) as ArrayRef,
-                Arc::new(Float64Array::from(vec![Some(0.008)])) as ArrayRef,
-                intensities,
-                proteins,
-            ],
-        )?;
-
+        let batch = new_qpx_struct_batch()?;
         let records = flatten_qpx_batch(&batch)?;
 
         assert_eq!(records.len(), 2);
@@ -1140,6 +1109,40 @@ mod tests {
             ]
         );
         Ok(())
+    }
+
+    fn new_qpx_struct_batch() -> Result<RecordBatch, Box<dyn std::error::Error>> {
+        let intensities = new_qpx_intensities()?;
+        let proteins = new_qpx_proteins()?;
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("sequence", DataType::Utf8, false),
+            Field::new("peptidoform", DataType::Utf8, false),
+            Field::new("charge", DataType::Int16, false),
+            Field::new("run_file_name", DataType::Utf8, false),
+            Field::new("anchor_protein", DataType::Utf8, false),
+            Field::new("unique", DataType::Boolean, false),
+            Field::new("is_decoy", DataType::Boolean, false),
+            Field::new("peptide_qvalue", DataType::Float64, true),
+            Field::new("pg_global_qvalue", DataType::Float64, true),
+            Field::new("intensities", intensities.data_type().clone(), true),
+            Field::new("pg_accessions", proteins.data_type().clone(), true),
+        ]));
+        Ok(RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["PEPTIDEK"])) as ArrayRef,
+                Arc::new(Int16Array::from(vec![2])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["run1"])) as ArrayRef,
+                Arc::new(StringArray::from(vec!["sp|P12345|PROT_HUMAN"])) as ArrayRef,
+                Arc::new(BooleanArray::from(vec![true])) as ArrayRef,
+                Arc::new(BooleanArray::from(vec![false])) as ArrayRef,
+                Arc::new(Float64Array::from(vec![Some(0.005)])) as ArrayRef,
+                Arc::new(Float64Array::from(vec![Some(0.008)])) as ArrayRef,
+                intensities,
+                proteins,
+            ],
+        )?)
     }
 
     #[test]

@@ -82,60 +82,9 @@ mod cases {
     #[test]
     fn apply_batch_correction_corrects_complete_rows_and_keeps_incomplete()
     -> Result<(), Box<dyn std::error::Error>> {
-        // 4 samples -> 2 batches of 2 via sample_prefix ("A-*" vs "B-*"). P1/P2 are
-        // complete (ComBat-corrected); P3 has a missing cell (kept uncorrected).
-        let mut samples = StringIdRegistry::<SampleId>::new();
-        let sample_ids = ["A-1", "A-2", "B-1", "B-2"]
-            .iter()
-            .map(|name| samples.get_or_insert(name).ok_or("sample id"))
-            .collect::<Result<Vec<_>, _>>()?;
-        let mut proteins = StringIdRegistry::<ProteinId>::new();
-        let p1 = proteins.get_or_insert("P1").expect("p1");
-        let p2 = proteins.get_or_insert("P2").expect("p2");
-        let p3 = proteins.get_or_insert("P3").expect("p3");
-
         let p1_row = [10.0, 12.0, 30.0, 33.0];
         let p2_row = [5.0, 6.0, 20.0, 19.0];
-        let mut cells: std::collections::HashMap<CellKey, f64> = std::collections::HashMap::new();
-        for (sample, &value) in sample_ids.iter().zip(p1_row.iter()) {
-            cells.insert(
-                CellKey {
-                    protein: p1,
-                    sample: *sample,
-                },
-                value,
-            );
-        }
-        for (sample, &value) in sample_ids.iter().zip(p2_row.iter()) {
-            cells.insert(
-                CellKey {
-                    protein: p2,
-                    sample: *sample,
-                },
-                value,
-            );
-        }
-        // P3: only the first three samples present (the fourth stays missing).
-        for (sample, &value) in sample_ids.iter().zip([7.0, 8.0, 9.0].iter()) {
-            cells.insert(
-                CellKey {
-                    protein: p3,
-                    sample: *sample,
-                },
-                value,
-            );
-        }
-
-        let allowed_proteins = [p1, p2, p3].into_iter().collect();
-        let mut matrix = ProteinMatrix {
-            proteins,
-            samples,
-            allowed_proteins,
-            excluded_samples: HashSet::new(),
-            peptide_counts: std::collections::HashMap::new(),
-            precision: std::collections::HashMap::new(),
-            values: ProteinValues::Cells(cells),
-        };
+        let (mut matrix, sample_ids, [p1, p2, p3]) = incomplete_batch_matrix(p1_row, p2_row)?;
 
         matrix.apply_batch_correction(
             &BatchCorrectionConfig {
@@ -192,28 +141,7 @@ mod cases {
 
         // Log2-scale values (abd, ratio) are corrected as they are, negatives included.
         let rows = [vec![-1.0, -0.5, 2.0, 2.5], vec![0.5, 1.0, 3.0, 2.0]];
-        let (mut log2, samples, ids) = batch_test_matrix(&[
-            (
-                "P1",
-                rows[0]
-                    .iter()
-                    .copied()
-                    .map(Some)
-                    .collect::<Vec<_>>()
-                    .try_into()
-                    .expect("row"),
-            ),
-            (
-                "P2",
-                rows[1]
-                    .iter()
-                    .copied()
-                    .map(Some)
-                    .collect::<Vec<_>>()
-                    .try_into()
-                    .expect("row"),
-            ),
-        ]);
+        let (mut log2, samples, ids) = log2_batch_matrix(&rows);
         log2.apply_batch_correction(&config, None, false, true)?;
         let expected = mokume_stats::batch::combat(
             &rows,
@@ -238,63 +166,9 @@ mod cases {
         // no-op. The explicit `column` method reads the SDRF `batch_id` column,
         // grouping them into two batches of two so correction actually runs --
         // proving the column path is wired, not the prefix path.
-        type BuiltMatrix = (ProteinMatrix, Vec<SampleId>, ProteinId, ProteinId);
         let p1_row = [10.0, 12.0, 30.0, 33.0];
         let p2_row = [5.0, 6.0, 20.0, 19.0];
-        let build = || -> Result<BuiltMatrix, Box<dyn std::error::Error>> {
-            let mut samples = StringIdRegistry::<SampleId>::new();
-            let sample_ids = ["X1", "X2", "X3", "X4"]
-                .iter()
-                .map(|name| samples.get_or_insert(name).ok_or("sample id"))
-                .collect::<Result<Vec<_>, _>>()?;
-            let mut proteins = StringIdRegistry::<ProteinId>::new();
-            let p1 = proteins.get_or_insert("P1").expect("p1");
-            let p2 = proteins.get_or_insert("P2").expect("p2");
-            let mut cells: std::collections::HashMap<CellKey, f64> =
-                std::collections::HashMap::new();
-            for (sample, &value) in sample_ids.iter().zip(p1_row.iter()) {
-                cells.insert(
-                    CellKey {
-                        protein: p1,
-                        sample: *sample,
-                    },
-                    value,
-                );
-            }
-            for (sample, &value) in sample_ids.iter().zip(p2_row.iter()) {
-                cells.insert(
-                    CellKey {
-                        protein: p2,
-                        sample: *sample,
-                    },
-                    value,
-                );
-            }
-            let allowed_proteins = [p1, p2].into_iter().collect();
-            Ok((
-                ProteinMatrix {
-                    proteins,
-                    samples,
-                    allowed_proteins,
-                    excluded_samples: HashSet::new(),
-                    peptide_counts: std::collections::HashMap::new(),
-                    precision: std::collections::HashMap::new(),
-                    values: ProteinValues::Cells(cells),
-                },
-                sample_ids,
-                p1,
-                p2,
-            ))
-        };
-
-        let dir = tempfile::Builder::new()
-            .prefix("mokume-batch-column-wiring-")
-            .tempdir()?;
-        let sdrf_path = dir.path().join("col.sdrf.tsv");
-        fs::write(
-            &sdrf_path,
-            "source name\tbatch_id\nX1\tg1\nX2\tg1\nX3\tg2\nX4\tg2\n",
-        )?;
+        let (dir, sdrf_path) = column_batch_sdrf()?;
 
         let column_config = |method: &str, column: Option<&str>| BatchCorrectionConfig {
             enabled: true,
@@ -303,7 +177,8 @@ mod cases {
             ..BatchCorrectionConfig::default()
         };
 
-        let (mut matrix, sample_ids, p1, p2) = build()?;
+        let (mut matrix, sample_ids, p1, p2) =
+            two_row_batch_matrix(["X1", "X2", "X3", "X4"], &p1_row, &p2_row)?;
         matrix.apply_batch_correction(
             &column_config("column", Some("batch_id")),
             Some(&sdrf_path),
@@ -320,7 +195,7 @@ mod cases {
         }
 
         // An absent column errors like Python's `_detect_explicit_batches(None)`.
-        let (mut missing, ..) = build()?;
+        let (mut missing, ..) = two_row_batch_matrix(["X1", "X2", "X3", "X4"], &p1_row, &p2_row)?;
         assert!(
             missing
                 .apply_batch_correction(
@@ -333,7 +208,8 @@ mod cases {
         );
 
         // `run` has no run-level mapping in the protein-matrix flow -> error.
-        let (mut run_matrix, ..) = build()?;
+        let (mut run_matrix, ..) =
+            two_row_batch_matrix(["X1", "X2", "X3", "X4"], &p1_row, &p2_row)?;
         assert!(
             run_matrix
                 .apply_batch_correction(&column_config("run", None), Some(&sdrf_path), false, false)
@@ -347,55 +223,8 @@ mod cases {
     #[test]
     fn apply_batch_correction_rejects_removed_and_unknown_methods()
     -> Result<(), Box<dyn std::error::Error>> {
-        type BuiltMatrix = (ProteinMatrix, Vec<SampleId>, ProteinId, ProteinId);
         let p1_row = [10.0, 12.0, 30.0, 33.0];
         let p2_row = [5.0, 6.0, 20.0, 19.0];
-        let build = || -> Result<BuiltMatrix, Box<dyn std::error::Error>> {
-            let mut samples = StringIdRegistry::<SampleId>::new();
-            let sample_ids = ["g1-A", "g1-B", "g2-A", "g2-B"]
-                .iter()
-                .map(|name| samples.get_or_insert(name).ok_or("sample id"))
-                .collect::<Result<Vec<_>, _>>()?;
-            let mut proteins = StringIdRegistry::<ProteinId>::new();
-            let p1 = proteins.get_or_insert("P1").expect("p1");
-            let p2 = proteins.get_or_insert("P2").expect("p2");
-            let mut cells: std::collections::HashMap<CellKey, f64> =
-                std::collections::HashMap::new();
-            for (sample, &value) in sample_ids.iter().zip(p1_row.iter()) {
-                cells.insert(
-                    CellKey {
-                        protein: p1,
-                        sample: *sample,
-                    },
-                    value,
-                );
-            }
-            for (sample, &value) in sample_ids.iter().zip(p2_row.iter()) {
-                cells.insert(
-                    CellKey {
-                        protein: p2,
-                        sample: *sample,
-                    },
-                    value,
-                );
-            }
-            let allowed_proteins = [p1, p2].into_iter().collect();
-            Ok((
-                ProteinMatrix {
-                    proteins,
-                    samples,
-                    allowed_proteins,
-                    excluded_samples: HashSet::new(),
-                    peptide_counts: std::collections::HashMap::new(),
-                    precision: std::collections::HashMap::new(),
-                    values: ProteinValues::Cells(cells),
-                },
-                sample_ids,
-                p1,
-                p2,
-            ))
-        };
-
         let method_config = |method: &str| BatchCorrectionConfig {
             enabled: true,
             method: method.to_owned(),
@@ -403,7 +232,8 @@ mod cases {
         };
 
         for method in ["fraction", "techreplicate", "totally-unknown"] {
-            let (mut matrix, ..) = build()?;
+            let (mut matrix, ..) =
+                two_row_batch_matrix(["g1-A", "g1-B", "g2-A", "g2-B"], &p1_row, &p2_row)?;
             assert!(
                 matrix
                     .apply_batch_correction(&method_config(method), None, false, false)
@@ -411,5 +241,131 @@ mod cases {
             );
         }
         Ok(())
+    }
+
+    type IncompleteBatchMatrix = (ProteinMatrix, Vec<SampleId>, [ProteinId; 3]);
+
+    fn incomplete_batch_matrix(
+        p1_row: [f64; 4],
+        p2_row: [f64; 4],
+    ) -> Result<IncompleteBatchMatrix, Box<dyn std::error::Error>> {
+        // 4 samples -> 2 batches of 2 via sample_prefix ("A-*" vs "B-*"). P1/P2 are
+        // complete (ComBat-corrected); P3 has a missing cell (kept uncorrected).
+        let mut samples = StringIdRegistry::<SampleId>::new();
+        let sample_ids = ["A-1", "A-2", "B-1", "B-2"]
+            .iter()
+            .map(|name| samples.get_or_insert(name).ok_or("sample id"))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut proteins = StringIdRegistry::<ProteinId>::new();
+        let p1 = proteins.get_or_insert("P1").expect("p1");
+        let p2 = proteins.get_or_insert("P2").expect("p2");
+        let p3 = proteins.get_or_insert("P3").expect("p3");
+
+        let mut cells: std::collections::HashMap<CellKey, f64> = std::collections::HashMap::new();
+        insert_batch_row(&mut cells, &sample_ids, p1, &p1_row);
+        insert_batch_row(&mut cells, &sample_ids, p2, &p2_row);
+        // P3: only the first three samples present (the fourth stays missing).
+        insert_batch_row(&mut cells, &sample_ids, p3, &[7.0, 8.0, 9.0]);
+
+        let allowed_proteins = [p1, p2, p3].into_iter().collect();
+        let matrix = ProteinMatrix {
+            proteins,
+            samples,
+            allowed_proteins,
+            excluded_samples: HashSet::new(),
+            peptide_counts: std::collections::HashMap::new(),
+            precision: std::collections::HashMap::new(),
+            values: ProteinValues::Cells(cells),
+        };
+        Ok((matrix, sample_ids, [p1, p2, p3]))
+    }
+
+    fn log2_batch_matrix(rows: &[Vec<f64>; 2]) -> (ProteinMatrix, Vec<SampleId>, Vec<ProteinId>) {
+        batch_test_matrix(&[
+            (
+                "P1",
+                rows[0]
+                    .iter()
+                    .copied()
+                    .map(Some)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .expect("row"),
+            ),
+            (
+                "P2",
+                rows[1]
+                    .iter()
+                    .copied()
+                    .map(Some)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .expect("row"),
+            ),
+        ])
+    }
+
+    type BuiltMatrix = (ProteinMatrix, Vec<SampleId>, ProteinId, ProteinId);
+
+    fn two_row_batch_matrix(
+        names: [&str; 4],
+        p1_row: &[f64; 4],
+        p2_row: &[f64; 4],
+    ) -> Result<BuiltMatrix, Box<dyn std::error::Error>> {
+        let mut samples = StringIdRegistry::<SampleId>::new();
+        let sample_ids = names
+            .iter()
+            .map(|name| samples.get_or_insert(name).ok_or("sample id"))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut proteins = StringIdRegistry::<ProteinId>::new();
+        let p1 = proteins.get_or_insert("P1").expect("p1");
+        let p2 = proteins.get_or_insert("P2").expect("p2");
+        let mut cells: std::collections::HashMap<CellKey, f64> = std::collections::HashMap::new();
+        insert_batch_row(&mut cells, &sample_ids, p1, p1_row);
+        insert_batch_row(&mut cells, &sample_ids, p2, p2_row);
+        let allowed_proteins = [p1, p2].into_iter().collect();
+        Ok((
+            ProteinMatrix {
+                proteins,
+                samples,
+                allowed_proteins,
+                excluded_samples: HashSet::new(),
+                peptide_counts: std::collections::HashMap::new(),
+                precision: std::collections::HashMap::new(),
+                values: ProteinValues::Cells(cells),
+            },
+            sample_ids,
+            p1,
+            p2,
+        ))
+    }
+
+    fn insert_batch_row(
+        cells: &mut HashMap<CellKey, f64>,
+        samples: &[SampleId],
+        protein: ProteinId,
+        row: &[f64],
+    ) {
+        for (sample, &value) in samples.iter().zip(row.iter()) {
+            cells.insert(
+                CellKey {
+                    protein,
+                    sample: *sample,
+                },
+                value,
+            );
+        }
+    }
+
+    fn column_batch_sdrf() -> std::io::Result<(tempfile::TempDir, PathBuf)> {
+        let dir = tempfile::Builder::new()
+            .prefix("mokume-batch-column-wiring-")
+            .tempdir()?;
+        let sdrf_path = dir.path().join("col.sdrf.tsv");
+        fs::write(
+            &sdrf_path,
+            "source name\tbatch_id\nX1\tg1\nX2\tg1\nX3\tg2\nX4\tg2\n",
+        )?;
+        Ok((dir, sdrf_path))
     }
 }

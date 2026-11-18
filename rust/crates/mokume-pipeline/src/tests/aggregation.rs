@@ -47,20 +47,7 @@ mod cases {
     #[test]
     fn lfq_cell_precision_covers_quantified_cells() -> mokume_core::Result<()> {
         let fixture = lfq_min_unique_fixture();
-        let protein = fixture.dense;
-        let mut sums = HashMap::new();
-        for (index, sample) in (1..=4).map(SampleId::new).enumerate() {
-            for (factor, peptide) in [(1.0, 9), (1.3, 10), (0.8, 11)] {
-                let noise = 1.0 + 0.05 * ((index * peptide) % 3) as f64;
-                let canonical = PeptideId::new(peptide as u32);
-                let key = super::DirectLfqCellKey {
-                    protein,
-                    canonical,
-                    sample,
-                };
-                sums.insert(key, 1000.0 * factor * noise);
-            }
-        }
+        let sums = lfq_precision_sums(fixture.dense);
         for method in [super::QuantMethod::MaxLfq, super::QuantMethod::DirectLfq] {
             let mut aggregation = lfq_aggregation(method, sums.clone());
             if let super::FeatureAggregation::Lfq { cell_precision, .. } = &mut aggregation {
@@ -101,5 +88,22 @@ mod cases {
             );
         }
         Ok(())
+    }
+
+    fn lfq_precision_sums(protein: ProteinId) -> HashMap<super::DirectLfqCellKey, f64> {
+        let mut sums = HashMap::new();
+        for (index, sample) in (1..=4).map(SampleId::new).enumerate() {
+            for (factor, peptide) in [(1.0, 9), (1.3, 10), (0.8, 11)] {
+                let noise = 1.0 + 0.05 * ((index * peptide) % 3) as f64;
+                let canonical = PeptideId::new(peptide as u32);
+                let key = super::DirectLfqCellKey {
+                    protein,
+                    canonical,
+                    sample,
+                };
+                sums.insert(key, 1000.0 * factor * noise);
+            }
+        }
+        sums
     }
 }

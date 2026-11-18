@@ -272,9 +272,9 @@ mokume quantify features2proteins \
 Identified features weigh 1. MaxLFQ weights the log ratio of each species that
 a sample pair shares by the product of its two measurements' weights, and takes
 the weighted median as the pair ratio (the midpoint when half the total weight
-falls exactly between two ratios). A species measured more than once in a
-sample keeps its largest intensity and its largest weight, which can come from
-different features. Equal weights reproduce the unweighted result exactly; the summed-intensity ratio that `--stabilize` blends in stays
+falls exactly between two ratios). Within one sample and biological replicate,
+a species measured more than once keeps its largest intensity and its largest
+weight, which can come from different features. Equal weights reproduce the unweighted result exactly; the summed-intensity ratio that `--stabilize` blends in stays
 unweighted. `top<N>` takes a protein's identified peptides before its
 transferred ones, the most intense first within each group; a peptide counts as
 identified when any of its charge states or modified forms is. The option reads
